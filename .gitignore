@@ -7,7 +7,8 @@
 .buildlog/
 .history
 
-
+# Drift db files
+reminder_app.sqlite
 
 # Flutter repo-specific
 /bin/cache/
