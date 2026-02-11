@@ -1,16 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../data/reminders_repository.dart';
 import '../domain/reminder.dart';
-
-final remindersRepositoryProvider = Provider<RemindersRepository>((ref) {
-  return const RemindersRepository();
-});
 
 final remindersServiceProvider =
     StateNotifierProvider<RemindersService, List<Reminder>>((ref) {
-      final repository = ref.watch(remindersRepositoryProvider);
-      return RemindersService(seed: repository.getSeedReminders());
+      return RemindersService(
+        seed: const [
+          Reminder(id: '1', title: '買牛奶', note: '下班回家前去超商'),
+          Reminder(id: '2', title: '繳信用卡帳單', note: '本月 25 日截止'),
+        ],
+      );
     });
 
 class RemindersService extends StateNotifier<List<Reminder>> {
