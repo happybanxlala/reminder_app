@@ -41,6 +41,20 @@ dart run build_runner build --delete-conflicting-outputs
 dart run build_runner watch --delete-conflicting-outputs
 ```
 
+## 自動化腳本
+
+新增兩個常用腳本放在 `scripts/`：
+
+- `./scripts/setup.sh`：初始化開發環境，會依序執行版本確認、`flutter pub get`，以及 Drift code generation。
+- `./scripts/maintain.sh`：日常維護檢查，會依序執行程式格式檢查、`flutter analyze` 與 `flutter test`。
+
+可直接執行：
+
+```bash
+./scripts/setup.sh
+./scripts/maintain.sh
+```
+
 ## 執行（Run）
 
 ### 1) 查看可用裝置
