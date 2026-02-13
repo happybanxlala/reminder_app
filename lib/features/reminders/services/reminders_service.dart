@@ -1,58 +1,17 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/reminder_repository.dart';
 import '../domain/reminder.dart';
 
-final remindersServiceProvider =
-    StateNotifierProvider<RemindersService, List<Reminder>>((ref) {
-      return RemindersService(
-        seed: const [
-          Reminder(id: '1', title: '買牛奶', note: '下班回家前去超商'),
-          Reminder(id: '2', title: '繳信用卡帳單', note: '本月 25 日截止'),
-        ],
-      );
-    });
+@Deprecated('Use reminderRepositoryProvider and stream providers directly.')
+final remindersServiceProvider = Provider<RemindersService>((ref) {
+  return RemindersService(ref.watch(reminderRepositoryProvider));
+});
 
-class RemindersService extends StateNotifier<List<Reminder>> {
-  RemindersService({List<Reminder> seed = const []}) : super(seed);
+class RemindersService {
+  const RemindersService(this._repository);
 
-  Reminder? findById(String id) {
-    for (final reminder in state) {
-      if (reminder.id == id) return reminder;
-    }
-    return null;
-  }
+  final ReminderRepository _repository;
 
-  void save({required String title, String? note, String? id}) {
-    if (id == null || id.isEmpty) {
-      final newReminder = Reminder(
-        id: DateTime.now().microsecondsSinceEpoch.toString(),
-        title: title,
-        note: note,
-      );
-      state = [...state, newReminder];
-      return;
-    }
-
-    state = [
-      for (final reminder in state)
-        if (reminder.id == id)
-          reminder.copyWith(title: title, note: note)
-        else
-          reminder,
-    ];
-  }
-
-  void remove(String id) {
-    state = state.where((reminder) => reminder.id != id).toList();
-  }
-
-  void toggleComplete(String id) {
-    state = [
-      for (final reminder in state)
-        if (reminder.id == id)
-          reminder.copyWith(isCompleted: !reminder.isCompleted)
-        else
-          reminder,
-    ];
-  }
+  Stream<List<ReminderModel>> watchAll() => _repository.watchAll();
 }

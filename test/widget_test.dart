@@ -1,30 +1,19 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:reminder_app/main.dart';
+import 'package:reminder_app/features/reminders/domain/repeat_rule.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  test('RepeatRule parser supports D/W/N/Y patterns', () {
+    expect(RepeatRule.parse(null), isNull);
+    expect(RepeatRule.parse('N/A'), isNull);
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    final day = RepeatRule.parse('D25');
+    final week = RepeatRule.parse('W3');
+    final month = RepeatRule.parse('N2');
+    final year = RepeatRule.parse('Y1');
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(day, isNotNull);
+    expect(week, isNotNull);
+    expect(month, isNotNull);
+    expect(year, isNotNull);
   });
 }

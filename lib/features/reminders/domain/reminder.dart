@@ -1,31 +1,31 @@
-class Reminder {
-  const Reminder({
+class ReminderModel {
+  const ReminderModel({
     required this.id,
+    required this.startId,
     required this.title,
     this.note,
+    required this.remindDays,
     this.dueAt,
-    this.isCompleted = false,
+    this.repeatRule,
+    required this.isDone,
+    this.extendAt,
+    required this.isCanceled,
+    required this.createdAt,
+    required this.updatedAt,
   });
 
-  final String id;
+  final int id;
+  final int startId;
   final String title;
   final String? note;
+  final int remindDays;
   final DateTime? dueAt;
-  final bool isCompleted;
+  final String? repeatRule;
+  final int isDone;
+  final DateTime? extendAt;
+  final bool isCanceled;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
-  Reminder copyWith({
-    String? id,
-    String? title,
-    String? note,
-    DateTime? dueAt,
-    bool? isCompleted,
-  }) {
-    return Reminder(
-      id: id ?? this.id,
-      title: title ?? this.title,
-      note: note ?? this.note,
-      dueAt: dueAt ?? this.dueAt,
-      isCompleted: isCompleted ?? this.isCompleted,
-    );
-  }
+  bool get isPending => isDone == 0 && !isCanceled;
 }

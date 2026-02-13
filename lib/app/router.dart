@@ -22,7 +22,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: ReminderEditPage.editRoutePath,
         name: ReminderEditPage.editRouteName,
         builder: (context, state) {
-          final reminderId = state.pathParameters['id'] ?? '';
+          final reminderId = int.tryParse(state.pathParameters['id'] ?? '');
           return ReminderEditPage(reminderId: reminderId);
         },
       ),
