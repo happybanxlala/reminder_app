@@ -34,8 +34,8 @@
 
 -   提醒事項建立、編輯、刪除、完成標記
 -   本機 SQLite/Drift 儲存
--   提醒時間與重複規則（none/daily/weekly）
--   已完成或跳過的提醒需跟據重複規則產生新的提醒
+-   提醒時間與重複規則
+-   已完成或跳過的提醒需根據重複規則產生新的提醒(觸發時機與去重策略待為研究)
 -   單一資料 model 與清晰 repository/DAO 層
 -   UI 展現列表與編輯表單
 -   （已完成 Step 2，不含通知與 Widget）
@@ -44,6 +44,7 @@
 
 -   UI/UX 平台風格一致，遵循 Material Design 與 iOS 基本指引
 -   程式碼維護性高、單一責任原則
+-   時區：UTC+8
 -   模組化、可測試性強
 -   支援 Flutter null-safety
 
@@ -56,21 +57,20 @@
   |欄位         |型別        |說明|
   |------------ |----------- |--------------------------------|
   |id           |int         |主鍵，自動遞增|
-  |startId      |int         |提醒串的首個主鍵，必填|
+  |startId      |int         |提醒串的首筆id，首筆=id，必填|
   |title        |String      |主題，必填|
   |note         |String      |備註，選填|
   |remindDays   |int         |開始提醒天數，0 即時, N 天|
   |dueAt        |DateTime?   |到期時間，可為 null|
   |repeatRule   |String?     |重複規則: null 無, D25 每25天, W3 每3週|
-  |isDone       |int         |是否完成: 0 not done, 1 done, 2 skip|
+  |stauts       |int         |是否完成: 0 not done, 1 done, 2 skip, 3 cancel|
   |extendAt     |DateTime?   |延期時間，可為 null|
-  |isCanceled   |bool        |是否取消|
   |createdAt    |DateTime    |建立時間|
   |updatedAt    |DateTime    |更新時間|
 
 ###  4.2 Define Repeat Rule
 
--   N/A:  無重複規則
+-   null:  無重複規則
 -   字母 代表類型、 N 代表數字(不可為0)
     -   D: 每 N 天
     -   W: 每 N 週
@@ -119,7 +119,6 @@
   Route           Params   描述
   --------------- -------- ---------------
   /               ―        Reminder 列表
-  /reminder/new   ―        新增表單
   /reminder/:id   id       編輯表單
 
 ------------------------------------------------------------------------
