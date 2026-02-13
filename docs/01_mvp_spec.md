@@ -35,6 +35,7 @@
 -   提醒事項建立、編輯、刪除、完成標記
 -   本機 SQLite/Drift 儲存
 -   提醒時間與重複規則（none/daily/weekly）
+-   已完成或跳過的提醒需跟據重複規則產生新的提醒
 -   單一資料 model 與清晰 repository/DAO 層
 -   UI 展現列表與編輯表單
 -   （已完成 Step 2，不含通知與 Widget）
@@ -55,13 +56,30 @@
   |欄位         |型別        |說明|
   |------------ |----------- |--------------------------------|
   |id           |int         |主鍵，自動遞增|
+  |startId      |int         |提醒串的首個主鍵，必填|
   |title        |String      |主題，必填|
   |note         |String      |備註，選填|
-  |dueAt        |DateTime?   |提醒時間，可為 null|
-  |repeatRule   |int         |重複規則：0 無、1 每日、2 每週|
-  |isDone       |bool        |是否完成|
+  |remindDays   |int         |開始提醒天數，0 即時, N 天|
+  |dueAt        |DateTime?   |到期時間，可為 null|
+  |repeatRule   |String?     |重複規則: null 無, D25 每25天, W3 每3週|
+  |isDone       |int         |是否完成: 0 not done, 1 done, 2 skip|
+  |extendAt     |DateTime?   |延期時間，可為 null|
+  |isCanceled   |bool        |是否取消|
   |createdAt    |DateTime    |建立時間|
   |updatedAt    |DateTime    |更新時間|
+
+###  4.2 Define Repeat Rule
+
+-   N/A:  無重複規則
+-   字母 代表類型、 N 代表數字(不可為0)
+    -   D: 每 N 天
+    -   W: 每 N 週
+    -   N: 每 N 月(不是30天)
+    -   Y: 每 N 年(不是365天) 
+
+- example: 
+    -   D25 = 每25天
+    -   W3 = 每3週 
 
 ------------------------------------------------------------------------
 
@@ -77,6 +95,7 @@
     -   watchTodayPending(): 今天未完成
     -   watchNextReminder(): 下一個未完成最早提醒
     -   insertReminder(), updateReminder(), deleteReminder()
+    -   createRepeatReminder(): 為已完成或跳過的提醒產生新提醒
 
 #### 5.1.2 Repository
 
@@ -116,7 +135,12 @@
 
 ### 7.2 Reminder 編輯
 
--   表單欄位：title、note、dueAt（日期時間）、repeatRule（下拉）
+-   表單欄位：
+    -   title
+    -   note
+    -   dueAt（日期時間）
+    -   remindDays (天數)
+    -   repeatRule: 可選重複，如需重複則提供下拉選擇類型及輸入數字(預設為1，不可少於1)
 -   儲存／取消按鈕
 
 ------------------------------------------------------------------------
@@ -170,6 +194,8 @@ App 在 Android 與 iOS 主流裝置上，App 啟動與列表操作需 \< 200 ms
       shared/
         utils/
 
+*** 可需要作新增，但遵守規範 ***
+
 ------------------------------------------------------------------------
 
 ## 11. 規格遵循原則
@@ -186,6 +212,7 @@ App 在 Android 與 iOS 主流裝置上，App 啟動與列表操作需 \< 200 ms
   |------------ |-----------------------------------|
   |CRUD         |所有提醒能增、查、改、刪|
   |列表呈現     |未完成／今日提醒能正確顯示|
-  |目標欄位     |重複規則可選（none/daily/weekly）|
+  |目標欄位     |可輸入重複規則|
+  |自動化       |自動新增需重複的提醒|
   |路由         |路由跳轉無錯誤|
   |資料一致性   |list 與 detail 同步更新|
