@@ -4,9 +4,14 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../data/reminder_repository.dart';
+import '../../domain/demo_reminder_draft.dart';
 
 class ReminderEditPage extends ConsumerStatefulWidget {
-  const ReminderEditPage({super.key, this.reminderId});
+  const ReminderEditPage({
+    super.key,
+    this.reminderId,
+    this.demoDataFactory,
+  });
 
   static const newRouteName = 'reminder-new';
   static const newRoutePath = '/reminder/new';
@@ -14,6 +19,7 @@ class ReminderEditPage extends ConsumerStatefulWidget {
   static const editRoutePath = '/reminder/:id';
 
   final int? reminderId;
+  final DemoReminderDraft Function()? demoDataFactory;
 
   bool get isEditing => reminderId != null;
 
@@ -80,6 +86,7 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
               child: ListView(
                 children: [
                   TextFormField(
+                    key: const Key('edit-title-field'),
                     controller: _titleController,
                     decoration: const InputDecoration(
                       labelText: '標題',
@@ -94,6 +101,7 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
+                    key: const Key('edit-note-field'),
                     controller: _noteController,
                     maxLines: 4,
                     decoration: const InputDecoration(
@@ -103,6 +111,7 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
+                    key: const Key('edit-remind-days-field'),
                     controller: _remindDaysController,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
@@ -121,6 +130,13 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
                   _buildDueAtSection(context),
                   const SizedBox(height: 16),
                   _buildRepeatSection(),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    key: const Key('random-fill-button'),
+                    onPressed: _fillWithRandomDemoData,
+                    icon: const Icon(Icons.auto_awesome),
+                    label: const Text('[demo]隨機生成欄位資料'),
+                  ),
                   const SizedBox(height: 24),
                   Row(
                     children: [
@@ -162,7 +178,9 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
       ),
       child: Row(
         children: [
-          Expanded(child: Text(dueText)),
+          Expanded(
+            child: Text(dueText, key: const Key('edit-due-at-text')),
+          ),
           TextButton(
             onPressed: () => _pickDueAt(context),
             child: const Text('選擇'),
@@ -181,6 +199,9 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         DropdownButtonFormField<String?>(
+          key: ValueKey<String?>(
+            _repeatType == null ? 'repeat-type-null' : 'repeat-type-$_repeatType',
+          ),
           initialValue: _repeatType,
           decoration: const InputDecoration(
             labelText: '重複規則類型',
@@ -201,6 +222,7 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
         ),
         const SizedBox(height: 12),
         TextFormField(
+          key: const Key('edit-repeat-interval-field'),
           controller: _repeatIntervalController,
           keyboardType: TextInputType.number,
           decoration: const InputDecoration(
@@ -277,6 +299,18 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
 
     _repeatType = match.group(1);
     _repeatIntervalController.text = match.group(2)!;
+  }
+
+  void _fillWithRandomDemoData() {
+    final draft = widget.demoDataFactory?.call() ?? DemoReminderDraft.random();
+    setState(() {
+      _titleController.text = draft.title;
+      _noteController.text = draft.note ?? '';
+      _remindDaysController.text = draft.remindDays.toString();
+      _dueAt = draft.dueAt;
+      _repeatType = draft.repeatType;
+      _repeatIntervalController.text = draft.repeatInterval.toString();
+    });
   }
 
   Future<void> _onSave() async {

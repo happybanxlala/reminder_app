@@ -17,12 +17,10 @@ class Reminders extends Table {
   /// Null means no recurrence, otherwise D25 / W3 / N1 / Y1.
   TextColumn get repeatRule => text().nullable()();
 
-  /// 0: pending, 1: done, 2: skipped.
-  IntColumn get isDone => integer().withDefault(const Constant(0))();
+  /// 0: pending, 1: done, 2: skipped, 3: canceled.
+  IntColumn get status => integer().withDefault(const Constant(0))();
 
   IntColumn get extendAt => integer().nullable()();
-
-  BoolColumn get isCanceled => boolean().withDefault(const Constant(false))();
 
   IntColumn get createdAt => integer()();
 

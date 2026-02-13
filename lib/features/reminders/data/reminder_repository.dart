@@ -20,8 +20,16 @@ final remindersListProvider = StreamProvider<List<ReminderModel>>((ref) {
   return ref.watch(reminderRepositoryProvider).watchAll();
 });
 
+final activePendingProvider = StreamProvider<List<ReminderModel>>((ref) {
+  return ref.watch(reminderRepositoryProvider).watchActivePending();
+});
+
 final todayPendingProvider = StreamProvider<List<ReminderModel>>((ref) {
   return ref.watch(reminderRepositoryProvider).watchTodayPending();
+});
+
+final completedOrSkippedProvider = StreamProvider<List<ReminderModel>>((ref) {
+  return ref.watch(reminderRepositoryProvider).watchCompletedOrSkipped(limit: 30);
 });
 
 final nextReminderProvider = StreamProvider<ReminderModel?>((ref) {
@@ -62,8 +70,18 @@ class ReminderRepository {
     return _dao.watchAll().map((items) => items.map(_toDomain).toList());
   }
 
+  Stream<List<ReminderModel>> watchActivePending() {
+    return _dao.watchActivePending().map((items) => items.map(_toDomain).toList());
+  }
+
   Stream<List<ReminderModel>> watchTodayPending() {
     return _dao.watchTodayPending().map(
+      (items) => items.map(_toDomain).toList(),
+    );
+  }
+
+  Stream<List<ReminderModel>> watchCompletedOrSkipped({int limit = 30}) {
+    return _dao.watchCompletedOrSkipped(limit: limit).map(
       (items) => items.map(_toDomain).toList(),
     );
   }
@@ -102,7 +120,7 @@ class ReminderRepository {
 
   Future<bool> updateById(int id, ReminderUpsert input) async {
     final existing = await _dao.getById(id);
-    if (existing == null || existing.isDone != 0 || existing.isCanceled) {
+    if (existing == null || existing.status != 0) {
       return false;
     }
 
@@ -121,9 +139,13 @@ class ReminderRepository {
 
   Future<int> delete(int id) => _dao.deleteReminder(id);
 
-  Future<void> complete(int id) => _dao.completeOrSkip(id, 1);
+  Future<void> complete(int id) => _dao.complete(id);
 
-  Future<void> skip(int id) => _dao.completeOrSkip(id, 2);
+  Future<void> skip(int id) => _dao.skip(id);
+
+  Future<void> cancel(int id) => _dao.cancel(id);
+
+  Future<void> restore(int id) => _dao.restore(id);
 
   ReminderModel _toDomain(Reminder item) {
     return ReminderModel(
@@ -134,9 +156,8 @@ class ReminderRepository {
       remindDays: item.remindDays,
       dueAt: _fromEpoch(item.dueAt),
       repeatRule: item.repeatRule,
-      isDone: item.isDone,
+      status: item.status,
       extendAt: _fromEpoch(item.extendAt),
-      isCanceled: item.isCanceled,
       createdAt: DateTime.fromMillisecondsSinceEpoch(item.createdAt),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(item.updatedAt),
     );

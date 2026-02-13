@@ -7,9 +7,8 @@ class ReminderModel {
     required this.remindDays,
     this.dueAt,
     this.repeatRule,
-    required this.isDone,
+    required this.status,
     this.extendAt,
-    required this.isCanceled,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -21,11 +20,13 @@ class ReminderModel {
   final int remindDays;
   final DateTime? dueAt;
   final String? repeatRule;
-  final int isDone;
+  final int status;
   final DateTime? extendAt;
-  final bool isCanceled;
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  bool get isPending => isDone == 0 && !isCanceled;
+  bool get isPending => status == 0;
+  bool get isDone => status == 1;
+  bool get isSkipped => status == 2;
+  bool get isCanceled => status == 3;
 }

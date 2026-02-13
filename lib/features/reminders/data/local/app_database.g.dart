@@ -84,10 +84,10 @@ class $RemindersTable extends Reminders
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _isDoneMeta = const VerificationMeta('isDone');
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
-  late final GeneratedColumn<int> isDone = GeneratedColumn<int>(
-    'is_done',
+  late final GeneratedColumn<int> status = GeneratedColumn<int>(
+    'status',
     aliasedName,
     false,
     type: DriftSqlType.int,
@@ -104,21 +104,6 @@ class $RemindersTable extends Reminders
     true,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
-  );
-  static const VerificationMeta _isCanceledMeta = const VerificationMeta(
-    'isCanceled',
-  );
-  @override
-  late final GeneratedColumn<bool> isCanceled = GeneratedColumn<bool>(
-    'is_canceled',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("is_canceled" IN (0, 1))',
-    ),
-    defaultValue: const Constant(false),
   );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
@@ -151,9 +136,8 @@ class $RemindersTable extends Reminders
     remindDays,
     dueAt,
     repeatRule,
-    isDone,
+    status,
     extendAt,
-    isCanceled,
     createdAt,
     updatedAt,
   ];
@@ -210,22 +194,16 @@ class $RemindersTable extends Reminders
         repeatRule.isAcceptableOrUnknown(data['repeat_rule']!, _repeatRuleMeta),
       );
     }
-    if (data.containsKey('is_done')) {
+    if (data.containsKey('status')) {
       context.handle(
-        _isDoneMeta,
-        isDone.isAcceptableOrUnknown(data['is_done']!, _isDoneMeta),
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
       );
     }
     if (data.containsKey('extend_at')) {
       context.handle(
         _extendAtMeta,
         extendAt.isAcceptableOrUnknown(data['extend_at']!, _extendAtMeta),
-      );
-    }
-    if (data.containsKey('is_canceled')) {
-      context.handle(
-        _isCanceledMeta,
-        isCanceled.isAcceptableOrUnknown(data['is_canceled']!, _isCanceledMeta),
       );
     }
     if (data.containsKey('created_at')) {
@@ -281,18 +259,14 @@ class $RemindersTable extends Reminders
         DriftSqlType.string,
         data['${effectivePrefix}repeat_rule'],
       ),
-      isDone: attachedDatabase.typeMapping.read(
+      status: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}is_done'],
+        data['${effectivePrefix}status'],
       )!,
       extendAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}extend_at'],
       ),
-      isCanceled: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}is_canceled'],
-      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
@@ -323,10 +297,9 @@ class Reminder extends DataClass implements Insertable<Reminder> {
   /// Null means no recurrence, otherwise D25 / W3 / N1 / Y1.
   final String? repeatRule;
 
-  /// 0: pending, 1: done, 2: skipped.
-  final int isDone;
+  /// 0: pending, 1: done, 2: skipped, 3: canceled.
+  final int status;
   final int? extendAt;
-  final bool isCanceled;
   final int createdAt;
   final int updatedAt;
   const Reminder({
@@ -337,9 +310,8 @@ class Reminder extends DataClass implements Insertable<Reminder> {
     required this.remindDays,
     this.dueAt,
     this.repeatRule,
-    required this.isDone,
+    required this.status,
     this.extendAt,
-    required this.isCanceled,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -359,11 +331,10 @@ class Reminder extends DataClass implements Insertable<Reminder> {
     if (!nullToAbsent || repeatRule != null) {
       map['repeat_rule'] = Variable<String>(repeatRule);
     }
-    map['is_done'] = Variable<int>(isDone);
+    map['status'] = Variable<int>(status);
     if (!nullToAbsent || extendAt != null) {
       map['extend_at'] = Variable<int>(extendAt);
     }
-    map['is_canceled'] = Variable<bool>(isCanceled);
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     return map;
@@ -382,11 +353,10 @@ class Reminder extends DataClass implements Insertable<Reminder> {
       repeatRule: repeatRule == null && nullToAbsent
           ? const Value.absent()
           : Value(repeatRule),
-      isDone: Value(isDone),
+      status: Value(status),
       extendAt: extendAt == null && nullToAbsent
           ? const Value.absent()
           : Value(extendAt),
-      isCanceled: Value(isCanceled),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -405,9 +375,8 @@ class Reminder extends DataClass implements Insertable<Reminder> {
       remindDays: serializer.fromJson<int>(json['remindDays']),
       dueAt: serializer.fromJson<int?>(json['dueAt']),
       repeatRule: serializer.fromJson<String?>(json['repeatRule']),
-      isDone: serializer.fromJson<int>(json['isDone']),
+      status: serializer.fromJson<int>(json['status']),
       extendAt: serializer.fromJson<int?>(json['extendAt']),
-      isCanceled: serializer.fromJson<bool>(json['isCanceled']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -423,9 +392,8 @@ class Reminder extends DataClass implements Insertable<Reminder> {
       'remindDays': serializer.toJson<int>(remindDays),
       'dueAt': serializer.toJson<int?>(dueAt),
       'repeatRule': serializer.toJson<String?>(repeatRule),
-      'isDone': serializer.toJson<int>(isDone),
+      'status': serializer.toJson<int>(status),
       'extendAt': serializer.toJson<int?>(extendAt),
-      'isCanceled': serializer.toJson<bool>(isCanceled),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -439,9 +407,8 @@ class Reminder extends DataClass implements Insertable<Reminder> {
     int? remindDays,
     Value<int?> dueAt = const Value.absent(),
     Value<String?> repeatRule = const Value.absent(),
-    int? isDone,
+    int? status,
     Value<int?> extendAt = const Value.absent(),
-    bool? isCanceled,
     int? createdAt,
     int? updatedAt,
   }) => Reminder(
@@ -452,9 +419,8 @@ class Reminder extends DataClass implements Insertable<Reminder> {
     remindDays: remindDays ?? this.remindDays,
     dueAt: dueAt.present ? dueAt.value : this.dueAt,
     repeatRule: repeatRule.present ? repeatRule.value : this.repeatRule,
-    isDone: isDone ?? this.isDone,
+    status: status ?? this.status,
     extendAt: extendAt.present ? extendAt.value : this.extendAt,
-    isCanceled: isCanceled ?? this.isCanceled,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -471,11 +437,8 @@ class Reminder extends DataClass implements Insertable<Reminder> {
       repeatRule: data.repeatRule.present
           ? data.repeatRule.value
           : this.repeatRule,
-      isDone: data.isDone.present ? data.isDone.value : this.isDone,
+      status: data.status.present ? data.status.value : this.status,
       extendAt: data.extendAt.present ? data.extendAt.value : this.extendAt,
-      isCanceled: data.isCanceled.present
-          ? data.isCanceled.value
-          : this.isCanceled,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -491,9 +454,8 @@ class Reminder extends DataClass implements Insertable<Reminder> {
           ..write('remindDays: $remindDays, ')
           ..write('dueAt: $dueAt, ')
           ..write('repeatRule: $repeatRule, ')
-          ..write('isDone: $isDone, ')
+          ..write('status: $status, ')
           ..write('extendAt: $extendAt, ')
-          ..write('isCanceled: $isCanceled, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -509,9 +471,8 @@ class Reminder extends DataClass implements Insertable<Reminder> {
     remindDays,
     dueAt,
     repeatRule,
-    isDone,
+    status,
     extendAt,
-    isCanceled,
     createdAt,
     updatedAt,
   );
@@ -526,9 +487,8 @@ class Reminder extends DataClass implements Insertable<Reminder> {
           other.remindDays == this.remindDays &&
           other.dueAt == this.dueAt &&
           other.repeatRule == this.repeatRule &&
-          other.isDone == this.isDone &&
+          other.status == this.status &&
           other.extendAt == this.extendAt &&
-          other.isCanceled == this.isCanceled &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -541,9 +501,8 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
   final Value<int> remindDays;
   final Value<int?> dueAt;
   final Value<String?> repeatRule;
-  final Value<int> isDone;
+  final Value<int> status;
   final Value<int?> extendAt;
-  final Value<bool> isCanceled;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   const RemindersCompanion({
@@ -554,9 +513,8 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
     this.remindDays = const Value.absent(),
     this.dueAt = const Value.absent(),
     this.repeatRule = const Value.absent(),
-    this.isDone = const Value.absent(),
+    this.status = const Value.absent(),
     this.extendAt = const Value.absent(),
-    this.isCanceled = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -568,9 +526,8 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
     this.remindDays = const Value.absent(),
     this.dueAt = const Value.absent(),
     this.repeatRule = const Value.absent(),
-    this.isDone = const Value.absent(),
+    this.status = const Value.absent(),
     this.extendAt = const Value.absent(),
-    this.isCanceled = const Value.absent(),
     required int createdAt,
     required int updatedAt,
   }) : title = Value(title),
@@ -584,9 +541,8 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
     Expression<int>? remindDays,
     Expression<int>? dueAt,
     Expression<String>? repeatRule,
-    Expression<int>? isDone,
+    Expression<int>? status,
     Expression<int>? extendAt,
-    Expression<bool>? isCanceled,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
@@ -598,9 +554,8 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
       if (remindDays != null) 'remind_days': remindDays,
       if (dueAt != null) 'due_at': dueAt,
       if (repeatRule != null) 'repeat_rule': repeatRule,
-      if (isDone != null) 'is_done': isDone,
+      if (status != null) 'status': status,
       if (extendAt != null) 'extend_at': extendAt,
-      if (isCanceled != null) 'is_canceled': isCanceled,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -614,9 +569,8 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
     Value<int>? remindDays,
     Value<int?>? dueAt,
     Value<String?>? repeatRule,
-    Value<int>? isDone,
+    Value<int>? status,
     Value<int?>? extendAt,
-    Value<bool>? isCanceled,
     Value<int>? createdAt,
     Value<int>? updatedAt,
   }) {
@@ -628,9 +582,8 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
       remindDays: remindDays ?? this.remindDays,
       dueAt: dueAt ?? this.dueAt,
       repeatRule: repeatRule ?? this.repeatRule,
-      isDone: isDone ?? this.isDone,
+      status: status ?? this.status,
       extendAt: extendAt ?? this.extendAt,
-      isCanceled: isCanceled ?? this.isCanceled,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -660,14 +613,11 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
     if (repeatRule.present) {
       map['repeat_rule'] = Variable<String>(repeatRule.value);
     }
-    if (isDone.present) {
-      map['is_done'] = Variable<int>(isDone.value);
+    if (status.present) {
+      map['status'] = Variable<int>(status.value);
     }
     if (extendAt.present) {
       map['extend_at'] = Variable<int>(extendAt.value);
-    }
-    if (isCanceled.present) {
-      map['is_canceled'] = Variable<bool>(isCanceled.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
@@ -688,9 +638,8 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
           ..write('remindDays: $remindDays, ')
           ..write('dueAt: $dueAt, ')
           ..write('repeatRule: $repeatRule, ')
-          ..write('isDone: $isDone, ')
+          ..write('status: $status, ')
           ..write('extendAt: $extendAt, ')
-          ..write('isCanceled: $isCanceled, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -719,9 +668,8 @@ typedef $$RemindersTableCreateCompanionBuilder =
       Value<int> remindDays,
       Value<int?> dueAt,
       Value<String?> repeatRule,
-      Value<int> isDone,
+      Value<int> status,
       Value<int?> extendAt,
-      Value<bool> isCanceled,
       required int createdAt,
       required int updatedAt,
     });
@@ -734,9 +682,8 @@ typedef $$RemindersTableUpdateCompanionBuilder =
       Value<int> remindDays,
       Value<int?> dueAt,
       Value<String?> repeatRule,
-      Value<int> isDone,
+      Value<int> status,
       Value<int?> extendAt,
-      Value<bool> isCanceled,
       Value<int> createdAt,
       Value<int> updatedAt,
     });
@@ -785,18 +732,13 @@ class $$RemindersTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get isDone => $composableBuilder(
-    column: $table.isDone,
+  ColumnFilters<int> get status => $composableBuilder(
+    column: $table.status,
     builder: (column) => ColumnFilters(column),
   );
 
   ColumnFilters<int> get extendAt => $composableBuilder(
     column: $table.extendAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<bool> get isCanceled => $composableBuilder(
-    column: $table.isCanceled,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -855,18 +797,13 @@ class $$RemindersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get isDone => $composableBuilder(
-    column: $table.isDone,
+  ColumnOrderings<int> get status => $composableBuilder(
+    column: $table.status,
     builder: (column) => ColumnOrderings(column),
   );
 
   ColumnOrderings<int> get extendAt => $composableBuilder(
     column: $table.extendAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<bool> get isCanceled => $composableBuilder(
-    column: $table.isCanceled,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -915,16 +852,11 @@ class $$RemindersTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get isDone =>
-      $composableBuilder(column: $table.isDone, builder: (column) => column);
+  GeneratedColumn<int> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
 
   GeneratedColumn<int> get extendAt =>
       $composableBuilder(column: $table.extendAt, builder: (column) => column);
-
-  GeneratedColumn<bool> get isCanceled => $composableBuilder(
-    column: $table.isCanceled,
-    builder: (column) => column,
-  );
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -968,9 +900,8 @@ class $$RemindersTableTableManager
                 Value<int> remindDays = const Value.absent(),
                 Value<int?> dueAt = const Value.absent(),
                 Value<String?> repeatRule = const Value.absent(),
-                Value<int> isDone = const Value.absent(),
+                Value<int> status = const Value.absent(),
                 Value<int?> extendAt = const Value.absent(),
-                Value<bool> isCanceled = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
               }) => RemindersCompanion(
@@ -981,9 +912,8 @@ class $$RemindersTableTableManager
                 remindDays: remindDays,
                 dueAt: dueAt,
                 repeatRule: repeatRule,
-                isDone: isDone,
+                status: status,
                 extendAt: extendAt,
-                isCanceled: isCanceled,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -996,9 +926,8 @@ class $$RemindersTableTableManager
                 Value<int> remindDays = const Value.absent(),
                 Value<int?> dueAt = const Value.absent(),
                 Value<String?> repeatRule = const Value.absent(),
-                Value<int> isDone = const Value.absent(),
+                Value<int> status = const Value.absent(),
                 Value<int?> extendAt = const Value.absent(),
-                Value<bool> isCanceled = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
               }) => RemindersCompanion.insert(
@@ -1009,9 +938,8 @@ class $$RemindersTableTableManager
                 remindDays: remindDays,
                 dueAt: dueAt,
                 repeatRule: repeatRule,
-                isDone: isDone,
+                status: status,
                 extendAt: extendAt,
-                isCanceled: isCanceled,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),

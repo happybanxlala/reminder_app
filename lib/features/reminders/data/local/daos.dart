@@ -11,11 +11,30 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     with _$ReminderDaoMixin {
   ReminderDao(super.attachedDatabase);
 
+  static const int _dayMs = 86400000;
+
   Stream<List<Reminder>> watchAll() {
     return (select(reminders)
-          ..where((t) => t.isCanceled.equals(false))
+          ..where((t) => t.status.isNotValue(3))
           ..orderBy([
-            (t) => OrderingTerm.asc(t.isDone),
+            (t) => OrderingTerm.asc(t.status),
+            (t) => OrderingTerm.asc(t.dueAt),
+            (t) => OrderingTerm.desc(t.updatedAt),
+          ]))
+        .watch();
+  }
+
+  Stream<List<Reminder>> watchActivePending() {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final dueStartExpr = reminders.dueAt - (reminders.remindDays * const Constant(_dayMs));
+
+    return (select(reminders)
+          ..where(
+            (t) =>
+                t.status.equals(0) &
+                (t.dueAt.isNull() | dueStartExpr.isSmallerOrEqualValue(nowMs)),
+          )
+          ..orderBy([
             (t) => OrderingTerm.asc(t.dueAt),
             (t) => OrderingTerm.desc(t.updatedAt),
           ]))
@@ -32,8 +51,7 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     return (select(reminders)
           ..where(
             (t) =>
-                t.isDone.equals(0) &
-                t.isCanceled.equals(false) &
+                t.status.equals(0) &
                 t.dueAt.isNotNull() &
                 t.dueAt.isBiggerOrEqualValue(startMs) &
                 t.dueAt.isSmallerThanValue(endMs),
@@ -42,14 +60,17 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
         .watch();
   }
 
+  Stream<List<Reminder>> watchCompletedOrSkipped({int limit = 30}) {
+    return (select(reminders)
+          ..where((t) => t.status.equals(1) | t.status.equals(2))
+          ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])
+          ..limit(limit))
+        .watch();
+  }
+
   Stream<Reminder?> watchNextReminder() {
     final query = (select(reminders)
-      ..where(
-        (t) =>
-            t.isDone.equals(0) &
-            t.isCanceled.equals(false) &
-            t.dueAt.isNotNull(),
-      )
+      ..where((t) => t.status.equals(0) & t.dueAt.isNotNull())
       ..orderBy([(t) => OrderingTerm.asc(t.dueAt)])
       ..limit(1));
     return query.watchSingleOrNull();
@@ -60,10 +81,7 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
   }
 
   Future<Reminder?> getEditableById(int id) {
-    return (select(reminders)..where(
-          (t) =>
-              t.id.equals(id) & t.isDone.equals(0) & t.isCanceled.equals(false),
-        ))
+    return (select(reminders)..where((t) => t.id.equals(id) & t.status.equals(0)))
         .getSingleOrNull();
   }
 
@@ -79,22 +97,34 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     return (delete(reminders)..where((t) => t.id.equals(id))).go();
   }
 
-  Future<void> completeOrSkip(int id, int doneState) async {
+  Future<void> complete(int id) => _transitionAndMaybeRepeat(id, 1);
+
+  Future<void> skip(int id) => _transitionAndMaybeRepeat(id, 2);
+
+  Future<void> cancel(int id) => _transitionAndMaybeRepeat(id, 3);
+
+  Future<void> restore(int id) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await (update(reminders)..where((t) => t.id.equals(id))).write(
+      RemindersCompanion(status: const Value(0), updatedAt: Value(now)),
+    );
+  }
+
+  Future<void> _transitionAndMaybeRepeat(int id, int nextStatus) async {
     await transaction(() async {
       final source = await getById(id);
-      if (source == null) {
-        return;
-      }
-      if (source.isDone != 0 || source.isCanceled) {
+      if (source == null || source.status != 0) {
         return;
       }
 
       final now = DateTime.now().millisecondsSinceEpoch;
       await (update(reminders)..where((t) => t.id.equals(id))).write(
-        RemindersCompanion(isDone: Value(doneState), updatedAt: Value(now)),
+        RemindersCompanion(status: Value(nextStatus), updatedAt: Value(now)),
       );
 
-      await createRepeatReminder(source, now);
+      if (nextStatus == 1 || nextStatus == 2) {
+        await createRepeatReminder(source, now);
+      }
     });
   }
 
