@@ -1,8 +1,8 @@
 import 'package:drift/drift.dart';
 
-class ReminderSeriesEntries extends Table {
+class RecurringReminders extends Table {
   @override
-  String get tableName => 'reminder_series';
+  String get tableName => 'recurring_reminders';
 
   IntColumn get id => integer().autoIncrement()();
 
@@ -14,28 +14,28 @@ class ReminderSeriesEntries extends Table {
   TextColumn get note => text().nullable()();
 
   /// 1: countdown, 2: count-up.
-  IntColumn get timeBasis => integer()();
+  IntColumn get trackingMode => integer()();
 
   /// 1: in-range, 2: immediate, 3: on-point.
-  IntColumn get notifyStrategy => integer()();
+  IntColumn get triggerMode => integer()();
 
-  IntColumn get remindDays => integer().nullable()();
+  IntColumn get triggerOffsetDays => integer().nullable()();
 
   /// Null means not recurring; otherwise D25 / W3 / M1 / Y1.
   TextColumn get repeatRule => text().nullable()();
 
-  IntColumn get issueTypeId => integer().nullable()();
+  IntColumn get topicCategoryId => integer().nullable()();
 
-  IntColumn get handleTypeId => integer().nullable()();
+  IntColumn get actionCategoryId => integer().nullable()();
 
   IntColumn get createdAt => integer()();
 
   IntColumn get updatedAt => integer()();
 }
 
-class IssueTypes extends Table {
+class TopicCategories extends Table {
   @override
-  String get tableName => 'issue_types';
+  String get tableName => 'topic_categories';
 
   IntColumn get id => integer().autoIncrement()();
 
@@ -48,9 +48,9 @@ class IssueTypes extends Table {
   IntColumn get updatedAt => integer()();
 }
 
-class HandleTypes extends Table {
+class ActionCategories extends Table {
   @override
-  String get tableName => 'handle_types';
+  String get tableName => 'action_categories';
 
   IntColumn get id => integer().autoIncrement()();
 
@@ -69,15 +69,15 @@ class Reminders extends Table {
 
   IntColumn get id => integer().autoIncrement()();
 
-  IntColumn get seriesId => integer().nullable()();
+  IntColumn get recurringReminderId => integer().nullable()();
 
-  IntColumn get previousReminderId => integer().nullable()();
+  IntColumn get previousOccurrenceId => integer().nullable()();
 
   /// 1: countdown, 2: count-up.
-  IntColumn get timeBasis => integer()();
+  IntColumn get trackingMode => integer()();
 
   /// 1: in-range, 2: immediate, 3: on-point.
-  IntColumn get notifyStrategy => integer()();
+  IntColumn get triggerMode => integer()();
 
   /// 0: pending, 1: done, 2: skipped, 3: canceled.
   IntColumn get status => integer().withDefault(const Constant(0))();
@@ -86,19 +86,19 @@ class Reminders extends Table {
 
   TextColumn get note => text().nullable()();
 
-  IntColumn get remindDays => integer().nullable()();
+  IntColumn get triggerOffsetDays => integer().nullable()();
 
-  TextColumn get remark => text().nullable()();
+  TextColumn get statusNote => text().nullable()();
 
   IntColumn get dueAt => integer().nullable()();
 
   IntColumn get startAt => integer()();
 
-  IntColumn get extendAt => integer().nullable()();
+  IntColumn get deferredDueAt => integer().nullable()();
 
-  IntColumn get issueTypeId => integer().nullable()();
+  IntColumn get topicCategoryId => integer().nullable()();
 
-  IntColumn get handleTypeId => integer().nullable()();
+  IntColumn get actionCategoryId => integer().nullable()();
 
   IntColumn get createdAt => integer()();
 

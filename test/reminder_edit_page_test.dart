@@ -11,9 +11,9 @@ void main() {
     final draft = DemoReminderDraft(
       title: 'Demo 測試標題',
       note: 'Demo 測試備註',
-      timeBasis: ReminderTimeBasis.countdown,
-      notifyStrategy: ReminderNotifyStrategy.inRange,
-      remindDays: 3,
+      trackingMode: ReminderTrackingMode.countdown,
+      triggerMode: ReminderTriggerMode.inRange,
+      triggerOffsetDays: 3,
       dueAt: DateTime(2026, 3, 1, 10, 30),
       startAt: DateTime(2026, 2, 20, 9, 0),
       repeatType: 'W',
@@ -23,16 +23,15 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          issueTypesProvider.overrideWith((ref) async => []),
-          handleTypesProvider.overrideWith((ref) async => []),
+          topicCategoriesProvider.overrideWith((ref) async => []),
+          actionCategoriesProvider.overrideWith((ref) async => []),
         ],
         child: MaterialApp(
-          home: ReminderEditPage(
-            demoDataFactory: _fixedDraft,
-          ),
+          home: ReminderEditPage(demoDataFactory: _fixedDraft),
         ),
       ),
     );
+    await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(
       find.byKey(const Key('random-fill-button')),
@@ -80,9 +79,14 @@ void main() {
     expect(remindDaysField.controller?.text, '3');
     expect(repeatIntervalField.controller?.text, '4');
 
-    final dueText = tester.widget<Text>(find.byKey(const Key('edit-due-at-text')));
+    final dueText = tester.widget<Text>(
+      find.byKey(const Key('edit-due-at-text')),
+    );
     expect(dueText.data, isNot('未設定'));
-    expect(find.byKey(const ValueKey<String?>('repeat-type-W')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String?>('repeat-type-W')),
+      findsOneWidget,
+    );
   });
 }
 
@@ -90,9 +94,9 @@ DemoReminderDraft _fixedDraft() {
   return DemoReminderDraft(
     title: 'Demo 測試標題',
     note: 'Demo 測試備註',
-    timeBasis: ReminderTimeBasis.countdown,
-    notifyStrategy: ReminderNotifyStrategy.inRange,
-    remindDays: 3,
+    trackingMode: ReminderTrackingMode.countdown,
+    triggerMode: ReminderTriggerMode.inRange,
+    triggerOffsetDays: 3,
     dueAt: DateTime(2026, 3, 1, 10, 30),
     startAt: DateTime(2026, 2, 20, 9, 0),
     repeatType: 'W',

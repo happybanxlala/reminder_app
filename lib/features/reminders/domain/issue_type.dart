@@ -1,15 +1,6 @@
-class IssueTypeModel {
-  const IssueTypeModel({
-    required this.id,
-    required this.name,
-    this.description,
-    required this.createdAt,
-    required this.updatedAt,
-  });
+import 'topic_category.dart';
 
-  final int id;
-  final String name;
-  final String? description;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-}
+export 'topic_category.dart';
+
+@Deprecated('Use TopicCategoryModel instead.')
+typedef IssueTypeModel = TopicCategoryModel;

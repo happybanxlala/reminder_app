@@ -1,15 +1,6 @@
-class HandleTypeModel {
-  const HandleTypeModel({
-    required this.id,
-    required this.name,
-    this.description,
-    required this.createdAt,
-    required this.updatedAt,
-  });
+import 'action_category.dart';
 
-  final int id;
-  final String name;
-  final String? description;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-}
+export 'action_category.dart';
+
+@Deprecated('Use ActionCategoryModel instead.')
+typedef HandleTypeModel = ActionCategoryModel;

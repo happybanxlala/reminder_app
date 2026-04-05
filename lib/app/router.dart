@@ -23,7 +23,27 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: ReminderEditPage.editRouteName,
         builder: (context, state) {
           final reminderId = int.tryParse(state.pathParameters['id'] ?? '');
-          return ReminderEditPage(reminderId: reminderId);
+          return ReminderEditPage(
+            mode: ReminderFormMode.reminderEdit,
+            reminderId: reminderId,
+          );
+        },
+      ),
+      GoRoute(
+        path: ReminderEditPage.recurringNewRoutePath,
+        name: ReminderEditPage.recurringNewRouteName,
+        builder: (context, state) =>
+            const ReminderEditPage(mode: ReminderFormMode.seriesCreate),
+      ),
+      GoRoute(
+        path: ReminderEditPage.recurringEditRoutePath,
+        name: ReminderEditPage.recurringEditRouteName,
+        builder: (context, state) {
+          final seriesId = int.tryParse(state.pathParameters['id'] ?? '');
+          return ReminderEditPage(
+            mode: ReminderFormMode.seriesEdit,
+            seriesId: seriesId,
+          );
         },
       ),
     ],

@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../data/reminder_repository.dart';
 import '../../domain/reminder.dart';
+import '../../domain/repeat_rule.dart';
+import '../../domain/recurring_reminder.dart';
 import '../widgets/reminder_list_tile.dart';
 import 'reminder_edit_page.dart';
 
@@ -22,7 +24,8 @@ class RemindersListPage extends ConsumerStatefulWidget {
 class _RemindersListPageState extends ConsumerState<RemindersListPage>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   late final TabController _tabController;
-  final GlobalKey<_PendingListState> _pendingListKey = GlobalKey<_PendingListState>();
+  final GlobalKey<_PendingListState> _pendingListKey =
+      GlobalKey<_PendingListState>();
   bool _isFlushingPending = false;
   int _stagedPendingCount = 0;
 
@@ -30,7 +33,7 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(_handleTabChange);
   }
 
@@ -58,6 +61,9 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
     if (_tabController.index != 0) {
       unawaited(_commitAndResetPendingSession());
     }
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _commitAndResetPendingSession() async {
@@ -84,7 +90,9 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
       setState(() {});
     }
     try {
-      await ref.read(reminderRepositoryProvider).commitStagedCompletions(stagedIds);
+      await ref
+          .read(reminderRepositoryProvider)
+          .commitStagedCompletions(stagedIds);
       if (mounted) {
         pendingListState.clearStaged();
       }
@@ -102,6 +110,8 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
   Widget build(BuildContext context) {
     final pendingAsync = ref.watch(activePendingProvider);
     final historyAsync = ref.watch(completedOrSkippedProvider);
+    final recurringAsync = ref.watch(recurringRemindersProvider);
+    final isRecurringTab = _tabController.index == 2;
 
     return Scaffold(
       appBar: AppBar(
@@ -129,6 +139,7 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
           tabs: const [
             Tab(text: '進行中'),
             Tab(text: '完成/跳過'),
+            Tab(text: '週期提醒'),
           ],
         ),
       ),
@@ -166,18 +177,44 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
             error: (error, stack) => Center(child: Text('讀取失敗: $error')),
             loading: () => const Center(child: CircularProgressIndicator()),
           ),
+          recurringAsync.when(
+            data: (items) => _RecurringReminderList(
+              items: items,
+              onEditRecurringReminder: (recurringReminderId) async {
+                await _commitAndResetPendingSession();
+                if (!context.mounted) {
+                  return;
+                }
+                context.pushNamed(
+                  ReminderEditPage.recurringEditRouteName,
+                  pathParameters: {'id': recurringReminderId.toString()},
+                );
+              },
+            ),
+            error: (error, stack) => Center(child: Text('讀取失敗: $error')),
+            loading: () => const Center(child: CircularProgressIndicator()),
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        key: Key(
+          isRecurringTab
+              ? 'add-recurring-reminder-button'
+              : 'add-reminder-button',
+        ),
         onPressed: () async {
           await _commitAndResetPendingSession();
           if (!context.mounted) {
             return;
           }
-          context.pushNamed(ReminderEditPage.newRouteName);
+          context.pushNamed(
+            isRecurringTab
+                ? ReminderEditPage.recurringNewRouteName
+                : ReminderEditPage.newRouteName,
+          );
         },
         icon: const Icon(Icons.add),
-        label: const Text('新增'),
+        label: Text(isRecurringTab ? '新增週期提醒' : '新增提醒'),
       ),
     );
   }
@@ -234,11 +271,24 @@ class _PendingListState extends ConsumerState<_PendingList> {
             });
             widget.onStagedChanged(_recentDone.length);
           },
+          onDefer: () async {
+            final days = await _promptDeferDays(context, reminder);
+            if (days == null) {
+              return;
+            }
+            final success = await repository.defer(reminder.id, days);
+            if (!success || !context.mounted) {
+              return;
+            }
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('已延期 $days 天')));
+          },
           onSkip: () async {
             await repository.skip(reminder.id);
           },
           onCancel: () async {
-            final confirmed = await _confirmCancel(context);
+            final confirmed = await _confirmCancel(context, reminder);
             if (!confirmed) {
               return;
             }
@@ -296,7 +346,11 @@ class _PendingListState extends ConsumerState<_PendingList> {
     if (item.isCountUp) {
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
-      final start = DateTime(item.startAt.year, item.startAt.month, item.startAt.day);
+      final start = DateTime(
+        item.startAt.year,
+        item.startAt.month,
+        item.startAt.day,
+      );
       final accumulated = today.difference(start).inDays;
       if (accumulated <= 0) {
         return '今天起計';
@@ -304,13 +358,18 @@ class _PendingListState extends ConsumerState<_PendingList> {
       return '已累積 $accumulated 天';
     }
 
-    if (item.dueAt == null) {
+    final effectiveDueAt = item.deferredDueAt ?? item.dueAt;
+    if (effectiveDueAt == null) {
       return '未設定到期時間';
     }
 
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final due = DateTime(item.dueAt!.year, item.dueAt!.month, item.dueAt!.day);
+    final due = DateTime(
+      effectiveDueAt.year,
+      effectiveDueAt.month,
+      effectiveDueAt.day,
+    );
     final diff = due.difference(today).inDays;
 
     if (diff > 0) {
@@ -325,13 +384,19 @@ class _PendingListState extends ConsumerState<_PendingList> {
     return '逾期 ${diff.abs()} 天';
   }
 
-  Future<bool> _confirmCancel(BuildContext context) async {
+  Future<bool> _confirmCancel(
+    BuildContext context,
+    ReminderModel reminder,
+  ) async {
+    final content = reminder.isRecurring
+        ? '確定要取消這筆提醒嗎？\n這會同時暫停所屬週期提醒，並取消這個週期提醒目前所有未完成提醒。'
+        : '確定要取消這筆提醒嗎？';
     final result = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: const Text('取消提醒'),
-          content: const Text('確定要取消這筆提醒嗎？'),
+          content: Text(content),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
@@ -372,6 +437,51 @@ class _PendingListState extends ConsumerState<_PendingList> {
 
     return result ?? false;
   }
+
+  Future<int?> _promptDeferDays(
+    BuildContext context,
+    ReminderModel reminder,
+  ) async {
+    if (!reminder.isCountdown) {
+      return null;
+    }
+
+    final controller = TextEditingController(text: '1');
+    return showDialog<int>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('延期提醒'),
+          content: TextField(
+            key: const Key('defer-days-field'),
+            controller: controller,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: '延期天數',
+              hintText: '請輸入 1 或以上',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final days = int.tryParse(controller.text.trim());
+                if (days == null || days < 1) {
+                  return;
+                }
+                Navigator.of(context).pop(days);
+              },
+              child: const Text('確認'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
 
 class _HistoryList extends StatelessWidget {
@@ -391,10 +501,7 @@ class _HistoryList extends StatelessWidget {
           padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: Align(
             alignment: Alignment.centerLeft,
-            child: Text(
-              '僅顯示近期 30 筆資料',
-              style: TextStyle(color: Colors.grey),
-            ),
+            child: Text('僅顯示近期 30 筆資料', style: TextStyle(color: Colors.grey)),
           ),
         ),
         Expanded(
@@ -410,4 +517,246 @@ class _HistoryList extends StatelessWidget {
       ],
     );
   }
+}
+
+class _RecurringReminderList extends ConsumerWidget {
+  const _RecurringReminderList({
+    required this.items,
+    required this.onEditRecurringReminder,
+  });
+
+  final List<RecurringReminderModel> items;
+  final Future<void> Function(int recurringReminderId) onEditRecurringReminder;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (items.isEmpty) {
+      return const Center(child: Text('目前沒有週期提醒。'));
+    }
+
+    final repository = ref.read(reminderRepositoryProvider);
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: items.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final recurringReminder = items[index];
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  recurringReminder.title,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                Text('狀態: ${recurringReminder.statusLabel}'),
+                Text('提醒類型: ${recurringReminder.trackingModeLabel}'),
+                Text('重複規則: ${recurringReminder.repeatRule ?? '未設定'}'),
+                if (recurringReminder.categoryLabel != null)
+                  Text('分類: ${recurringReminder.categoryLabel}'),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    if (!recurringReminder.isCanceled)
+                      OutlinedButton(
+                        key: Key(
+                          'recurring-edit-button-${recurringReminder.id}',
+                        ),
+                        onPressed: () =>
+                            onEditRecurringReminder(recurringReminder.id),
+                        child: const Text('編輯'),
+                      ),
+                    if (recurringReminder.isPending)
+                      OutlinedButton(
+                        key: Key(
+                          'recurring-stop-button-${recurringReminder.id}',
+                        ),
+                        onPressed: () async {
+                          final confirmed =
+                              await _confirmRecurringReminderAction(
+                                context,
+                                title: '暫停週期提醒',
+                                content:
+                                    '確定要暫停這個週期提醒嗎？\n這會同時取消目前這個週期提醒所有未完成提醒。',
+                              );
+                          if (!confirmed) {
+                            return;
+                          }
+                          await repository.stopRecurringReminderById(
+                            recurringReminder.id,
+                          );
+                        },
+                        child: const Text('暫停'),
+                      ),
+                    if (recurringReminder.isPending)
+                      FilledButton.tonal(
+                        key: Key(
+                          'recurring-cancel-button-${recurringReminder.id}',
+                        ),
+                        onPressed: () async {
+                          final confirmed =
+                              await _confirmRecurringReminderAction(
+                                context,
+                                title: '取消週期提醒',
+                                content:
+                                    '確定要取消這個週期提醒嗎？\n這會同時取消目前這個週期提醒所有未完成提醒。',
+                              );
+                          if (!confirmed) {
+                            return;
+                          }
+                          await repository.cancelRecurringReminderById(
+                            recurringReminder.id,
+                          );
+                        },
+                        child: const Text('取消'),
+                      ),
+                    if (recurringReminder.isStopped)
+                      FilledButton(
+                        key: Key(
+                          'recurring-reactivate-button-${recurringReminder.id}',
+                        ),
+                        onPressed: () async {
+                          final reactivation = await _showReactivateDialog(
+                            context,
+                            recurringReminder,
+                          );
+                          if (reactivation == null) {
+                            return;
+                          }
+                          await repository.reactivateRecurringReminderById(
+                            recurringReminder.id,
+                            dueAt: reactivation.dueAt,
+                            startAt: reactivation.startAt,
+                          );
+                        },
+                        child: const Text('啟用'),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<bool> _confirmRecurringReminderAction(
+    BuildContext context, {
+    required String title,
+    required String content,
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(title),
+          content: Text(content),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('否'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('是'),
+            ),
+          ],
+        );
+      },
+    );
+    return result ?? false;
+  }
+
+  Future<_RecurringReminderReactivationInput?> _showReactivateDialog(
+    BuildContext context,
+    RecurringReminderModel recurringReminder,
+  ) async {
+    final option = await showDialog<_RecurringReminderReactivationOption>(
+      context: context,
+      builder: (context) {
+        final isCountdown =
+            recurringReminder.trackingMode == ReminderTrackingMode.countdown;
+        return AlertDialog(
+          title: const Text('重新啟用週期提醒'),
+          content: Text(isCountdown ? '選擇新的到期時間方式。' : '選擇新的起計時間方式。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(
+                context,
+              ).pop(_RecurringReminderReactivationOption.todayBased),
+              child: Text(isCountdown ? '今天＋時間間隔的日期' : '今天開始起計'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(
+                context,
+              ).pop(_RecurringReminderReactivationOption.manualDate),
+              child: Text(isCountdown ? '重新輸入到期時間' : '重新輸入起計時間'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (option == null) {
+      return null;
+    }
+    if (!context.mounted) {
+      return null;
+    }
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    if (option == _RecurringReminderReactivationOption.todayBased) {
+      return recurringReminder.trackingMode == ReminderTrackingMode.countdown
+          ? _RecurringReminderReactivationInput(
+              dueAt: _nextCountdownDueAt(recurringReminder, today),
+            )
+          : _RecurringReminderReactivationInput(startAt: today);
+    }
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: today,
+      firstDate: DateTime(now.year - 5),
+      lastDate: DateTime(now.year + 10),
+    );
+    if (picked == null) {
+      return null;
+    }
+
+    final normalized = DateTime(picked.year, picked.month, picked.day);
+    return recurringReminder.trackingMode == ReminderTrackingMode.countdown
+        ? _RecurringReminderReactivationInput(dueAt: normalized)
+        : _RecurringReminderReactivationInput(startAt: normalized);
+  }
+
+  DateTime _nextCountdownDueAt(
+    RecurringReminderModel recurringReminder,
+    DateTime today,
+  ) {
+    final rule = RepeatRule.parse(recurringReminder.repeatRule);
+    if (rule == null) {
+      return today;
+    }
+    return rule.advance(today);
+  }
+}
+
+enum _RecurringReminderReactivationOption { todayBased, manualDate }
+
+class _RecurringReminderReactivationInput {
+  const _RecurringReminderReactivationInput({this.dueAt, this.startAt});
+
+  final DateTime? dueAt;
+  final DateTime? startAt;
 }

@@ -11,6 +11,7 @@ class PendingReminderTile extends StatefulWidget {
     required this.reminder,
     required this.remainingLabel,
     required this.onToggleDone,
+    required this.onDefer,
     required this.onSkip,
     required this.onCancel,
     required this.onLongPress,
@@ -19,6 +20,7 @@ class PendingReminderTile extends StatefulWidget {
   final ReminderModel reminder;
   final String remainingLabel;
   final VoidCallback onToggleDone;
+  final VoidCallback onDefer;
   final VoidCallback onSkip;
   final VoidCallback onCancel;
   final VoidCallback onLongPress;
@@ -75,13 +77,24 @@ class _PendingReminderTileState extends State<PendingReminderTile> {
             value: widget.reminder.isDone,
             onChanged: (_) => widget.onToggleDone(),
           ),
+          trailing: widget.reminder.isCountdown
+              ? IconButton(
+                  key: ValueKey('defer-${widget.reminder.id}'),
+                  tooltip: '延期',
+                  onPressed: widget.onDefer,
+                  icon: const Icon(Icons.event_busy_outlined),
+                )
+              : null,
         ),
       ),
     );
   }
 
   String _pendingSubtitle() {
-    final lines = <String>[widget.reminder.timeBasisLabel, widget.remainingLabel];
+    final lines = <String>[
+      widget.reminder.trackingModeLabel,
+      widget.remainingLabel,
+    ];
     final categoryLabel = widget.reminder.categoryLabel;
     if (categoryLabel != null) {
       lines.add(categoryLabel);
@@ -114,10 +127,7 @@ class _PendingReminderTileState extends State<PendingReminderTile> {
 }
 
 class HistoryReminderTile extends StatelessWidget {
-  const HistoryReminderTile({
-    super.key,
-    required this.reminder,
-  });
+  const HistoryReminderTile({super.key, required this.reminder});
 
   final ReminderModel reminder;
 
@@ -131,7 +141,9 @@ class HistoryReminderTile extends StatelessWidget {
     final timeText = reminder.isCountdown
         ? (reminder.dueAt == null
               ? '未設定到期時間'
-              : DateFormat('yyyy/MM/dd HH:mm').format(reminder.dueAt!.toLocal()))
+              : DateFormat(
+                  'yyyy/MM/dd HH:mm',
+                ).format(reminder.dueAt!.toLocal()))
         : DateFormat('yyyy/MM/dd HH:mm').format(reminder.startAt.toLocal());
     final categoryLabel = reminder.categoryLabel;
 
@@ -143,7 +155,7 @@ class HistoryReminderTile extends StatelessWidget {
       subtitle: Text(
         [
           '狀態: $label',
-          '類型: ${reminder.timeBasisLabel}',
+          '類型: ${reminder.trackingModeLabel}',
           '更新: $updatedAtText',
           reminder.isCountdown ? '到期: $timeText' : '起計: $timeText',
           if (categoryLabel != null) '分類: $categoryLabel',
@@ -175,10 +187,7 @@ class CompletedPendingTile extends StatelessWidget {
           decoration: TextDecoration.lineThrough,
         ),
       ),
-      subtitle: const Text(
-        '已完成（點擊可恢復）',
-        style: TextStyle(color: Colors.grey),
-      ),
+      subtitle: const Text('已完成（點擊可恢復）', style: TextStyle(color: Colors.grey)),
       leading: const Icon(Icons.check_circle, color: Colors.grey),
       onTap: onRestore,
     );

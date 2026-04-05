@@ -9,30 +9,30 @@ void main() {
     final now = DateTime(2026, 2, 13, 9, 0);
 
     for (var i = 0; i < 30; i++) {
-      final draft = DemoReminderDraft.random(
-        random: Random(i + 1),
-        now: now,
-      );
+      final draft = DemoReminderDraft.random(random: Random(i + 1), now: now);
 
       expect(draft.title.trim(), isNotEmpty);
-      expect(draft.remindDays, inInclusiveRange(0, 5));
+      expect(draft.triggerOffsetDays, inInclusiveRange(0, 5));
       expect(
         const [
-          ReminderTimeBasis.countdown,
-          ReminderTimeBasis.countUp,
-        ].contains(draft.timeBasis),
+          ReminderTrackingMode.countdown,
+          ReminderTrackingMode.countUp,
+        ].contains(draft.trackingMode),
         isTrue,
       );
       expect(
         const [
-          ReminderNotifyStrategy.inRange,
-          ReminderNotifyStrategy.immediate,
-          ReminderNotifyStrategy.onPoint,
-        ].contains(draft.notifyStrategy),
+          ReminderTriggerMode.inRange,
+          ReminderTriggerMode.immediate,
+          ReminderTriggerMode.onPoint,
+        ].contains(draft.triggerMode),
         isTrue,
       );
-      expect(draft.startAt.isAfter(now) || draft.startAt.isAtSameMomentAs(now), isTrue);
-      if (draft.timeBasis == ReminderTimeBasis.countdown) {
+      expect(
+        draft.startAt.isAfter(now) || draft.startAt.isAtSameMomentAs(now),
+        isTrue,
+      );
+      if (draft.trackingMode == ReminderTrackingMode.countdown) {
         expect(draft.dueAt, isNotNull);
         expect(draft.dueAt!.isAfter(draft.startAt), isTrue);
       } else {

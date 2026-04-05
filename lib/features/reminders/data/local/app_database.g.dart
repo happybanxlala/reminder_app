@@ -3,12 +3,12 @@
 part of 'app_database.dart';
 
 // ignore_for_file: type=lint
-class $ReminderSeriesEntriesTable extends ReminderSeriesEntries
-    with TableInfo<$ReminderSeriesEntriesTable, ReminderSeriesEntry> {
+class $RecurringRemindersTable extends RecurringReminders
+    with TableInfo<$RecurringRemindersTable, RecurringReminder> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
-  $ReminderSeriesEntriesTable(this.attachedDatabase, [this._alias]);
+  $RecurringRemindersTable(this.attachedDatabase, [this._alias]);
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -50,34 +50,34 @@ class $ReminderSeriesEntriesTable extends ReminderSeriesEntries
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _timeBasisMeta = const VerificationMeta(
-    'timeBasis',
+  static const VerificationMeta _trackingModeMeta = const VerificationMeta(
+    'trackingMode',
   );
   @override
-  late final GeneratedColumn<int> timeBasis = GeneratedColumn<int>(
-    'time_basis',
+  late final GeneratedColumn<int> trackingMode = GeneratedColumn<int>(
+    'tracking_mode',
     aliasedName,
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _notifyStrategyMeta = const VerificationMeta(
-    'notifyStrategy',
+  static const VerificationMeta _triggerModeMeta = const VerificationMeta(
+    'triggerMode',
   );
   @override
-  late final GeneratedColumn<int> notifyStrategy = GeneratedColumn<int>(
-    'notify_strategy',
+  late final GeneratedColumn<int> triggerMode = GeneratedColumn<int>(
+    'trigger_mode',
     aliasedName,
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _remindDaysMeta = const VerificationMeta(
-    'remindDays',
+  static const VerificationMeta _triggerOffsetDaysMeta = const VerificationMeta(
+    'triggerOffsetDays',
   );
   @override
-  late final GeneratedColumn<int> remindDays = GeneratedColumn<int>(
-    'remind_days',
+  late final GeneratedColumn<int> triggerOffsetDays = GeneratedColumn<int>(
+    'trigger_offset_days',
     aliasedName,
     true,
     type: DriftSqlType.int,
@@ -94,23 +94,23 @@ class $ReminderSeriesEntriesTable extends ReminderSeriesEntries
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _issueTypeIdMeta = const VerificationMeta(
-    'issueTypeId',
+  static const VerificationMeta _topicCategoryIdMeta = const VerificationMeta(
+    'topicCategoryId',
   );
   @override
-  late final GeneratedColumn<int> issueTypeId = GeneratedColumn<int>(
-    'issue_type_id',
+  late final GeneratedColumn<int> topicCategoryId = GeneratedColumn<int>(
+    'topic_category_id',
     aliasedName,
     true,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _handleTypeIdMeta = const VerificationMeta(
-    'handleTypeId',
+  static const VerificationMeta _actionCategoryIdMeta = const VerificationMeta(
+    'actionCategoryId',
   );
   @override
-  late final GeneratedColumn<int> handleTypeId = GeneratedColumn<int>(
-    'handle_type_id',
+  late final GeneratedColumn<int> actionCategoryId = GeneratedColumn<int>(
+    'action_category_id',
     aliasedName,
     true,
     type: DriftSqlType.int,
@@ -144,12 +144,12 @@ class $ReminderSeriesEntriesTable extends ReminderSeriesEntries
     status,
     title,
     note,
-    timeBasis,
-    notifyStrategy,
-    remindDays,
+    trackingMode,
+    triggerMode,
+    triggerOffsetDays,
     repeatRule,
-    issueTypeId,
-    handleTypeId,
+    topicCategoryId,
+    actionCategoryId,
     createdAt,
     updatedAt,
   ];
@@ -157,10 +157,10 @@ class $ReminderSeriesEntriesTable extends ReminderSeriesEntries
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
-  static const String $name = 'reminder_series';
+  static const String $name = 'recurring_reminders';
   @override
   VerificationContext validateIntegrity(
-    Insertable<ReminderSeriesEntry> instance, {
+    Insertable<RecurringReminder> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -188,29 +188,35 @@ class $ReminderSeriesEntriesTable extends ReminderSeriesEntries
         note.isAcceptableOrUnknown(data['note']!, _noteMeta),
       );
     }
-    if (data.containsKey('time_basis')) {
+    if (data.containsKey('tracking_mode')) {
       context.handle(
-        _timeBasisMeta,
-        timeBasis.isAcceptableOrUnknown(data['time_basis']!, _timeBasisMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_timeBasisMeta);
-    }
-    if (data.containsKey('notify_strategy')) {
-      context.handle(
-        _notifyStrategyMeta,
-        notifyStrategy.isAcceptableOrUnknown(
-          data['notify_strategy']!,
-          _notifyStrategyMeta,
+        _trackingModeMeta,
+        trackingMode.isAcceptableOrUnknown(
+          data['tracking_mode']!,
+          _trackingModeMeta,
         ),
       );
     } else if (isInserting) {
-      context.missing(_notifyStrategyMeta);
+      context.missing(_trackingModeMeta);
     }
-    if (data.containsKey('remind_days')) {
+    if (data.containsKey('trigger_mode')) {
       context.handle(
-        _remindDaysMeta,
-        remindDays.isAcceptableOrUnknown(data['remind_days']!, _remindDaysMeta),
+        _triggerModeMeta,
+        triggerMode.isAcceptableOrUnknown(
+          data['trigger_mode']!,
+          _triggerModeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_triggerModeMeta);
+    }
+    if (data.containsKey('trigger_offset_days')) {
+      context.handle(
+        _triggerOffsetDaysMeta,
+        triggerOffsetDays.isAcceptableOrUnknown(
+          data['trigger_offset_days']!,
+          _triggerOffsetDaysMeta,
+        ),
       );
     }
     if (data.containsKey('repeat_rule')) {
@@ -219,21 +225,21 @@ class $ReminderSeriesEntriesTable extends ReminderSeriesEntries
         repeatRule.isAcceptableOrUnknown(data['repeat_rule']!, _repeatRuleMeta),
       );
     }
-    if (data.containsKey('issue_type_id')) {
+    if (data.containsKey('topic_category_id')) {
       context.handle(
-        _issueTypeIdMeta,
-        issueTypeId.isAcceptableOrUnknown(
-          data['issue_type_id']!,
-          _issueTypeIdMeta,
+        _topicCategoryIdMeta,
+        topicCategoryId.isAcceptableOrUnknown(
+          data['topic_category_id']!,
+          _topicCategoryIdMeta,
         ),
       );
     }
-    if (data.containsKey('handle_type_id')) {
+    if (data.containsKey('action_category_id')) {
       context.handle(
-        _handleTypeIdMeta,
-        handleTypeId.isAcceptableOrUnknown(
-          data['handle_type_id']!,
-          _handleTypeIdMeta,
+        _actionCategoryIdMeta,
+        actionCategoryId.isAcceptableOrUnknown(
+          data['action_category_id']!,
+          _actionCategoryIdMeta,
         ),
       );
     }
@@ -259,9 +265,9 @@ class $ReminderSeriesEntriesTable extends ReminderSeriesEntries
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  ReminderSeriesEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+  RecurringReminder map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return ReminderSeriesEntry(
+    return RecurringReminder(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -278,29 +284,29 @@ class $ReminderSeriesEntriesTable extends ReminderSeriesEntries
         DriftSqlType.string,
         data['${effectivePrefix}note'],
       ),
-      timeBasis: attachedDatabase.typeMapping.read(
+      trackingMode: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}time_basis'],
+        data['${effectivePrefix}tracking_mode'],
       )!,
-      notifyStrategy: attachedDatabase.typeMapping.read(
+      triggerMode: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}notify_strategy'],
+        data['${effectivePrefix}trigger_mode'],
       )!,
-      remindDays: attachedDatabase.typeMapping.read(
+      triggerOffsetDays: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}remind_days'],
+        data['${effectivePrefix}trigger_offset_days'],
       ),
       repeatRule: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}repeat_rule'],
       ),
-      issueTypeId: attachedDatabase.typeMapping.read(
+      topicCategoryId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}issue_type_id'],
+        data['${effectivePrefix}topic_category_id'],
       ),
-      handleTypeId: attachedDatabase.typeMapping.read(
+      actionCategoryId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}handle_type_id'],
+        data['${effectivePrefix}action_category_id'],
       ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
@@ -314,13 +320,13 @@ class $ReminderSeriesEntriesTable extends ReminderSeriesEntries
   }
 
   @override
-  $ReminderSeriesEntriesTable createAlias(String alias) {
-    return $ReminderSeriesEntriesTable(attachedDatabase, alias);
+  $RecurringRemindersTable createAlias(String alias) {
+    return $RecurringRemindersTable(attachedDatabase, alias);
   }
 }
 
-class ReminderSeriesEntry extends DataClass
-    implements Insertable<ReminderSeriesEntry> {
+class RecurringReminder extends DataClass
+    implements Insertable<RecurringReminder> {
   final int id;
 
   /// 0: pending, 1: stopped, 2: canceled.
@@ -329,29 +335,29 @@ class ReminderSeriesEntry extends DataClass
   final String? note;
 
   /// 1: countdown, 2: count-up.
-  final int timeBasis;
+  final int trackingMode;
 
-  /// 1: in-range, 2: on-point.
-  final int notifyStrategy;
-  final int? remindDays;
+  /// 1: in-range, 2: immediate, 3: on-point.
+  final int triggerMode;
+  final int? triggerOffsetDays;
 
   /// Null means not recurring; otherwise D25 / W3 / M1 / Y1.
   final String? repeatRule;
-  final int? issueTypeId;
-  final int? handleTypeId;
+  final int? topicCategoryId;
+  final int? actionCategoryId;
   final int createdAt;
   final int updatedAt;
-  const ReminderSeriesEntry({
+  const RecurringReminder({
     required this.id,
     required this.status,
     required this.title,
     this.note,
-    required this.timeBasis,
-    required this.notifyStrategy,
-    this.remindDays,
+    required this.trackingMode,
+    required this.triggerMode,
+    this.triggerOffsetDays,
     this.repeatRule,
-    this.issueTypeId,
-    this.handleTypeId,
+    this.topicCategoryId,
+    this.actionCategoryId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -364,66 +370,66 @@ class ReminderSeriesEntry extends DataClass
     if (!nullToAbsent || note != null) {
       map['note'] = Variable<String>(note);
     }
-    map['time_basis'] = Variable<int>(timeBasis);
-    map['notify_strategy'] = Variable<int>(notifyStrategy);
-    if (!nullToAbsent || remindDays != null) {
-      map['remind_days'] = Variable<int>(remindDays);
+    map['tracking_mode'] = Variable<int>(trackingMode);
+    map['trigger_mode'] = Variable<int>(triggerMode);
+    if (!nullToAbsent || triggerOffsetDays != null) {
+      map['trigger_offset_days'] = Variable<int>(triggerOffsetDays);
     }
     if (!nullToAbsent || repeatRule != null) {
       map['repeat_rule'] = Variable<String>(repeatRule);
     }
-    if (!nullToAbsent || issueTypeId != null) {
-      map['issue_type_id'] = Variable<int>(issueTypeId);
+    if (!nullToAbsent || topicCategoryId != null) {
+      map['topic_category_id'] = Variable<int>(topicCategoryId);
     }
-    if (!nullToAbsent || handleTypeId != null) {
-      map['handle_type_id'] = Variable<int>(handleTypeId);
+    if (!nullToAbsent || actionCategoryId != null) {
+      map['action_category_id'] = Variable<int>(actionCategoryId);
     }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     return map;
   }
 
-  ReminderSeriesEntriesCompanion toCompanion(bool nullToAbsent) {
-    return ReminderSeriesEntriesCompanion(
+  RecurringRemindersCompanion toCompanion(bool nullToAbsent) {
+    return RecurringRemindersCompanion(
       id: Value(id),
       status: Value(status),
       title: Value(title),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
-      timeBasis: Value(timeBasis),
-      notifyStrategy: Value(notifyStrategy),
-      remindDays: remindDays == null && nullToAbsent
+      trackingMode: Value(trackingMode),
+      triggerMode: Value(triggerMode),
+      triggerOffsetDays: triggerOffsetDays == null && nullToAbsent
           ? const Value.absent()
-          : Value(remindDays),
+          : Value(triggerOffsetDays),
       repeatRule: repeatRule == null && nullToAbsent
           ? const Value.absent()
           : Value(repeatRule),
-      issueTypeId: issueTypeId == null && nullToAbsent
+      topicCategoryId: topicCategoryId == null && nullToAbsent
           ? const Value.absent()
-          : Value(issueTypeId),
-      handleTypeId: handleTypeId == null && nullToAbsent
+          : Value(topicCategoryId),
+      actionCategoryId: actionCategoryId == null && nullToAbsent
           ? const Value.absent()
-          : Value(handleTypeId),
+          : Value(actionCategoryId),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
   }
 
-  factory ReminderSeriesEntry.fromJson(
+  factory RecurringReminder.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return ReminderSeriesEntry(
+    return RecurringReminder(
       id: serializer.fromJson<int>(json['id']),
       status: serializer.fromJson<int>(json['status']),
       title: serializer.fromJson<String>(json['title']),
       note: serializer.fromJson<String?>(json['note']),
-      timeBasis: serializer.fromJson<int>(json['timeBasis']),
-      notifyStrategy: serializer.fromJson<int>(json['notifyStrategy']),
-      remindDays: serializer.fromJson<int?>(json['remindDays']),
+      trackingMode: serializer.fromJson<int>(json['trackingMode']),
+      triggerMode: serializer.fromJson<int>(json['triggerMode']),
+      triggerOffsetDays: serializer.fromJson<int?>(json['triggerOffsetDays']),
       repeatRule: serializer.fromJson<String?>(json['repeatRule']),
-      issueTypeId: serializer.fromJson<int?>(json['issueTypeId']),
-      handleTypeId: serializer.fromJson<int?>(json['handleTypeId']),
+      topicCategoryId: serializer.fromJson<int?>(json['topicCategoryId']),
+      actionCategoryId: serializer.fromJson<int?>(json['actionCategoryId']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -436,66 +442,74 @@ class ReminderSeriesEntry extends DataClass
       'status': serializer.toJson<int>(status),
       'title': serializer.toJson<String>(title),
       'note': serializer.toJson<String?>(note),
-      'timeBasis': serializer.toJson<int>(timeBasis),
-      'notifyStrategy': serializer.toJson<int>(notifyStrategy),
-      'remindDays': serializer.toJson<int?>(remindDays),
+      'trackingMode': serializer.toJson<int>(trackingMode),
+      'triggerMode': serializer.toJson<int>(triggerMode),
+      'triggerOffsetDays': serializer.toJson<int?>(triggerOffsetDays),
       'repeatRule': serializer.toJson<String?>(repeatRule),
-      'issueTypeId': serializer.toJson<int?>(issueTypeId),
-      'handleTypeId': serializer.toJson<int?>(handleTypeId),
+      'topicCategoryId': serializer.toJson<int?>(topicCategoryId),
+      'actionCategoryId': serializer.toJson<int?>(actionCategoryId),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
   }
 
-  ReminderSeriesEntry copyWith({
+  RecurringReminder copyWith({
     int? id,
     int? status,
     String? title,
     Value<String?> note = const Value.absent(),
-    int? timeBasis,
-    int? notifyStrategy,
-    Value<int?> remindDays = const Value.absent(),
+    int? trackingMode,
+    int? triggerMode,
+    Value<int?> triggerOffsetDays = const Value.absent(),
     Value<String?> repeatRule = const Value.absent(),
-    Value<int?> issueTypeId = const Value.absent(),
-    Value<int?> handleTypeId = const Value.absent(),
+    Value<int?> topicCategoryId = const Value.absent(),
+    Value<int?> actionCategoryId = const Value.absent(),
     int? createdAt,
     int? updatedAt,
-  }) => ReminderSeriesEntry(
+  }) => RecurringReminder(
     id: id ?? this.id,
     status: status ?? this.status,
     title: title ?? this.title,
     note: note.present ? note.value : this.note,
-    timeBasis: timeBasis ?? this.timeBasis,
-    notifyStrategy: notifyStrategy ?? this.notifyStrategy,
-    remindDays: remindDays.present ? remindDays.value : this.remindDays,
+    trackingMode: trackingMode ?? this.trackingMode,
+    triggerMode: triggerMode ?? this.triggerMode,
+    triggerOffsetDays: triggerOffsetDays.present
+        ? triggerOffsetDays.value
+        : this.triggerOffsetDays,
     repeatRule: repeatRule.present ? repeatRule.value : this.repeatRule,
-    issueTypeId: issueTypeId.present ? issueTypeId.value : this.issueTypeId,
-    handleTypeId: handleTypeId.present ? handleTypeId.value : this.handleTypeId,
+    topicCategoryId: topicCategoryId.present
+        ? topicCategoryId.value
+        : this.topicCategoryId,
+    actionCategoryId: actionCategoryId.present
+        ? actionCategoryId.value
+        : this.actionCategoryId,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
-  ReminderSeriesEntry copyWithCompanion(ReminderSeriesEntriesCompanion data) {
-    return ReminderSeriesEntry(
+  RecurringReminder copyWithCompanion(RecurringRemindersCompanion data) {
+    return RecurringReminder(
       id: data.id.present ? data.id.value : this.id,
       status: data.status.present ? data.status.value : this.status,
       title: data.title.present ? data.title.value : this.title,
       note: data.note.present ? data.note.value : this.note,
-      timeBasis: data.timeBasis.present ? data.timeBasis.value : this.timeBasis,
-      notifyStrategy: data.notifyStrategy.present
-          ? data.notifyStrategy.value
-          : this.notifyStrategy,
-      remindDays: data.remindDays.present
-          ? data.remindDays.value
-          : this.remindDays,
+      trackingMode: data.trackingMode.present
+          ? data.trackingMode.value
+          : this.trackingMode,
+      triggerMode: data.triggerMode.present
+          ? data.triggerMode.value
+          : this.triggerMode,
+      triggerOffsetDays: data.triggerOffsetDays.present
+          ? data.triggerOffsetDays.value
+          : this.triggerOffsetDays,
       repeatRule: data.repeatRule.present
           ? data.repeatRule.value
           : this.repeatRule,
-      issueTypeId: data.issueTypeId.present
-          ? data.issueTypeId.value
-          : this.issueTypeId,
-      handleTypeId: data.handleTypeId.present
-          ? data.handleTypeId.value
-          : this.handleTypeId,
+      topicCategoryId: data.topicCategoryId.present
+          ? data.topicCategoryId.value
+          : this.topicCategoryId,
+      actionCategoryId: data.actionCategoryId.present
+          ? data.actionCategoryId.value
+          : this.actionCategoryId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -503,17 +517,17 @@ class ReminderSeriesEntry extends DataClass
 
   @override
   String toString() {
-    return (StringBuffer('ReminderSeriesEntry(')
+    return (StringBuffer('RecurringReminder(')
           ..write('id: $id, ')
           ..write('status: $status, ')
           ..write('title: $title, ')
           ..write('note: $note, ')
-          ..write('timeBasis: $timeBasis, ')
-          ..write('notifyStrategy: $notifyStrategy, ')
-          ..write('remindDays: $remindDays, ')
+          ..write('trackingMode: $trackingMode, ')
+          ..write('triggerMode: $triggerMode, ')
+          ..write('triggerOffsetDays: $triggerOffsetDays, ')
           ..write('repeatRule: $repeatRule, ')
-          ..write('issueTypeId: $issueTypeId, ')
-          ..write('handleTypeId: $handleTypeId, ')
+          ..write('topicCategoryId: $topicCategoryId, ')
+          ..write('actionCategoryId: $actionCategoryId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -526,90 +540,89 @@ class ReminderSeriesEntry extends DataClass
     status,
     title,
     note,
-    timeBasis,
-    notifyStrategy,
-    remindDays,
+    trackingMode,
+    triggerMode,
+    triggerOffsetDays,
     repeatRule,
-    issueTypeId,
-    handleTypeId,
+    topicCategoryId,
+    actionCategoryId,
     createdAt,
     updatedAt,
   );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is ReminderSeriesEntry &&
+      (other is RecurringReminder &&
           other.id == this.id &&
           other.status == this.status &&
           other.title == this.title &&
           other.note == this.note &&
-          other.timeBasis == this.timeBasis &&
-          other.notifyStrategy == this.notifyStrategy &&
-          other.remindDays == this.remindDays &&
+          other.trackingMode == this.trackingMode &&
+          other.triggerMode == this.triggerMode &&
+          other.triggerOffsetDays == this.triggerOffsetDays &&
           other.repeatRule == this.repeatRule &&
-          other.issueTypeId == this.issueTypeId &&
-          other.handleTypeId == this.handleTypeId &&
+          other.topicCategoryId == this.topicCategoryId &&
+          other.actionCategoryId == this.actionCategoryId &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
 
-class ReminderSeriesEntriesCompanion
-    extends UpdateCompanion<ReminderSeriesEntry> {
+class RecurringRemindersCompanion extends UpdateCompanion<RecurringReminder> {
   final Value<int> id;
   final Value<int> status;
   final Value<String> title;
   final Value<String?> note;
-  final Value<int> timeBasis;
-  final Value<int> notifyStrategy;
-  final Value<int?> remindDays;
+  final Value<int> trackingMode;
+  final Value<int> triggerMode;
+  final Value<int?> triggerOffsetDays;
   final Value<String?> repeatRule;
-  final Value<int?> issueTypeId;
-  final Value<int?> handleTypeId;
+  final Value<int?> topicCategoryId;
+  final Value<int?> actionCategoryId;
   final Value<int> createdAt;
   final Value<int> updatedAt;
-  const ReminderSeriesEntriesCompanion({
+  const RecurringRemindersCompanion({
     this.id = const Value.absent(),
     this.status = const Value.absent(),
     this.title = const Value.absent(),
     this.note = const Value.absent(),
-    this.timeBasis = const Value.absent(),
-    this.notifyStrategy = const Value.absent(),
-    this.remindDays = const Value.absent(),
+    this.trackingMode = const Value.absent(),
+    this.triggerMode = const Value.absent(),
+    this.triggerOffsetDays = const Value.absent(),
     this.repeatRule = const Value.absent(),
-    this.issueTypeId = const Value.absent(),
-    this.handleTypeId = const Value.absent(),
+    this.topicCategoryId = const Value.absent(),
+    this.actionCategoryId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
-  ReminderSeriesEntriesCompanion.insert({
+  RecurringRemindersCompanion.insert({
     this.id = const Value.absent(),
     this.status = const Value.absent(),
     required String title,
     this.note = const Value.absent(),
-    required int timeBasis,
-    required int notifyStrategy,
-    this.remindDays = const Value.absent(),
+    required int trackingMode,
+    required int triggerMode,
+    this.triggerOffsetDays = const Value.absent(),
     this.repeatRule = const Value.absent(),
-    this.issueTypeId = const Value.absent(),
-    this.handleTypeId = const Value.absent(),
+    this.topicCategoryId = const Value.absent(),
+    this.actionCategoryId = const Value.absent(),
     required int createdAt,
     required int updatedAt,
   }) : title = Value(title),
-       timeBasis = Value(timeBasis),
-       notifyStrategy = Value(notifyStrategy),
+       trackingMode = Value(trackingMode),
+       triggerMode = Value(triggerMode),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
-  static Insertable<ReminderSeriesEntry> custom({
+  static Insertable<RecurringReminder> custom({
     Expression<int>? id,
     Expression<int>? status,
     Expression<String>? title,
     Expression<String>? note,
-    Expression<int>? timeBasis,
-    Expression<int>? notifyStrategy,
-    Expression<int>? remindDays,
+    Expression<int>? trackingMode,
+    Expression<int>? triggerMode,
+    Expression<int>? triggerOffsetDays,
     Expression<String>? repeatRule,
-    Expression<int>? issueTypeId,
-    Expression<int>? handleTypeId,
+    Expression<int>? topicCategoryId,
+    Expression<int>? actionCategoryId,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
@@ -618,42 +631,42 @@ class ReminderSeriesEntriesCompanion
       if (status != null) 'status': status,
       if (title != null) 'title': title,
       if (note != null) 'note': note,
-      if (timeBasis != null) 'time_basis': timeBasis,
-      if (notifyStrategy != null) 'notify_strategy': notifyStrategy,
-      if (remindDays != null) 'remind_days': remindDays,
+      if (trackingMode != null) 'tracking_mode': trackingMode,
+      if (triggerMode != null) 'trigger_mode': triggerMode,
+      if (triggerOffsetDays != null) 'trigger_offset_days': triggerOffsetDays,
       if (repeatRule != null) 'repeat_rule': repeatRule,
-      if (issueTypeId != null) 'issue_type_id': issueTypeId,
-      if (handleTypeId != null) 'handle_type_id': handleTypeId,
+      if (topicCategoryId != null) 'topic_category_id': topicCategoryId,
+      if (actionCategoryId != null) 'action_category_id': actionCategoryId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
   }
 
-  ReminderSeriesEntriesCompanion copyWith({
+  RecurringRemindersCompanion copyWith({
     Value<int>? id,
     Value<int>? status,
     Value<String>? title,
     Value<String?>? note,
-    Value<int>? timeBasis,
-    Value<int>? notifyStrategy,
-    Value<int?>? remindDays,
+    Value<int>? trackingMode,
+    Value<int>? triggerMode,
+    Value<int?>? triggerOffsetDays,
     Value<String?>? repeatRule,
-    Value<int?>? issueTypeId,
-    Value<int?>? handleTypeId,
+    Value<int?>? topicCategoryId,
+    Value<int?>? actionCategoryId,
     Value<int>? createdAt,
     Value<int>? updatedAt,
   }) {
-    return ReminderSeriesEntriesCompanion(
+    return RecurringRemindersCompanion(
       id: id ?? this.id,
       status: status ?? this.status,
       title: title ?? this.title,
       note: note ?? this.note,
-      timeBasis: timeBasis ?? this.timeBasis,
-      notifyStrategy: notifyStrategy ?? this.notifyStrategy,
-      remindDays: remindDays ?? this.remindDays,
+      trackingMode: trackingMode ?? this.trackingMode,
+      triggerMode: triggerMode ?? this.triggerMode,
+      triggerOffsetDays: triggerOffsetDays ?? this.triggerOffsetDays,
       repeatRule: repeatRule ?? this.repeatRule,
-      issueTypeId: issueTypeId ?? this.issueTypeId,
-      handleTypeId: handleTypeId ?? this.handleTypeId,
+      topicCategoryId: topicCategoryId ?? this.topicCategoryId,
+      actionCategoryId: actionCategoryId ?? this.actionCategoryId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -674,23 +687,23 @@ class ReminderSeriesEntriesCompanion
     if (note.present) {
       map['note'] = Variable<String>(note.value);
     }
-    if (timeBasis.present) {
-      map['time_basis'] = Variable<int>(timeBasis.value);
+    if (trackingMode.present) {
+      map['tracking_mode'] = Variable<int>(trackingMode.value);
     }
-    if (notifyStrategy.present) {
-      map['notify_strategy'] = Variable<int>(notifyStrategy.value);
+    if (triggerMode.present) {
+      map['trigger_mode'] = Variable<int>(triggerMode.value);
     }
-    if (remindDays.present) {
-      map['remind_days'] = Variable<int>(remindDays.value);
+    if (triggerOffsetDays.present) {
+      map['trigger_offset_days'] = Variable<int>(triggerOffsetDays.value);
     }
     if (repeatRule.present) {
       map['repeat_rule'] = Variable<String>(repeatRule.value);
     }
-    if (issueTypeId.present) {
-      map['issue_type_id'] = Variable<int>(issueTypeId.value);
+    if (topicCategoryId.present) {
+      map['topic_category_id'] = Variable<int>(topicCategoryId.value);
     }
-    if (handleTypeId.present) {
-      map['handle_type_id'] = Variable<int>(handleTypeId.value);
+    if (actionCategoryId.present) {
+      map['action_category_id'] = Variable<int>(actionCategoryId.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
@@ -703,17 +716,17 @@ class ReminderSeriesEntriesCompanion
 
   @override
   String toString() {
-    return (StringBuffer('ReminderSeriesEntriesCompanion(')
+    return (StringBuffer('RecurringRemindersCompanion(')
           ..write('id: $id, ')
           ..write('status: $status, ')
           ..write('title: $title, ')
           ..write('note: $note, ')
-          ..write('timeBasis: $timeBasis, ')
-          ..write('notifyStrategy: $notifyStrategy, ')
-          ..write('remindDays: $remindDays, ')
+          ..write('trackingMode: $trackingMode, ')
+          ..write('triggerMode: $triggerMode, ')
+          ..write('triggerOffsetDays: $triggerOffsetDays, ')
           ..write('repeatRule: $repeatRule, ')
-          ..write('issueTypeId: $issueTypeId, ')
-          ..write('handleTypeId: $handleTypeId, ')
+          ..write('topicCategoryId: $topicCategoryId, ')
+          ..write('actionCategoryId: $actionCategoryId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -721,12 +734,12 @@ class ReminderSeriesEntriesCompanion
   }
 }
 
-class $IssueTypesTable extends IssueTypes
-    with TableInfo<$IssueTypesTable, IssueType> {
+class $TopicCategoriesTable extends TopicCategories
+    with TableInfo<$TopicCategoriesTable, TopicCategory> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
-  $IssueTypesTable(this.attachedDatabase, [this._alias]);
+  $TopicCategoriesTable(this.attachedDatabase, [this._alias]);
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -794,10 +807,10 @@ class $IssueTypesTable extends IssueTypes
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
-  static const String $name = 'issue_types';
+  static const String $name = 'topic_categories';
   @override
   VerificationContext validateIntegrity(
-    Insertable<IssueType> instance, {
+    Insertable<TopicCategory> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -844,9 +857,9 @@ class $IssueTypesTable extends IssueTypes
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  IssueType map(Map<String, dynamic> data, {String? tablePrefix}) {
+  TopicCategory map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return IssueType(
+    return TopicCategory(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -871,18 +884,18 @@ class $IssueTypesTable extends IssueTypes
   }
 
   @override
-  $IssueTypesTable createAlias(String alias) {
-    return $IssueTypesTable(attachedDatabase, alias);
+  $TopicCategoriesTable createAlias(String alias) {
+    return $TopicCategoriesTable(attachedDatabase, alias);
   }
 }
 
-class IssueType extends DataClass implements Insertable<IssueType> {
+class TopicCategory extends DataClass implements Insertable<TopicCategory> {
   final int id;
   final String name;
   final String? description;
   final int createdAt;
   final int updatedAt;
-  const IssueType({
+  const TopicCategory({
     required this.id,
     required this.name,
     this.description,
@@ -902,8 +915,8 @@ class IssueType extends DataClass implements Insertable<IssueType> {
     return map;
   }
 
-  IssueTypesCompanion toCompanion(bool nullToAbsent) {
-    return IssueTypesCompanion(
+  TopicCategoriesCompanion toCompanion(bool nullToAbsent) {
+    return TopicCategoriesCompanion(
       id: Value(id),
       name: Value(name),
       description: description == null && nullToAbsent
@@ -914,12 +927,12 @@ class IssueType extends DataClass implements Insertable<IssueType> {
     );
   }
 
-  factory IssueType.fromJson(
+  factory TopicCategory.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return IssueType(
+    return TopicCategory(
       id: serializer.fromJson<int>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       description: serializer.fromJson<String?>(json['description']),
@@ -939,21 +952,21 @@ class IssueType extends DataClass implements Insertable<IssueType> {
     };
   }
 
-  IssueType copyWith({
+  TopicCategory copyWith({
     int? id,
     String? name,
     Value<String?> description = const Value.absent(),
     int? createdAt,
     int? updatedAt,
-  }) => IssueType(
+  }) => TopicCategory(
     id: id ?? this.id,
     name: name ?? this.name,
     description: description.present ? description.value : this.description,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
-  IssueType copyWithCompanion(IssueTypesCompanion data) {
-    return IssueType(
+  TopicCategory copyWithCompanion(TopicCategoriesCompanion data) {
+    return TopicCategory(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
       description: data.description.present
@@ -966,7 +979,7 @@ class IssueType extends DataClass implements Insertable<IssueType> {
 
   @override
   String toString() {
-    return (StringBuffer('IssueType(')
+    return (StringBuffer('TopicCategory(')
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('description: $description, ')
@@ -981,7 +994,7 @@ class IssueType extends DataClass implements Insertable<IssueType> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is IssueType &&
+      (other is TopicCategory &&
           other.id == this.id &&
           other.name == this.name &&
           other.description == this.description &&
@@ -989,20 +1002,20 @@ class IssueType extends DataClass implements Insertable<IssueType> {
           other.updatedAt == this.updatedAt);
 }
 
-class IssueTypesCompanion extends UpdateCompanion<IssueType> {
+class TopicCategoriesCompanion extends UpdateCompanion<TopicCategory> {
   final Value<int> id;
   final Value<String> name;
   final Value<String?> description;
   final Value<int> createdAt;
   final Value<int> updatedAt;
-  const IssueTypesCompanion({
+  const TopicCategoriesCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.description = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
-  IssueTypesCompanion.insert({
+  TopicCategoriesCompanion.insert({
     this.id = const Value.absent(),
     required String name,
     this.description = const Value.absent(),
@@ -1011,7 +1024,7 @@ class IssueTypesCompanion extends UpdateCompanion<IssueType> {
   }) : name = Value(name),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
-  static Insertable<IssueType> custom({
+  static Insertable<TopicCategory> custom({
     Expression<int>? id,
     Expression<String>? name,
     Expression<String>? description,
@@ -1027,14 +1040,14 @@ class IssueTypesCompanion extends UpdateCompanion<IssueType> {
     });
   }
 
-  IssueTypesCompanion copyWith({
+  TopicCategoriesCompanion copyWith({
     Value<int>? id,
     Value<String>? name,
     Value<String?>? description,
     Value<int>? createdAt,
     Value<int>? updatedAt,
   }) {
-    return IssueTypesCompanion(
+    return TopicCategoriesCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
       description: description ?? this.description,
@@ -1066,7 +1079,7 @@ class IssueTypesCompanion extends UpdateCompanion<IssueType> {
 
   @override
   String toString() {
-    return (StringBuffer('IssueTypesCompanion(')
+    return (StringBuffer('TopicCategoriesCompanion(')
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('description: $description, ')
@@ -1077,12 +1090,12 @@ class IssueTypesCompanion extends UpdateCompanion<IssueType> {
   }
 }
 
-class $HandleTypesTable extends HandleTypes
-    with TableInfo<$HandleTypesTable, HandleType> {
+class $ActionCategoriesTable extends ActionCategories
+    with TableInfo<$ActionCategoriesTable, ActionCategory> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
-  $HandleTypesTable(this.attachedDatabase, [this._alias]);
+  $ActionCategoriesTable(this.attachedDatabase, [this._alias]);
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -1150,10 +1163,10 @@ class $HandleTypesTable extends HandleTypes
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
-  static const String $name = 'handle_types';
+  static const String $name = 'action_categories';
   @override
   VerificationContext validateIntegrity(
-    Insertable<HandleType> instance, {
+    Insertable<ActionCategory> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -1200,9 +1213,9 @@ class $HandleTypesTable extends HandleTypes
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  HandleType map(Map<String, dynamic> data, {String? tablePrefix}) {
+  ActionCategory map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return HandleType(
+    return ActionCategory(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -1227,18 +1240,18 @@ class $HandleTypesTable extends HandleTypes
   }
 
   @override
-  $HandleTypesTable createAlias(String alias) {
-    return $HandleTypesTable(attachedDatabase, alias);
+  $ActionCategoriesTable createAlias(String alias) {
+    return $ActionCategoriesTable(attachedDatabase, alias);
   }
 }
 
-class HandleType extends DataClass implements Insertable<HandleType> {
+class ActionCategory extends DataClass implements Insertable<ActionCategory> {
   final int id;
   final String name;
   final String? description;
   final int createdAt;
   final int updatedAt;
-  const HandleType({
+  const ActionCategory({
     required this.id,
     required this.name,
     this.description,
@@ -1258,8 +1271,8 @@ class HandleType extends DataClass implements Insertable<HandleType> {
     return map;
   }
 
-  HandleTypesCompanion toCompanion(bool nullToAbsent) {
-    return HandleTypesCompanion(
+  ActionCategoriesCompanion toCompanion(bool nullToAbsent) {
+    return ActionCategoriesCompanion(
       id: Value(id),
       name: Value(name),
       description: description == null && nullToAbsent
@@ -1270,12 +1283,12 @@ class HandleType extends DataClass implements Insertable<HandleType> {
     );
   }
 
-  factory HandleType.fromJson(
+  factory ActionCategory.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return HandleType(
+    return ActionCategory(
       id: serializer.fromJson<int>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       description: serializer.fromJson<String?>(json['description']),
@@ -1295,21 +1308,21 @@ class HandleType extends DataClass implements Insertable<HandleType> {
     };
   }
 
-  HandleType copyWith({
+  ActionCategory copyWith({
     int? id,
     String? name,
     Value<String?> description = const Value.absent(),
     int? createdAt,
     int? updatedAt,
-  }) => HandleType(
+  }) => ActionCategory(
     id: id ?? this.id,
     name: name ?? this.name,
     description: description.present ? description.value : this.description,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
-  HandleType copyWithCompanion(HandleTypesCompanion data) {
-    return HandleType(
+  ActionCategory copyWithCompanion(ActionCategoriesCompanion data) {
+    return ActionCategory(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
       description: data.description.present
@@ -1322,7 +1335,7 @@ class HandleType extends DataClass implements Insertable<HandleType> {
 
   @override
   String toString() {
-    return (StringBuffer('HandleType(')
+    return (StringBuffer('ActionCategory(')
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('description: $description, ')
@@ -1337,7 +1350,7 @@ class HandleType extends DataClass implements Insertable<HandleType> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is HandleType &&
+      (other is ActionCategory &&
           other.id == this.id &&
           other.name == this.name &&
           other.description == this.description &&
@@ -1345,20 +1358,20 @@ class HandleType extends DataClass implements Insertable<HandleType> {
           other.updatedAt == this.updatedAt);
 }
 
-class HandleTypesCompanion extends UpdateCompanion<HandleType> {
+class ActionCategoriesCompanion extends UpdateCompanion<ActionCategory> {
   final Value<int> id;
   final Value<String> name;
   final Value<String?> description;
   final Value<int> createdAt;
   final Value<int> updatedAt;
-  const HandleTypesCompanion({
+  const ActionCategoriesCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.description = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
-  HandleTypesCompanion.insert({
+  ActionCategoriesCompanion.insert({
     this.id = const Value.absent(),
     required String name,
     this.description = const Value.absent(),
@@ -1367,7 +1380,7 @@ class HandleTypesCompanion extends UpdateCompanion<HandleType> {
   }) : name = Value(name),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
-  static Insertable<HandleType> custom({
+  static Insertable<ActionCategory> custom({
     Expression<int>? id,
     Expression<String>? name,
     Expression<String>? description,
@@ -1383,14 +1396,14 @@ class HandleTypesCompanion extends UpdateCompanion<HandleType> {
     });
   }
 
-  HandleTypesCompanion copyWith({
+  ActionCategoriesCompanion copyWith({
     Value<int>? id,
     Value<String>? name,
     Value<String?>? description,
     Value<int>? createdAt,
     Value<int>? updatedAt,
   }) {
-    return HandleTypesCompanion(
+    return ActionCategoriesCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
       description: description ?? this.description,
@@ -1422,7 +1435,7 @@ class HandleTypesCompanion extends UpdateCompanion<HandleType> {
 
   @override
   String toString() {
-    return (StringBuffer('HandleTypesCompanion(')
+    return (StringBuffer('ActionCategoriesCompanion(')
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('description: $description, ')
@@ -1452,44 +1465,43 @@ class $RemindersTable extends Reminders
       'PRIMARY KEY AUTOINCREMENT',
     ),
   );
-  static const VerificationMeta _seriesIdMeta = const VerificationMeta(
-    'seriesId',
-  );
+  static const VerificationMeta _recurringReminderIdMeta =
+      const VerificationMeta('recurringReminderId');
   @override
-  late final GeneratedColumn<int> seriesId = GeneratedColumn<int>(
-    'series_id',
+  late final GeneratedColumn<int> recurringReminderId = GeneratedColumn<int>(
+    'recurring_reminder_id',
     aliasedName,
     true,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _previousReminderIdMeta =
-      const VerificationMeta('previousReminderId');
+  static const VerificationMeta _previousOccurrenceIdMeta =
+      const VerificationMeta('previousOccurrenceId');
   @override
-  late final GeneratedColumn<int> previousReminderId = GeneratedColumn<int>(
-    'previous_reminder_id',
+  late final GeneratedColumn<int> previousOccurrenceId = GeneratedColumn<int>(
+    'previous_occurrence_id',
     aliasedName,
     true,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _timeBasisMeta = const VerificationMeta(
-    'timeBasis',
+  static const VerificationMeta _trackingModeMeta = const VerificationMeta(
+    'trackingMode',
   );
   @override
-  late final GeneratedColumn<int> timeBasis = GeneratedColumn<int>(
-    'time_basis',
+  late final GeneratedColumn<int> trackingMode = GeneratedColumn<int>(
+    'tracking_mode',
     aliasedName,
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _notifyStrategyMeta = const VerificationMeta(
-    'notifyStrategy',
+  static const VerificationMeta _triggerModeMeta = const VerificationMeta(
+    'triggerMode',
   );
   @override
-  late final GeneratedColumn<int> notifyStrategy = GeneratedColumn<int>(
-    'notify_strategy',
+  late final GeneratedColumn<int> triggerMode = GeneratedColumn<int>(
+    'trigger_mode',
     aliasedName,
     false,
     type: DriftSqlType.int,
@@ -1523,21 +1535,23 @@ class $RemindersTable extends Reminders
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _remindDaysMeta = const VerificationMeta(
-    'remindDays',
+  static const VerificationMeta _triggerOffsetDaysMeta = const VerificationMeta(
+    'triggerOffsetDays',
   );
   @override
-  late final GeneratedColumn<int> remindDays = GeneratedColumn<int>(
-    'remind_days',
+  late final GeneratedColumn<int> triggerOffsetDays = GeneratedColumn<int>(
+    'trigger_offset_days',
     aliasedName,
     true,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _remarkMeta = const VerificationMeta('remark');
+  static const VerificationMeta _statusNoteMeta = const VerificationMeta(
+    'statusNote',
+  );
   @override
-  late final GeneratedColumn<String> remark = GeneratedColumn<String>(
-    'remark',
+  late final GeneratedColumn<String> statusNote = GeneratedColumn<String>(
+    'status_note',
     aliasedName,
     true,
     type: DriftSqlType.string,
@@ -1563,34 +1577,34 @@ class $RemindersTable extends Reminders
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _extendAtMeta = const VerificationMeta(
-    'extendAt',
+  static const VerificationMeta _deferredDueAtMeta = const VerificationMeta(
+    'deferredDueAt',
   );
   @override
-  late final GeneratedColumn<int> extendAt = GeneratedColumn<int>(
-    'extend_at',
+  late final GeneratedColumn<int> deferredDueAt = GeneratedColumn<int>(
+    'deferred_due_at',
     aliasedName,
     true,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _issueTypeIdMeta = const VerificationMeta(
-    'issueTypeId',
+  static const VerificationMeta _topicCategoryIdMeta = const VerificationMeta(
+    'topicCategoryId',
   );
   @override
-  late final GeneratedColumn<int> issueTypeId = GeneratedColumn<int>(
-    'issue_type_id',
+  late final GeneratedColumn<int> topicCategoryId = GeneratedColumn<int>(
+    'topic_category_id',
     aliasedName,
     true,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _handleTypeIdMeta = const VerificationMeta(
-    'handleTypeId',
+  static const VerificationMeta _actionCategoryIdMeta = const VerificationMeta(
+    'actionCategoryId',
   );
   @override
-  late final GeneratedColumn<int> handleTypeId = GeneratedColumn<int>(
-    'handle_type_id',
+  late final GeneratedColumn<int> actionCategoryId = GeneratedColumn<int>(
+    'action_category_id',
     aliasedName,
     true,
     type: DriftSqlType.int,
@@ -1621,20 +1635,20 @@ class $RemindersTable extends Reminders
   @override
   List<GeneratedColumn> get $columns => [
     id,
-    seriesId,
-    previousReminderId,
-    timeBasis,
-    notifyStrategy,
+    recurringReminderId,
+    previousOccurrenceId,
+    trackingMode,
+    triggerMode,
     status,
     title,
     note,
-    remindDays,
-    remark,
+    triggerOffsetDays,
+    statusNote,
     dueAt,
     startAt,
-    extendAt,
-    issueTypeId,
-    handleTypeId,
+    deferredDueAt,
+    topicCategoryId,
+    actionCategoryId,
     createdAt,
     updatedAt,
   ];
@@ -1653,39 +1667,45 @@ class $RemindersTable extends Reminders
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     }
-    if (data.containsKey('series_id')) {
+    if (data.containsKey('recurring_reminder_id')) {
       context.handle(
-        _seriesIdMeta,
-        seriesId.isAcceptableOrUnknown(data['series_id']!, _seriesIdMeta),
-      );
-    }
-    if (data.containsKey('previous_reminder_id')) {
-      context.handle(
-        _previousReminderIdMeta,
-        previousReminderId.isAcceptableOrUnknown(
-          data['previous_reminder_id']!,
-          _previousReminderIdMeta,
+        _recurringReminderIdMeta,
+        recurringReminderId.isAcceptableOrUnknown(
+          data['recurring_reminder_id']!,
+          _recurringReminderIdMeta,
         ),
       );
     }
-    if (data.containsKey('time_basis')) {
+    if (data.containsKey('previous_occurrence_id')) {
       context.handle(
-        _timeBasisMeta,
-        timeBasis.isAcceptableOrUnknown(data['time_basis']!, _timeBasisMeta),
+        _previousOccurrenceIdMeta,
+        previousOccurrenceId.isAcceptableOrUnknown(
+          data['previous_occurrence_id']!,
+          _previousOccurrenceIdMeta,
+        ),
       );
-    } else if (isInserting) {
-      context.missing(_timeBasisMeta);
     }
-    if (data.containsKey('notify_strategy')) {
+    if (data.containsKey('tracking_mode')) {
       context.handle(
-        _notifyStrategyMeta,
-        notifyStrategy.isAcceptableOrUnknown(
-          data['notify_strategy']!,
-          _notifyStrategyMeta,
+        _trackingModeMeta,
+        trackingMode.isAcceptableOrUnknown(
+          data['tracking_mode']!,
+          _trackingModeMeta,
         ),
       );
     } else if (isInserting) {
-      context.missing(_notifyStrategyMeta);
+      context.missing(_trackingModeMeta);
+    }
+    if (data.containsKey('trigger_mode')) {
+      context.handle(
+        _triggerModeMeta,
+        triggerMode.isAcceptableOrUnknown(
+          data['trigger_mode']!,
+          _triggerModeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_triggerModeMeta);
     }
     if (data.containsKey('status')) {
       context.handle(
@@ -1707,16 +1727,19 @@ class $RemindersTable extends Reminders
         note.isAcceptableOrUnknown(data['note']!, _noteMeta),
       );
     }
-    if (data.containsKey('remind_days')) {
+    if (data.containsKey('trigger_offset_days')) {
       context.handle(
-        _remindDaysMeta,
-        remindDays.isAcceptableOrUnknown(data['remind_days']!, _remindDaysMeta),
+        _triggerOffsetDaysMeta,
+        triggerOffsetDays.isAcceptableOrUnknown(
+          data['trigger_offset_days']!,
+          _triggerOffsetDaysMeta,
+        ),
       );
     }
-    if (data.containsKey('remark')) {
+    if (data.containsKey('status_note')) {
       context.handle(
-        _remarkMeta,
-        remark.isAcceptableOrUnknown(data['remark']!, _remarkMeta),
+        _statusNoteMeta,
+        statusNote.isAcceptableOrUnknown(data['status_note']!, _statusNoteMeta),
       );
     }
     if (data.containsKey('due_at')) {
@@ -1733,27 +1756,30 @@ class $RemindersTable extends Reminders
     } else if (isInserting) {
       context.missing(_startAtMeta);
     }
-    if (data.containsKey('extend_at')) {
+    if (data.containsKey('deferred_due_at')) {
       context.handle(
-        _extendAtMeta,
-        extendAt.isAcceptableOrUnknown(data['extend_at']!, _extendAtMeta),
-      );
-    }
-    if (data.containsKey('issue_type_id')) {
-      context.handle(
-        _issueTypeIdMeta,
-        issueTypeId.isAcceptableOrUnknown(
-          data['issue_type_id']!,
-          _issueTypeIdMeta,
+        _deferredDueAtMeta,
+        deferredDueAt.isAcceptableOrUnknown(
+          data['deferred_due_at']!,
+          _deferredDueAtMeta,
         ),
       );
     }
-    if (data.containsKey('handle_type_id')) {
+    if (data.containsKey('topic_category_id')) {
       context.handle(
-        _handleTypeIdMeta,
-        handleTypeId.isAcceptableOrUnknown(
-          data['handle_type_id']!,
-          _handleTypeIdMeta,
+        _topicCategoryIdMeta,
+        topicCategoryId.isAcceptableOrUnknown(
+          data['topic_category_id']!,
+          _topicCategoryIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('action_category_id')) {
+      context.handle(
+        _actionCategoryIdMeta,
+        actionCategoryId.isAcceptableOrUnknown(
+          data['action_category_id']!,
+          _actionCategoryIdMeta,
         ),
       );
     }
@@ -1786,21 +1812,21 @@ class $RemindersTable extends Reminders
         DriftSqlType.int,
         data['${effectivePrefix}id'],
       )!,
-      seriesId: attachedDatabase.typeMapping.read(
+      recurringReminderId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}series_id'],
+        data['${effectivePrefix}recurring_reminder_id'],
       ),
-      previousReminderId: attachedDatabase.typeMapping.read(
+      previousOccurrenceId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}previous_reminder_id'],
+        data['${effectivePrefix}previous_occurrence_id'],
       ),
-      timeBasis: attachedDatabase.typeMapping.read(
+      trackingMode: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}time_basis'],
+        data['${effectivePrefix}tracking_mode'],
       )!,
-      notifyStrategy: attachedDatabase.typeMapping.read(
+      triggerMode: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}notify_strategy'],
+        data['${effectivePrefix}trigger_mode'],
       )!,
       status: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
@@ -1814,13 +1840,13 @@ class $RemindersTable extends Reminders
         DriftSqlType.string,
         data['${effectivePrefix}note'],
       ),
-      remindDays: attachedDatabase.typeMapping.read(
+      triggerOffsetDays: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}remind_days'],
+        data['${effectivePrefix}trigger_offset_days'],
       ),
-      remark: attachedDatabase.typeMapping.read(
+      statusNote: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}remark'],
+        data['${effectivePrefix}status_note'],
       ),
       dueAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
@@ -1830,17 +1856,17 @@ class $RemindersTable extends Reminders
         DriftSqlType.int,
         data['${effectivePrefix}start_at'],
       )!,
-      extendAt: attachedDatabase.typeMapping.read(
+      deferredDueAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}extend_at'],
+        data['${effectivePrefix}deferred_due_at'],
       ),
-      issueTypeId: attachedDatabase.typeMapping.read(
+      topicCategoryId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}issue_type_id'],
+        data['${effectivePrefix}topic_category_id'],
       ),
-      handleTypeId: attachedDatabase.typeMapping.read(
+      actionCategoryId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}handle_type_id'],
+        data['${effectivePrefix}action_category_id'],
       ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
@@ -1861,44 +1887,44 @@ class $RemindersTable extends Reminders
 
 class Reminder extends DataClass implements Insertable<Reminder> {
   final int id;
-  final int? seriesId;
-  final int? previousReminderId;
+  final int? recurringReminderId;
+  final int? previousOccurrenceId;
 
   /// 1: countdown, 2: count-up.
-  final int timeBasis;
+  final int trackingMode;
 
-  /// 1: in-range, 2: on-point.
-  final int notifyStrategy;
+  /// 1: in-range, 2: immediate, 3: on-point.
+  final int triggerMode;
 
   /// 0: pending, 1: done, 2: skipped, 3: canceled.
   final int status;
   final String title;
   final String? note;
-  final int? remindDays;
-  final String? remark;
+  final int? triggerOffsetDays;
+  final String? statusNote;
   final int? dueAt;
   final int startAt;
-  final int? extendAt;
-  final int? issueTypeId;
-  final int? handleTypeId;
+  final int? deferredDueAt;
+  final int? topicCategoryId;
+  final int? actionCategoryId;
   final int createdAt;
   final int updatedAt;
   const Reminder({
     required this.id,
-    this.seriesId,
-    this.previousReminderId,
-    required this.timeBasis,
-    required this.notifyStrategy,
+    this.recurringReminderId,
+    this.previousOccurrenceId,
+    required this.trackingMode,
+    required this.triggerMode,
     required this.status,
     required this.title,
     this.note,
-    this.remindDays,
-    this.remark,
+    this.triggerOffsetDays,
+    this.statusNote,
     this.dueAt,
     required this.startAt,
-    this.extendAt,
-    this.issueTypeId,
-    this.handleTypeId,
+    this.deferredDueAt,
+    this.topicCategoryId,
+    this.actionCategoryId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -1906,37 +1932,37 @@ class Reminder extends DataClass implements Insertable<Reminder> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
-    if (!nullToAbsent || seriesId != null) {
-      map['series_id'] = Variable<int>(seriesId);
+    if (!nullToAbsent || recurringReminderId != null) {
+      map['recurring_reminder_id'] = Variable<int>(recurringReminderId);
     }
-    if (!nullToAbsent || previousReminderId != null) {
-      map['previous_reminder_id'] = Variable<int>(previousReminderId);
+    if (!nullToAbsent || previousOccurrenceId != null) {
+      map['previous_occurrence_id'] = Variable<int>(previousOccurrenceId);
     }
-    map['time_basis'] = Variable<int>(timeBasis);
-    map['notify_strategy'] = Variable<int>(notifyStrategy);
+    map['tracking_mode'] = Variable<int>(trackingMode);
+    map['trigger_mode'] = Variable<int>(triggerMode);
     map['status'] = Variable<int>(status);
     map['title'] = Variable<String>(title);
     if (!nullToAbsent || note != null) {
       map['note'] = Variable<String>(note);
     }
-    if (!nullToAbsent || remindDays != null) {
-      map['remind_days'] = Variable<int>(remindDays);
+    if (!nullToAbsent || triggerOffsetDays != null) {
+      map['trigger_offset_days'] = Variable<int>(triggerOffsetDays);
     }
-    if (!nullToAbsent || remark != null) {
-      map['remark'] = Variable<String>(remark);
+    if (!nullToAbsent || statusNote != null) {
+      map['status_note'] = Variable<String>(statusNote);
     }
     if (!nullToAbsent || dueAt != null) {
       map['due_at'] = Variable<int>(dueAt);
     }
     map['start_at'] = Variable<int>(startAt);
-    if (!nullToAbsent || extendAt != null) {
-      map['extend_at'] = Variable<int>(extendAt);
+    if (!nullToAbsent || deferredDueAt != null) {
+      map['deferred_due_at'] = Variable<int>(deferredDueAt);
     }
-    if (!nullToAbsent || issueTypeId != null) {
-      map['issue_type_id'] = Variable<int>(issueTypeId);
+    if (!nullToAbsent || topicCategoryId != null) {
+      map['topic_category_id'] = Variable<int>(topicCategoryId);
     }
-    if (!nullToAbsent || handleTypeId != null) {
-      map['handle_type_id'] = Variable<int>(handleTypeId);
+    if (!nullToAbsent || actionCategoryId != null) {
+      map['action_category_id'] = Variable<int>(actionCategoryId);
     }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
@@ -1946,36 +1972,36 @@ class Reminder extends DataClass implements Insertable<Reminder> {
   RemindersCompanion toCompanion(bool nullToAbsent) {
     return RemindersCompanion(
       id: Value(id),
-      seriesId: seriesId == null && nullToAbsent
+      recurringReminderId: recurringReminderId == null && nullToAbsent
           ? const Value.absent()
-          : Value(seriesId),
-      previousReminderId: previousReminderId == null && nullToAbsent
+          : Value(recurringReminderId),
+      previousOccurrenceId: previousOccurrenceId == null && nullToAbsent
           ? const Value.absent()
-          : Value(previousReminderId),
-      timeBasis: Value(timeBasis),
-      notifyStrategy: Value(notifyStrategy),
+          : Value(previousOccurrenceId),
+      trackingMode: Value(trackingMode),
+      triggerMode: Value(triggerMode),
       status: Value(status),
       title: Value(title),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
-      remindDays: remindDays == null && nullToAbsent
+      triggerOffsetDays: triggerOffsetDays == null && nullToAbsent
           ? const Value.absent()
-          : Value(remindDays),
-      remark: remark == null && nullToAbsent
+          : Value(triggerOffsetDays),
+      statusNote: statusNote == null && nullToAbsent
           ? const Value.absent()
-          : Value(remark),
+          : Value(statusNote),
       dueAt: dueAt == null && nullToAbsent
           ? const Value.absent()
           : Value(dueAt),
       startAt: Value(startAt),
-      extendAt: extendAt == null && nullToAbsent
+      deferredDueAt: deferredDueAt == null && nullToAbsent
           ? const Value.absent()
-          : Value(extendAt),
-      issueTypeId: issueTypeId == null && nullToAbsent
+          : Value(deferredDueAt),
+      topicCategoryId: topicCategoryId == null && nullToAbsent
           ? const Value.absent()
-          : Value(issueTypeId),
-      handleTypeId: handleTypeId == null && nullToAbsent
+          : Value(topicCategoryId),
+      actionCategoryId: actionCategoryId == null && nullToAbsent
           ? const Value.absent()
-          : Value(handleTypeId),
+          : Value(actionCategoryId),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -1988,20 +2014,24 @@ class Reminder extends DataClass implements Insertable<Reminder> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Reminder(
       id: serializer.fromJson<int>(json['id']),
-      seriesId: serializer.fromJson<int?>(json['seriesId']),
-      previousReminderId: serializer.fromJson<int?>(json['previousReminderId']),
-      timeBasis: serializer.fromJson<int>(json['timeBasis']),
-      notifyStrategy: serializer.fromJson<int>(json['notifyStrategy']),
+      recurringReminderId: serializer.fromJson<int?>(
+        json['recurringReminderId'],
+      ),
+      previousOccurrenceId: serializer.fromJson<int?>(
+        json['previousOccurrenceId'],
+      ),
+      trackingMode: serializer.fromJson<int>(json['trackingMode']),
+      triggerMode: serializer.fromJson<int>(json['triggerMode']),
       status: serializer.fromJson<int>(json['status']),
       title: serializer.fromJson<String>(json['title']),
       note: serializer.fromJson<String?>(json['note']),
-      remindDays: serializer.fromJson<int?>(json['remindDays']),
-      remark: serializer.fromJson<String?>(json['remark']),
+      triggerOffsetDays: serializer.fromJson<int?>(json['triggerOffsetDays']),
+      statusNote: serializer.fromJson<String?>(json['statusNote']),
       dueAt: serializer.fromJson<int?>(json['dueAt']),
       startAt: serializer.fromJson<int>(json['startAt']),
-      extendAt: serializer.fromJson<int?>(json['extendAt']),
-      issueTypeId: serializer.fromJson<int?>(json['issueTypeId']),
-      handleTypeId: serializer.fromJson<int?>(json['handleTypeId']),
+      deferredDueAt: serializer.fromJson<int?>(json['deferredDueAt']),
+      topicCategoryId: serializer.fromJson<int?>(json['topicCategoryId']),
+      actionCategoryId: serializer.fromJson<int?>(json['actionCategoryId']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -2011,20 +2041,20 @@ class Reminder extends DataClass implements Insertable<Reminder> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
-      'seriesId': serializer.toJson<int?>(seriesId),
-      'previousReminderId': serializer.toJson<int?>(previousReminderId),
-      'timeBasis': serializer.toJson<int>(timeBasis),
-      'notifyStrategy': serializer.toJson<int>(notifyStrategy),
+      'recurringReminderId': serializer.toJson<int?>(recurringReminderId),
+      'previousOccurrenceId': serializer.toJson<int?>(previousOccurrenceId),
+      'trackingMode': serializer.toJson<int>(trackingMode),
+      'triggerMode': serializer.toJson<int>(triggerMode),
       'status': serializer.toJson<int>(status),
       'title': serializer.toJson<String>(title),
       'note': serializer.toJson<String?>(note),
-      'remindDays': serializer.toJson<int?>(remindDays),
-      'remark': serializer.toJson<String?>(remark),
+      'triggerOffsetDays': serializer.toJson<int?>(triggerOffsetDays),
+      'statusNote': serializer.toJson<String?>(statusNote),
       'dueAt': serializer.toJson<int?>(dueAt),
       'startAt': serializer.toJson<int>(startAt),
-      'extendAt': serializer.toJson<int?>(extendAt),
-      'issueTypeId': serializer.toJson<int?>(issueTypeId),
-      'handleTypeId': serializer.toJson<int?>(handleTypeId),
+      'deferredDueAt': serializer.toJson<int?>(deferredDueAt),
+      'topicCategoryId': serializer.toJson<int?>(topicCategoryId),
+      'actionCategoryId': serializer.toJson<int?>(actionCategoryId),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -2032,70 +2062,88 @@ class Reminder extends DataClass implements Insertable<Reminder> {
 
   Reminder copyWith({
     int? id,
-    Value<int?> seriesId = const Value.absent(),
-    Value<int?> previousReminderId = const Value.absent(),
-    int? timeBasis,
-    int? notifyStrategy,
+    Value<int?> recurringReminderId = const Value.absent(),
+    Value<int?> previousOccurrenceId = const Value.absent(),
+    int? trackingMode,
+    int? triggerMode,
     int? status,
     String? title,
     Value<String?> note = const Value.absent(),
-    Value<int?> remindDays = const Value.absent(),
-    Value<String?> remark = const Value.absent(),
+    Value<int?> triggerOffsetDays = const Value.absent(),
+    Value<String?> statusNote = const Value.absent(),
     Value<int?> dueAt = const Value.absent(),
     int? startAt,
-    Value<int?> extendAt = const Value.absent(),
-    Value<int?> issueTypeId = const Value.absent(),
-    Value<int?> handleTypeId = const Value.absent(),
+    Value<int?> deferredDueAt = const Value.absent(),
+    Value<int?> topicCategoryId = const Value.absent(),
+    Value<int?> actionCategoryId = const Value.absent(),
     int? createdAt,
     int? updatedAt,
   }) => Reminder(
     id: id ?? this.id,
-    seriesId: seriesId.present ? seriesId.value : this.seriesId,
-    previousReminderId: previousReminderId.present
-        ? previousReminderId.value
-        : this.previousReminderId,
-    timeBasis: timeBasis ?? this.timeBasis,
-    notifyStrategy: notifyStrategy ?? this.notifyStrategy,
+    recurringReminderId: recurringReminderId.present
+        ? recurringReminderId.value
+        : this.recurringReminderId,
+    previousOccurrenceId: previousOccurrenceId.present
+        ? previousOccurrenceId.value
+        : this.previousOccurrenceId,
+    trackingMode: trackingMode ?? this.trackingMode,
+    triggerMode: triggerMode ?? this.triggerMode,
     status: status ?? this.status,
     title: title ?? this.title,
     note: note.present ? note.value : this.note,
-    remindDays: remindDays.present ? remindDays.value : this.remindDays,
-    remark: remark.present ? remark.value : this.remark,
+    triggerOffsetDays: triggerOffsetDays.present
+        ? triggerOffsetDays.value
+        : this.triggerOffsetDays,
+    statusNote: statusNote.present ? statusNote.value : this.statusNote,
     dueAt: dueAt.present ? dueAt.value : this.dueAt,
     startAt: startAt ?? this.startAt,
-    extendAt: extendAt.present ? extendAt.value : this.extendAt,
-    issueTypeId: issueTypeId.present ? issueTypeId.value : this.issueTypeId,
-    handleTypeId: handleTypeId.present ? handleTypeId.value : this.handleTypeId,
+    deferredDueAt: deferredDueAt.present
+        ? deferredDueAt.value
+        : this.deferredDueAt,
+    topicCategoryId: topicCategoryId.present
+        ? topicCategoryId.value
+        : this.topicCategoryId,
+    actionCategoryId: actionCategoryId.present
+        ? actionCategoryId.value
+        : this.actionCategoryId,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
   Reminder copyWithCompanion(RemindersCompanion data) {
     return Reminder(
       id: data.id.present ? data.id.value : this.id,
-      seriesId: data.seriesId.present ? data.seriesId.value : this.seriesId,
-      previousReminderId: data.previousReminderId.present
-          ? data.previousReminderId.value
-          : this.previousReminderId,
-      timeBasis: data.timeBasis.present ? data.timeBasis.value : this.timeBasis,
-      notifyStrategy: data.notifyStrategy.present
-          ? data.notifyStrategy.value
-          : this.notifyStrategy,
+      recurringReminderId: data.recurringReminderId.present
+          ? data.recurringReminderId.value
+          : this.recurringReminderId,
+      previousOccurrenceId: data.previousOccurrenceId.present
+          ? data.previousOccurrenceId.value
+          : this.previousOccurrenceId,
+      trackingMode: data.trackingMode.present
+          ? data.trackingMode.value
+          : this.trackingMode,
+      triggerMode: data.triggerMode.present
+          ? data.triggerMode.value
+          : this.triggerMode,
       status: data.status.present ? data.status.value : this.status,
       title: data.title.present ? data.title.value : this.title,
       note: data.note.present ? data.note.value : this.note,
-      remindDays: data.remindDays.present
-          ? data.remindDays.value
-          : this.remindDays,
-      remark: data.remark.present ? data.remark.value : this.remark,
+      triggerOffsetDays: data.triggerOffsetDays.present
+          ? data.triggerOffsetDays.value
+          : this.triggerOffsetDays,
+      statusNote: data.statusNote.present
+          ? data.statusNote.value
+          : this.statusNote,
       dueAt: data.dueAt.present ? data.dueAt.value : this.dueAt,
       startAt: data.startAt.present ? data.startAt.value : this.startAt,
-      extendAt: data.extendAt.present ? data.extendAt.value : this.extendAt,
-      issueTypeId: data.issueTypeId.present
-          ? data.issueTypeId.value
-          : this.issueTypeId,
-      handleTypeId: data.handleTypeId.present
-          ? data.handleTypeId.value
-          : this.handleTypeId,
+      deferredDueAt: data.deferredDueAt.present
+          ? data.deferredDueAt.value
+          : this.deferredDueAt,
+      topicCategoryId: data.topicCategoryId.present
+          ? data.topicCategoryId.value
+          : this.topicCategoryId,
+      actionCategoryId: data.actionCategoryId.present
+          ? data.actionCategoryId.value
+          : this.actionCategoryId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -2105,20 +2153,20 @@ class Reminder extends DataClass implements Insertable<Reminder> {
   String toString() {
     return (StringBuffer('Reminder(')
           ..write('id: $id, ')
-          ..write('seriesId: $seriesId, ')
-          ..write('previousReminderId: $previousReminderId, ')
-          ..write('timeBasis: $timeBasis, ')
-          ..write('notifyStrategy: $notifyStrategy, ')
+          ..write('recurringReminderId: $recurringReminderId, ')
+          ..write('previousOccurrenceId: $previousOccurrenceId, ')
+          ..write('trackingMode: $trackingMode, ')
+          ..write('triggerMode: $triggerMode, ')
           ..write('status: $status, ')
           ..write('title: $title, ')
           ..write('note: $note, ')
-          ..write('remindDays: $remindDays, ')
-          ..write('remark: $remark, ')
+          ..write('triggerOffsetDays: $triggerOffsetDays, ')
+          ..write('statusNote: $statusNote, ')
           ..write('dueAt: $dueAt, ')
           ..write('startAt: $startAt, ')
-          ..write('extendAt: $extendAt, ')
-          ..write('issueTypeId: $issueTypeId, ')
-          ..write('handleTypeId: $handleTypeId, ')
+          ..write('deferredDueAt: $deferredDueAt, ')
+          ..write('topicCategoryId: $topicCategoryId, ')
+          ..write('actionCategoryId: $actionCategoryId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -2128,20 +2176,20 @@ class Reminder extends DataClass implements Insertable<Reminder> {
   @override
   int get hashCode => Object.hash(
     id,
-    seriesId,
-    previousReminderId,
-    timeBasis,
-    notifyStrategy,
+    recurringReminderId,
+    previousOccurrenceId,
+    trackingMode,
+    triggerMode,
     status,
     title,
     note,
-    remindDays,
-    remark,
+    triggerOffsetDays,
+    statusNote,
     dueAt,
     startAt,
-    extendAt,
-    issueTypeId,
-    handleTypeId,
+    deferredDueAt,
+    topicCategoryId,
+    actionCategoryId,
     createdAt,
     updatedAt,
   );
@@ -2150,121 +2198,122 @@ class Reminder extends DataClass implements Insertable<Reminder> {
       identical(this, other) ||
       (other is Reminder &&
           other.id == this.id &&
-          other.seriesId == this.seriesId &&
-          other.previousReminderId == this.previousReminderId &&
-          other.timeBasis == this.timeBasis &&
-          other.notifyStrategy == this.notifyStrategy &&
+          other.recurringReminderId == this.recurringReminderId &&
+          other.previousOccurrenceId == this.previousOccurrenceId &&
+          other.trackingMode == this.trackingMode &&
+          other.triggerMode == this.triggerMode &&
           other.status == this.status &&
           other.title == this.title &&
           other.note == this.note &&
-          other.remindDays == this.remindDays &&
-          other.remark == this.remark &&
+          other.triggerOffsetDays == this.triggerOffsetDays &&
+          other.statusNote == this.statusNote &&
           other.dueAt == this.dueAt &&
           other.startAt == this.startAt &&
-          other.extendAt == this.extendAt &&
-          other.issueTypeId == this.issueTypeId &&
-          other.handleTypeId == this.handleTypeId &&
+          other.deferredDueAt == this.deferredDueAt &&
+          other.topicCategoryId == this.topicCategoryId &&
+          other.actionCategoryId == this.actionCategoryId &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
 
 class RemindersCompanion extends UpdateCompanion<Reminder> {
   final Value<int> id;
-  final Value<int?> seriesId;
-  final Value<int?> previousReminderId;
-  final Value<int> timeBasis;
-  final Value<int> notifyStrategy;
+  final Value<int?> recurringReminderId;
+  final Value<int?> previousOccurrenceId;
+  final Value<int> trackingMode;
+  final Value<int> triggerMode;
   final Value<int> status;
   final Value<String> title;
   final Value<String?> note;
-  final Value<int?> remindDays;
-  final Value<String?> remark;
+  final Value<int?> triggerOffsetDays;
+  final Value<String?> statusNote;
   final Value<int?> dueAt;
   final Value<int> startAt;
-  final Value<int?> extendAt;
-  final Value<int?> issueTypeId;
-  final Value<int?> handleTypeId;
+  final Value<int?> deferredDueAt;
+  final Value<int?> topicCategoryId;
+  final Value<int?> actionCategoryId;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   const RemindersCompanion({
     this.id = const Value.absent(),
-    this.seriesId = const Value.absent(),
-    this.previousReminderId = const Value.absent(),
-    this.timeBasis = const Value.absent(),
-    this.notifyStrategy = const Value.absent(),
+    this.recurringReminderId = const Value.absent(),
+    this.previousOccurrenceId = const Value.absent(),
+    this.trackingMode = const Value.absent(),
+    this.triggerMode = const Value.absent(),
     this.status = const Value.absent(),
     this.title = const Value.absent(),
     this.note = const Value.absent(),
-    this.remindDays = const Value.absent(),
-    this.remark = const Value.absent(),
+    this.triggerOffsetDays = const Value.absent(),
+    this.statusNote = const Value.absent(),
     this.dueAt = const Value.absent(),
     this.startAt = const Value.absent(),
-    this.extendAt = const Value.absent(),
-    this.issueTypeId = const Value.absent(),
-    this.handleTypeId = const Value.absent(),
+    this.deferredDueAt = const Value.absent(),
+    this.topicCategoryId = const Value.absent(),
+    this.actionCategoryId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
   RemindersCompanion.insert({
     this.id = const Value.absent(),
-    this.seriesId = const Value.absent(),
-    this.previousReminderId = const Value.absent(),
-    required int timeBasis,
-    required int notifyStrategy,
+    this.recurringReminderId = const Value.absent(),
+    this.previousOccurrenceId = const Value.absent(),
+    required int trackingMode,
+    required int triggerMode,
     this.status = const Value.absent(),
     required String title,
     this.note = const Value.absent(),
-    this.remindDays = const Value.absent(),
-    this.remark = const Value.absent(),
+    this.triggerOffsetDays = const Value.absent(),
+    this.statusNote = const Value.absent(),
     this.dueAt = const Value.absent(),
     required int startAt,
-    this.extendAt = const Value.absent(),
-    this.issueTypeId = const Value.absent(),
-    this.handleTypeId = const Value.absent(),
+    this.deferredDueAt = const Value.absent(),
+    this.topicCategoryId = const Value.absent(),
+    this.actionCategoryId = const Value.absent(),
     required int createdAt,
     required int updatedAt,
-  }) : timeBasis = Value(timeBasis),
-       notifyStrategy = Value(notifyStrategy),
+  }) : trackingMode = Value(trackingMode),
+       triggerMode = Value(triggerMode),
        title = Value(title),
        startAt = Value(startAt),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
   static Insertable<Reminder> custom({
     Expression<int>? id,
-    Expression<int>? seriesId,
-    Expression<int>? previousReminderId,
-    Expression<int>? timeBasis,
-    Expression<int>? notifyStrategy,
+    Expression<int>? recurringReminderId,
+    Expression<int>? previousOccurrenceId,
+    Expression<int>? trackingMode,
+    Expression<int>? triggerMode,
     Expression<int>? status,
     Expression<String>? title,
     Expression<String>? note,
-    Expression<int>? remindDays,
-    Expression<String>? remark,
+    Expression<int>? triggerOffsetDays,
+    Expression<String>? statusNote,
     Expression<int>? dueAt,
     Expression<int>? startAt,
-    Expression<int>? extendAt,
-    Expression<int>? issueTypeId,
-    Expression<int>? handleTypeId,
+    Expression<int>? deferredDueAt,
+    Expression<int>? topicCategoryId,
+    Expression<int>? actionCategoryId,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
-      if (seriesId != null) 'series_id': seriesId,
-      if (previousReminderId != null)
-        'previous_reminder_id': previousReminderId,
-      if (timeBasis != null) 'time_basis': timeBasis,
-      if (notifyStrategy != null) 'notify_strategy': notifyStrategy,
+      if (recurringReminderId != null)
+        'recurring_reminder_id': recurringReminderId,
+      if (previousOccurrenceId != null)
+        'previous_occurrence_id': previousOccurrenceId,
+      if (trackingMode != null) 'tracking_mode': trackingMode,
+      if (triggerMode != null) 'trigger_mode': triggerMode,
       if (status != null) 'status': status,
       if (title != null) 'title': title,
       if (note != null) 'note': note,
-      if (remindDays != null) 'remind_days': remindDays,
-      if (remark != null) 'remark': remark,
+      if (triggerOffsetDays != null) 'trigger_offset_days': triggerOffsetDays,
+      if (statusNote != null) 'status_note': statusNote,
       if (dueAt != null) 'due_at': dueAt,
       if (startAt != null) 'start_at': startAt,
-      if (extendAt != null) 'extend_at': extendAt,
-      if (issueTypeId != null) 'issue_type_id': issueTypeId,
-      if (handleTypeId != null) 'handle_type_id': handleTypeId,
+      if (deferredDueAt != null) 'deferred_due_at': deferredDueAt,
+      if (topicCategoryId != null) 'topic_category_id': topicCategoryId,
+      if (actionCategoryId != null) 'action_category_id': actionCategoryId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -2272,39 +2321,39 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
 
   RemindersCompanion copyWith({
     Value<int>? id,
-    Value<int?>? seriesId,
-    Value<int?>? previousReminderId,
-    Value<int>? timeBasis,
-    Value<int>? notifyStrategy,
+    Value<int?>? recurringReminderId,
+    Value<int?>? previousOccurrenceId,
+    Value<int>? trackingMode,
+    Value<int>? triggerMode,
     Value<int>? status,
     Value<String>? title,
     Value<String?>? note,
-    Value<int?>? remindDays,
-    Value<String?>? remark,
+    Value<int?>? triggerOffsetDays,
+    Value<String?>? statusNote,
     Value<int?>? dueAt,
     Value<int>? startAt,
-    Value<int?>? extendAt,
-    Value<int?>? issueTypeId,
-    Value<int?>? handleTypeId,
+    Value<int?>? deferredDueAt,
+    Value<int?>? topicCategoryId,
+    Value<int?>? actionCategoryId,
     Value<int>? createdAt,
     Value<int>? updatedAt,
   }) {
     return RemindersCompanion(
       id: id ?? this.id,
-      seriesId: seriesId ?? this.seriesId,
-      previousReminderId: previousReminderId ?? this.previousReminderId,
-      timeBasis: timeBasis ?? this.timeBasis,
-      notifyStrategy: notifyStrategy ?? this.notifyStrategy,
+      recurringReminderId: recurringReminderId ?? this.recurringReminderId,
+      previousOccurrenceId: previousOccurrenceId ?? this.previousOccurrenceId,
+      trackingMode: trackingMode ?? this.trackingMode,
+      triggerMode: triggerMode ?? this.triggerMode,
       status: status ?? this.status,
       title: title ?? this.title,
       note: note ?? this.note,
-      remindDays: remindDays ?? this.remindDays,
-      remark: remark ?? this.remark,
+      triggerOffsetDays: triggerOffsetDays ?? this.triggerOffsetDays,
+      statusNote: statusNote ?? this.statusNote,
       dueAt: dueAt ?? this.dueAt,
       startAt: startAt ?? this.startAt,
-      extendAt: extendAt ?? this.extendAt,
-      issueTypeId: issueTypeId ?? this.issueTypeId,
-      handleTypeId: handleTypeId ?? this.handleTypeId,
+      deferredDueAt: deferredDueAt ?? this.deferredDueAt,
+      topicCategoryId: topicCategoryId ?? this.topicCategoryId,
+      actionCategoryId: actionCategoryId ?? this.actionCategoryId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -2316,17 +2365,17 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
-    if (seriesId.present) {
-      map['series_id'] = Variable<int>(seriesId.value);
+    if (recurringReminderId.present) {
+      map['recurring_reminder_id'] = Variable<int>(recurringReminderId.value);
     }
-    if (previousReminderId.present) {
-      map['previous_reminder_id'] = Variable<int>(previousReminderId.value);
+    if (previousOccurrenceId.present) {
+      map['previous_occurrence_id'] = Variable<int>(previousOccurrenceId.value);
     }
-    if (timeBasis.present) {
-      map['time_basis'] = Variable<int>(timeBasis.value);
+    if (trackingMode.present) {
+      map['tracking_mode'] = Variable<int>(trackingMode.value);
     }
-    if (notifyStrategy.present) {
-      map['notify_strategy'] = Variable<int>(notifyStrategy.value);
+    if (triggerMode.present) {
+      map['trigger_mode'] = Variable<int>(triggerMode.value);
     }
     if (status.present) {
       map['status'] = Variable<int>(status.value);
@@ -2337,11 +2386,11 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
     if (note.present) {
       map['note'] = Variable<String>(note.value);
     }
-    if (remindDays.present) {
-      map['remind_days'] = Variable<int>(remindDays.value);
+    if (triggerOffsetDays.present) {
+      map['trigger_offset_days'] = Variable<int>(triggerOffsetDays.value);
     }
-    if (remark.present) {
-      map['remark'] = Variable<String>(remark.value);
+    if (statusNote.present) {
+      map['status_note'] = Variable<String>(statusNote.value);
     }
     if (dueAt.present) {
       map['due_at'] = Variable<int>(dueAt.value);
@@ -2349,14 +2398,14 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
     if (startAt.present) {
       map['start_at'] = Variable<int>(startAt.value);
     }
-    if (extendAt.present) {
-      map['extend_at'] = Variable<int>(extendAt.value);
+    if (deferredDueAt.present) {
+      map['deferred_due_at'] = Variable<int>(deferredDueAt.value);
     }
-    if (issueTypeId.present) {
-      map['issue_type_id'] = Variable<int>(issueTypeId.value);
+    if (topicCategoryId.present) {
+      map['topic_category_id'] = Variable<int>(topicCategoryId.value);
     }
-    if (handleTypeId.present) {
-      map['handle_type_id'] = Variable<int>(handleTypeId.value);
+    if (actionCategoryId.present) {
+      map['action_category_id'] = Variable<int>(actionCategoryId.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
@@ -2371,20 +2420,20 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
   String toString() {
     return (StringBuffer('RemindersCompanion(')
           ..write('id: $id, ')
-          ..write('seriesId: $seriesId, ')
-          ..write('previousReminderId: $previousReminderId, ')
-          ..write('timeBasis: $timeBasis, ')
-          ..write('notifyStrategy: $notifyStrategy, ')
+          ..write('recurringReminderId: $recurringReminderId, ')
+          ..write('previousOccurrenceId: $previousOccurrenceId, ')
+          ..write('trackingMode: $trackingMode, ')
+          ..write('triggerMode: $triggerMode, ')
           ..write('status: $status, ')
           ..write('title: $title, ')
           ..write('note: $note, ')
-          ..write('remindDays: $remindDays, ')
-          ..write('remark: $remark, ')
+          ..write('triggerOffsetDays: $triggerOffsetDays, ')
+          ..write('statusNote: $statusNote, ')
           ..write('dueAt: $dueAt, ')
           ..write('startAt: $startAt, ')
-          ..write('extendAt: $extendAt, ')
-          ..write('issueTypeId: $issueTypeId, ')
-          ..write('handleTypeId: $handleTypeId, ')
+          ..write('deferredDueAt: $deferredDueAt, ')
+          ..write('topicCategoryId: $topicCategoryId, ')
+          ..write('actionCategoryId: $actionCategoryId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -2395,10 +2444,14 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
-  late final $ReminderSeriesEntriesTable reminderSeriesEntries =
-      $ReminderSeriesEntriesTable(this);
-  late final $IssueTypesTable issueTypes = $IssueTypesTable(this);
-  late final $HandleTypesTable handleTypes = $HandleTypesTable(this);
+  late final $RecurringRemindersTable recurringReminders =
+      $RecurringRemindersTable(this);
+  late final $TopicCategoriesTable topicCategories = $TopicCategoriesTable(
+    this,
+  );
+  late final $ActionCategoriesTable actionCategories = $ActionCategoriesTable(
+    this,
+  );
   late final $RemindersTable reminders = $RemindersTable(this);
   late final ReminderDao reminderDao = ReminderDao(this as AppDatabase);
   @override
@@ -2406,47 +2459,47 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
-    reminderSeriesEntries,
-    issueTypes,
-    handleTypes,
+    recurringReminders,
+    topicCategories,
+    actionCategories,
     reminders,
   ];
 }
 
-typedef $$ReminderSeriesEntriesTableCreateCompanionBuilder =
-    ReminderSeriesEntriesCompanion Function({
+typedef $$RecurringRemindersTableCreateCompanionBuilder =
+    RecurringRemindersCompanion Function({
       Value<int> id,
       Value<int> status,
       required String title,
       Value<String?> note,
-      required int timeBasis,
-      required int notifyStrategy,
-      Value<int?> remindDays,
+      required int trackingMode,
+      required int triggerMode,
+      Value<int?> triggerOffsetDays,
       Value<String?> repeatRule,
-      Value<int?> issueTypeId,
-      Value<int?> handleTypeId,
+      Value<int?> topicCategoryId,
+      Value<int?> actionCategoryId,
       required int createdAt,
       required int updatedAt,
     });
-typedef $$ReminderSeriesEntriesTableUpdateCompanionBuilder =
-    ReminderSeriesEntriesCompanion Function({
+typedef $$RecurringRemindersTableUpdateCompanionBuilder =
+    RecurringRemindersCompanion Function({
       Value<int> id,
       Value<int> status,
       Value<String> title,
       Value<String?> note,
-      Value<int> timeBasis,
-      Value<int> notifyStrategy,
-      Value<int?> remindDays,
+      Value<int> trackingMode,
+      Value<int> triggerMode,
+      Value<int?> triggerOffsetDays,
       Value<String?> repeatRule,
-      Value<int?> issueTypeId,
-      Value<int?> handleTypeId,
+      Value<int?> topicCategoryId,
+      Value<int?> actionCategoryId,
       Value<int> createdAt,
       Value<int> updatedAt,
     });
 
-class $$ReminderSeriesEntriesTableFilterComposer
-    extends Composer<_$AppDatabase, $ReminderSeriesEntriesTable> {
-  $$ReminderSeriesEntriesTableFilterComposer({
+class $$RecurringRemindersTableFilterComposer
+    extends Composer<_$AppDatabase, $RecurringRemindersTable> {
+  $$RecurringRemindersTableFilterComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -2473,18 +2526,18 @@ class $$ReminderSeriesEntriesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get timeBasis => $composableBuilder(
-    column: $table.timeBasis,
+  ColumnFilters<int> get trackingMode => $composableBuilder(
+    column: $table.trackingMode,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get notifyStrategy => $composableBuilder(
-    column: $table.notifyStrategy,
+  ColumnFilters<int> get triggerMode => $composableBuilder(
+    column: $table.triggerMode,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get remindDays => $composableBuilder(
-    column: $table.remindDays,
+  ColumnFilters<int> get triggerOffsetDays => $composableBuilder(
+    column: $table.triggerOffsetDays,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2493,13 +2546,13 @@ class $$ReminderSeriesEntriesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get issueTypeId => $composableBuilder(
-    column: $table.issueTypeId,
+  ColumnFilters<int> get topicCategoryId => $composableBuilder(
+    column: $table.topicCategoryId,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get handleTypeId => $composableBuilder(
-    column: $table.handleTypeId,
+  ColumnFilters<int> get actionCategoryId => $composableBuilder(
+    column: $table.actionCategoryId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2514,9 +2567,9 @@ class $$ReminderSeriesEntriesTableFilterComposer
   );
 }
 
-class $$ReminderSeriesEntriesTableOrderingComposer
-    extends Composer<_$AppDatabase, $ReminderSeriesEntriesTable> {
-  $$ReminderSeriesEntriesTableOrderingComposer({
+class $$RecurringRemindersTableOrderingComposer
+    extends Composer<_$AppDatabase, $RecurringRemindersTable> {
+  $$RecurringRemindersTableOrderingComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -2543,18 +2596,18 @@ class $$ReminderSeriesEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get timeBasis => $composableBuilder(
-    column: $table.timeBasis,
+  ColumnOrderings<int> get trackingMode => $composableBuilder(
+    column: $table.trackingMode,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get notifyStrategy => $composableBuilder(
-    column: $table.notifyStrategy,
+  ColumnOrderings<int> get triggerMode => $composableBuilder(
+    column: $table.triggerMode,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get remindDays => $composableBuilder(
-    column: $table.remindDays,
+  ColumnOrderings<int> get triggerOffsetDays => $composableBuilder(
+    column: $table.triggerOffsetDays,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -2563,13 +2616,13 @@ class $$ReminderSeriesEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get issueTypeId => $composableBuilder(
-    column: $table.issueTypeId,
+  ColumnOrderings<int> get topicCategoryId => $composableBuilder(
+    column: $table.topicCategoryId,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get handleTypeId => $composableBuilder(
-    column: $table.handleTypeId,
+  ColumnOrderings<int> get actionCategoryId => $composableBuilder(
+    column: $table.actionCategoryId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -2584,9 +2637,9 @@ class $$ReminderSeriesEntriesTableOrderingComposer
   );
 }
 
-class $$ReminderSeriesEntriesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $ReminderSeriesEntriesTable> {
-  $$ReminderSeriesEntriesTableAnnotationComposer({
+class $$RecurringRemindersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RecurringRemindersTable> {
+  $$RecurringRemindersTableAnnotationComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -2605,16 +2658,18 @@ class $$ReminderSeriesEntriesTableAnnotationComposer
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
 
-  GeneratedColumn<int> get timeBasis =>
-      $composableBuilder(column: $table.timeBasis, builder: (column) => column);
-
-  GeneratedColumn<int> get notifyStrategy => $composableBuilder(
-    column: $table.notifyStrategy,
+  GeneratedColumn<int> get trackingMode => $composableBuilder(
+    column: $table.trackingMode,
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get remindDays => $composableBuilder(
-    column: $table.remindDays,
+  GeneratedColumn<int> get triggerMode => $composableBuilder(
+    column: $table.triggerMode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get triggerOffsetDays => $composableBuilder(
+    column: $table.triggerOffsetDays,
     builder: (column) => column,
   );
 
@@ -2623,13 +2678,13 @@ class $$ReminderSeriesEntriesTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get issueTypeId => $composableBuilder(
-    column: $table.issueTypeId,
+  GeneratedColumn<int> get topicCategoryId => $composableBuilder(
+    column: $table.topicCategoryId,
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get handleTypeId => $composableBuilder(
-    column: $table.handleTypeId,
+  GeneratedColumn<int> get actionCategoryId => $composableBuilder(
+    column: $table.actionCategoryId,
     builder: (column) => column,
   );
 
@@ -2640,47 +2695,41 @@ class $$ReminderSeriesEntriesTableAnnotationComposer
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 }
 
-class $$ReminderSeriesEntriesTableTableManager
+class $$RecurringRemindersTableTableManager
     extends
         RootTableManager<
           _$AppDatabase,
-          $ReminderSeriesEntriesTable,
-          ReminderSeriesEntry,
-          $$ReminderSeriesEntriesTableFilterComposer,
-          $$ReminderSeriesEntriesTableOrderingComposer,
-          $$ReminderSeriesEntriesTableAnnotationComposer,
-          $$ReminderSeriesEntriesTableCreateCompanionBuilder,
-          $$ReminderSeriesEntriesTableUpdateCompanionBuilder,
+          $RecurringRemindersTable,
+          RecurringReminder,
+          $$RecurringRemindersTableFilterComposer,
+          $$RecurringRemindersTableOrderingComposer,
+          $$RecurringRemindersTableAnnotationComposer,
+          $$RecurringRemindersTableCreateCompanionBuilder,
+          $$RecurringRemindersTableUpdateCompanionBuilder,
           (
-            ReminderSeriesEntry,
+            RecurringReminder,
             BaseReferences<
               _$AppDatabase,
-              $ReminderSeriesEntriesTable,
-              ReminderSeriesEntry
+              $RecurringRemindersTable,
+              RecurringReminder
             >,
           ),
-          ReminderSeriesEntry,
+          RecurringReminder,
           PrefetchHooks Function()
         > {
-  $$ReminderSeriesEntriesTableTableManager(
+  $$RecurringRemindersTableTableManager(
     _$AppDatabase db,
-    $ReminderSeriesEntriesTable table,
+    $RecurringRemindersTable table,
   ) : super(
         TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
-              $$ReminderSeriesEntriesTableFilterComposer(
-                $db: db,
-                $table: table,
-              ),
+              $$RecurringRemindersTableFilterComposer($db: db, $table: table),
           createOrderingComposer: () =>
-              $$ReminderSeriesEntriesTableOrderingComposer(
-                $db: db,
-                $table: table,
-              ),
+              $$RecurringRemindersTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
-              $$ReminderSeriesEntriesTableAnnotationComposer(
+              $$RecurringRemindersTableAnnotationComposer(
                 $db: db,
                 $table: table,
               ),
@@ -2690,25 +2739,25 @@ class $$ReminderSeriesEntriesTableTableManager
                 Value<int> status = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String?> note = const Value.absent(),
-                Value<int> timeBasis = const Value.absent(),
-                Value<int> notifyStrategy = const Value.absent(),
-                Value<int?> remindDays = const Value.absent(),
+                Value<int> trackingMode = const Value.absent(),
+                Value<int> triggerMode = const Value.absent(),
+                Value<int?> triggerOffsetDays = const Value.absent(),
                 Value<String?> repeatRule = const Value.absent(),
-                Value<int?> issueTypeId = const Value.absent(),
-                Value<int?> handleTypeId = const Value.absent(),
+                Value<int?> topicCategoryId = const Value.absent(),
+                Value<int?> actionCategoryId = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
-              }) => ReminderSeriesEntriesCompanion(
+              }) => RecurringRemindersCompanion(
                 id: id,
                 status: status,
                 title: title,
                 note: note,
-                timeBasis: timeBasis,
-                notifyStrategy: notifyStrategy,
-                remindDays: remindDays,
+                trackingMode: trackingMode,
+                triggerMode: triggerMode,
+                triggerOffsetDays: triggerOffsetDays,
                 repeatRule: repeatRule,
-                issueTypeId: issueTypeId,
-                handleTypeId: handleTypeId,
+                topicCategoryId: topicCategoryId,
+                actionCategoryId: actionCategoryId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -2718,25 +2767,25 @@ class $$ReminderSeriesEntriesTableTableManager
                 Value<int> status = const Value.absent(),
                 required String title,
                 Value<String?> note = const Value.absent(),
-                required int timeBasis,
-                required int notifyStrategy,
-                Value<int?> remindDays = const Value.absent(),
+                required int trackingMode,
+                required int triggerMode,
+                Value<int?> triggerOffsetDays = const Value.absent(),
                 Value<String?> repeatRule = const Value.absent(),
-                Value<int?> issueTypeId = const Value.absent(),
-                Value<int?> handleTypeId = const Value.absent(),
+                Value<int?> topicCategoryId = const Value.absent(),
+                Value<int?> actionCategoryId = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
-              }) => ReminderSeriesEntriesCompanion.insert(
+              }) => RecurringRemindersCompanion.insert(
                 id: id,
                 status: status,
                 title: title,
                 note: note,
-                timeBasis: timeBasis,
-                notifyStrategy: notifyStrategy,
-                remindDays: remindDays,
+                trackingMode: trackingMode,
+                triggerMode: triggerMode,
+                triggerOffsetDays: triggerOffsetDays,
                 repeatRule: repeatRule,
-                issueTypeId: issueTypeId,
-                handleTypeId: handleTypeId,
+                topicCategoryId: topicCategoryId,
+                actionCategoryId: actionCategoryId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -2748,37 +2797,37 @@ class $$ReminderSeriesEntriesTableTableManager
       );
 }
 
-typedef $$ReminderSeriesEntriesTableProcessedTableManager =
+typedef $$RecurringRemindersTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
-      $ReminderSeriesEntriesTable,
-      ReminderSeriesEntry,
-      $$ReminderSeriesEntriesTableFilterComposer,
-      $$ReminderSeriesEntriesTableOrderingComposer,
-      $$ReminderSeriesEntriesTableAnnotationComposer,
-      $$ReminderSeriesEntriesTableCreateCompanionBuilder,
-      $$ReminderSeriesEntriesTableUpdateCompanionBuilder,
+      $RecurringRemindersTable,
+      RecurringReminder,
+      $$RecurringRemindersTableFilterComposer,
+      $$RecurringRemindersTableOrderingComposer,
+      $$RecurringRemindersTableAnnotationComposer,
+      $$RecurringRemindersTableCreateCompanionBuilder,
+      $$RecurringRemindersTableUpdateCompanionBuilder,
       (
-        ReminderSeriesEntry,
+        RecurringReminder,
         BaseReferences<
           _$AppDatabase,
-          $ReminderSeriesEntriesTable,
-          ReminderSeriesEntry
+          $RecurringRemindersTable,
+          RecurringReminder
         >,
       ),
-      ReminderSeriesEntry,
+      RecurringReminder,
       PrefetchHooks Function()
     >;
-typedef $$IssueTypesTableCreateCompanionBuilder =
-    IssueTypesCompanion Function({
+typedef $$TopicCategoriesTableCreateCompanionBuilder =
+    TopicCategoriesCompanion Function({
       Value<int> id,
       required String name,
       Value<String?> description,
       required int createdAt,
       required int updatedAt,
     });
-typedef $$IssueTypesTableUpdateCompanionBuilder =
-    IssueTypesCompanion Function({
+typedef $$TopicCategoriesTableUpdateCompanionBuilder =
+    TopicCategoriesCompanion Function({
       Value<int> id,
       Value<String> name,
       Value<String?> description,
@@ -2786,9 +2835,9 @@ typedef $$IssueTypesTableUpdateCompanionBuilder =
       Value<int> updatedAt,
     });
 
-class $$IssueTypesTableFilterComposer
-    extends Composer<_$AppDatabase, $IssueTypesTable> {
-  $$IssueTypesTableFilterComposer({
+class $$TopicCategoriesTableFilterComposer
+    extends Composer<_$AppDatabase, $TopicCategoriesTable> {
+  $$TopicCategoriesTableFilterComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -2821,9 +2870,9 @@ class $$IssueTypesTableFilterComposer
   );
 }
 
-class $$IssueTypesTableOrderingComposer
-    extends Composer<_$AppDatabase, $IssueTypesTable> {
-  $$IssueTypesTableOrderingComposer({
+class $$TopicCategoriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $TopicCategoriesTable> {
+  $$TopicCategoriesTableOrderingComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -2856,9 +2905,9 @@ class $$IssueTypesTableOrderingComposer
   );
 }
 
-class $$IssueTypesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $IssueTypesTable> {
-  $$IssueTypesTableAnnotationComposer({
+class $$TopicCategoriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TopicCategoriesTable> {
+  $$TopicCategoriesTableAnnotationComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -2883,35 +2932,37 @@ class $$IssueTypesTableAnnotationComposer
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 }
 
-class $$IssueTypesTableTableManager
+class $$TopicCategoriesTableTableManager
     extends
         RootTableManager<
           _$AppDatabase,
-          $IssueTypesTable,
-          IssueType,
-          $$IssueTypesTableFilterComposer,
-          $$IssueTypesTableOrderingComposer,
-          $$IssueTypesTableAnnotationComposer,
-          $$IssueTypesTableCreateCompanionBuilder,
-          $$IssueTypesTableUpdateCompanionBuilder,
+          $TopicCategoriesTable,
+          TopicCategory,
+          $$TopicCategoriesTableFilterComposer,
+          $$TopicCategoriesTableOrderingComposer,
+          $$TopicCategoriesTableAnnotationComposer,
+          $$TopicCategoriesTableCreateCompanionBuilder,
+          $$TopicCategoriesTableUpdateCompanionBuilder,
           (
-            IssueType,
-            BaseReferences<_$AppDatabase, $IssueTypesTable, IssueType>,
+            TopicCategory,
+            BaseReferences<_$AppDatabase, $TopicCategoriesTable, TopicCategory>,
           ),
-          IssueType,
+          TopicCategory,
           PrefetchHooks Function()
         > {
-  $$IssueTypesTableTableManager(_$AppDatabase db, $IssueTypesTable table)
-    : super(
+  $$TopicCategoriesTableTableManager(
+    _$AppDatabase db,
+    $TopicCategoriesTable table,
+  ) : super(
         TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
-              $$IssueTypesTableFilterComposer($db: db, $table: table),
+              $$TopicCategoriesTableFilterComposer($db: db, $table: table),
           createOrderingComposer: () =>
-              $$IssueTypesTableOrderingComposer($db: db, $table: table),
+              $$TopicCategoriesTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
-              $$IssueTypesTableAnnotationComposer($db: db, $table: table),
+              $$TopicCategoriesTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
@@ -2919,7 +2970,7 @@ class $$IssueTypesTableTableManager
                 Value<String?> description = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
-              }) => IssueTypesCompanion(
+              }) => TopicCategoriesCompanion(
                 id: id,
                 name: name,
                 description: description,
@@ -2933,7 +2984,7 @@ class $$IssueTypesTableTableManager
                 Value<String?> description = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
-              }) => IssueTypesCompanion.insert(
+              }) => TopicCategoriesCompanion.insert(
                 id: id,
                 name: name,
                 description: description,
@@ -2948,253 +2999,262 @@ class $$IssueTypesTableTableManager
       );
 }
 
-typedef $$IssueTypesTableProcessedTableManager =
+typedef $$TopicCategoriesTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
-      $IssueTypesTable,
-      IssueType,
-      $$IssueTypesTableFilterComposer,
-      $$IssueTypesTableOrderingComposer,
-      $$IssueTypesTableAnnotationComposer,
-      $$IssueTypesTableCreateCompanionBuilder,
-      $$IssueTypesTableUpdateCompanionBuilder,
-      (IssueType, BaseReferences<_$AppDatabase, $IssueTypesTable, IssueType>),
-      IssueType,
-      PrefetchHooks Function()
-    >;
-typedef $$HandleTypesTableCreateCompanionBuilder =
-    HandleTypesCompanion Function({
-      Value<int> id,
-      required String name,
-      Value<String?> description,
-      required int createdAt,
-      required int updatedAt,
-    });
-typedef $$HandleTypesTableUpdateCompanionBuilder =
-    HandleTypesCompanion Function({
-      Value<int> id,
-      Value<String> name,
-      Value<String?> description,
-      Value<int> createdAt,
-      Value<int> updatedAt,
-    });
-
-class $$HandleTypesTableFilterComposer
-    extends Composer<_$AppDatabase, $HandleTypesTable> {
-  $$HandleTypesTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<int> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get name => $composableBuilder(
-    column: $table.name,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get description => $composableBuilder(
-    column: $table.description,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-}
-
-class $$HandleTypesTableOrderingComposer
-    extends Composer<_$AppDatabase, $HandleTypesTable> {
-  $$HandleTypesTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<int> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get name => $composableBuilder(
-    column: $table.name,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get description => $composableBuilder(
-    column: $table.description,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$HandleTypesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $HandleTypesTable> {
-  $$HandleTypesTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<int> get id =>
-      $composableBuilder(column: $table.id, builder: (column) => column);
-
-  GeneratedColumn<String> get name =>
-      $composableBuilder(column: $table.name, builder: (column) => column);
-
-  GeneratedColumn<String> get description => $composableBuilder(
-    column: $table.description,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => column);
-
-  GeneratedColumn<int> get updatedAt =>
-      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
-}
-
-class $$HandleTypesTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $HandleTypesTable,
-          HandleType,
-          $$HandleTypesTableFilterComposer,
-          $$HandleTypesTableOrderingComposer,
-          $$HandleTypesTableAnnotationComposer,
-          $$HandleTypesTableCreateCompanionBuilder,
-          $$HandleTypesTableUpdateCompanionBuilder,
-          (
-            HandleType,
-            BaseReferences<_$AppDatabase, $HandleTypesTable, HandleType>,
-          ),
-          HandleType,
-          PrefetchHooks Function()
-        > {
-  $$HandleTypesTableTableManager(_$AppDatabase db, $HandleTypesTable table)
-    : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$HandleTypesTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$HandleTypesTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$HandleTypesTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                Value<String> name = const Value.absent(),
-                Value<String?> description = const Value.absent(),
-                Value<int> createdAt = const Value.absent(),
-                Value<int> updatedAt = const Value.absent(),
-              }) => HandleTypesCompanion(
-                id: id,
-                name: name,
-                description: description,
-                createdAt: createdAt,
-                updatedAt: updatedAt,
-              ),
-          createCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                required String name,
-                Value<String?> description = const Value.absent(),
-                required int createdAt,
-                required int updatedAt,
-              }) => HandleTypesCompanion.insert(
-                id: id,
-                name: name,
-                description: description,
-                createdAt: createdAt,
-                updatedAt: updatedAt,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$HandleTypesTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $HandleTypesTable,
-      HandleType,
-      $$HandleTypesTableFilterComposer,
-      $$HandleTypesTableOrderingComposer,
-      $$HandleTypesTableAnnotationComposer,
-      $$HandleTypesTableCreateCompanionBuilder,
-      $$HandleTypesTableUpdateCompanionBuilder,
+      $TopicCategoriesTable,
+      TopicCategory,
+      $$TopicCategoriesTableFilterComposer,
+      $$TopicCategoriesTableOrderingComposer,
+      $$TopicCategoriesTableAnnotationComposer,
+      $$TopicCategoriesTableCreateCompanionBuilder,
+      $$TopicCategoriesTableUpdateCompanionBuilder,
       (
-        HandleType,
-        BaseReferences<_$AppDatabase, $HandleTypesTable, HandleType>,
+        TopicCategory,
+        BaseReferences<_$AppDatabase, $TopicCategoriesTable, TopicCategory>,
       ),
-      HandleType,
+      TopicCategory,
+      PrefetchHooks Function()
+    >;
+typedef $$ActionCategoriesTableCreateCompanionBuilder =
+    ActionCategoriesCompanion Function({
+      Value<int> id,
+      required String name,
+      Value<String?> description,
+      required int createdAt,
+      required int updatedAt,
+    });
+typedef $$ActionCategoriesTableUpdateCompanionBuilder =
+    ActionCategoriesCompanion Function({
+      Value<int> id,
+      Value<String> name,
+      Value<String?> description,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+    });
+
+class $$ActionCategoriesTableFilterComposer
+    extends Composer<_$AppDatabase, $ActionCategoriesTable> {
+  $$ActionCategoriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ActionCategoriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $ActionCategoriesTable> {
+  $$ActionCategoriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ActionCategoriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ActionCategoriesTable> {
+  $$ActionCategoriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$ActionCategoriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ActionCategoriesTable,
+          ActionCategory,
+          $$ActionCategoriesTableFilterComposer,
+          $$ActionCategoriesTableOrderingComposer,
+          $$ActionCategoriesTableAnnotationComposer,
+          $$ActionCategoriesTableCreateCompanionBuilder,
+          $$ActionCategoriesTableUpdateCompanionBuilder,
+          (
+            ActionCategory,
+            BaseReferences<
+              _$AppDatabase,
+              $ActionCategoriesTable,
+              ActionCategory
+            >,
+          ),
+          ActionCategory,
+          PrefetchHooks Function()
+        > {
+  $$ActionCategoriesTableTableManager(
+    _$AppDatabase db,
+    $ActionCategoriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ActionCategoriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ActionCategoriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ActionCategoriesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+              }) => ActionCategoriesCompanion(
+                id: id,
+                name: name,
+                description: description,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String name,
+                Value<String?> description = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+              }) => ActionCategoriesCompanion.insert(
+                id: id,
+                name: name,
+                description: description,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ActionCategoriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ActionCategoriesTable,
+      ActionCategory,
+      $$ActionCategoriesTableFilterComposer,
+      $$ActionCategoriesTableOrderingComposer,
+      $$ActionCategoriesTableAnnotationComposer,
+      $$ActionCategoriesTableCreateCompanionBuilder,
+      $$ActionCategoriesTableUpdateCompanionBuilder,
+      (
+        ActionCategory,
+        BaseReferences<_$AppDatabase, $ActionCategoriesTable, ActionCategory>,
+      ),
+      ActionCategory,
       PrefetchHooks Function()
     >;
 typedef $$RemindersTableCreateCompanionBuilder =
     RemindersCompanion Function({
       Value<int> id,
-      Value<int?> seriesId,
-      Value<int?> previousReminderId,
-      required int timeBasis,
-      required int notifyStrategy,
+      Value<int?> recurringReminderId,
+      Value<int?> previousOccurrenceId,
+      required int trackingMode,
+      required int triggerMode,
       Value<int> status,
       required String title,
       Value<String?> note,
-      Value<int?> remindDays,
-      Value<String?> remark,
+      Value<int?> triggerOffsetDays,
+      Value<String?> statusNote,
       Value<int?> dueAt,
       required int startAt,
-      Value<int?> extendAt,
-      Value<int?> issueTypeId,
-      Value<int?> handleTypeId,
+      Value<int?> deferredDueAt,
+      Value<int?> topicCategoryId,
+      Value<int?> actionCategoryId,
       required int createdAt,
       required int updatedAt,
     });
 typedef $$RemindersTableUpdateCompanionBuilder =
     RemindersCompanion Function({
       Value<int> id,
-      Value<int?> seriesId,
-      Value<int?> previousReminderId,
-      Value<int> timeBasis,
-      Value<int> notifyStrategy,
+      Value<int?> recurringReminderId,
+      Value<int?> previousOccurrenceId,
+      Value<int> trackingMode,
+      Value<int> triggerMode,
       Value<int> status,
       Value<String> title,
       Value<String?> note,
-      Value<int?> remindDays,
-      Value<String?> remark,
+      Value<int?> triggerOffsetDays,
+      Value<String?> statusNote,
       Value<int?> dueAt,
       Value<int> startAt,
-      Value<int?> extendAt,
-      Value<int?> issueTypeId,
-      Value<int?> handleTypeId,
+      Value<int?> deferredDueAt,
+      Value<int?> topicCategoryId,
+      Value<int?> actionCategoryId,
       Value<int> createdAt,
       Value<int> updatedAt,
     });
@@ -3213,23 +3273,23 @@ class $$RemindersTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get seriesId => $composableBuilder(
-    column: $table.seriesId,
+  ColumnFilters<int> get recurringReminderId => $composableBuilder(
+    column: $table.recurringReminderId,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get previousReminderId => $composableBuilder(
-    column: $table.previousReminderId,
+  ColumnFilters<int> get previousOccurrenceId => $composableBuilder(
+    column: $table.previousOccurrenceId,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get timeBasis => $composableBuilder(
-    column: $table.timeBasis,
+  ColumnFilters<int> get trackingMode => $composableBuilder(
+    column: $table.trackingMode,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get notifyStrategy => $composableBuilder(
-    column: $table.notifyStrategy,
+  ColumnFilters<int> get triggerMode => $composableBuilder(
+    column: $table.triggerMode,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3248,13 +3308,13 @@ class $$RemindersTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get remindDays => $composableBuilder(
-    column: $table.remindDays,
+  ColumnFilters<int> get triggerOffsetDays => $composableBuilder(
+    column: $table.triggerOffsetDays,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get remark => $composableBuilder(
-    column: $table.remark,
+  ColumnFilters<String> get statusNote => $composableBuilder(
+    column: $table.statusNote,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3268,18 +3328,18 @@ class $$RemindersTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get extendAt => $composableBuilder(
-    column: $table.extendAt,
+  ColumnFilters<int> get deferredDueAt => $composableBuilder(
+    column: $table.deferredDueAt,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get issueTypeId => $composableBuilder(
-    column: $table.issueTypeId,
+  ColumnFilters<int> get topicCategoryId => $composableBuilder(
+    column: $table.topicCategoryId,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get handleTypeId => $composableBuilder(
-    column: $table.handleTypeId,
+  ColumnFilters<int> get actionCategoryId => $composableBuilder(
+    column: $table.actionCategoryId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3308,23 +3368,23 @@ class $$RemindersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get seriesId => $composableBuilder(
-    column: $table.seriesId,
+  ColumnOrderings<int> get recurringReminderId => $composableBuilder(
+    column: $table.recurringReminderId,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get previousReminderId => $composableBuilder(
-    column: $table.previousReminderId,
+  ColumnOrderings<int> get previousOccurrenceId => $composableBuilder(
+    column: $table.previousOccurrenceId,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get timeBasis => $composableBuilder(
-    column: $table.timeBasis,
+  ColumnOrderings<int> get trackingMode => $composableBuilder(
+    column: $table.trackingMode,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get notifyStrategy => $composableBuilder(
-    column: $table.notifyStrategy,
+  ColumnOrderings<int> get triggerMode => $composableBuilder(
+    column: $table.triggerMode,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -3343,13 +3403,13 @@ class $$RemindersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get remindDays => $composableBuilder(
-    column: $table.remindDays,
+  ColumnOrderings<int> get triggerOffsetDays => $composableBuilder(
+    column: $table.triggerOffsetDays,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get remark => $composableBuilder(
-    column: $table.remark,
+  ColumnOrderings<String> get statusNote => $composableBuilder(
+    column: $table.statusNote,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -3363,18 +3423,18 @@ class $$RemindersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get extendAt => $composableBuilder(
-    column: $table.extendAt,
+  ColumnOrderings<int> get deferredDueAt => $composableBuilder(
+    column: $table.deferredDueAt,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get issueTypeId => $composableBuilder(
-    column: $table.issueTypeId,
+  ColumnOrderings<int> get topicCategoryId => $composableBuilder(
+    column: $table.topicCategoryId,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get handleTypeId => $composableBuilder(
-    column: $table.handleTypeId,
+  ColumnOrderings<int> get actionCategoryId => $composableBuilder(
+    column: $table.actionCategoryId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -3401,19 +3461,23 @@ class $$RemindersTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<int> get seriesId =>
-      $composableBuilder(column: $table.seriesId, builder: (column) => column);
-
-  GeneratedColumn<int> get previousReminderId => $composableBuilder(
-    column: $table.previousReminderId,
+  GeneratedColumn<int> get recurringReminderId => $composableBuilder(
+    column: $table.recurringReminderId,
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get timeBasis =>
-      $composableBuilder(column: $table.timeBasis, builder: (column) => column);
+  GeneratedColumn<int> get previousOccurrenceId => $composableBuilder(
+    column: $table.previousOccurrenceId,
+    builder: (column) => column,
+  );
 
-  GeneratedColumn<int> get notifyStrategy => $composableBuilder(
-    column: $table.notifyStrategy,
+  GeneratedColumn<int> get trackingMode => $composableBuilder(
+    column: $table.trackingMode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get triggerMode => $composableBuilder(
+    column: $table.triggerMode,
     builder: (column) => column,
   );
 
@@ -3426,13 +3490,15 @@ class $$RemindersTableAnnotationComposer
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
 
-  GeneratedColumn<int> get remindDays => $composableBuilder(
-    column: $table.remindDays,
+  GeneratedColumn<int> get triggerOffsetDays => $composableBuilder(
+    column: $table.triggerOffsetDays,
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get remark =>
-      $composableBuilder(column: $table.remark, builder: (column) => column);
+  GeneratedColumn<String> get statusNote => $composableBuilder(
+    column: $table.statusNote,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get dueAt =>
       $composableBuilder(column: $table.dueAt, builder: (column) => column);
@@ -3440,16 +3506,18 @@ class $$RemindersTableAnnotationComposer
   GeneratedColumn<int> get startAt =>
       $composableBuilder(column: $table.startAt, builder: (column) => column);
 
-  GeneratedColumn<int> get extendAt =>
-      $composableBuilder(column: $table.extendAt, builder: (column) => column);
-
-  GeneratedColumn<int> get issueTypeId => $composableBuilder(
-    column: $table.issueTypeId,
+  GeneratedColumn<int> get deferredDueAt => $composableBuilder(
+    column: $table.deferredDueAt,
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get handleTypeId => $composableBuilder(
-    column: $table.handleTypeId,
+  GeneratedColumn<int> get topicCategoryId => $composableBuilder(
+    column: $table.topicCategoryId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get actionCategoryId => $composableBuilder(
+    column: $table.actionCategoryId,
     builder: (column) => column,
   );
 
@@ -3489,76 +3557,76 @@ class $$RemindersTableTableManager
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                Value<int?> seriesId = const Value.absent(),
-                Value<int?> previousReminderId = const Value.absent(),
-                Value<int> timeBasis = const Value.absent(),
-                Value<int> notifyStrategy = const Value.absent(),
+                Value<int?> recurringReminderId = const Value.absent(),
+                Value<int?> previousOccurrenceId = const Value.absent(),
+                Value<int> trackingMode = const Value.absent(),
+                Value<int> triggerMode = const Value.absent(),
                 Value<int> status = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String?> note = const Value.absent(),
-                Value<int?> remindDays = const Value.absent(),
-                Value<String?> remark = const Value.absent(),
+                Value<int?> triggerOffsetDays = const Value.absent(),
+                Value<String?> statusNote = const Value.absent(),
                 Value<int?> dueAt = const Value.absent(),
                 Value<int> startAt = const Value.absent(),
-                Value<int?> extendAt = const Value.absent(),
-                Value<int?> issueTypeId = const Value.absent(),
-                Value<int?> handleTypeId = const Value.absent(),
+                Value<int?> deferredDueAt = const Value.absent(),
+                Value<int?> topicCategoryId = const Value.absent(),
+                Value<int?> actionCategoryId = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
               }) => RemindersCompanion(
                 id: id,
-                seriesId: seriesId,
-                previousReminderId: previousReminderId,
-                timeBasis: timeBasis,
-                notifyStrategy: notifyStrategy,
+                recurringReminderId: recurringReminderId,
+                previousOccurrenceId: previousOccurrenceId,
+                trackingMode: trackingMode,
+                triggerMode: triggerMode,
                 status: status,
                 title: title,
                 note: note,
-                remindDays: remindDays,
-                remark: remark,
+                triggerOffsetDays: triggerOffsetDays,
+                statusNote: statusNote,
                 dueAt: dueAt,
                 startAt: startAt,
-                extendAt: extendAt,
-                issueTypeId: issueTypeId,
-                handleTypeId: handleTypeId,
+                deferredDueAt: deferredDueAt,
+                topicCategoryId: topicCategoryId,
+                actionCategoryId: actionCategoryId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                Value<int?> seriesId = const Value.absent(),
-                Value<int?> previousReminderId = const Value.absent(),
-                required int timeBasis,
-                required int notifyStrategy,
+                Value<int?> recurringReminderId = const Value.absent(),
+                Value<int?> previousOccurrenceId = const Value.absent(),
+                required int trackingMode,
+                required int triggerMode,
                 Value<int> status = const Value.absent(),
                 required String title,
                 Value<String?> note = const Value.absent(),
-                Value<int?> remindDays = const Value.absent(),
-                Value<String?> remark = const Value.absent(),
+                Value<int?> triggerOffsetDays = const Value.absent(),
+                Value<String?> statusNote = const Value.absent(),
                 Value<int?> dueAt = const Value.absent(),
                 required int startAt,
-                Value<int?> extendAt = const Value.absent(),
-                Value<int?> issueTypeId = const Value.absent(),
-                Value<int?> handleTypeId = const Value.absent(),
+                Value<int?> deferredDueAt = const Value.absent(),
+                Value<int?> topicCategoryId = const Value.absent(),
+                Value<int?> actionCategoryId = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
               }) => RemindersCompanion.insert(
                 id: id,
-                seriesId: seriesId,
-                previousReminderId: previousReminderId,
-                timeBasis: timeBasis,
-                notifyStrategy: notifyStrategy,
+                recurringReminderId: recurringReminderId,
+                previousOccurrenceId: previousOccurrenceId,
+                trackingMode: trackingMode,
+                triggerMode: triggerMode,
                 status: status,
                 title: title,
                 note: note,
-                remindDays: remindDays,
-                remark: remark,
+                triggerOffsetDays: triggerOffsetDays,
+                statusNote: statusNote,
                 dueAt: dueAt,
                 startAt: startAt,
-                extendAt: extendAt,
-                issueTypeId: issueTypeId,
-                handleTypeId: handleTypeId,
+                deferredDueAt: deferredDueAt,
+                topicCategoryId: topicCategoryId,
+                actionCategoryId: actionCategoryId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -3588,12 +3656,12 @@ typedef $$RemindersTableProcessedTableManager =
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
-  $$ReminderSeriesEntriesTableTableManager get reminderSeriesEntries =>
-      $$ReminderSeriesEntriesTableTableManager(_db, _db.reminderSeriesEntries);
-  $$IssueTypesTableTableManager get issueTypes =>
-      $$IssueTypesTableTableManager(_db, _db.issueTypes);
-  $$HandleTypesTableTableManager get handleTypes =>
-      $$HandleTypesTableTableManager(_db, _db.handleTypes);
+  $$RecurringRemindersTableTableManager get recurringReminders =>
+      $$RecurringRemindersTableTableManager(_db, _db.recurringReminders);
+  $$TopicCategoriesTableTableManager get topicCategories =>
+      $$TopicCategoriesTableTableManager(_db, _db.topicCategories);
+  $$ActionCategoriesTableTableManager get actionCategories =>
+      $$ActionCategoriesTableTableManager(_db, _db.actionCategories);
   $$RemindersTableTableManager get reminders =>
       $$RemindersTableTableManager(_db, _db.reminders);
 }

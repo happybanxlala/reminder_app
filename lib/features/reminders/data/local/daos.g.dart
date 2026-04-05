@@ -4,10 +4,11 @@ part of 'daos.dart';
 
 // ignore_for_file: type=lint
 mixin _$ReminderDaoMixin on DatabaseAccessor<AppDatabase> {
-  $ReminderSeriesEntriesTable get reminderSeriesEntries =>
-      attachedDatabase.reminderSeriesEntries;
-  $IssueTypesTable get issueTypes => attachedDatabase.issueTypes;
-  $HandleTypesTable get handleTypes => attachedDatabase.handleTypes;
+  $RecurringRemindersTable get recurringReminders =>
+      attachedDatabase.recurringReminders;
+  $TopicCategoriesTable get topicCategories => attachedDatabase.topicCategories;
+  $ActionCategoriesTable get actionCategories =>
+      attachedDatabase.actionCategories;
   $RemindersTable get reminders => attachedDatabase.reminders;
   ReminderDaoManager get managers => ReminderDaoManager(this);
 }
@@ -15,15 +16,21 @@ mixin _$ReminderDaoMixin on DatabaseAccessor<AppDatabase> {
 class ReminderDaoManager {
   final _$ReminderDaoMixin _db;
   ReminderDaoManager(this._db);
-  $$ReminderSeriesEntriesTableTableManager get reminderSeriesEntries =>
-      $$ReminderSeriesEntriesTableTableManager(
+  $$RecurringRemindersTableTableManager get recurringReminders =>
+      $$RecurringRemindersTableTableManager(
         _db.attachedDatabase,
-        _db.reminderSeriesEntries,
+        _db.recurringReminders,
       );
-  $$IssueTypesTableTableManager get issueTypes =>
-      $$IssueTypesTableTableManager(_db.attachedDatabase, _db.issueTypes);
-  $$HandleTypesTableTableManager get handleTypes =>
-      $$HandleTypesTableTableManager(_db.attachedDatabase, _db.handleTypes);
+  $$TopicCategoriesTableTableManager get topicCategories =>
+      $$TopicCategoriesTableTableManager(
+        _db.attachedDatabase,
+        _db.topicCategories,
+      );
+  $$ActionCategoriesTableTableManager get actionCategories =>
+      $$ActionCategoriesTableTableManager(
+        _db.attachedDatabase,
+        _db.actionCategories,
+      );
   $$RemindersTableTableManager get reminders =>
       $$RemindersTableTableManager(_db.attachedDatabase, _db.reminders);
 }
