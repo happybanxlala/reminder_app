@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:reminder_app/features/reminders/data/reminder_repository.dart';
 import 'package:reminder_app/features/reminders/domain/demo_reminder_draft.dart';
+import 'package:reminder_app/features/reminders/domain/reminder.dart';
 import 'package:reminder_app/features/reminders/ui/pages/reminder_edit_page.dart';
 
 void main() {
@@ -9,14 +11,21 @@ void main() {
     final draft = DemoReminderDraft(
       title: 'Demo 測試標題',
       note: 'Demo 測試備註',
+      timeBasis: ReminderTimeBasis.countdown,
+      notifyStrategy: ReminderNotifyStrategy.inRange,
       remindDays: 3,
       dueAt: DateTime(2026, 3, 1, 10, 30),
+      startAt: DateTime(2026, 2, 20, 9, 0),
       repeatType: 'W',
       repeatInterval: 4,
     );
 
     await tester.pumpWidget(
       ProviderScope(
+        overrides: [
+          issueTypesProvider.overrideWith((ref) async => []),
+          handleTypesProvider.overrideWith((ref) async => []),
+        ],
         child: MaterialApp(
           home: ReminderEditPage(
             demoDataFactory: _fixedDraft,
@@ -81,8 +90,11 @@ DemoReminderDraft _fixedDraft() {
   return DemoReminderDraft(
     title: 'Demo 測試標題',
     note: 'Demo 測試備註',
+    timeBasis: ReminderTimeBasis.countdown,
+    notifyStrategy: ReminderNotifyStrategy.inRange,
     remindDays: 3,
     dueAt: DateTime(2026, 3, 1, 10, 30),
+    startAt: DateTime(2026, 2, 20, 9, 0),
     repeatType: 'W',
     repeatInterval: 4,
   );

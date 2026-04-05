@@ -70,7 +70,7 @@ class _PendingReminderTileState extends State<PendingReminderTile> {
         onTapCancel: () => _holdTimer?.cancel(),
         child: ListTile(
           title: Text(widget.reminder.title),
-          subtitle: Text(widget.remainingLabel),
+          subtitle: Text(_pendingSubtitle()),
           leading: Checkbox(
             value: widget.reminder.isDone,
             onChanged: (_) => widget.onToggleDone(),
@@ -78,6 +78,15 @@ class _PendingReminderTileState extends State<PendingReminderTile> {
         ),
       ),
     );
+  }
+
+  String _pendingSubtitle() {
+    final lines = <String>[widget.reminder.timeBasisLabel, widget.remainingLabel];
+    final categoryLabel = widget.reminder.categoryLabel;
+    if (categoryLabel != null) {
+      lines.add(categoryLabel);
+    }
+    return lines.join('\n');
   }
 
   Widget _swipeBackground({
@@ -119,17 +128,28 @@ class HistoryReminderTile extends StatelessWidget {
     final updatedAtText = DateFormat(
       'yyyy/MM/dd HH:mm',
     ).format(reminder.updatedAt.toLocal());
-    final dueAtText = reminder.dueAt == null
-        ? '無到期時間'
-        : DateFormat('yyyy/MM/dd HH:mm').format(reminder.dueAt!.toLocal());
+    final timeText = reminder.isCountdown
+        ? (reminder.dueAt == null
+              ? '未設定到期時間'
+              : DateFormat('yyyy/MM/dd HH:mm').format(reminder.dueAt!.toLocal()))
+        : DateFormat('yyyy/MM/dd HH:mm').format(reminder.startAt.toLocal());
+    final categoryLabel = reminder.categoryLabel;
 
     return ListTile(
       title: Text(
         reminder.title,
         style: const TextStyle(decoration: TextDecoration.lineThrough),
       ),
-      subtitle: Text('狀態: $label\n更新: $updatedAtText\n到期: $dueAtText'),
-      isThreeLine: true,
+      subtitle: Text(
+        [
+          '狀態: $label',
+          '類型: ${reminder.timeBasisLabel}',
+          '更新: $updatedAtText',
+          reminder.isCountdown ? '到期: $timeText' : '起計: $timeText',
+          if (categoryLabel != null) '分類: $categoryLabel',
+        ].join('\n'),
+      ),
+      isThreeLine: false,
       trailing: Icon(Icons.circle, color: color, size: 12),
     );
   }

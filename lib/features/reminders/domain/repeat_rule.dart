@@ -7,9 +7,9 @@ class RepeatRule {
   static RepeatRule? parse(String? raw) {
     if (raw == null) return null;
     final value = raw.trim().toUpperCase();
-    if (value.isEmpty || value == 'N/A') return null;
+    if (value.isEmpty) return null;
 
-    final match = RegExp(r'^([DWNY])(\d+)$').firstMatch(value);
+    final match = RegExp(r'^([DWMY])(\d+)$').firstMatch(value);
     if (match == null) return null;
 
     final interval = int.tryParse(match.group(2)!);
@@ -24,7 +24,7 @@ class RepeatRule {
         return base.add(Duration(days: interval));
       case 'W':
         return base.add(Duration(days: interval * 7));
-      case 'N':
+      case 'M':
         return DateTime(
           base.year,
           base.month + interval,

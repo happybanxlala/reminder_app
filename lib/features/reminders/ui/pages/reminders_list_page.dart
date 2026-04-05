@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,7 +22,9 @@ class RemindersListPage extends ConsumerStatefulWidget {
 class _RemindersListPageState extends ConsumerState<RemindersListPage>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   late final TabController _tabController;
-  int _pendingSession = 0;
+  final GlobalKey<_PendingListState> _pendingListKey = GlobalKey<_PendingListState>();
+  bool _isFlushingPending = false;
+  int _stagedPendingCount = 0;
 
   @override
   void initState() {
@@ -43,7 +47,7 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
-      _resetPendingSession();
+      unawaited(_commitAndResetPendingSession());
     }
   }
 
@@ -52,17 +56,46 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
       return;
     }
     if (_tabController.index != 0) {
-      _resetPendingSession();
+      unawaited(_commitAndResetPendingSession());
     }
   }
 
-  void _resetPendingSession() {
-    if (!mounted) {
+  Future<void> _commitAndResetPendingSession() async {
+    await _flushPendingCompletions();
+  }
+
+  Future<void> _flushPendingCompletions() async {
+    if (_isFlushingPending) {
       return;
     }
-    setState(() {
-      _pendingSession++;
-    });
+    final pendingListState = _pendingListKey.currentState;
+    if (pendingListState == null) {
+      return;
+    }
+
+    final stagedIds = pendingListState.stagedReminderIds;
+    if (stagedIds.isEmpty) {
+      pendingListState.clearStaged();
+      return;
+    }
+
+    _isFlushingPending = true;
+    if (mounted) {
+      setState(() {});
+    }
+    try {
+      await ref.read(reminderRepositoryProvider).commitStagedCompletions(stagedIds);
+      if (mounted) {
+        pendingListState.clearStaged();
+      }
+    } finally {
+      _isFlushingPending = false;
+      if (mounted) {
+        setState(() {
+          _stagedPendingCount = 0;
+        });
+      }
+    }
   }
 
   @override
@@ -73,8 +106,26 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Reminders'),
+        actions: [
+          if (_tabController.index == 0 && _stagedPendingCount > 0)
+            IconButton(
+              key: const Key('commit-staged-button'),
+              onPressed: _isFlushingPending
+                  ? null
+                  : () async {
+                      await _commitAndResetPendingSession();
+                    },
+              tooltip: '批次完成',
+              icon: const Icon(Icons.done_all),
+            ),
+        ],
         bottom: TabBar(
           controller: _tabController,
+          onTap: (index) {
+            if (index != 0) {
+              unawaited(_commitAndResetPendingSession());
+            }
+          },
           tabs: const [
             Tab(text: '進行中'),
             Tab(text: '完成/跳過'),
@@ -86,8 +137,26 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
         children: [
           pendingAsync.when(
             data: (items) => _PendingList(
-              key: ValueKey('pending-session-$_pendingSession'),
+              key: _pendingListKey,
               items: items,
+              onStagedChanged: (count) {
+                if (!mounted || _stagedPendingCount == count) {
+                  return;
+                }
+                setState(() {
+                  _stagedPendingCount = count;
+                });
+              },
+              onEditReminder: (reminderId) async {
+                await _commitAndResetPendingSession();
+                if (!context.mounted) {
+                  return;
+                }
+                context.pushNamed(
+                  ReminderEditPage.editRouteName,
+                  pathParameters: {'id': reminderId.toString()},
+                );
+              },
             ),
             error: (error, stack) => Center(child: Text('讀取失敗: $error')),
             loading: () => const Center(child: CircularProgressIndicator()),
@@ -100,8 +169,11 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          _resetPendingSession();
+        onPressed: () async {
+          await _commitAndResetPendingSession();
+          if (!context.mounted) {
+            return;
+          }
           context.pushNamed(ReminderEditPage.newRouteName);
         },
         icon: const Icon(Icons.add),
@@ -112,9 +184,16 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
 }
 
 class _PendingList extends ConsumerStatefulWidget {
-  const _PendingList({super.key, required this.items});
+  const _PendingList({
+    super.key,
+    required this.items,
+    required this.onStagedChanged,
+    required this.onEditReminder,
+  });
 
   final List<ReminderModel> items;
+  final ValueChanged<int> onStagedChanged;
+  final Future<void> Function(int reminderId) onEditReminder;
 
   @override
   ConsumerState<_PendingList> createState() => _PendingListState();
@@ -123,6 +202,16 @@ class _PendingList extends ConsumerStatefulWidget {
 class _PendingListState extends ConsumerState<_PendingList> {
   final Map<int, ReminderModel> _recentDone = <int, ReminderModel>{};
 
+  List<int> get stagedReminderIds => _recentDone.keys.toList(growable: false);
+
+  void clearStaged() {
+    if (!mounted) {
+      return;
+    }
+    setState(_recentDone.clear);
+    widget.onStagedChanged(_recentDone.length);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.items.isEmpty && _recentDone.isEmpty) {
@@ -130,8 +219,12 @@ class _PendingListState extends ConsumerState<_PendingList> {
     }
 
     final repository = ref.read(reminderRepositoryProvider);
+    final visibleItems = widget.items
+        .where((item) => !_recentDone.containsKey(item.id))
+        .toList(growable: false);
+
     final rows = <Widget>[
-      ...widget.items.map(
+      ...visibleItems.map(
         (reminder) => PendingReminderTile(
           reminder: reminder,
           remainingLabel: _remainingLabel(reminder),
@@ -139,7 +232,7 @@ class _PendingListState extends ConsumerState<_PendingList> {
             setState(() {
               _recentDone[reminder.id] = reminder;
             });
-            await repository.complete(reminder.id);
+            widget.onStagedChanged(_recentDone.length);
           },
           onSkip: () async {
             await repository.skip(reminder.id);
@@ -151,11 +244,8 @@ class _PendingListState extends ConsumerState<_PendingList> {
             }
             await repository.cancel(reminder.id);
           },
-          onLongPress: () {
-            context.pushNamed(
-              ReminderEditPage.editRouteName,
-              pathParameters: {'id': reminder.id.toString()},
-            );
+          onLongPress: () async {
+            await widget.onEditReminder(reminder.id);
           },
         ),
       ),
@@ -181,13 +271,13 @@ class _PendingListState extends ConsumerState<_PendingList> {
               if (!confirmed) {
                 return;
               }
-              await repository.restore(reminder.id);
               if (!mounted) {
                 return;
               }
               setState(() {
                 _recentDone.remove(reminder.id);
               });
+              widget.onStagedChanged(_recentDone.length);
             },
           ),
         ),
@@ -203,8 +293,19 @@ class _PendingListState extends ConsumerState<_PendingList> {
   }
 
   String _remainingLabel(ReminderModel item) {
+    if (item.isCountUp) {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final start = DateTime(item.startAt.year, item.startAt.month, item.startAt.day);
+      final accumulated = today.difference(start).inDays;
+      if (accumulated <= 0) {
+        return '今天起計';
+      }
+      return '已累積 $accumulated 天';
+    }
+
     if (item.dueAt == null) {
-      return '無到期時間';
+      return '未設定到期時間';
     }
 
     final now = DateTime.now();
@@ -216,7 +317,10 @@ class _PendingListState extends ConsumerState<_PendingList> {
       return '剩餘 $diff 天';
     }
     if (diff == 0) {
-      return '今天到期';
+      final endOfDueDay = due.add(const Duration(days: 1));
+      final remainingHours = endOfDueDay.difference(now).inHours;
+      final safeHours = remainingHours <= 0 ? 1 : remainingHours;
+      return '剩餘 $safeHours 小時';
     }
     return '逾期 ${diff.abs()} 天';
   }

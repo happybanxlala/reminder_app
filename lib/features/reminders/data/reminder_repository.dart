@@ -1,6 +1,8 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../domain/handle_type.dart';
+import '../domain/issue_type.dart';
 import '../domain/reminder.dart';
 import 'local/app_database.dart';
 import 'local/daos.dart';
@@ -43,22 +45,40 @@ final reminderDetailProvider = FutureProvider.family<ReminderModel?, int>((
   return ref.watch(reminderRepositoryProvider).getEditableById(reminderId);
 });
 
+final issueTypesProvider = FutureProvider<List<IssueTypeModel>>((ref) {
+  return ref.watch(reminderRepositoryProvider).listIssueTypes();
+});
+
+final handleTypesProvider = FutureProvider<List<HandleTypeModel>>((ref) {
+  return ref.watch(reminderRepositoryProvider).listHandleTypes();
+});
+
 class ReminderUpsert {
   const ReminderUpsert({
     required this.title,
     this.note,
-    required this.remindDays,
+    required this.timeBasis,
+    required this.notifyStrategy,
+    this.remindDays,
     this.dueAt,
+    this.startAt,
     this.repeatRule,
-    this.extendAt,
+    this.issueTypeId,
+    this.handleTypeId,
   });
 
   final String title;
   final String? note;
-  final int remindDays;
+  final int timeBasis;
+  final int notifyStrategy;
+  final int? remindDays;
   final DateTime? dueAt;
+  final DateTime? startAt;
   final String? repeatRule;
-  final DateTime? extendAt;
+  final int? issueTypeId;
+  final int? handleTypeId;
+
+  bool get isRecurring => repeatRule != null;
 }
 
 class ReminderRepository {
@@ -100,46 +120,107 @@ class ReminderRepository {
     return _toDomain(item);
   }
 
+  Future<List<IssueTypeModel>> listIssueTypes() async {
+    final items = await _dao.listIssueTypes();
+    return items.map(_toIssueType).toList();
+  }
+
+  Future<List<HandleTypeModel>> listHandleTypes() async {
+    final items = await _dao.listHandleTypes();
+    return items.map(_toHandleType).toList();
+  }
+
   Future<int> create(ReminderUpsert input) async {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final id = await _dao.insertReminder(
+    final now = DateTime.now();
+    final nowMs = now.millisecondsSinceEpoch;
+    final normalizedDueAt = _normalizeToDayStart(input.dueAt);
+    final normalizedStartAt = _normalizeToDayStart(input.startAt ?? now)!;
+
+    int? seriesId;
+    if (input.isRecurring) {
+      seriesId = await _dao.insertSeries(
+        ReminderSeriesEntriesCompanion.insert(
+          title: input.title,
+          note: Value(input.note),
+          timeBasis: input.timeBasis,
+          notifyStrategy: input.notifyStrategy,
+          remindDays: Value(input.remindDays),
+          repeatRule: Value(input.repeatRule),
+          issueTypeId: Value(input.issueTypeId),
+          handleTypeId: Value(input.handleTypeId),
+          createdAt: nowMs,
+          updatedAt: nowMs,
+        ),
+      );
+    }
+
+    return _dao.insertReminder(
       RemindersCompanion.insert(
+        seriesId: Value(seriesId),
+        previousReminderId: const Value.absent(),
+        timeBasis: input.timeBasis,
+        notifyStrategy: input.notifyStrategy,
         title: input.title,
         note: Value(input.note),
         remindDays: Value(input.remindDays),
-        dueAt: Value(input.dueAt?.millisecondsSinceEpoch),
-        repeatRule: Value(input.repeatRule),
-        extendAt: Value(input.extendAt?.millisecondsSinceEpoch),
-        createdAt: now,
-        updatedAt: now,
+        remark: const Value.absent(),
+        dueAt: Value(normalizedDueAt?.millisecondsSinceEpoch),
+        startAt: normalizedStartAt.millisecondsSinceEpoch,
+        extendAt: const Value.absent(),
+        issueTypeId: Value(input.issueTypeId),
+        handleTypeId: Value(input.handleTypeId),
+        createdAt: nowMs,
+        updatedAt: nowMs,
       ),
     );
-    await _dao.backfillStartId(id);
-    return id;
   }
 
   Future<bool> updateById(int id, ReminderUpsert input) async {
     final existing = await _dao.getById(id);
-    if (existing == null || existing.status != 0) {
+    if (existing == null || existing.reminder.status != ReminderStatus.pending) {
       return false;
     }
 
-    final updated = existing.copyWith(
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final normalizedDueAt = _normalizeToDayStart(input.dueAt);
+    final normalizedStartAt = _normalizeToDayStart(input.startAt) ??
+        DateTime.fromMillisecondsSinceEpoch(existing.reminder.startAt);
+    if (existing.series != null) {
+      final updatedSeries = existing.series!.copyWith(
+        title: input.title,
+        note: Value(input.note),
+        timeBasis: input.timeBasis,
+        notifyStrategy: input.notifyStrategy,
+        remindDays: Value(input.remindDays),
+        repeatRule: Value(input.repeatRule),
+        issueTypeId: Value(input.issueTypeId),
+        handleTypeId: Value(input.handleTypeId),
+        updatedAt: nowMs,
+      );
+      await _dao.updateSeries(updatedSeries);
+    }
+
+    final updatedReminder = existing.reminder.copyWith(
+      timeBasis: input.timeBasis,
+      notifyStrategy: input.notifyStrategy,
       title: input.title,
       note: Value(input.note),
-      remindDays: input.remindDays,
-      dueAt: Value(input.dueAt?.millisecondsSinceEpoch),
-      repeatRule: Value(input.repeatRule),
-      extendAt: Value(input.extendAt?.millisecondsSinceEpoch),
-      updatedAt: DateTime.now().millisecondsSinceEpoch,
+      remindDays: Value(input.remindDays),
+      dueAt: Value(normalizedDueAt?.millisecondsSinceEpoch),
+      startAt: normalizedStartAt.millisecondsSinceEpoch,
+      issueTypeId: Value(input.issueTypeId),
+      handleTypeId: Value(input.handleTypeId),
+      updatedAt: nowMs,
     );
 
-    return _dao.updateReminder(updated);
+    return _dao.updateReminder(updatedReminder);
   }
 
   Future<int> delete(int id) => _dao.deleteReminder(id);
 
   Future<void> complete(int id) => _dao.complete(id);
+
+  Future<void> commitStagedCompletions(List<int> ids) => _dao.commitCompleted(ids);
 
   Future<void> skip(int id) => _dao.skip(id);
 
@@ -147,17 +228,46 @@ class ReminderRepository {
 
   Future<void> restore(int id) => _dao.restore(id);
 
-  ReminderModel _toDomain(Reminder item) {
+  ReminderModel _toDomain(ReminderRecord item) {
     return ReminderModel(
+      id: item.reminder.id,
+      seriesId: item.reminder.seriesId,
+      previousReminderId: item.reminder.previousReminderId,
+      timeBasis: item.reminder.timeBasis,
+      notifyStrategy: item.reminder.notifyStrategy,
+      status: item.reminder.status,
+      title: item.reminder.title,
+      note: item.reminder.note,
+      remindDays: item.reminder.remindDays,
+      remark: item.reminder.remark,
+      dueAt: _fromEpoch(item.reminder.dueAt),
+      startAt: DateTime.fromMillisecondsSinceEpoch(item.reminder.startAt),
+      extendAt: _fromEpoch(item.reminder.extendAt),
+      issueTypeId: item.reminder.issueTypeId,
+      handleTypeId: item.reminder.handleTypeId,
+      issueTypeName: item.issueType?.name,
+      handleTypeName: item.handleType?.name,
+      repeatRule: item.series?.repeatRule,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(item.reminder.createdAt),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(item.reminder.updatedAt),
+    );
+  }
+
+  IssueTypeModel _toIssueType(IssueType item) {
+    return IssueTypeModel(
       id: item.id,
-      startId: item.startId,
-      title: item.title,
-      note: item.note,
-      remindDays: item.remindDays,
-      dueAt: _fromEpoch(item.dueAt),
-      repeatRule: item.repeatRule,
-      status: item.status,
-      extendAt: _fromEpoch(item.extendAt),
+      name: item.name,
+      description: item.description,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(item.createdAt),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(item.updatedAt),
+    );
+  }
+
+  HandleTypeModel _toHandleType(HandleType item) {
+    return HandleTypeModel(
+      id: item.id,
+      name: item.name,
+      description: item.description,
       createdAt: DateTime.fromMillisecondsSinceEpoch(item.createdAt),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(item.updatedAt),
     );
@@ -168,5 +278,12 @@ class ReminderRepository {
       return null;
     }
     return DateTime.fromMillisecondsSinceEpoch(ms);
+  }
+
+  DateTime? _normalizeToDayStart(DateTime? value) {
+    if (value == null) {
+      return null;
+    }
+    return DateTime(value.year, value.month, value.day);
   }
 }

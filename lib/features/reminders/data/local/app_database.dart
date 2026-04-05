@@ -10,20 +10,27 @@ import 'tables.dart';
 
 part 'app_database.g.dart';
 
-@DriftDatabase(tables: [Reminders], daos: [ReminderDao])
+@DriftDatabase(
+  tables: [ReminderSeriesEntries, IssueTypes, HandleTypes, Reminders],
+  daos: [ReminderDao],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
+  AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
     onUpgrade: (m, from, to) async {
-      if (from < 3) {
-        await m.deleteTable('reminders');
-        await m.createTable(reminders);
+      if (from < 4) {
+        await customStatement('DROP TABLE IF EXISTS reminders');
+        await customStatement('DROP TABLE IF EXISTS reminder_series');
+        await customStatement('DROP TABLE IF EXISTS issue_types');
+        await customStatement('DROP TABLE IF EXISTS handle_types');
+        await m.createAll();
       }
     },
   );
