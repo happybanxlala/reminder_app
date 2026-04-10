@@ -27,21 +27,21 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('週期提醒'), findsOneWidget);
+    expect(find.text('習慣'), findsOneWidget);
 
-    await tester.tap(find.text('週期提醒'));
+    await tester.tap(find.text('習慣'));
     await tester.pumpAndSettle();
 
     expect(
       find.byKey(const Key('add-recurring-reminder-button')),
       findsOneWidget,
     );
-    expect(find.text('新增週期提醒'), findsOneWidget);
+    expect(find.text('新增習慣'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('add-recurring-reminder-button')));
     await tester.pumpAndSettle();
 
-    expect(find.text('新增週期提醒'), findsOneWidget);
+    expect(find.text('新增習慣'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.idle();
@@ -211,7 +211,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('週期提醒'));
+      await tester.tap(find.text('習慣'));
       await tester.pumpAndSettle();
 
       expect(
@@ -269,7 +269,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('今天＋時間間隔的日期'));
+      await tester.tap(find.text('依今天推算下一次固定時間'));
       await tester.pumpAndSettle();
 
       final reactivatedRecurringReminder = await db.reminderDao

@@ -16,7 +16,21 @@
 
 一款運行於 iOS 與 Android 的本機提醒應用，聚焦於提醒事項管理（CRUD）、重複規則與可維護架構。
 
-### 2.3 主要目標
+### 2.3 UI 用語對照
+
+本表只約束使用者看得到的 UI 文案與頁面標題，不代表 DB schema、domain model 或 enum 命名異動。
+
+| 內部/舊用語 | 使用者可見文案 | 備註 |
+|---|---|---|
+| 週期提醒 | 習慣 | 一般畫面使用 |
+| 起計式提醒 | 從某天開始 | 用於時間設定選項 |
+| 倒數式提醒 | 固定時間 | 用於時間設定選項 |
+| Reminder | 任務 | 頁面標題、列表、對話框使用 |
+| RecurringReminder | 習慣模板 | 僅內部管理畫面可用；一般使用者畫面顯示「習慣」 |
+| trackingMode | 不直接顯示 | UI 需映射成「固定時間 / 從某天開始」 |
+| triggerMode | 不直接顯示 | UI 需映射成可理解的通知方式 |
+
+### 2.4 主要目標
 
 - 明確資料存取抽象（Repository / DAO 分層）
 - 統一狀態管理（Riverpod）
@@ -203,27 +217,27 @@
 
 | Route | Params | 描述 |
 |---|---|---|
-| `/` | - | Reminders 列表 |
-| `/reminder/new` | - | 新增提醒 |
-| `/reminder/:id` | id | 編輯提醒 |
-| `/recurring/new` | - | 新增週期提醒 |
-| `/recurring/:id` | id | 編輯週期提醒 |
+| `/` | - | 任務列表 |
+| `/reminder/new` | - | 新增任務 |
+| `/reminder/:id` | id | 編輯任務 |
+| `/recurring/new` | - | 新增習慣 |
+| `/recurring/:id` | id | 編輯習慣 |
 
 ------------------------------------------------------------------------
 
 ## 7. UI 需求
 
-### 7.1 Reminders 列表頁（Top Tab）
+### 7.1 任務列表頁（Top Tab）
 
 分為三個分頁：
 
 1. `進行中`
 - 僅載入「未完成且進入提醒期」的提醒（status=0）
-- 顯示：標題、提醒類型、分類標籤
-- 倒數式顯示剩餘天數；若當天即為到期日，改顯示剩餘小時
-- 起計式顯示已累積天數（由 `startAt` 計算）
+- 顯示：標題、時間設定、分類標籤
+- 固定時間顯示剩餘天數；若當天即為固定時間，改顯示剩餘小時
+- 從某天開始顯示已累積天數（由 `startAt` 計算）
 - checkbox 可標記完成
-- 倒數式提醒需提供 `延期` 按鈕；點擊後詢問延期多少天，並將新的 `deferredDueAt` 設為目前生效到期日再加上輸入天數
+- 固定時間任務需提供 `延期` 按鈕；點擊後詢問延期多少天，並將新的 `deferredDueAt` 設為目前生效固定時間再加上輸入天數
 - 左右滑操作：`skip`、`cancel`
 - `cancel` 需彈出確認對話框
 - 長按 2 秒可進入編輯
@@ -233,22 +247,22 @@
 - 依 `updatedAt` 由新到舊排序
 - 僅顯示前 30 筆
 - 列表上方需顯示提示文案：`僅顯示近期 30 筆資料`
-- 每筆需顯示：狀態、更新時間、提醒類型
-- 倒數式顯示 `dueAt`
-- 起計式顯示 `startAt`
+- 每筆需顯示：狀態、更新時間、時間設定
+- 固定時間顯示 `dueAt`
+- 從某天開始顯示 `startAt`
 - 完成與跳過需有不同顏色標記
 - 不可直接編輯
 
-3. `週期提醒`
+3. `習慣`
 - 顯示所有 `RecurringReminder`
-- 每筆需顯示：標題、狀態、提醒類型、重複規則、分類
+- 每筆需顯示：標題、狀態、時間設定、重複規則、分類
 - `pending` 可執行：`編輯`、`暫停`、`取消`
 - `stopped` 可執行：`編輯`、`啟用`
 - `canceled` 僅可檢視，不可編輯與不可重新啟用
-- `暫停` 或 `取消` 時需彈出確認對話框，並明確提示會一併取消目前這個週期提醒所有未完成 reminders
+- `暫停` 或 `取消` 時需彈出確認對話框，並明確提示會一併取消目前這個習慣所有未完成任務
 - `啟用` 時需彈出選項對話框：
-  - 倒數式：`今天＋時間間隔的日期`、`重新輸入到期時間`
-  - 起計式：`今天開始起計`、`重新輸入起計時間`
+  - 固定時間：`依今天推算下一次固定時間`、`重新選擇固定時間`
+  - 從某天開始：`從今天開始`、`重新選擇開始日期`
 - `啟用` 後需將 recurring reminder 狀態改回 `pending`，並建立一筆新的 pending reminder
 
 ### 7.2 「進行中」分頁的暫時完成區（可後悔機制）
@@ -268,15 +282,15 @@
 - `skip` 與 `cancel` 為立即生效操作，不進入可後悔暫存區
 - 若 `cancel` 的提醒屬於週期性提醒，確認對話框需明確提示會同時暫停所屬 `RecurringReminder`
 
-### 7.3 Reminder 編輯頁
+### 7.3 任務編輯頁
 
 - 欄位：
   - `title`（必填）
   - `note`（選填）
-  - `trackingMode`（倒數式 / 起計式）
-  - `triggerMode`（倒數式：進入範圍提醒 / 建立後立即提醒 / 到期才提醒；起計式：累積達標後提醒）
-  - `dueAt`（倒數式必填，日期精度）
-  - `startAt`（起計式顯示，預設為建立時間，日期精度）
+  - `trackingMode`（UI 顯示為固定時間 / 從某天開始）
+  - `triggerMode`（UI 顯示為通知方式；固定時間：進入提醒範圍時 / 建立後立即提醒 / 固定時間才提醒；從某天開始：累積達標後提醒）
+  - `dueAt`（固定時間必填，日期精度）
+  - `startAt`（從某天開始顯示，預設為建立時間，日期精度）
   - `triggerOffsetDays`（整數，>= 0）
   - `repeatRule`（type 下拉 + interval 輸入，interval >= 1）
   - `topicCategory`（選填）
@@ -300,10 +314,10 @@
   - `stopped -> pending`：需建立一筆新的 pending reminder
   - `canceled` 不可再轉回 `pending` 或 `stopped`
 - `RecurringReminder` 重新啟用時：
-  - 倒數式若選擇 `今天＋時間間隔的日期`，新 reminder 的 `dueAt` 需以 `today` 為基準，依 `repeatRule` 推算
-  - 倒數式若選擇 `重新輸入到期時間`，需由使用者指定新 `dueAt`
-  - 起計式若選擇 `今天開始起計`，新 reminder 的 `startAt = today`
-  - 起計式若選擇 `重新輸入起計時間`，需由使用者指定新 `startAt`
+  - 固定時間若選擇 `依今天推算下一次固定時間`，新 reminder 的 `dueAt` 需以 `today` 為基準，依 `repeatRule` 推算
+  - 固定時間若選擇 `重新選擇固定時間`，需由使用者指定新 `dueAt`
+  - 從某天開始若選擇 `從今天開始`，新 reminder 的 `startAt = today`
+  - 從某天開始若選擇 `重新選擇開始日期`，需由使用者指定新 `startAt`
 - 重新啟用時不得復原既有已取消 reminders，必須建立新 reminder 承接後續週期
 
 ------------------------------------------------------------------------
@@ -377,19 +391,19 @@ lib/
 |---|---|
 | CRUD | 可建立、查詢、編輯、刪除提醒 |
 | 狀態流轉 | reminder pending 可轉 done / skipped / canceled；staged completion 可在正式提交前回到 pending 視圖；週期性 reminder canceled 時會同時將所屬 series 轉為 stopped |
-| 提醒類型 | 倒數式與起計式皆可建立並正確顯示提醒狀態 |
+| 時間設定 | 固定時間與從某天開始皆可建立並正確顯示任務狀態 |
 | 重複規則 | 僅週期性提醒在 done / skipped 後可依 repeatRule 產生新提醒 |
 | 進行中列表 | 僅顯示未完成且進入提醒期的提醒 |
-| 起計式規則 | 起計式提醒可依 `startAt + triggerOffsetDays` 正確進入提醒期 |
+| 從某天開始規則 | 從某天開始任務可依 `startAt + triggerOffsetDays` 正確進入提醒期 |
 | 暫時完成區 | 在進行中分頁完成後，項目暫時移到下方灰色區並可確認恢復，期間不得產生新 reminder |
 | 手動批次完成 | 使用者可透過批次完成按鈕，立即正式提交暫時完成區內項目 |
 | 會話清空 | 切換分頁或離開 App 後返回，灰色暫存區內項目會先正式完成並清空 |
-| 倒數式顯示 | 倒數式提醒於到期當天顯示剩餘小時，超出到期日後才顯示逾期天數 |
+| 固定時間顯示 | 固定時間任務於當天顯示剩餘小時，超出日期後才顯示逾期天數 |
 | 完成/跳過列表 | 僅顯示前 30 筆，顯示狀態、updatedAt，以及對應的 `dueAt` 或 `startAt` |
 | 編輯頁 | 支援 demo 隨機填值並可正常儲存 |
-| 週期提醒 | 具備獨立分頁，可顯示 status、類型、repeatRule、分類，並依狀態提供 edit / stop / cancel / reactivate |
-| 週期提醒狀態流轉 | recurring reminder pending 暫停或取消時會一併取消目前 pending reminders；stopped 可重新啟用並建立新 reminder；canceled 不可重新啟用 |
-| 週期提醒編輯限制 | recurring reminder 編輯時不得修改 `trackingMode`，且不回寫既有 reminders snapshot |
+| 習慣 | 具備獨立分頁，可顯示 status、時間設定、repeatRule、分類，並依狀態提供 edit / stop / cancel / reactivate |
+| 習慣狀態流轉 | recurring reminder pending 暫停或取消時會一併取消目前 pending reminders；stopped 可重新啟用並建立新 reminder；canceled 不可重新啟用 |
+| 習慣編輯限制 | recurring reminder 編輯時不得修改 `trackingMode`，且不回寫既有 reminders snapshot |
 | 分類資料 | 可為提醒指定 `topicCategory` 與 `actionCategory`，並於列表或明細顯示 |
 | 路由 | `/`、`/reminder/new`、`/reminder/:id`、`/recurring/new`、`/recurring/:id` 跳轉正常 |
 

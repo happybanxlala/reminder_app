@@ -52,7 +52,7 @@ class DemoReminderDraft {
 
     final trackingMode = rng.nextBool()
         ? ReminderTrackingMode.countdown
-        : ReminderTrackingMode.countUp;
+        : ReminderTrackingMode.accumulation;
     final countdownStrategies = <int>[
       ReminderTriggerMode.inRange,
       ReminderTriggerMode.immediate,

@@ -1,15 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
-import '../../domain/reminder.dart';
+import '../../presentation/reminder_view_models.dart';
 
 class PendingReminderTile extends StatefulWidget {
   const PendingReminderTile({
     super.key,
     required this.reminder,
-    required this.remainingLabel,
     required this.onToggleDone,
     required this.onDefer,
     required this.onSkip,
@@ -17,8 +15,7 @@ class PendingReminderTile extends StatefulWidget {
     required this.onLongPress,
   });
 
-  final ReminderModel reminder;
-  final String remainingLabel;
+  final PendingReminderItemViewModel reminder;
   final VoidCallback onToggleDone;
   final VoidCallback onDefer;
   final VoidCallback onSkip;
@@ -72,12 +69,12 @@ class _PendingReminderTileState extends State<PendingReminderTile> {
         onTapCancel: () => _holdTimer?.cancel(),
         child: ListTile(
           title: Text(widget.reminder.title),
-          subtitle: Text(_pendingSubtitle()),
+          subtitle: Text(widget.reminder.subtitle),
           leading: Checkbox(
             value: widget.reminder.isDone,
             onChanged: (_) => widget.onToggleDone(),
           ),
-          trailing: widget.reminder.isCountdown
+          trailing: widget.reminder.canDefer
               ? IconButton(
                   key: ValueKey('defer-${widget.reminder.id}'),
                   tooltip: '延期',
@@ -88,18 +85,6 @@ class _PendingReminderTileState extends State<PendingReminderTile> {
         ),
       ),
     );
-  }
-
-  String _pendingSubtitle() {
-    final lines = <String>[
-      widget.reminder.trackingModeLabel,
-      widget.remainingLabel,
-    ];
-    final categoryLabel = widget.reminder.categoryLabel;
-    if (categoryLabel != null) {
-      lines.add(categoryLabel);
-    }
-    return lines.join('\n');
   }
 
   Widget _swipeBackground({
@@ -129,38 +114,18 @@ class _PendingReminderTileState extends State<PendingReminderTile> {
 class HistoryReminderTile extends StatelessWidget {
   const HistoryReminderTile({super.key, required this.reminder});
 
-  final ReminderModel reminder;
+  final HistoryReminderItemViewModel reminder;
 
   @override
   Widget build(BuildContext context) {
     final color = reminder.isDone ? Colors.green : Colors.orange;
-    final label = reminder.isDone ? 'Done' : 'Skipped';
-    final updatedAtText = DateFormat(
-      'yyyy/MM/dd HH:mm',
-    ).format(reminder.updatedAt.toLocal());
-    final timeText = reminder.isCountdown
-        ? (reminder.dueAt == null
-              ? '未設定到期時間'
-              : DateFormat(
-                  'yyyy/MM/dd HH:mm',
-                ).format(reminder.dueAt!.toLocal()))
-        : DateFormat('yyyy/MM/dd HH:mm').format(reminder.startAt.toLocal());
-    final categoryLabel = reminder.categoryLabel;
 
     return ListTile(
       title: Text(
         reminder.title,
         style: const TextStyle(decoration: TextDecoration.lineThrough),
       ),
-      subtitle: Text(
-        [
-          '狀態: $label',
-          '類型: ${reminder.trackingModeLabel}',
-          '更新: $updatedAtText',
-          reminder.isCountdown ? '到期: $timeText' : '起計: $timeText',
-          if (categoryLabel != null) '分類: $categoryLabel',
-        ].join('\n'),
-      ),
+      subtitle: Text(reminder.subtitle),
       isThreeLine: false,
       trailing: Icon(Icons.circle, color: color, size: 12),
     );
@@ -174,7 +139,7 @@ class CompletedPendingTile extends StatelessWidget {
     required this.onRestore,
   });
 
-  final ReminderModel reminder;
+  final CompletedPendingReminderItemViewModel reminder;
   final VoidCallback onRestore;
 
   @override

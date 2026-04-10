@@ -9,6 +9,7 @@ import '../../domain/action_category.dart';
 import '../../domain/reminder.dart';
 import '../../domain/recurring_reminder.dart';
 import '../../domain/topic_category.dart';
+import '../../presentation/reminder_view_models.dart';
 
 enum ReminderFormMode { reminderCreate, reminderEdit, seriesCreate, seriesEdit }
 
@@ -62,18 +63,18 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _titleController;
   late final TextEditingController _noteController;
-  late final TextEditingController _remindDaysController;
+  late final TextEditingController _triggerOffsetDaysController;
   late final TextEditingController _repeatIntervalController;
 
   bool _initialized = false;
   bool _isReadOnly = false;
-  int _timeBasis = ReminderTrackingMode.countdown;
-  int _notifyStrategy = ReminderTriggerMode.inRange;
+  int _trackingMode = ReminderTrackingMode.countdown;
+  int _triggerMode = ReminderTriggerMode.inRange;
   String? _repeatType;
   DateTime? _dueAt;
   DateTime? _startAt;
-  int? _selectedIssueTypeId;
-  int? _selectedHandleTypeId;
+  int? _selectedTopicCategoryId;
+  int? _selectedActionCategoryId;
 
   bool get _showsDateFields => !widget.isSeriesEdit;
   bool get _requiresRepeatRule => widget.isSeriesMode;
@@ -83,7 +84,7 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
     super.initState();
     _titleController = TextEditingController();
     _noteController = TextEditingController();
-    _remindDaysController = TextEditingController(text: '0');
+    _triggerOffsetDaysController = TextEditingController(text: '0');
     _repeatIntervalController = TextEditingController(text: '1');
   }
 
@@ -91,7 +92,7 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
   void dispose() {
     _titleController.dispose();
     _noteController.dispose();
-    _remindDaysController.dispose();
+    _triggerOffsetDaysController.dispose();
     _repeatIntervalController.dispose();
     super.dispose();
   }
@@ -142,7 +143,7 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
       return Scaffold(
         appBar: AppBar(title: Text(_pageTitle)),
         body: Center(
-          child: Text(widget.isSeriesMode ? '此週期提醒不存在' : '此提醒不存在或不可編輯'),
+          child: Text(widget.isSeriesMode ? '此習慣不存在' : '此任務不存在或不可編輯'),
         ),
       );
     }
@@ -191,19 +192,19 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
                 ),
               ),
               const SizedBox(height: 16),
-              _buildTimeBasisSection(),
+              _buildTrackingModeSection(),
               const SizedBox(height: 16),
-              _buildNotifyStrategySection(),
+              _buildTriggerModeSection(),
               const SizedBox(height: 16),
               TextFormField(
                 key: const Key('edit-remind-days-field'),
-                controller: _remindDaysController,
+                controller: _triggerOffsetDaysController,
                 enabled: !_isReadOnly,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
-                  labelText: _timeBasis == ReminderTrackingMode.countdown
-                      ? '提前提醒天數'
-                      : '累積提醒天數',
+                  labelText: _trackingMode == ReminderTrackingMode.countdown
+                      ? '提前通知天數'
+                      : '累積天數',
                   border: const OutlineInputBorder(),
                 ),
                 validator: (value) {
@@ -216,7 +217,7 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
               ),
               if (_showsDateFields) ...[
                 const SizedBox(height: 16),
-                if (_timeBasis == ReminderTrackingMode.countdown)
+                if (_trackingMode == ReminderTrackingMode.countdown)
                   _buildDueAtSection(context)
                 else
                   _buildStartAtSection(context),
@@ -265,71 +266,70 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
 
   String get _pageTitle {
     if (_isReadOnly) {
-      return '檢視週期提醒';
+      return ReminderUiText.viewHabit;
     }
     switch (widget.mode) {
       case ReminderFormMode.reminderCreate:
-        return '新增提醒';
+        return ReminderUiText.addTask;
       case ReminderFormMode.reminderEdit:
-        return '編輯提醒';
+        return ReminderUiText.editTask;
       case ReminderFormMode.seriesCreate:
-        return '新增週期提醒';
+        return ReminderUiText.addHabit;
       case ReminderFormMode.seriesEdit:
-        return '編輯週期提醒';
+        return ReminderUiText.editHabit;
     }
   }
 
-  _ReminderFormSeed? _resolveSeed(
+  ReminderFormDraft? _resolveSeed(
     ReminderModel? reminder,
     RecurringReminderModel? recurringReminder,
   ) {
     if (reminder != null) {
-      return _ReminderFormSeed.fromReminder(reminder);
+      return ReminderFormDraft.fromReminder(reminder);
     }
     if (recurringReminder != null) {
-      return _ReminderFormSeed.fromRecurringReminder(recurringReminder);
+      return ReminderFormDraft.fromRecurringReminder(recurringReminder);
     }
     if (widget.mode.isEditing) {
       return null;
     }
-    return _ReminderFormSeed.createDefault();
+    return ReminderFormDraft.createDefault();
   }
 
-  void _initializeForm(_ReminderFormSeed? seed) {
-    final currentSeed = seed ?? _ReminderFormSeed.createDefault();
+  void _initializeForm(ReminderFormDraft? seed) {
+    final currentSeed = seed ?? ReminderFormDraft.createDefault();
     _titleController.text = currentSeed.title;
     _noteController.text = currentSeed.note ?? '';
-    _remindDaysController.text = currentSeed.remindDays.toString();
-    _timeBasis = currentSeed.timeBasis;
-    _notifyStrategy = currentSeed.notifyStrategy;
+    _triggerOffsetDaysController.text = currentSeed.triggerOffsetDays
+        .toString();
+    _trackingMode = currentSeed.trackingMode;
+    _triggerMode = currentSeed.triggerMode;
     _dueAt = currentSeed.dueAt;
     _startAt = currentSeed.startAt;
-    _selectedIssueTypeId = currentSeed.issueTypeId;
-    _selectedHandleTypeId = currentSeed.handleTypeId;
+    _selectedTopicCategoryId = currentSeed.topicCategoryId;
+    _selectedActionCategoryId = currentSeed.actionCategoryId;
     _isReadOnly = currentSeed.readOnly;
     _applyRepeatRule(currentSeed.repeatRule);
     _initialized = true;
   }
 
-  Widget _buildTimeBasisSection() {
+  Widget _buildTrackingModeSection() {
     final isLocked = _isReadOnly || widget.isSeriesEdit;
     return DropdownButtonFormField<int>(
       key: const Key('edit-time-basis-field'),
-      initialValue: _timeBasis,
+      initialValue: _trackingMode,
       decoration: const InputDecoration(
-        labelText: '提醒類型',
+        labelText: ReminderUiText.trackingModeField,
         border: OutlineInputBorder(),
       ),
-      items: const [
-        DropdownMenuItem(
-          value: ReminderTrackingMode.countdown,
-          child: Text('倒數式'),
-        ),
-        DropdownMenuItem(
-          value: ReminderTrackingMode.countUp,
-          child: Text('起計式'),
-        ),
-      ],
+      items: ReminderTrackingModeOption.values
+          .map(
+            (option) => DropdownMenuItem(
+              value: option.value,
+              child: Text(option.label),
+            ),
+          )
+          .toList(growable: false),
       onChanged: isLocked
           ? null
           : (value) {
@@ -337,48 +337,33 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
                 return;
               }
               setState(() {
-                _timeBasis = value;
+                _trackingMode = value;
                 _startAt ??= DateTime.now();
-                if (_timeBasis == ReminderTrackingMode.countUp) {
+                if (_trackingMode == ReminderTrackingMode.accumulation) {
                   _dueAt = null;
-                  _notifyStrategy = ReminderTriggerMode.inRange;
+                  _triggerMode = ReminderTriggerMode.inRange;
                 }
               });
             },
     );
   }
 
-  Widget _buildNotifyStrategySection() {
-    final items = _timeBasis == ReminderTrackingMode.countdown
-        ? const [
-            DropdownMenuItem(
-              value: ReminderTriggerMode.inRange,
-              child: Text('進入範圍提醒'),
-            ),
-            DropdownMenuItem(
-              value: ReminderTriggerMode.immediate,
-              child: Text('建立後立即提醒'),
-            ),
-            DropdownMenuItem(
-              value: ReminderTriggerMode.onPoint,
-              child: Text('到期才提醒'),
-            ),
-          ]
-        : const [
-            DropdownMenuItem(
-              value: ReminderTriggerMode.inRange,
-              child: Text('累積達標後提醒'),
-            ),
-          ];
-
+  Widget _buildTriggerModeSection() {
     return DropdownButtonFormField<int>(
       key: const Key('edit-notify-strategy-field'),
-      initialValue: _notifyStrategy,
+      initialValue: _triggerMode,
       decoration: const InputDecoration(
-        labelText: '提醒策略',
+        labelText: ReminderUiText.triggerModeField,
         border: OutlineInputBorder(),
       ),
-      items: items,
+      items: ReminderTriggerModeOption.forTrackingMode(_trackingMode)
+          .map(
+            (option) => DropdownMenuItem(
+              value: option.value,
+              child: Text(option.label),
+            ),
+          )
+          .toList(growable: false),
       onChanged: _isReadOnly
           ? null
           : (value) {
@@ -386,7 +371,7 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
                 return;
               }
               setState(() {
-                _notifyStrategy = value;
+                _triggerMode = value;
               });
             },
     );
@@ -399,7 +384,7 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
 
     return InputDecorator(
       decoration: const InputDecoration(
-        labelText: '到期時間',
+        labelText: ReminderUiText.fixedTimeField,
         border: OutlineInputBorder(),
       ),
       child: Row(
@@ -431,7 +416,7 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
 
     return InputDecorator(
       decoration: const InputDecoration(
-        labelText: '起計時間',
+        labelText: ReminderUiText.startDateField,
         border: OutlineInputBorder(),
       ),
       child: Row(
@@ -518,7 +503,7 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
   Widget _buildTopicCategorySection(List<TopicCategoryModel> topicCategories) {
     return DropdownButtonFormField<int?>(
       key: const Key('edit-issue-type-field'),
-      initialValue: _selectedIssueTypeId,
+      initialValue: _selectedTopicCategoryId,
       decoration: const InputDecoration(
         labelText: '主題分類',
         border: OutlineInputBorder(),
@@ -534,7 +519,7 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
           ? null
           : (value) {
               setState(() {
-                _selectedIssueTypeId = value;
+                _selectedTopicCategoryId = value;
               });
             },
     );
@@ -545,7 +530,7 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
   ) {
     return DropdownButtonFormField<int?>(
       key: const Key('edit-handle-type-field'),
-      initialValue: _selectedHandleTypeId,
+      initialValue: _selectedActionCategoryId,
       decoration: const InputDecoration(
         labelText: '行動分類',
         border: OutlineInputBorder(),
@@ -561,7 +546,7 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
           ? null
           : (value) {
               setState(() {
-                _selectedHandleTypeId = value;
+                _selectedActionCategoryId = value;
               });
             },
     );
@@ -606,17 +591,18 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
   }
 
   void _fillWithRandomDemoData() {
-    final draft = widget.demoDataFactory?.call() ?? DemoReminderDraft.random();
+    final draft = ReminderFormDraft.fromDemo(
+      widget.demoDataFactory?.call() ?? DemoReminderDraft.random(),
+    );
     setState(() {
       _titleController.text = draft.title;
       _noteController.text = draft.note ?? '';
-      _timeBasis = draft.trackingMode;
-      _notifyStrategy = draft.triggerMode;
-      _remindDaysController.text = draft.triggerOffsetDays.toString();
+      _trackingMode = draft.trackingMode;
+      _triggerMode = draft.triggerMode;
+      _triggerOffsetDaysController.text = draft.triggerOffsetDays.toString();
       _dueAt = draft.dueAt;
       _startAt = draft.startAt;
-      _repeatType = draft.repeatType;
-      _repeatIntervalController.text = draft.repeatInterval.toString();
+      _applyRepeatRule(draft.repeatRule);
     });
   }
 
@@ -626,18 +612,18 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
     }
 
     if (_requiresRepeatRule && _buildRepeatRule() == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('週期提醒需要設定重複規則')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(ReminderUiText.habitRepeatRuleRequired)),
+      );
       return;
     }
 
     if (_showsDateFields &&
-        _timeBasis == ReminderTrackingMode.countdown &&
+        _trackingMode == ReminderTrackingMode.countdown &&
         _dueAt == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('倒數式提醒需要設定到期時間')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(ReminderUiText.fixedTimeRequired)),
+      );
       return;
     }
 
@@ -647,14 +633,14 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
       note: _noteController.text.trim().isEmpty
           ? null
           : _noteController.text.trim(),
-      trackingMode: _timeBasis,
-      triggerMode: _notifyStrategy,
-      triggerOffsetDays: int.parse(_remindDaysController.text),
-      dueAt: _timeBasis == ReminderTrackingMode.countdown ? _dueAt : null,
+      trackingMode: _trackingMode,
+      triggerMode: _triggerMode,
+      triggerOffsetDays: int.parse(_triggerOffsetDaysController.text),
+      dueAt: _trackingMode == ReminderTrackingMode.countdown ? _dueAt : null,
       startAt: _startAt ?? DateTime.now(),
       repeatRule: _buildRepeatRule(),
-      topicCategoryId: _selectedIssueTypeId,
-      actionCategoryId: _selectedHandleTypeId,
+      topicCategoryId: _selectedTopicCategoryId,
+      actionCategoryId: _selectedActionCategoryId,
     );
 
     var success = true;
@@ -673,7 +659,7 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
     }
 
     if (!success && mounted) {
-      final message = widget.isSeriesMode ? '此週期提醒不可編輯' : '此提醒不可編輯';
+      final message = widget.isSeriesMode ? '此習慣不可編輯' : '此任務不可編輯';
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
@@ -710,74 +696,4 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
 
     return '$_repeatType$interval';
   }
-}
-
-class _ReminderFormSeed {
-  const _ReminderFormSeed({
-    required this.title,
-    this.note,
-    required this.timeBasis,
-    required this.notifyStrategy,
-    required this.remindDays,
-    this.repeatRule,
-    this.dueAt,
-    this.startAt,
-    this.issueTypeId,
-    this.handleTypeId,
-    this.readOnly = false,
-  });
-
-  factory _ReminderFormSeed.createDefault() {
-    return _ReminderFormSeed(
-      title: '',
-      note: null,
-      timeBasis: ReminderTrackingMode.countdown,
-      notifyStrategy: ReminderTriggerMode.inRange,
-      remindDays: 0,
-      startAt: DateTime.now(),
-    );
-  }
-
-  factory _ReminderFormSeed.fromReminder(ReminderModel reminder) {
-    return _ReminderFormSeed(
-      title: reminder.title,
-      note: reminder.note,
-      timeBasis: reminder.trackingMode,
-      notifyStrategy: reminder.triggerMode,
-      remindDays: reminder.triggerOffsetDays ?? 0,
-      repeatRule: reminder.repeatRule,
-      dueAt: reminder.dueAt,
-      startAt: reminder.startAt,
-      issueTypeId: reminder.topicCategoryId,
-      handleTypeId: reminder.actionCategoryId,
-    );
-  }
-
-  factory _ReminderFormSeed.fromRecurringReminder(
-    RecurringReminderModel recurringReminder,
-  ) {
-    return _ReminderFormSeed(
-      title: recurringReminder.title,
-      note: recurringReminder.note,
-      timeBasis: recurringReminder.trackingMode,
-      notifyStrategy: recurringReminder.triggerMode,
-      remindDays: recurringReminder.triggerOffsetDays ?? 0,
-      repeatRule: recurringReminder.repeatRule,
-      issueTypeId: recurringReminder.topicCategoryId,
-      handleTypeId: recurringReminder.actionCategoryId,
-      readOnly: recurringReminder.isCanceled,
-    );
-  }
-
-  final String title;
-  final String? note;
-  final int timeBasis;
-  final int notifyStrategy;
-  final int remindDays;
-  final String? repeatRule;
-  final DateTime? dueAt;
-  final DateTime? startAt;
-  final int? issueTypeId;
-  final int? handleTypeId;
-  final bool readOnly;
 }
