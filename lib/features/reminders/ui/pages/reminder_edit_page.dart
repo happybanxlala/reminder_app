@@ -392,6 +392,10 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
           onTap: () =>
               notifier.setRepeatChoice(ReminderWizardRepeatChoice.recurring),
         ),
+        if (widget.isSeriesEdit) ...[
+          const SizedBox(height: 8),
+          const Text('模板類型建立後不可修改。'),
+        ],
       ],
     );
   }
@@ -484,7 +488,7 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
       children: [
         if (_showsDateFields) _buildDueAtSection(context, draft),
         const SizedBox(height: 12),
-        const Text('時間：暫不支援時間選擇，會依日期提醒。'),
+        const Text('這是日期型提醒；目前不支援精準時分通知。'),
       ],
     );
   }
@@ -500,6 +504,8 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
           const SizedBox(height: 12),
           _buildDueAtSection(context, draft),
         ],
+        const SizedBox(height: 12),
+        const Text('這是日期型提醒；目前不支援精準時分通知。'),
         const SizedBox(height: 12),
         _buildTriggerModeSection(draft),
         const SizedBox(height: 12),

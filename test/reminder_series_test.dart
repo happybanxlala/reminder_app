@@ -154,6 +154,7 @@ void main() {
 
       expect(find.byKey(const Key('edit-due-at-text')), findsNothing);
       expect(find.byKey(const Key('edit-start-at-text')), findsNothing);
+      expect(find.text('模板類型建立後不可修改。'), findsOneWidget);
 
       await tester.enterText(
         find.byKey(const Key('edit-title-field')),
@@ -379,6 +380,41 @@ void main() {
       );
     },
   );
+
+  test('recurring reminder update preserves template tracking mode', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = ReminderRepository(db.reminderDao);
+
+    final seed = await _seedRecurringReminderOnly(
+      db,
+      title: 'Immutable type',
+      status: RecurringReminderStatus.pending,
+      updatedAtOffset: 1,
+    );
+
+    final success = await repository.updateRecurringReminderById(
+      seed.recurringReminderId,
+      ReminderInput(
+        title: 'Updated immutable type',
+        trackingMode: ReminderTrackingMode.accumulation,
+        triggerMode: ReminderTriggerMode.inRange,
+        triggerOffsetDays: 3,
+        startAt: DateTime(2026, 1, 1),
+        repeatRule: 'D1',
+      ),
+    );
+
+    final updated = await db.reminderDao.getRecurringReminderById(
+      seed.recurringReminderId,
+    );
+
+    expect(success, isTrue);
+    expect(updated, isNotNull);
+    expect(updated!.title, 'Updated immutable type');
+    expect(updated.trackingMode, ReminderTrackingMode.countdown);
+    expect(updated.repeatRule, 'D1');
+  });
 }
 
 class _RecurringReminderSeed {

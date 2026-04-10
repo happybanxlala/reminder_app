@@ -37,7 +37,7 @@ void main() {
 
       expect(find.text('Step 4A：單次任務設定'), findsOneWidget);
       expect(find.byKey(const Key('edit-due-at-text')), findsOneWidget);
-      expect(find.text('時間：暫不支援時間選擇，會依日期提醒。'), findsOneWidget);
+      expect(find.text('這是日期型提醒；目前不支援精準時分通知。'), findsOneWidget);
     },
   );
 

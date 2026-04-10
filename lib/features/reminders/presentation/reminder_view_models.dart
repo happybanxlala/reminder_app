@@ -31,7 +31,7 @@ class ReminderUiText {
   static const fixedTimeField = '固定時間';
   static const startDateField = '開始日期';
   static const unset = '未設定';
-  static const unsetFixedTime = '未設定固定時間';
+  static const unsetFixedTime = '未設定日期';
   static const noTodayTasks = '今天沒有要處理的任務。';
   static const noUpcomingTasks = '接下來沒有進行中的任務。';
   static const noPendingTasks = noUpcomingTasks;
@@ -44,7 +44,7 @@ class ReminderUiText {
   static const stopHabit = '暫停習慣';
   static const cancelHabit = '取消習慣';
   static const reactivateHabit = '重新啟用習慣';
-  static const fixedTimeRequired = '固定時間任務需要設定時間';
+  static const fixedTimeRequired = '固定時間任務需要設定日期';
   static const habitRepeatRuleRequired = '習慣需要設定重複規則';
 
   static String trackingModeLabel(int trackingMode) {
@@ -225,13 +225,11 @@ class HistoryReminderItemViewModel {
       'yyyy/MM/dd HH:mm',
     ).format(reminder.updatedAt.toLocal());
     final isFixedTime = reminder.trackingMode == ReminderTrackingMode.countdown;
-    final timeText = isFixedTime
+    final dateText = isFixedTime
         ? (reminder.dueAt == null
               ? ReminderUiText.unsetFixedTime
-              : DateFormat(
-                  'yyyy/MM/dd HH:mm',
-                ).format(reminder.dueAt!.toLocal()))
-        : DateFormat('yyyy/MM/dd HH:mm').format(reminder.startAt.toLocal());
+              : DateFormat('yyyy/MM/dd').format(reminder.dueAt!.toLocal()))
+        : DateFormat('yyyy/MM/dd').format(reminder.startAt.toLocal());
     final category = ReminderUiText.categoryLabel(
       topicCategoryName: reminder.topicCategoryName,
       actionCategoryName: reminder.actionCategoryName,
@@ -244,7 +242,7 @@ class HistoryReminderItemViewModel {
         '狀態: ${reminder.isDone ? 'Done' : 'Skipped'}',
         '時間設定: ${ReminderUiText.trackingModeLabel(reminder.trackingMode)}',
         '更新: $updatedAtText',
-        isFixedTime ? '固定時間: $timeText' : '開始日期: $timeText',
+        isFixedTime ? '固定日期: $dateText' : '開始日期: $dateText',
         if (category.isNotEmpty) '分類: $category',
       ].join('\n'),
     );
