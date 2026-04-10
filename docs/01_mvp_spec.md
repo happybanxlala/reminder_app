@@ -8,6 +8,8 @@
 - 使用者可見語言以「任務 / 習慣 / 固定時間 / 從某天開始」為主
 - 新增流程採 step-based wizard
 - 首頁資訊架構以「今天 / 接下來 / 已完成 / 習慣」為主
+- presentation 已拆為 `text / formatters / view_models / wizard`
+- 新增流程 page 僅負責 orchestration，step UI 與 wizard state 已拆開
 - `RecurringReminder` 與 `Reminder` 的雙模型維持不變
 - 本階段仍以日期精度提醒為核心，暫不支援精準時分通知
 
@@ -42,6 +44,11 @@ Reminder App
 | trackingMode | 不直接顯示 | UI 需映射成「固定時間 / 從某天開始」 |
 | triggerMode | 不直接顯示 | UI 需轉譯成可理解的提醒邏輯 |
 
+補充約束：
+- `countdown / accumulation` 仍保留為內部 enum case / 常數
+- domain layer 不直接輸出 UI label
+- UI label 一律經由 presentation mapper / formatter 產生
+
 ---
 
 ## 3. 範圍與邊界
@@ -62,6 +69,9 @@ Reminder App
 - Flutter null-safety
 - 暫不處理跨時區需求（以裝置本地時間為準）
 - 本階段以「日期精度」為主，不保證精準到時分秒的通知行為
+- 不做 migration
+- 不改 Drift schema
+- 不重寫 repository lifecycle
 
 ---
 
@@ -238,6 +248,24 @@ DAO 需提供的能力至少包含：
 - 應透過 mapper / view model / formatter 統一轉譯成使用者語言
 - `countdown` 對外顯示為 `固定時間`
 - `accumulation` 對外顯示為 `從某天開始`
+- widget 不應自行拼接首頁卡片、習慣模板卡片與狀態摘要字串
+- 所有 UI 文案應集中於文字層，不可散落在 widget
+
+#### 6.2.1 目前 presentation 結構
+`lib/features/reminders/presentation/`
+- `text/reminder_ui_text.dart`
+- `formatters/reminder_formatters.dart`
+- `view_models/reminder_card_view_model.dart`
+- `view_models/recurring_template_view_model.dart`
+- `wizard/reminder_wizard_draft.dart`
+- `wizard/reminder_wizard_provider.dart`
+
+原則：
+- `ReminderUiText` 集中管理 UI 文案
+- formatter 負責 consumer-facing 字串組裝
+- view model 不直接內嵌散落的 widget 文案
+- wizard draft 與 step widget 分離
+- 單一 presentation 檔案不應再演變為大型 god file
 
 ---
 
@@ -264,8 +292,10 @@ DAO 需提供的能力至少包含：
 
 ### 8.2 今天
 - 顯示今天需要優先處理的 pending 任務
-- 固定時間任務顯示日期摘要
-- 從某天開始任務顯示累積摘要
+- 固定時間任務主資訊顯示：`今天 / 明天 / 剩 X 天 / 逾期 X 天`
+- 固定時間任務次資訊顯示：簡短規則摘要，如 `每天 / 每週`
+- 從某天開始任務主資訊顯示：`第 N 天`
+- 從某天開始任務次資訊顯示：起始日
 - 可執行：完成、延後、跳過、取消
 - 為主要日常入口
 
@@ -273,6 +303,7 @@ DAO 需提供的能力至少包含：
 - 顯示近期將到來的 pending 任務
 - 作為預告與安排用途
 - 與「今天」分開，避免資訊過載
+- 卡片規則與「今天」一致，仍以主資訊/次資訊/補充資訊呈現
 
 ### 8.4 已完成
 - 顯示完成與跳過的任務歷史
@@ -283,14 +314,18 @@ DAO 需提供的能力至少包含：
 - 作為習慣模板管理頁，而非每日工作頁
 - 顯示：
   - 標題
-  - 狀態
   - 類型標籤（固定時間 / 從某天開始）
-  - 規則摘要
-  - 分類
+  - 簡短規則摘要
+  - 狀態
 - 操作：
   - `pending`：可編輯 / 暫停 / 取消
   - `stopped`：可編輯 / 啟用
   - `canceled`：唯讀
+
+補充：
+- 視覺上應避免表格式堆疊
+- 卡片應更接近日常產品，而非 admin panel
+- 規則摘要與分類資訊應由 formatter 統一生成
 
 ### 8.6 新增任務流程（Wizard）
 新增流程應採 step-based wizard，而非一次顯示所有技術欄位。
@@ -323,6 +358,17 @@ DAO 需提供的能力至少包含：
 - 起始日期
 - 顯示方式：第幾天 / 第幾週 / 第幾年
 - 必須顯示預覽文字，例如：`今天是第 N 天`
+
+#### Wizard 結構約束
+- page 只負責 orchestration
+- state 集中在 wizard provider
+- step widget 應拆分為：
+  - `Step1InputWidget`
+  - `Step2RepeatToggleWidget`
+  - `Step3RepeatTypeWidget`
+  - `Step4OnceWidget`
+  - `Step4FixedWidget`
+  - `Step4SinceStartWidget`
 
 ### 8.7 UX 約束
 - UI 不應讓使用者先理解工程分類，再開始建立任務
@@ -362,6 +408,17 @@ DAO 需提供的能力至少包含：
 - 選習慣後才顯示固定時間 / 從某天開始
 - 從某天開始時顯示預覽文案
 - 完成 / 跳過 / 取消 / 暫停 / 重新啟用的 lifecycle 行為
+
+目前測試落點應包含：
+- widget test：wizard flow 與首頁/習慣頁互動
+- repository test：recurring lifecycle
+
+Repository lifecycle 至少應有獨立測試覆蓋：
+- recurring done -> 產生下一筆
+- recurring skip -> 產生下一筆
+- cancel -> 不產生下一筆
+- stop -> 取消 pending reminders
+- reactivate -> 建立新 reminder
 
 ---
 

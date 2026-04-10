@@ -41,8 +41,6 @@ class RecurringReminderModel {
   bool get isStopped => status == RecurringReminderStatus.stopped;
   bool get isCanceled => status == RecurringReminderStatus.canceled;
 
-  String get trackingModeLabel => trackingMode == 1 ? '倒數式' : '起計式';
-
   @Deprecated('Use trackingMode instead.')
   int get timeBasis => trackingMode;
 
@@ -63,30 +61,4 @@ class RecurringReminderModel {
 
   @Deprecated('Use actionCategoryName instead.')
   String? get handleTypeName => actionCategoryName;
-
-  @Deprecated('Use trackingModeLabel instead.')
-  String get timeBasisLabel => trackingModeLabel;
-
-  String get statusLabel {
-    switch (status) {
-      case RecurringReminderStatus.pending:
-        return '進行中';
-      case RecurringReminderStatus.stopped:
-        return '已停止';
-      case RecurringReminderStatus.canceled:
-        return '已取消';
-      default:
-        return '未知狀態';
-    }
-  }
-
-  String? get categoryLabel {
-    if (topicCategoryName == null && actionCategoryName == null) {
-      return null;
-    }
-    if (topicCategoryName != null && actionCategoryName != null) {
-      return '$topicCategoryName / $actionCategoryName';
-    }
-    return topicCategoryName ?? actionCategoryName;
-  }
 }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../data/reminder_repository.dart';
 import '../../domain/demo_reminder_draft.dart';
@@ -11,6 +10,12 @@ import '../../domain/recurring_reminder.dart';
 import '../../domain/repeat_rule.dart';
 import '../../domain/topic_category.dart';
 import '../../presentation/reminder_view_models.dart';
+import '../widgets/step1_input_widget.dart';
+import '../widgets/step2_repeat_toggle_widget.dart';
+import '../widgets/step3_repeat_type_widget.dart';
+import '../widgets/step4_fixed_widget.dart';
+import '../widgets/step4_once_widget.dart';
+import '../widgets/step4_since_start_widget.dart';
 
 enum ReminderFormMode { reminderCreate, reminderEdit, seriesCreate, seriesEdit }
 
@@ -170,19 +175,45 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
             ),
             children: [
               _buildStepTitle(1, '輸入任務內容'),
-              _buildTaskContentSection(
-                draft,
-                topicCategories,
-                actionCategories,
+              Step1InputWidget(
+                draft: draft,
+                titleController: _titleController,
+                noteController: _noteController,
+                topicCategories: topicCategories,
+                actionCategories: actionCategories,
+                onTitleChanged: ref
+                    .read(reminderWizardDraftProvider.notifier)
+                    .setTitle,
+                onNoteChanged: ref
+                    .read(reminderWizardDraftProvider.notifier)
+                    .setNote,
+                onTopicCategoryChanged: ref
+                    .read(reminderWizardDraftProvider.notifier)
+                    .setTopicCategoryId,
+                onActionCategoryChanged: ref
+                    .read(reminderWizardDraftProvider.notifier)
+                    .setActionCategoryId,
               ),
               const SizedBox(height: 16),
               _buildStepTitle(2, '是否需要重複'),
-              _buildRepeatChoiceSection(draft),
+              Step2RepeatToggleWidget(
+                draft: draft,
+                isSeriesEdit: widget.isSeriesEdit,
+                onRepeatChoiceChanged: ref
+                    .read(reminderWizardDraftProvider.notifier)
+                    .setRepeatChoice,
+              ),
               const SizedBox(height: 16),
               if (draft.repeatChoice ==
                   ReminderWizardRepeatChoice.recurring) ...[
                 _buildStepTitle(3, '選擇重複方式'),
-                _buildRepeatPatternSection(draft),
+                Step3RepeatTypeWidget(
+                  draft: draft,
+                  isSeriesEdit: widget.isSeriesEdit,
+                  onRepeatPatternChanged: ref
+                      .read(reminderWizardDraftProvider.notifier)
+                      .setRepeatPattern,
+                ),
                 const SizedBox(height: 16),
               ],
               ..._buildSettingsStep(context, draft),
@@ -314,143 +345,6 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
     );
   }
 
-  Widget _buildTaskContentSection(
-    ReminderWizardDraft draft,
-    List<TopicCategoryModel> topicCategories,
-    List<ActionCategoryModel> actionCategories,
-  ) {
-    final notifier = ref.read(reminderWizardDraftProvider.notifier);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TextFormField(
-          key: const Key('edit-title-field'),
-          controller: _titleController,
-          enabled: !draft.readOnly,
-          decoration: const InputDecoration(
-            labelText: '你想提醒什麼？',
-            border: OutlineInputBorder(),
-          ),
-          onChanged: notifier.setTitle,
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return '請輸入任務內容';
-            }
-            return null;
-          },
-        ),
-        const SizedBox(height: 16),
-        Text('分類（選填）', style: Theme.of(context).textTheme.labelLarge),
-        const SizedBox(height: 8),
-        _buildTopicCategorySection(draft, topicCategories),
-        const SizedBox(height: 12),
-        _buildActionCategorySection(draft, actionCategories),
-        const SizedBox(height: 8),
-        ExpansionTile(
-          key: ValueKey<bool>(draft.note != null),
-          tilePadding: EdgeInsets.zero,
-          childrenPadding: EdgeInsets.zero,
-          initiallyExpanded: draft.note != null,
-          title: const Text('進階'),
-          children: [
-            TextFormField(
-              key: const Key('edit-note-field'),
-              controller: _noteController,
-              enabled: !draft.readOnly,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: '備註（選填）',
-                border: OutlineInputBorder(),
-              ),
-              onChanged: notifier.setNote,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRepeatChoiceSection(ReminderWizardDraft draft) {
-    final notifier = ref.read(reminderWizardDraftProvider.notifier);
-    return Column(
-      children: [
-        _buildOptionTile(
-          key: const Key('wizard-repeat-once'),
-          selected: draft.repeatChoice == ReminderWizardRepeatChoice.once,
-          enabled: !draft.readOnly && !widget.isSeriesEdit,
-          title: const Text('不需要'),
-          subtitle: const Text('只提醒一次'),
-          onTap: () =>
-              notifier.setRepeatChoice(ReminderWizardRepeatChoice.once),
-        ),
-        _buildOptionTile(
-          key: const Key('wizard-repeat-recurring'),
-          selected: draft.repeatChoice == ReminderWizardRepeatChoice.recurring,
-          enabled: !draft.readOnly,
-          title: const Text('需要'),
-          subtitle: const Text('系統會自動幫你安排下一次'),
-          onTap: () =>
-              notifier.setRepeatChoice(ReminderWizardRepeatChoice.recurring),
-        ),
-        if (widget.isSeriesEdit) ...[
-          const SizedBox(height: 8),
-          const Text('模板類型建立後不可修改。'),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildRepeatPatternSection(ReminderWizardDraft draft) {
-    final notifier = ref.read(reminderWizardDraftProvider.notifier);
-    final isLocked = draft.readOnly || widget.isSeriesEdit;
-    return Column(
-      key: const Key('edit-time-basis-field'),
-      children: [
-        _buildOptionTile(
-          key: const Key('wizard-repeat-pattern-fixed'),
-          selected:
-              draft.repeatPattern == ReminderWizardRepeatPattern.fixedTime,
-          enabled: !isLocked,
-          title: const Text('固定時間'),
-          subtitle: const Text('例如每天、每週一'),
-          onTap: () =>
-              notifier.setRepeatPattern(ReminderWizardRepeatPattern.fixedTime),
-        ),
-        _buildOptionTile(
-          key: const Key('wizard-repeat-pattern-start'),
-          selected:
-              draft.repeatPattern == ReminderWizardRepeatPattern.fromStart,
-          enabled: !isLocked,
-          title: const Text('從某天開始'),
-          subtitle: const Text('例如紀念日、養寵物第幾天'),
-          onTap: () =>
-              notifier.setRepeatPattern(ReminderWizardRepeatPattern.fromStart),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildOptionTile({
-    required Key key,
-    required bool selected,
-    required bool enabled,
-    required Widget title,
-    required Widget subtitle,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      key: key,
-      contentPadding: EdgeInsets.zero,
-      enabled: enabled,
-      leading: Icon(
-        selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-      ),
-      title: title,
-      subtitle: subtitle,
-      onTap: enabled ? onTap : null,
-    );
-  }
-
   List<Widget> _buildSettingsStep(
     BuildContext context,
     ReminderWizardDraft draft,
@@ -461,385 +355,81 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
     if (draft.repeatChoice == ReminderWizardRepeatChoice.once) {
       return [
         _buildStepTitle('4A', '單次任務設定'),
-        _buildSingleTaskSettings(context, draft),
+        Step4OnceWidget(
+          draft: draft,
+          showsDateFields: _showsDateFields,
+          onPickDueAt: () => _pickDate(
+            context,
+            initial: draft.dueAt ?? DateTime.now(),
+            onPicked: ref.read(reminderWizardDraftProvider.notifier).setDueAt,
+          ),
+          onClearDueAt: () =>
+              ref.read(reminderWizardDraftProvider.notifier).setDueAt(null),
+        ),
       ];
     }
     if (draft.repeatPattern == ReminderWizardRepeatPattern.fixedTime) {
       return [
         _buildStepTitle('4B', '固定時間設定'),
-        _buildFixedTimeSettings(context, draft),
+        Step4FixedWidget(
+          draft: draft,
+          repeatIntervalController: _repeatIntervalController,
+          triggerOffsetDaysController: _triggerOffsetDaysController,
+          showsDateFields: _showsDateFields,
+          onRepeatTypeChanged: ref
+              .read(reminderWizardDraftProvider.notifier)
+              .setRepeatType,
+          onRepeatIntervalChanged: ref
+              .read(reminderWizardDraftProvider.notifier)
+              .setRepeatInterval,
+          onTriggerModeChanged: ref
+              .read(reminderWizardDraftProvider.notifier)
+              .setTriggerMode,
+          onTriggerOffsetDaysChanged: ref
+              .read(reminderWizardDraftProvider.notifier)
+              .setTriggerOffsetDays,
+          onPickDueAt: () => _pickDate(
+            context,
+            initial: draft.dueAt ?? DateTime.now(),
+            onPicked: ref.read(reminderWizardDraftProvider.notifier).setDueAt,
+          ),
+          onClearDueAt: () =>
+              ref.read(reminderWizardDraftProvider.notifier).setDueAt(null),
+        ),
       ];
     }
     if (draft.repeatPattern == ReminderWizardRepeatPattern.fromStart) {
       return [
         _buildStepTitle('4C', '從某天開始設定'),
-        _buildStartBasedSettings(context, draft),
+        Step4SinceStartWidget(
+          draft: draft,
+          repeatIntervalController: _repeatIntervalController,
+          triggerOffsetDaysController: _triggerOffsetDaysController,
+          showsDateFields: _showsDateFields,
+          onPickStartAt: () => _pickDate(
+            context,
+            initial: draft.startAt ?? DateTime.now(),
+            onPicked: ref.read(reminderWizardDraftProvider.notifier).setStartAt,
+          ),
+          onSetToday: () => ref
+              .read(reminderWizardDraftProvider.notifier)
+              .setStartAt(DateTime.now()),
+          onAccumulationDisplayChanged: ref
+              .read(reminderWizardDraftProvider.notifier)
+              .setAccumulationDisplay,
+          onRepeatTypeChanged: ref
+              .read(reminderWizardDraftProvider.notifier)
+              .setRepeatType,
+          onRepeatIntervalChanged: ref
+              .read(reminderWizardDraftProvider.notifier)
+              .setRepeatInterval,
+          onTriggerOffsetDaysChanged: ref
+              .read(reminderWizardDraftProvider.notifier)
+              .setTriggerOffsetDays,
+        ),
       ];
     }
     return const [];
-  }
-
-  Widget _buildSingleTaskSettings(
-    BuildContext context,
-    ReminderWizardDraft draft,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (_showsDateFields) _buildDueAtSection(context, draft),
-        const SizedBox(height: 12),
-        const Text('這是日期型提醒；目前不支援精準時分通知。'),
-      ],
-    );
-  }
-
-  Widget _buildFixedTimeSettings(
-    BuildContext context,
-    ReminderWizardDraft draft,
-  ) {
-    return Column(
-      children: [
-        _buildRepeatSection(draft, labelText: '頻率'),
-        if (_showsDateFields) ...[
-          const SizedBox(height: 12),
-          _buildDueAtSection(context, draft),
-        ],
-        const SizedBox(height: 12),
-        const Text('這是日期型提醒；目前不支援精準時分通知。'),
-        const SizedBox(height: 12),
-        _buildTriggerModeSection(draft),
-        const SizedBox(height: 12),
-        _buildTriggerOffsetSection(draft),
-      ],
-    );
-  }
-
-  Widget _buildStartBasedSettings(
-    BuildContext context,
-    ReminderWizardDraft draft,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (_showsDateFields) _buildStartAtSection(context, draft),
-        const SizedBox(height: 12),
-        _buildAccumulationDisplaySection(draft),
-        const SizedBox(height: 12),
-        Text(
-          _accumulationPreviewText(draft),
-          key: const Key('wizard-accumulation-preview'),
-          style: Theme.of(context).textTheme.bodyLarge,
-        ),
-        const SizedBox(height: 12),
-        _buildRepeatSection(draft, labelText: '提醒頻率'),
-        const SizedBox(height: 12),
-        _buildTriggerOffsetSection(draft),
-      ],
-    );
-  }
-
-  Widget _buildTriggerModeSection(ReminderWizardDraft draft) {
-    final notifier = ref.read(reminderWizardDraftProvider.notifier);
-    final options = ReminderTriggerModeOption.forTrackingMode(
-      draft.trackingMode,
-    );
-    final values = options.map((item) => item.value).toSet();
-    final effectiveValue = values.contains(draft.triggerMode)
-        ? draft.triggerMode
-        : ReminderTriggerMode.inRange;
-
-    return DropdownButtonFormField<int>(
-      key: const Key('edit-notify-strategy-field'),
-      initialValue: effectiveValue,
-      decoration: const InputDecoration(
-        labelText: '提醒方式',
-        border: OutlineInputBorder(),
-      ),
-      items: options
-          .map(
-            (option) => DropdownMenuItem(
-              value: option.value,
-              child: Text(option.label),
-            ),
-          )
-          .toList(growable: false),
-      onChanged: draft.readOnly
-          ? null
-          : (value) {
-              if (value != null) {
-                notifier.setTriggerMode(value);
-              }
-            },
-    );
-  }
-
-  Widget _buildTriggerOffsetSection(ReminderWizardDraft draft) {
-    final notifier = ref.read(reminderWizardDraftProvider.notifier);
-    return TextFormField(
-      key: const Key('edit-remind-days-field'),
-      controller: _triggerOffsetDaysController,
-      enabled: !draft.readOnly,
-      keyboardType: TextInputType.number,
-      decoration: InputDecoration(
-        labelText: draft.trackingMode == ReminderTrackingMode.countdown
-            ? '提前提醒天數'
-            : '第幾天提醒',
-        border: const OutlineInputBorder(),
-      ),
-      onChanged: (value) {
-        final days = int.tryParse(value);
-        if (days != null && days >= 0) {
-          notifier.setTriggerOffsetDays(days);
-        }
-      },
-      validator: (value) {
-        final days = int.tryParse(value ?? '');
-        if (days == null || days < 0) {
-          return '請輸入 0 或以上';
-        }
-        return null;
-      },
-    );
-  }
-
-  Widget _buildDueAtSection(BuildContext context, ReminderWizardDraft draft) {
-    final dueText = draft.dueAt == null
-        ? '未設定'
-        : DateFormat('yyyy/MM/dd').format(draft.dueAt!.toLocal());
-    final notifier = ref.read(reminderWizardDraftProvider.notifier);
-
-    return InputDecorator(
-      decoration: const InputDecoration(
-        labelText: '日期（必填）',
-        border: OutlineInputBorder(),
-      ),
-      child: Row(
-        children: [
-          Expanded(child: Text(dueText, key: const Key('edit-due-at-text'))),
-          TextButton(
-            onPressed: draft.readOnly
-                ? null
-                : () => _pickDate(
-                    context,
-                    initial: draft.dueAt ?? DateTime.now(),
-                    onPicked: notifier.setDueAt,
-                  ),
-            child: const Text('選擇'),
-          ),
-          TextButton(
-            onPressed: draft.readOnly ? null : () => notifier.setDueAt(null),
-            child: const Text('清除'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStartAtSection(BuildContext context, ReminderWizardDraft draft) {
-    final startText = draft.startAt == null
-        ? '未設定'
-        : DateFormat('yyyy/MM/dd').format(draft.startAt!.toLocal());
-    final notifier = ref.read(reminderWizardDraftProvider.notifier);
-
-    return InputDecorator(
-      decoration: const InputDecoration(
-        labelText: '起始日期',
-        border: OutlineInputBorder(),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(startText, key: const Key('edit-start-at-text')),
-          ),
-          TextButton(
-            onPressed: draft.readOnly
-                ? null
-                : () => _pickDate(
-                    context,
-                    initial: draft.startAt ?? DateTime.now(),
-                    onPicked: notifier.setStartAt,
-                  ),
-            child: const Text('選擇'),
-          ),
-          TextButton(
-            onPressed: draft.readOnly
-                ? null
-                : () => notifier.setStartAt(DateTime.now()),
-            child: const Text('今天'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRepeatSection(
-    ReminderWizardDraft draft, {
-    required String labelText,
-  }) {
-    final notifier = ref.read(reminderWizardDraftProvider.notifier);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        DropdownButtonFormField<String?>(
-          key: ValueKey<String?>(
-            draft.repeatType == null
-                ? 'repeat-type-null'
-                : 'repeat-type-${draft.repeatType}',
-          ),
-          initialValue: draft.repeatType,
-          decoration: InputDecoration(
-            labelText: labelText,
-            border: const OutlineInputBorder(),
-          ),
-          items: const [
-            DropdownMenuItem<String?>(value: 'D', child: Text('每天 / 每 X 天')),
-            DropdownMenuItem<String?>(value: 'W', child: Text('每週')),
-            DropdownMenuItem<String?>(value: 'M', child: Text('每月')),
-            DropdownMenuItem<String?>(value: 'Y', child: Text('每年')),
-          ],
-          onChanged: draft.readOnly
-              ? null
-              : (value) {
-                  notifier.setRepeatType(value);
-                },
-        ),
-        const SizedBox(height: 12),
-        TextFormField(
-          key: const Key('edit-repeat-interval-field'),
-          controller: _repeatIntervalController,
-          enabled: !draft.readOnly,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: '間隔（1 代表每次）',
-            border: OutlineInputBorder(),
-          ),
-          onChanged: (value) {
-            final interval = int.tryParse(value);
-            if (interval != null && interval >= 1) {
-              notifier.setRepeatInterval(interval);
-            }
-          },
-          validator: (value) {
-            final interval = int.tryParse(value ?? '');
-            if (interval == null || interval < 1) {
-              return '請輸入 1 或以上';
-            }
-            return null;
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAccumulationDisplaySection(ReminderWizardDraft draft) {
-    final notifier = ref.read(reminderWizardDraftProvider.notifier);
-    return DropdownButtonFormField<ReminderWizardAccumulationDisplay>(
-      key: const Key('wizard-accumulation-display-field'),
-      initialValue: draft.accumulationDisplay,
-      decoration: const InputDecoration(
-        labelText: '顯示方式',
-        border: OutlineInputBorder(),
-      ),
-      items: const [
-        DropdownMenuItem(
-          value: ReminderWizardAccumulationDisplay.day,
-          child: Text('第幾天'),
-        ),
-        DropdownMenuItem(
-          value: ReminderWizardAccumulationDisplay.week,
-          child: Text('第幾週'),
-        ),
-        DropdownMenuItem(
-          value: ReminderWizardAccumulationDisplay.year,
-          child: Text('第幾年'),
-        ),
-      ],
-      onChanged: draft.readOnly
-          ? null
-          : (value) {
-              if (value != null) {
-                notifier.setAccumulationDisplay(value);
-              }
-            },
-    );
-  }
-
-  Widget _buildTopicCategorySection(
-    ReminderWizardDraft draft,
-    List<TopicCategoryModel> topicCategories,
-  ) {
-    final notifier = ref.read(reminderWizardDraftProvider.notifier);
-    return DropdownButtonFormField<int?>(
-      key: const Key('edit-issue-type-field'),
-      initialValue: draft.topicCategoryId,
-      decoration: const InputDecoration(
-        labelText: '主題分類（選填）',
-        border: OutlineInputBorder(),
-      ),
-      items: [
-        const DropdownMenuItem<int?>(value: null, child: Text('未指定')),
-        ...topicCategories.map(
-          (item) =>
-              DropdownMenuItem<int?>(value: item.id, child: Text(item.name)),
-        ),
-      ],
-      onChanged: draft.readOnly ? null : notifier.setTopicCategoryId,
-    );
-  }
-
-  Widget _buildActionCategorySection(
-    ReminderWizardDraft draft,
-    List<ActionCategoryModel> actionCategories,
-  ) {
-    final notifier = ref.read(reminderWizardDraftProvider.notifier);
-    return DropdownButtonFormField<int?>(
-      key: const Key('edit-handle-type-field'),
-      initialValue: draft.actionCategoryId,
-      decoration: const InputDecoration(
-        labelText: '行動分類（選填）',
-        border: OutlineInputBorder(),
-      ),
-      items: [
-        const DropdownMenuItem<int?>(value: null, child: Text('未指定')),
-        ...actionCategories.map(
-          (item) =>
-              DropdownMenuItem<int?>(value: item.id, child: Text(item.name)),
-        ),
-      ],
-      onChanged: draft.readOnly ? null : notifier.setActionCategoryId,
-    );
-  }
-
-  String _accumulationPreviewText(ReminderWizardDraft draft) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final startValue = draft.startAt ?? today;
-    final start = DateTime(startValue.year, startValue.month, startValue.day);
-    final diffDays = today.difference(start).inDays;
-    if (diffDays < 0) {
-      return '還有 ${diffDays.abs()} 天開始';
-    }
-
-    final count = switch (draft.accumulationDisplay) {
-      ReminderWizardAccumulationDisplay.day => diffDays + 1,
-      ReminderWizardAccumulationDisplay.week => (diffDays ~/ 7) + 1,
-      ReminderWizardAccumulationDisplay.year => _yearCount(start, today),
-    };
-    final unit = switch (draft.accumulationDisplay) {
-      ReminderWizardAccumulationDisplay.day => '天',
-      ReminderWizardAccumulationDisplay.week => '週',
-      ReminderWizardAccumulationDisplay.year => '年',
-    };
-    return '今天是第 $count $unit';
-  }
-
-  int _yearCount(DateTime start, DateTime today) {
-    var years = today.year - start.year;
-    final anniversaryThisYear = DateTime(today.year, start.month, start.day);
-    if (today.isBefore(anniversaryThisYear)) {
-      years -= 1;
-    }
-    return years + 1;
   }
 
   Future<void> _pickDate(
@@ -912,13 +502,11 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
 
     final repository = ref.read(reminderRepositoryProvider);
     final input = ReminderInput(
-      title: _titleController.text.trim(),
-      note: _noteController.text.trim().isEmpty
-          ? null
-          : _noteController.text.trim(),
+      title: draft.title.trim(),
+      note: draft.note?.trim().isEmpty ?? true ? null : draft.note?.trim(),
       trackingMode: draft.trackingMode,
       triggerMode: draft.triggerMode,
-      triggerOffsetDays: int.parse(_triggerOffsetDaysController.text),
+      triggerOffsetDays: draft.triggerOffsetDays,
       dueAt: draft.trackingMode == ReminderTrackingMode.countdown
           ? draft.dueAt
           : null,
@@ -975,11 +563,10 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
       return null;
     }
 
-    final interval = int.tryParse(_repeatIntervalController.text);
-    if (interval == null || interval < 1) {
+    if (draft.repeatInterval < 1) {
       return null;
     }
 
-    return '${draft.repeatType}$interval';
+    return '${draft.repeatType}${draft.repeatInterval}';
   }
 }

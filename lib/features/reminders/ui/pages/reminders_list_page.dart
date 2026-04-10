@@ -352,9 +352,9 @@ class _PendingListState extends ConsumerState<_PendingList> {
             if (!success || !context.mounted) {
               return;
             }
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text('已延期 $days 天')));
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(ReminderUiText.deferredDaysMessage(days))),
+            );
           },
           onSkip: () async {
             await repository.skip(reminder.id);
@@ -378,7 +378,7 @@ class _PendingListState extends ConsumerState<_PendingList> {
         const Padding(
           padding: EdgeInsets.only(top: 16, bottom: 8),
           child: Text(
-            '已完成（可恢復）',
+            ReminderUiText.stagedCompletedHeader,
             style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600),
           ),
         ),
@@ -387,9 +387,8 @@ class _PendingListState extends ConsumerState<_PendingList> {
       rows.addAll(
         _recentDone.values.map(
           (reminder) => CompletedPendingTile(
-            reminder: CompletedPendingReminderItemViewModel(
-              id: reminder.id,
-              title: reminder.title,
+            reminder: CompletedPendingReminderItemViewModel.fromPending(
+              reminder,
             ),
             onRestore: () async {
               final confirmed = await _confirmRestore(context);
@@ -421,9 +420,9 @@ class _PendingListState extends ConsumerState<_PendingList> {
     BuildContext context,
     PendingReminderItemViewModel reminder,
   ) async {
-    final content = reminder.isRecurring
-        ? '確定要取消這筆任務嗎？\n這會同時暫停所屬習慣，並取消這個習慣目前所有未完成任務。'
-        : '確定要取消這筆任務嗎？';
+    final content = ReminderUiText.cancelTaskMessage(
+      isRecurring: reminder.isRecurring,
+    );
     final result = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -433,11 +432,11 @@ class _PendingListState extends ConsumerState<_PendingList> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('否'),
+              child: const Text(ReminderUiText.confirmNo),
             ),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('是'),
+              child: const Text(ReminderUiText.confirmYes),
             ),
           ],
         );
@@ -457,11 +456,11 @@ class _PendingListState extends ConsumerState<_PendingList> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('否'),
+              child: const Text(ReminderUiText.confirmNo),
             ),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('是'),
+              child: const Text(ReminderUiText.confirmYes),
             ),
           ],
         );
@@ -498,7 +497,7 @@ class _PendingListState extends ConsumerState<_PendingList> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('取消'),
+              child: const Text(ReminderUiText.cancelActionButton),
             ),
             FilledButton(
               onPressed: () {
@@ -508,7 +507,7 @@ class _PendingListState extends ConsumerState<_PendingList> {
                 }
                 Navigator.of(context).pop(days);
               },
-              child: const Text('確認'),
+              child: const Text(ReminderUiText.confirmActionButton),
             ),
           ],
         );
@@ -534,7 +533,10 @@ class _HistoryList extends StatelessWidget {
           padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: Align(
             alignment: Alignment.centerLeft,
-            child: Text('僅顯示近期 30 筆資料', style: TextStyle(color: Colors.grey)),
+            child: Text(
+              ReminderUiText.historyRecentHint,
+              style: TextStyle(color: Colors.grey),
+            ),
           ),
         ),
         Expanded(
@@ -575,21 +577,65 @@ class _RecurringReminderList extends ConsumerWidget {
       itemBuilder: (context, index) {
         final habit = items[index];
         return Card(
+          clipBehavior: Clip.antiAlias,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: Colors.grey.shade300),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  habit.title,
-                  style: Theme.of(context).textTheme.titleMedium,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        habit.title,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        habit.typeLabel,
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(
+                              color: Colors.orange.shade800,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
-                Text('狀態: ${habit.statusLabel}'),
-                Text('類型: ${habit.trackingModeLabel}'),
-                Text('規則摘要: ${habit.repeatRuleLabel}'),
-                if (habit.categoryLabel.isNotEmpty)
-                  Text('分類: ${habit.categoryLabel}'),
+                Text(
+                  habit.summaryText,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(height: 1.4),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  habit.statusLabel,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: habit.isPending
+                        ? Colors.green.shade700
+                        : habit.isStopped
+                        ? Colors.orange.shade800
+                        : Colors.grey.shade700,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 8,
@@ -599,7 +645,7 @@ class _RecurringReminderList extends ConsumerWidget {
                       OutlinedButton(
                         key: Key('recurring-edit-button-${habit.id}'),
                         onPressed: () => onEditRecurringReminder(habit.id),
-                        child: const Text('編輯'),
+                        child: const Text(ReminderUiText.editAction),
                       ),
                     if (habit.isPending)
                       OutlinedButton(
@@ -609,14 +655,16 @@ class _RecurringReminderList extends ConsumerWidget {
                               await _confirmRecurringReminderAction(
                                 context,
                                 title: ReminderUiText.stopHabit,
-                                content: '確定要暫停這個習慣嗎？\n這會同時取消目前這個習慣所有未完成任務。',
+                                content: ReminderUiText.recurringActionMessage(
+                                  ReminderUiText.stopAction,
+                                ),
                               );
                           if (!confirmed) {
                             return;
                           }
                           await repository.stopRecurringReminderById(habit.id);
                         },
-                        child: const Text('暫停'),
+                        child: const Text(ReminderUiText.stopAction),
                       ),
                     if (habit.isPending)
                       FilledButton.tonal(
@@ -626,7 +674,9 @@ class _RecurringReminderList extends ConsumerWidget {
                               await _confirmRecurringReminderAction(
                                 context,
                                 title: ReminderUiText.cancelHabit,
-                                content: '確定要取消這個習慣嗎？\n這會同時取消目前這個習慣所有未完成任務。',
+                                content: ReminderUiText.recurringActionMessage(
+                                  ReminderUiText.cancelAction,
+                                ),
                               );
                           if (!confirmed) {
                             return;
@@ -635,7 +685,7 @@ class _RecurringReminderList extends ConsumerWidget {
                             habit.id,
                           );
                         },
-                        child: const Text('取消'),
+                        child: const Text(ReminderUiText.cancelAction),
                       ),
                     if (habit.isStopped)
                       FilledButton(
@@ -654,7 +704,7 @@ class _RecurringReminderList extends ConsumerWidget {
                             startAt: reactivation.startAt,
                           );
                         },
-                        child: const Text('啟用'),
+                        child: const Text(ReminderUiText.reactivateAction),
                       ),
                   ],
                 ),
@@ -680,11 +730,11 @@ class _RecurringReminderList extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('否'),
+              child: const Text(ReminderUiText.confirmNo),
             ),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('是'),
+              child: const Text(ReminderUiText.confirmYes),
             ),
           ],
         );
@@ -706,7 +756,7 @@ class _RecurringReminderList extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('取消'),
+              child: const Text(ReminderUiText.cancelActionButton),
             ),
             TextButton(
               onPressed: () => Navigator.of(

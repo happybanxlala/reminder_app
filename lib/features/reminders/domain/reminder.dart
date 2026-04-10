@@ -84,8 +84,6 @@ class ReminderModel {
   bool get isCountUp => trackingMode == ReminderTrackingMode.countUp;
   bool get isRecurring => recurringReminderId != null;
 
-  String get trackingModeLabel => isCountdown ? '倒數式' : '起計式';
-
   @Deprecated('Use recurringReminderId instead.')
   int? get seriesId => recurringReminderId;
 
@@ -118,17 +116,4 @@ class ReminderModel {
 
   @Deprecated('Use actionCategoryName instead.')
   String? get handleTypeName => actionCategoryName;
-
-  @Deprecated('Use trackingModeLabel instead.')
-  String get timeBasisLabel => trackingModeLabel;
-
-  String? get categoryLabel {
-    if (topicCategoryName == null && actionCategoryName == null) {
-      return null;
-    }
-    if (topicCategoryName != null && actionCategoryName != null) {
-      return '$topicCategoryName / $actionCategoryName';
-    }
-    return topicCategoryName ?? actionCategoryName;
-  }
 }

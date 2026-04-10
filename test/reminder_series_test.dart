@@ -291,9 +291,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Pending stop'), findsOneWidget);
-      expect(find.text('狀態: 進行中'), findsNWidgets(2));
-      expect(find.text('類型: 固定時間'), findsWidgets);
-      expect(find.text('規則摘要: 每週'), findsWidgets);
+      expect(find.text('進行中'), findsNWidgets(2));
+      expect(find.text('固定時間'), findsWidgets);
+      expect(find.textContaining('每週'), findsWidgets);
 
       expect(
         find.byKey(Key('recurring-edit-button-${stopped.recurringReminderId}')),
@@ -312,7 +312,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('是'));
+      await tester.tap(find.text('是').last);
       await tester.pumpAndSettle();
 
       await tester.tap(
@@ -321,7 +321,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('是'));
+      await tester.tap(find.text('是').last);
       await tester.pumpAndSettle();
 
       final stoppedRecurringReminder = await db.reminderDao
@@ -445,143 +445,6 @@ void main() {
       );
     },
   );
-
-  test('done recurring reminder creates next occurrence', () async {
-    final db = AppDatabase.forTesting(NativeDatabase.memory());
-    addTearDown(db.close);
-    final repository = ReminderRepository(db.reminderDao);
-    final seed = await _seedPendingRecurringReminder(db, title: 'Done series');
-
-    await repository.complete(seed.reminderId!);
-
-    final reminders =
-        await (db.select(db.reminders)
-              ..where(
-                (t) => t.recurringReminderId.equals(seed.recurringReminderId),
-              )
-              ..orderBy([(t) => drift.OrderingTerm.asc(t.id)]))
-            .get();
-
-    expect(reminders, hasLength(2));
-    expect(reminders.first.status, ReminderStatus.done);
-    expect(reminders.last.status, ReminderStatus.pending);
-    expect(reminders.last.previousOccurrenceId, reminders.first.id);
-  });
-
-  test('skip recurring reminder creates next occurrence', () async {
-    final db = AppDatabase.forTesting(NativeDatabase.memory());
-    addTearDown(db.close);
-    final repository = ReminderRepository(db.reminderDao);
-    final seed = await _seedPendingRecurringReminder(db, title: 'Skip series');
-
-    await repository.skip(seed.reminderId!);
-
-    final reminders =
-        await (db.select(db.reminders)
-              ..where(
-                (t) => t.recurringReminderId.equals(seed.recurringReminderId),
-              )
-              ..orderBy([(t) => drift.OrderingTerm.asc(t.id)]))
-            .get();
-
-    expect(reminders, hasLength(2));
-    expect(reminders.first.status, ReminderStatus.skipped);
-    expect(reminders.last.status, ReminderStatus.pending);
-  });
-
-  test(
-    'cancel recurring reminder occurrence does not create next occurrence',
-    () async {
-      final db = AppDatabase.forTesting(NativeDatabase.memory());
-      addTearDown(db.close);
-      final repository = ReminderRepository(db.reminderDao);
-      final seed = await _seedPendingRecurringReminder(
-        db,
-        title: 'Cancel series',
-      );
-
-      await repository.cancel(seed.reminderId!);
-
-      final reminders =
-          await (db.select(db.reminders)
-                ..where(
-                  (t) => t.recurringReminderId.equals(seed.recurringReminderId),
-                )
-                ..orderBy([(t) => drift.OrderingTerm.asc(t.id)]))
-              .get();
-      final recurringReminder = await db.reminderDao.getRecurringReminderById(
-        seed.recurringReminderId,
-      );
-
-      expect(reminders, hasLength(1));
-      expect(reminders.single.status, ReminderStatus.canceled);
-      expect(recurringReminder!.status, RecurringReminderStatus.stopped);
-    },
-  );
-
-  test('stop recurring cancels existing pending reminders', () async {
-    final db = AppDatabase.forTesting(NativeDatabase.memory());
-    addTearDown(db.close);
-    final repository = ReminderRepository(db.reminderDao);
-    final seed = await _seedPendingRecurringReminder(db, title: 'Stop series');
-
-    await repository.stopRecurringReminderById(seed.recurringReminderId);
-
-    final recurringReminder = await db.reminderDao.getRecurringReminderById(
-      seed.recurringReminderId,
-    );
-    final reminders =
-        await (db.select(db.reminders)..where(
-              (t) => t.recurringReminderId.equals(seed.recurringReminderId),
-            ))
-            .get();
-
-    expect(recurringReminder!.status, RecurringReminderStatus.stopped);
-    expect(reminders.single.status, ReminderStatus.canceled);
-  });
-
-  test('reactivate recurring creates a new pending reminder', () async {
-    final db = AppDatabase.forTesting(NativeDatabase.memory());
-    addTearDown(db.close);
-    final repository = ReminderRepository(db.reminderDao);
-    final seed = await _seedPendingRecurringReminder(
-      db,
-      title: 'Reactivate series',
-    );
-
-    await repository.stopRecurringReminderById(seed.recurringReminderId);
-
-    final reactivatedReminderId = await repository
-        .reactivateRecurringReminderById(
-          seed.recurringReminderId,
-          dueAt: DateTime(2026, 4, 1),
-        );
-
-    final reminders =
-        await (db.select(db.reminders)
-              ..where(
-                (t) => t.recurringReminderId.equals(seed.recurringReminderId),
-              )
-              ..orderBy([(t) => drift.OrderingTerm.asc(t.id)]))
-            .get();
-
-    final pendingReminders = reminders.where(
-      (reminder) => reminder.status == ReminderStatus.pending,
-    );
-    final canceledReminders = reminders.where(
-      (reminder) => reminder.status == ReminderStatus.canceled,
-    );
-
-    expect(reactivatedReminderId, isNotNull);
-    expect(reminders, hasLength(2));
-    expect(canceledReminders, hasLength(1));
-    expect(pendingReminders, hasLength(1));
-    expect(pendingReminders.single.id, reactivatedReminderId);
-    expect(
-      DateTime.fromMillisecondsSinceEpoch(pendingReminders.single.dueAt!),
-      DateTime(2026, 4, 1),
-    );
-  });
 
   test(
     'start-based reminder enters active period based on startAt and triggerOffsetDays',

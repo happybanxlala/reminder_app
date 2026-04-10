@@ -43,13 +43,13 @@ class _PendingReminderTileState extends State<PendingReminderTile> {
         alignment: Alignment.centerLeft,
         color: Colors.orange,
         icon: Icons.skip_next,
-        label: 'Skip',
+        label: ReminderUiText.skipAction,
       ),
       secondaryBackground: _swipeBackground(
         alignment: Alignment.centerRight,
         color: Colors.red,
         icon: Icons.cancel,
-        label: 'Cancel',
+        label: ReminderUiText.cancelAction,
       ),
       confirmDismiss: (direction) async {
         if (direction == DismissDirection.startToEnd) {
@@ -69,7 +69,28 @@ class _PendingReminderTileState extends State<PendingReminderTile> {
         onTapCancel: () => _holdTimer?.cancel(),
         child: ListTile(
           title: Text(widget.reminder.title),
-          subtitle: Text(widget.reminder.subtitle),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                widget.reminder.primaryText,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 2),
+              Text(widget.reminder.secondaryText),
+              const SizedBox(height: 2),
+              Text(
+                widget.reminder.metaText,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+              ),
+            ],
+          ),
+          isThreeLine: true,
           leading: Checkbox(
             value: widget.reminder.isDone,
             onChanged: (_) => widget.onToggleDone(),
@@ -77,7 +98,7 @@ class _PendingReminderTileState extends State<PendingReminderTile> {
           trailing: widget.reminder.canDefer
               ? IconButton(
                   key: ValueKey('defer-${widget.reminder.id}'),
-                  tooltip: '延期',
+                  tooltip: ReminderUiText.deferTooltip,
                   onPressed: widget.onDefer,
                   icon: const Icon(Icons.event_busy_outlined),
                 )
@@ -152,7 +173,10 @@ class CompletedPendingTile extends StatelessWidget {
           decoration: TextDecoration.lineThrough,
         ),
       ),
-      subtitle: const Text('已完成（點擊可恢復）', style: TextStyle(color: Colors.grey)),
+      subtitle: Text(
+        reminder.subtitle,
+        style: const TextStyle(color: Colors.grey),
+      ),
       leading: const Icon(Icons.check_circle, color: Colors.grey),
       onTap: onRestore,
     );
