@@ -154,8 +154,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('取消提醒'), findsOneWidget);
-      expect(find.textContaining('這會同時暫停所屬週期提醒'), findsOneWidget);
+      expect(find.text('取消任務'), findsOneWidget);
+      expect(find.textContaining('這會同時暫停所屬習慣'), findsOneWidget);
 
       await tester.tap(find.text('是'));
       await tester.pumpAndSettle();
@@ -196,13 +196,13 @@ void main() {
       await tester.tap(find.byKey(ValueKey('defer-$reminderId')));
       await tester.pumpAndSettle();
 
-      expect(find.text('延期提醒'), findsOneWidget);
+      expect(find.text('延期任務'), findsOneWidget);
       await tester.enterText(find.byKey(const Key('defer-days-field')), '5');
       await tester.tap(find.text('確認'));
       await tester.pumpAndSettle();
 
       expect(find.text('Weekly task'), findsNothing);
-      expect(find.text('目前沒有進行中的提醒。'), findsOneWidget);
+      expect(find.text('目前沒有進行中的任務。'), findsOneWidget);
 
       final updatedReminder = await (db.select(
         db.reminders,

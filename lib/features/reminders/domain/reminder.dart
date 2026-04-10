@@ -1,6 +1,7 @@
 class ReminderTrackingMode {
   static const int countdown = 1;
   static const int countUp = 2;
+  static const int accumulation = countUp;
 }
 
 @Deprecated('Use ReminderTrackingMode instead.')
