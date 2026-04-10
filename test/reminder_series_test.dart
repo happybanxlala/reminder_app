@@ -27,9 +27,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('設定'), findsOneWidget);
+      expect(find.text('今天'), findsOneWidget);
+      expect(find.text('接下來'), findsOneWidget);
+      expect(find.text('已完成'), findsOneWidget);
+      expect(find.text('習慣'), findsOneWidget);
 
-      await tester.tap(find.text('設定'));
+      await tester.tap(find.text('習慣'));
       await tester.pumpAndSettle();
 
       expect(
@@ -40,7 +43,7 @@ void main() {
       expect(find.text('建立習慣'), findsNothing);
       expect(find.text('建立從某天開始'), findsNothing);
 
-      await tester.tap(find.text('進行中'));
+      await tester.tap(find.text('今天'));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('add-reminder-button')), findsOneWidget);
 
@@ -218,7 +221,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('設定'));
+      await tester.tap(find.text('習慣'));
       await tester.pumpAndSettle();
 
       expect(find.text('Pending stop'), findsOneWidget);

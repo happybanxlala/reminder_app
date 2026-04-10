@@ -14,9 +14,13 @@ class ReminderUiText {
   static const habit = '習慣';
   static const habitTemplate = '習慣模板';
 
-  static const pendingTab = '進行中';
-  static const historyTab = '完成/跳過';
-  static const settingsTab = '設定';
+  static const todayTab = '今天';
+  static const upcomingTab = '接下來';
+  static const completedTab = '已完成';
+  static const habitTab = '習慣';
+  static const pendingTab = upcomingTab;
+  static const historyTab = completedTab;
+  static const settingsTab = habitTab;
   static const addTask = '新增任務';
   static const addHabit = '新增習慣';
   static const editTask = '編輯任務';
@@ -28,7 +32,9 @@ class ReminderUiText {
   static const startDateField = '開始日期';
   static const unset = '未設定';
   static const unsetFixedTime = '未設定固定時間';
-  static const noPendingTasks = '目前沒有進行中的任務。';
+  static const noTodayTasks = '今天沒有要處理的任務。';
+  static const noUpcomingTasks = '接下來沒有進行中的任務。';
+  static const noPendingTasks = noUpcomingTasks;
   static const noHistoryTasks = '目前沒有完成或跳過的任務。';
   static const noHabits = '目前沒有提醒模板。';
   static const cancelTask = '取消任務';
