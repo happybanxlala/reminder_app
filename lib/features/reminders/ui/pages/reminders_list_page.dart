@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/reminder_repository.dart';
+import '../../domain/reminder.dart';
 import '../../presentation/reminder_view_models.dart';
 import '../widgets/reminder_list_tile.dart';
 import 'reminder_edit_page.dart';
@@ -22,7 +23,9 @@ class RemindersListPage extends ConsumerStatefulWidget {
 class _RemindersListPageState extends ConsumerState<RemindersListPage>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   late final TabController _tabController;
-  final GlobalKey<_PendingListState> _pendingListKey =
+  final GlobalKey<_PendingListState> _todayListKey =
+      GlobalKey<_PendingListState>();
+  final GlobalKey<_PendingListState> _upcomingListKey =
       GlobalKey<_PendingListState>();
   bool _isFlushingPending = false;
   int _stagedPendingCount = 0;
@@ -31,7 +34,7 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(_handleTabChange);
   }
 
@@ -56,7 +59,7 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
     if (_tabController.indexIsChanging) {
       return;
     }
-    if (_tabController.index != 0) {
+    if (_tabController.index > 1) {
       unawaited(_commitAndResetPendingSession());
     }
     if (mounted) {
@@ -72,14 +75,22 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
     if (_isFlushingPending) {
       return;
     }
-    final pendingListState = _pendingListKey.currentState;
-    if (pendingListState == null) {
+    final pendingListStates = [
+      _todayListKey.currentState,
+      _upcomingListKey.currentState,
+    ].whereType<_PendingListState>().toList(growable: false);
+    if (pendingListStates.isEmpty) {
       return;
     }
 
-    final stagedIds = pendingListState.stagedReminderIds;
+    final stagedIds = pendingListStates
+        .expand((state) => state.stagedReminderIds)
+        .toSet()
+        .toList(growable: false);
     if (stagedIds.isEmpty) {
-      pendingListState.clearStaged();
+      for (final state in pendingListStates) {
+        state.clearStaged();
+      }
       return;
     }
 
@@ -92,7 +103,9 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
           .read(reminderRepositoryProvider)
           .commitStagedCompletions(stagedIds);
       if (mounted) {
-        pendingListState.clearStaged();
+        for (final state in pendingListStates) {
+          state.clearStaged();
+        }
       }
     } finally {
       _isFlushingPending = false;
@@ -106,16 +119,17 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
 
   @override
   Widget build(BuildContext context) {
-    final pendingAsync = ref.watch(activePendingProvider);
+    final todayAsync = ref.watch(todayPendingProvider);
+    final upcomingAsync = ref.watch(activePendingProvider);
     final historyAsync = ref.watch(completedOrSkippedProvider);
     final recurringAsync = ref.watch(recurringRemindersProvider);
-    final isRecurringTab = _tabController.index == 2;
+    final isTaskTab = _tabController.index == 0 || _tabController.index == 1;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text(ReminderUiText.appTitle),
         actions: [
-          if (_tabController.index == 0 && _stagedPendingCount > 0)
+          if (isTaskTab && _stagedPendingCount > 0)
             IconButton(
               key: const Key('commit-staged-button'),
               onPressed: _isFlushingPending
@@ -130,34 +144,52 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
         bottom: TabBar(
           controller: _tabController,
           onTap: (index) {
-            if (index != 0) {
+            if (index > 1) {
               unawaited(_commitAndResetPendingSession());
             }
           },
           tabs: const [
-            Tab(text: ReminderUiText.pendingTab),
-            Tab(text: ReminderUiText.historyTab),
-            Tab(text: ReminderUiText.habit),
+            Tab(text: ReminderUiText.todayTab),
+            Tab(text: ReminderUiText.upcomingTab),
+            Tab(text: ReminderUiText.completedTab),
+            Tab(text: ReminderUiText.habitTab),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
-          pendingAsync.when(
+          todayAsync.when(
             data: (items) => _PendingList(
-              key: _pendingListKey,
+              key: _todayListKey,
               items: items
                   .map(PendingReminderItemViewModel.fromDomain)
                   .toList(growable: false),
-              onStagedChanged: (count) {
-                if (!mounted || _stagedPendingCount == count) {
+              emptyMessage: ReminderUiText.noTodayTasks,
+              onStagedChanged: (_) => _refreshStagedPendingCount(),
+              onEditReminder: (reminderId) async {
+                await _commitAndResetPendingSession();
+                if (!context.mounted) {
                   return;
                 }
-                setState(() {
-                  _stagedPendingCount = count;
-                });
+                context.pushNamed(
+                  ReminderEditPage.editRouteName,
+                  pathParameters: {'id': reminderId.toString()},
+                );
               },
+            ),
+            error: (error, stack) => Center(child: Text('讀取失敗: $error')),
+            loading: () => const Center(child: CircularProgressIndicator()),
+          ),
+          upcomingAsync.when(
+            data: (items) => _PendingList(
+              key: _upcomingListKey,
+              items: items
+                  .where((item) => !_isTodayPendingReminder(item))
+                  .map(PendingReminderItemViewModel.fromDomain)
+                  .toList(growable: false),
+              emptyMessage: ReminderUiText.noUpcomingTasks,
+              onStagedChanged: (_) => _refreshStagedPendingCount(),
               onEditReminder: (reminderId) async {
                 await _commitAndResetPendingSession();
                 if (!context.mounted) {
@@ -202,29 +234,59 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        key: Key(
-          isRecurringTab
-              ? 'add-recurring-reminder-button'
-              : 'add-reminder-button',
-        ),
-        onPressed: () async {
-          await _commitAndResetPendingSession();
-          if (!context.mounted) {
-            return;
-          }
-          context.pushNamed(
-            isRecurringTab
-                ? ReminderEditPage.recurringNewRouteName
-                : ReminderEditPage.newRouteName,
-          );
-        },
-        icon: const Icon(Icons.add),
-        label: Text(
-          isRecurringTab ? ReminderUiText.addHabit : ReminderUiText.addTask,
-        ),
-      ),
+      floatingActionButton: _tabController.index == 3
+          ? null
+          : FloatingActionButton.extended(
+              key: const Key('add-reminder-button'),
+              onPressed: () async {
+                await _commitAndResetPendingSession();
+                if (!context.mounted) {
+                  return;
+                }
+                context.pushNamed(ReminderEditPage.newRouteName);
+              },
+              icon: const Icon(Icons.add),
+              label: const Text(ReminderUiText.addTask),
+            ),
     );
+  }
+
+  void _refreshStagedPendingCount() {
+    if (!mounted) {
+      return;
+    }
+    final count =
+        (_todayListKey.currentState?.stagedReminderIds.length ?? 0) +
+        (_upcomingListKey.currentState?.stagedReminderIds.length ?? 0);
+    if (_stagedPendingCount == count) {
+      return;
+    }
+    setState(() {
+      _stagedPendingCount = count;
+    });
+  }
+
+  bool _isTodayPendingReminder(ReminderModel reminder) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    if (reminder.trackingMode == ReminderTrackingMode.countdown) {
+      final dueAt = reminder.deferredDueAt ?? reminder.dueAt;
+      if (dueAt == null) {
+        return false;
+      }
+      return _isSameDate(dueAt, today);
+    }
+
+    final target = reminder.startAt.add(
+      Duration(days: reminder.triggerOffsetDays ?? 0),
+    );
+    return _isSameDate(target, today);
+  }
+
+  bool _isSameDate(DateTime value, DateTime date) {
+    return value.year == date.year &&
+        value.month == date.month &&
+        value.day == date.day;
   }
 }
 
@@ -232,11 +294,13 @@ class _PendingList extends ConsumerStatefulWidget {
   const _PendingList({
     super.key,
     required this.items,
+    required this.emptyMessage,
     required this.onStagedChanged,
     required this.onEditReminder,
   });
 
   final List<PendingReminderItemViewModel> items;
+  final String emptyMessage;
   final ValueChanged<int> onStagedChanged;
   final Future<void> Function(int reminderId) onEditReminder;
 
@@ -261,7 +325,7 @@ class _PendingListState extends ConsumerState<_PendingList> {
   @override
   Widget build(BuildContext context) {
     if (widget.items.isEmpty && _recentDone.isEmpty) {
-      return const Center(child: Text(ReminderUiText.noPendingTasks));
+      return Center(child: Text(widget.emptyMessage));
     }
 
     final repository = ref.read(reminderRepositoryProvider);
@@ -522,8 +586,8 @@ class _RecurringReminderList extends ConsumerWidget {
                 ),
                 const SizedBox(height: 8),
                 Text('狀態: ${habit.statusLabel}'),
-                Text('時間設定: ${habit.trackingModeLabel}'),
-                Text('重複規則: ${habit.repeatRuleLabel}'),
+                Text('類型: ${habit.trackingModeLabel}'),
+                Text('規則摘要: ${habit.repeatRuleLabel}'),
                 if (habit.categoryLabel.isNotEmpty)
                   Text('分類: ${habit.categoryLabel}'),
                 const SizedBox(height: 12),

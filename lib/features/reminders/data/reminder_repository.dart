@@ -375,6 +375,8 @@ class ReminderRepository {
     final updatedRecurringReminder = existing.copyWith(
       title: input.title,
       note: Value(input.note),
+      // Recurring template type is immutable after creation; the edit UI
+      // locks the fixed-time/from-start choice and this repository preserves it.
       trackingMode: existing.trackingMode,
       triggerMode: input.triggerMode,
       triggerOffsetDays: Value(input.triggerOffsetDays),

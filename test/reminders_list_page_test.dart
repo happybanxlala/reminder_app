@@ -26,6 +26,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      await tester.tap(find.text('接下來'));
+      await tester.pumpAndSettle();
+
       await tester.tap(find.byType(Checkbox).first);
       await tester.pumpAndSettle();
 
@@ -36,7 +39,7 @@ void main() {
       expect(stagedRows.single.id, reminderId);
       expect(stagedRows.single.status, ReminderStatus.pending);
 
-      await tester.tap(find.text('完成/跳過'));
+      await tester.tap(find.text('已完成'));
       await tester.pumpAndSettle();
 
       final committedRows = await db.select(db.reminders).get();
@@ -72,6 +75,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      await tester.tap(find.text('接下來'));
+      await tester.pumpAndSettle();
+
       await tester.tap(find.byType(Checkbox).first);
       await tester.pumpAndSettle();
 
@@ -105,6 +111,9 @@ void main() {
         child: const MaterialApp(home: RemindersListPage()),
       ),
     );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('接下來'));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('commit-staged-button')), findsNothing);
@@ -146,6 +155,9 @@ void main() {
           child: const MaterialApp(home: RemindersListPage()),
         ),
       );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('接下來'));
       await tester.pumpAndSettle();
 
       await tester.drag(
@@ -191,6 +203,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      await tester.tap(find.text('接下來'));
+      await tester.pumpAndSettle();
+
       expect(find.text('Weekly task'), findsOneWidget);
 
       await tester.tap(find.byKey(ValueKey('defer-$reminderId')));
@@ -202,7 +217,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Weekly task'), findsNothing);
-      expect(find.text('目前沒有進行中的任務。'), findsOneWidget);
+      expect(find.text('接下來沒有進行中的任務。'), findsOneWidget);
 
       final updatedReminder = await (db.select(
         db.reminders,

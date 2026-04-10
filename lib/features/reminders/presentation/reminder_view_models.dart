@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../domain/demo_reminder_draft.dart';
@@ -13,8 +14,13 @@ class ReminderUiText {
   static const habit = '習慣';
   static const habitTemplate = '習慣模板';
 
-  static const pendingTab = '進行中';
-  static const historyTab = '完成/跳過';
+  static const todayTab = '今天';
+  static const upcomingTab = '接下來';
+  static const completedTab = '已完成';
+  static const habitTab = '習慣';
+  static const pendingTab = upcomingTab;
+  static const historyTab = completedTab;
+  static const settingsTab = habitTab;
   static const addTask = '新增任務';
   static const addHabit = '新增習慣';
   static const editTask = '編輯任務';
@@ -25,10 +31,12 @@ class ReminderUiText {
   static const fixedTimeField = '固定時間';
   static const startDateField = '開始日期';
   static const unset = '未設定';
-  static const unsetFixedTime = '未設定固定時間';
-  static const noPendingTasks = '目前沒有進行中的任務。';
+  static const unsetFixedTime = '未設定日期';
+  static const noTodayTasks = '今天沒有要處理的任務。';
+  static const noUpcomingTasks = '接下來沒有進行中的任務。';
+  static const noPendingTasks = noUpcomingTasks;
   static const noHistoryTasks = '目前沒有完成或跳過的任務。';
-  static const noHabits = '目前沒有習慣。';
+  static const noHabits = '目前沒有提醒模板。';
   static const cancelTask = '取消任務';
   static const deferTask = '延期任務';
   static const restorePendingTitle = '恢復未完成';
@@ -36,7 +44,7 @@ class ReminderUiText {
   static const stopHabit = '暫停習慣';
   static const cancelHabit = '取消習慣';
   static const reactivateHabit = '重新啟用習慣';
-  static const fixedTimeRequired = '固定時間任務需要設定時間';
+  static const fixedTimeRequired = '固定時間任務需要設定日期';
   static const habitRepeatRuleRequired = '習慣需要設定重複規則';
 
   static String trackingModeLabel(int trackingMode) {
@@ -217,13 +225,11 @@ class HistoryReminderItemViewModel {
       'yyyy/MM/dd HH:mm',
     ).format(reminder.updatedAt.toLocal());
     final isFixedTime = reminder.trackingMode == ReminderTrackingMode.countdown;
-    final timeText = isFixedTime
+    final dateText = isFixedTime
         ? (reminder.dueAt == null
               ? ReminderUiText.unsetFixedTime
-              : DateFormat(
-                  'yyyy/MM/dd HH:mm',
-                ).format(reminder.dueAt!.toLocal()))
-        : DateFormat('yyyy/MM/dd HH:mm').format(reminder.startAt.toLocal());
+              : DateFormat('yyyy/MM/dd').format(reminder.dueAt!.toLocal()))
+        : DateFormat('yyyy/MM/dd').format(reminder.startAt.toLocal());
     final category = ReminderUiText.categoryLabel(
       topicCategoryName: reminder.topicCategoryName,
       actionCategoryName: reminder.actionCategoryName,
@@ -236,7 +242,7 @@ class HistoryReminderItemViewModel {
         '狀態: ${reminder.isDone ? 'Done' : 'Skipped'}',
         '時間設定: ${ReminderUiText.trackingModeLabel(reminder.trackingMode)}',
         '更新: $updatedAtText',
-        isFixedTime ? '固定時間: $timeText' : '開始日期: $timeText',
+        isFixedTime ? '固定日期: $dateText' : '開始日期: $dateText',
         if (category.isNotEmpty) '分類: $category',
       ].join('\n'),
     );
@@ -277,7 +283,7 @@ class RecurringReminderItemViewModel {
       trackingModeLabel: ReminderUiText.trackingModeLabel(
         reminder.trackingMode,
       ),
-      repeatRuleLabel: reminder.repeatRule ?? ReminderUiText.unset,
+      repeatRuleLabel: _repeatRuleSummary(reminder.repeatRule),
       categoryLabel: category,
       isPending: reminder.status == RecurringReminderStatus.pending,
       isStopped: reminder.status == RecurringReminderStatus.stopped,
@@ -306,6 +312,30 @@ class RecurringReminderItemViewModel {
     }
     return rule.advance(today);
   }
+}
+
+String _repeatRuleSummary(String? repeatRule) {
+  final rule = RepeatRule.parse(repeatRule);
+  if (rule == null) {
+    return repeatRule == null || repeatRule.isEmpty
+        ? ReminderUiText.unset
+        : repeatRule;
+  }
+
+  final unit = switch (rule.kind) {
+    'D' => '天',
+    'W' => '週',
+    'M' => '月',
+    'Y' => '年',
+    _ => '',
+  };
+  if (unit.isEmpty) {
+    return repeatRule ?? ReminderUiText.unset;
+  }
+  if (rule.interval == 1) {
+    return '每$unit';
+  }
+  return '每 ${rule.interval} $unit';
 }
 
 class ReminderFormDraft {
@@ -389,6 +419,251 @@ class ReminderFormDraft {
   final int? topicCategoryId;
   final int? actionCategoryId;
   final bool readOnly;
+}
+
+enum ReminderWizardRepeatChoice { once, recurring }
+
+enum ReminderWizardRepeatPattern { fixedTime, fromStart }
+
+enum ReminderWizardAccumulationDisplay { day, week, year }
+
+final reminderWizardDraftProvider =
+    StateNotifierProvider<ReminderWizardDraftNotifier, ReminderWizardDraft>(
+      (ref) => ReminderWizardDraftNotifier(),
+    );
+
+class ReminderWizardDraft {
+  const ReminderWizardDraft({
+    required this.title,
+    this.note,
+    this.repeatChoice,
+    this.repeatPattern,
+    required this.trackingMode,
+    required this.triggerMode,
+    required this.triggerOffsetDays,
+    this.repeatType,
+    required this.repeatInterval,
+    this.dueAt,
+    this.startAt,
+    this.topicCategoryId,
+    this.actionCategoryId,
+    this.accumulationDisplay = ReminderWizardAccumulationDisplay.day,
+    this.readOnly = false,
+  });
+
+  factory ReminderWizardDraft.empty() {
+    return ReminderWizardDraft(
+      title: '',
+      trackingMode: ReminderTrackingMode.countdown,
+      triggerMode: ReminderTriggerMode.inRange,
+      triggerOffsetDays: 0,
+      repeatInterval: 1,
+      startAt: DateTime.now(),
+    );
+  }
+
+  factory ReminderWizardDraft.fromFormDraft(
+    ReminderFormDraft draft, {
+    bool waitForRepeatChoice = false,
+  }) {
+    final repeatRule = RepeatRule.parse(draft.repeatRule);
+    final isRecurring = repeatRule != null;
+    final trackingMode = draft.trackingMode;
+    return ReminderWizardDraft(
+      title: draft.title,
+      note: draft.note,
+      repeatChoice: waitForRepeatChoice
+          ? null
+          : (isRecurring
+                ? ReminderWizardRepeatChoice.recurring
+                : ReminderWizardRepeatChoice.once),
+      repeatPattern: isRecurring
+          ? (trackingMode == ReminderTrackingMode.countdown
+                ? ReminderWizardRepeatPattern.fixedTime
+                : ReminderWizardRepeatPattern.fromStart)
+          : null,
+      trackingMode: trackingMode,
+      triggerMode: draft.triggerMode,
+      triggerOffsetDays: draft.triggerOffsetDays,
+      repeatType: repeatRule?.kind,
+      repeatInterval: repeatRule?.interval ?? 1,
+      dueAt: draft.dueAt,
+      startAt: draft.startAt ?? DateTime.now(),
+      topicCategoryId: draft.topicCategoryId,
+      actionCategoryId: draft.actionCategoryId,
+      readOnly: draft.readOnly,
+    );
+  }
+
+  final String title;
+  final String? note;
+  final ReminderWizardRepeatChoice? repeatChoice;
+  final ReminderWizardRepeatPattern? repeatPattern;
+  final int trackingMode;
+  final int triggerMode;
+  final int triggerOffsetDays;
+  final String? repeatType;
+  final int repeatInterval;
+  final DateTime? dueAt;
+  final DateTime? startAt;
+  final int? topicCategoryId;
+  final int? actionCategoryId;
+  final ReminderWizardAccumulationDisplay accumulationDisplay;
+  final bool readOnly;
+
+  String? get repeatRule {
+    if (repeatChoice != ReminderWizardRepeatChoice.recurring ||
+        repeatType == null) {
+      return null;
+    }
+    return '$repeatType$repeatInterval';
+  }
+
+  ReminderWizardDraft copyWith({
+    String? title,
+    Object? note = _notSet,
+    Object? repeatChoice = _notSet,
+    Object? repeatPattern = _notSet,
+    int? trackingMode,
+    int? triggerMode,
+    int? triggerOffsetDays,
+    Object? repeatType = _notSet,
+    int? repeatInterval,
+    Object? dueAt = _notSet,
+    Object? startAt = _notSet,
+    Object? topicCategoryId = _notSet,
+    Object? actionCategoryId = _notSet,
+    ReminderWizardAccumulationDisplay? accumulationDisplay,
+    bool? readOnly,
+  }) {
+    return ReminderWizardDraft(
+      title: title ?? this.title,
+      note: note == _notSet ? this.note : note as String?,
+      repeatChoice: repeatChoice == _notSet
+          ? this.repeatChoice
+          : repeatChoice as ReminderWizardRepeatChoice?,
+      repeatPattern: repeatPattern == _notSet
+          ? this.repeatPattern
+          : repeatPattern as ReminderWizardRepeatPattern?,
+      trackingMode: trackingMode ?? this.trackingMode,
+      triggerMode: triggerMode ?? this.triggerMode,
+      triggerOffsetDays: triggerOffsetDays ?? this.triggerOffsetDays,
+      repeatType: repeatType == _notSet
+          ? this.repeatType
+          : repeatType as String?,
+      repeatInterval: repeatInterval ?? this.repeatInterval,
+      dueAt: dueAt == _notSet ? this.dueAt : dueAt as DateTime?,
+      startAt: startAt == _notSet ? this.startAt : startAt as DateTime?,
+      topicCategoryId: topicCategoryId == _notSet
+          ? this.topicCategoryId
+          : topicCategoryId as int?,
+      actionCategoryId: actionCategoryId == _notSet
+          ? this.actionCategoryId
+          : actionCategoryId as int?,
+      accumulationDisplay: accumulationDisplay ?? this.accumulationDisplay,
+      readOnly: readOnly ?? this.readOnly,
+    );
+  }
+}
+
+const Object _notSet = Object();
+
+class ReminderWizardDraftNotifier extends StateNotifier<ReminderWizardDraft> {
+  ReminderWizardDraftNotifier() : super(ReminderWizardDraft.empty());
+
+  void initialize(ReminderFormDraft draft, {bool waitForRepeatChoice = false}) {
+    state = ReminderWizardDraft.fromFormDraft(
+      draft,
+      waitForRepeatChoice: waitForRepeatChoice,
+    );
+  }
+
+  void applyDemo(ReminderFormDraft draft) {
+    state = ReminderWizardDraft.fromFormDraft(draft);
+  }
+
+  void setTitle(String value) {
+    state = state.copyWith(title: value);
+  }
+
+  void setNote(String value) {
+    state = state.copyWith(note: value.trim().isEmpty ? null : value);
+  }
+
+  void setRepeatChoice(ReminderWizardRepeatChoice value) {
+    if (value == ReminderWizardRepeatChoice.once) {
+      state = state.copyWith(
+        repeatChoice: value,
+        repeatPattern: null,
+        trackingMode: ReminderTrackingMode.countdown,
+        triggerMode: ReminderTriggerMode.inRange,
+        repeatType: null,
+      );
+      return;
+    }
+
+    state = state.copyWith(repeatChoice: value);
+  }
+
+  void setRepeatPattern(ReminderWizardRepeatPattern value) {
+    if (value == ReminderWizardRepeatPattern.fixedTime) {
+      state = state.copyWith(
+        repeatPattern: value,
+        trackingMode: ReminderTrackingMode.countdown,
+        triggerMode: ReminderTriggerMode.inRange,
+        repeatType: state.repeatType ?? 'D',
+        repeatInterval: state.repeatInterval < 1 ? 1 : state.repeatInterval,
+        dueAt: state.dueAt ?? DateTime.now(),
+      );
+      return;
+    }
+
+    state = state.copyWith(
+      repeatPattern: value,
+      trackingMode: ReminderTrackingMode.accumulation,
+      triggerMode: ReminderTriggerMode.inRange,
+      repeatType: state.repeatType ?? 'D',
+      repeatInterval: state.repeatInterval < 1 ? 1 : state.repeatInterval,
+      dueAt: null,
+      startAt: state.startAt ?? DateTime.now(),
+    );
+  }
+
+  void setTriggerMode(int value) {
+    state = state.copyWith(triggerMode: value);
+  }
+
+  void setTriggerOffsetDays(int value) {
+    state = state.copyWith(triggerOffsetDays: value);
+  }
+
+  void setDueAt(DateTime? value) {
+    state = state.copyWith(dueAt: value);
+  }
+
+  void setStartAt(DateTime value) {
+    state = state.copyWith(startAt: value);
+  }
+
+  void setRepeatType(String? value) {
+    state = state.copyWith(repeatType: value);
+  }
+
+  void setRepeatInterval(int value) {
+    state = state.copyWith(repeatInterval: value);
+  }
+
+  void setTopicCategoryId(int? value) {
+    state = state.copyWith(topicCategoryId: value);
+  }
+
+  void setActionCategoryId(int? value) {
+    state = state.copyWith(actionCategoryId: value);
+  }
+
+  void setAccumulationDisplay(ReminderWizardAccumulationDisplay value) {
+    state = state.copyWith(accumulationDisplay: value);
+  }
 }
 
 String _remainingLabel(ReminderModel reminder, {DateTime? now}) {

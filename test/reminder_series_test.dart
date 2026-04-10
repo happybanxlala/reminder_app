@@ -13,40 +13,115 @@ import 'package:reminder_app/features/reminders/ui/pages/reminder_edit_page.dart
 import 'package:reminder_app/features/reminders/ui/pages/reminders_list_page.dart';
 
 void main() {
-  testWidgets('recurring reminder tab is available and FAB opens form', (
-    tester,
-  ) async {
+  test('create single reminder succeeds without recurring template', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
+    final repository = ReminderRepository(db.reminderDao);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [appDatabaseProvider.overrideWithValue(db)],
-        child: const ReminderApp(),
+    final dueAt = DateTime(2026, 3, 4, 15, 30);
+    final reminderId = await repository.create(
+      ReminderInput(
+        title: 'One-off task',
+        trackingMode: ReminderTrackingMode.countdown,
+        triggerMode: ReminderTriggerMode.inRange,
+        triggerOffsetDays: 1,
+        dueAt: dueAt,
+        startAt: DateTime(2026, 3, 1, 8, 0),
       ),
     );
-    await tester.pumpAndSettle();
 
-    expect(find.text('習慣'), findsOneWidget);
+    final reminder = await (db.select(
+      db.reminders,
+    )..where((t) => t.id.equals(reminderId))).getSingle();
+    final recurringRows = await db.select(db.recurringReminders).get();
 
-    await tester.tap(find.text('習慣'));
-    await tester.pumpAndSettle();
-
+    expect(reminder.title, 'One-off task');
+    expect(reminder.recurringReminderId, isNull);
     expect(
-      find.byKey(const Key('add-recurring-reminder-button')),
-      findsOneWidget,
+      DateTime.fromMillisecondsSinceEpoch(reminder.dueAt!),
+      DateTime(2026, 3, 4),
     );
-    expect(find.text('新增習慣'), findsOneWidget);
-
-    await tester.tap(find.byKey(const Key('add-recurring-reminder-button')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('新增習慣'), findsOneWidget);
-
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.idle();
-    await tester.pump();
+    expect(
+      DateTime.fromMillisecondsSinceEpoch(reminder.startAt),
+      DateTime(2026, 3, 1),
+    );
+    expect(recurringRows, isEmpty);
   });
+
+  test(
+    'create recurring template with first occurrence succeeds in repository',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = ReminderRepository(db.reminderDao);
+
+      final recurringReminderId = await repository
+          .createRecurringReminderWithFirstOccurrence(
+            ReminderInput(
+              title: 'Weekly repo task',
+              trackingMode: ReminderTrackingMode.countdown,
+              triggerMode: ReminderTriggerMode.inRange,
+              triggerOffsetDays: 2,
+              dueAt: DateTime(2026, 3, 10),
+              startAt: DateTime(2026, 3, 1),
+              repeatRule: 'W1',
+            ),
+          );
+
+      final recurringRows = await db.select(db.recurringReminders).get();
+      final reminderRows = await db.select(db.reminders).get();
+
+      expect(recurringRows, hasLength(1));
+      expect(reminderRows, hasLength(1));
+      expect(recurringRows.single.id, recurringReminderId);
+      expect(reminderRows.single.recurringReminderId, recurringReminderId);
+    },
+  );
+
+  testWidgets(
+    'recurring reminder tab is template management without create FAB',
+    (tester) async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [appDatabaseProvider.overrideWithValue(db)],
+          child: const ReminderApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('今天'), findsOneWidget);
+      expect(find.text('接下來'), findsOneWidget);
+      expect(find.text('已完成'), findsOneWidget);
+      expect(find.text('習慣'), findsOneWidget);
+
+      await tester.tap(find.text('習慣'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const Key('add-recurring-reminder-button')),
+        findsNothing,
+      );
+      expect(find.text('新增習慣'), findsNothing);
+      expect(find.text('建立習慣'), findsNothing);
+      expect(find.text('建立從某天開始'), findsNothing);
+
+      await tester.tap(find.text('今天'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('add-reminder-button')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('add-reminder-button')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('新增任務'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.idle();
+      await tester.pump();
+    },
+  );
 
   testWidgets(
     'recurring reminder create saves template and first reminder together',
@@ -144,6 +219,7 @@ void main() {
 
       expect(find.byKey(const Key('edit-due-at-text')), findsNothing);
       expect(find.byKey(const Key('edit-start-at-text')), findsNothing);
+      expect(find.text('模板類型建立後不可修改。'), findsOneWidget);
 
       await tester.enterText(
         find.byKey(const Key('edit-title-field')),
@@ -213,6 +289,11 @@ void main() {
 
       await tester.tap(find.text('習慣'));
       await tester.pumpAndSettle();
+
+      expect(find.text('Pending stop'), findsOneWidget);
+      expect(find.text('狀態: 進行中'), findsNWidgets(2));
+      expect(find.text('類型: 固定時間'), findsWidgets);
+      expect(find.text('規則摘要: 每週'), findsWidgets);
 
       expect(
         find.byKey(Key('recurring-edit-button-${stopped.recurringReminderId}')),
@@ -364,6 +445,208 @@ void main() {
       );
     },
   );
+
+  test('done recurring reminder creates next occurrence', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = ReminderRepository(db.reminderDao);
+    final seed = await _seedPendingRecurringReminder(db, title: 'Done series');
+
+    await repository.complete(seed.reminderId!);
+
+    final reminders =
+        await (db.select(db.reminders)
+              ..where(
+                (t) => t.recurringReminderId.equals(seed.recurringReminderId),
+              )
+              ..orderBy([(t) => drift.OrderingTerm.asc(t.id)]))
+            .get();
+
+    expect(reminders, hasLength(2));
+    expect(reminders.first.status, ReminderStatus.done);
+    expect(reminders.last.status, ReminderStatus.pending);
+    expect(reminders.last.previousOccurrenceId, reminders.first.id);
+  });
+
+  test('skip recurring reminder creates next occurrence', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = ReminderRepository(db.reminderDao);
+    final seed = await _seedPendingRecurringReminder(db, title: 'Skip series');
+
+    await repository.skip(seed.reminderId!);
+
+    final reminders =
+        await (db.select(db.reminders)
+              ..where(
+                (t) => t.recurringReminderId.equals(seed.recurringReminderId),
+              )
+              ..orderBy([(t) => drift.OrderingTerm.asc(t.id)]))
+            .get();
+
+    expect(reminders, hasLength(2));
+    expect(reminders.first.status, ReminderStatus.skipped);
+    expect(reminders.last.status, ReminderStatus.pending);
+  });
+
+  test(
+    'cancel recurring reminder occurrence does not create next occurrence',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = ReminderRepository(db.reminderDao);
+      final seed = await _seedPendingRecurringReminder(
+        db,
+        title: 'Cancel series',
+      );
+
+      await repository.cancel(seed.reminderId!);
+
+      final reminders =
+          await (db.select(db.reminders)
+                ..where(
+                  (t) => t.recurringReminderId.equals(seed.recurringReminderId),
+                )
+                ..orderBy([(t) => drift.OrderingTerm.asc(t.id)]))
+              .get();
+      final recurringReminder = await db.reminderDao.getRecurringReminderById(
+        seed.recurringReminderId,
+      );
+
+      expect(reminders, hasLength(1));
+      expect(reminders.single.status, ReminderStatus.canceled);
+      expect(recurringReminder!.status, RecurringReminderStatus.stopped);
+    },
+  );
+
+  test('stop recurring cancels existing pending reminders', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = ReminderRepository(db.reminderDao);
+    final seed = await _seedPendingRecurringReminder(db, title: 'Stop series');
+
+    await repository.stopRecurringReminderById(seed.recurringReminderId);
+
+    final recurringReminder = await db.reminderDao.getRecurringReminderById(
+      seed.recurringReminderId,
+    );
+    final reminders =
+        await (db.select(db.reminders)..where(
+              (t) => t.recurringReminderId.equals(seed.recurringReminderId),
+            ))
+            .get();
+
+    expect(recurringReminder!.status, RecurringReminderStatus.stopped);
+    expect(reminders.single.status, ReminderStatus.canceled);
+  });
+
+  test('reactivate recurring creates a new pending reminder', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = ReminderRepository(db.reminderDao);
+    final seed = await _seedPendingRecurringReminder(
+      db,
+      title: 'Reactivate series',
+    );
+
+    await repository.stopRecurringReminderById(seed.recurringReminderId);
+
+    final reactivatedReminderId = await repository
+        .reactivateRecurringReminderById(
+          seed.recurringReminderId,
+          dueAt: DateTime(2026, 4, 1),
+        );
+
+    final reminders =
+        await (db.select(db.reminders)
+              ..where(
+                (t) => t.recurringReminderId.equals(seed.recurringReminderId),
+              )
+              ..orderBy([(t) => drift.OrderingTerm.asc(t.id)]))
+            .get();
+
+    final pendingReminders = reminders.where(
+      (reminder) => reminder.status == ReminderStatus.pending,
+    );
+    final canceledReminders = reminders.where(
+      (reminder) => reminder.status == ReminderStatus.canceled,
+    );
+
+    expect(reactivatedReminderId, isNotNull);
+    expect(reminders, hasLength(2));
+    expect(canceledReminders, hasLength(1));
+    expect(pendingReminders, hasLength(1));
+    expect(pendingReminders.single.id, reactivatedReminderId);
+    expect(
+      DateTime.fromMillisecondsSinceEpoch(pendingReminders.single.dueAt!),
+      DateTime(2026, 4, 1),
+    );
+  });
+
+  test(
+    'start-based reminder enters active period based on startAt and triggerOffsetDays',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = ReminderRepository(db.reminderDao);
+      final today = DateTime.now();
+      final normalizedToday = DateTime(today.year, today.month, today.day);
+
+      await repository.create(
+        ReminderInput(
+          title: 'Count-up task',
+          trackingMode: ReminderTrackingMode.accumulation,
+          triggerMode: ReminderTriggerMode.inRange,
+          triggerOffsetDays: 2,
+          startAt: normalizedToday.subtract(const Duration(days: 2)),
+        ),
+      );
+
+      final activePending = await repository.watchActivePending().first;
+      final todayPending = await repository.watchTodayPending().first;
+
+      expect(
+        activePending.map((item) => item.title),
+        contains('Count-up task'),
+      );
+      expect(todayPending.map((item) => item.title), contains('Count-up task'));
+    },
+  );
+
+  test('recurring reminder update preserves template tracking mode', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = ReminderRepository(db.reminderDao);
+
+    final seed = await _seedRecurringReminderOnly(
+      db,
+      title: 'Immutable type',
+      status: RecurringReminderStatus.pending,
+      updatedAtOffset: 1,
+    );
+
+    final success = await repository.updateRecurringReminderById(
+      seed.recurringReminderId,
+      ReminderInput(
+        title: 'Updated immutable type',
+        trackingMode: ReminderTrackingMode.accumulation,
+        triggerMode: ReminderTriggerMode.inRange,
+        triggerOffsetDays: 3,
+        startAt: DateTime(2026, 1, 1),
+        repeatRule: 'D1',
+      ),
+    );
+
+    final updated = await db.reminderDao.getRecurringReminderById(
+      seed.recurringReminderId,
+    );
+
+    expect(success, isTrue);
+    expect(updated, isNotNull);
+    expect(updated!.title, 'Updated immutable type');
+    expect(updated.trackingMode, ReminderTrackingMode.countdown);
+    expect(updated.repeatRule, 'D1');
+  });
 }
 
 class _RecurringReminderSeed {
