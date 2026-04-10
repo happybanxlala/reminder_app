@@ -41,6 +41,66 @@ void main() {
     },
   );
 
+  testWidgets('choosing once does not show repeat pattern options', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          topicCategoriesProvider.overrideWith((ref) async => []),
+          actionCategoriesProvider.overrideWith((ref) async => []),
+        ],
+        child: const MaterialApp(home: ReminderEditPage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('wizard-repeat-once')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('固定時間'), findsNothing);
+    expect(find.text('從某天開始'), findsNothing);
+    expect(find.text('Step 3：選擇重複方式'), findsNothing);
+  });
+
+  testWidgets('choosing recurring reveals repeat pattern options', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          topicCategoriesProvider.overrideWith((ref) async => []),
+          actionCategoriesProvider.overrideWith((ref) async => []),
+        ],
+        child: const MaterialApp(home: ReminderEditPage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('固定時間'), findsNothing);
+    expect(find.text('從某天開始'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('wizard-repeat-recurring')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('wizard-repeat-pattern-fixed')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('wizard-repeat-pattern-fixed')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('wizard-repeat-pattern-start')),
+      findsOneWidget,
+    );
+    expect(find.text('固定時間'), findsOneWidget);
+    expect(find.text('從某天開始'), findsOneWidget);
+  });
+
   testWidgets('start based repeat wizard shows accumulation preview', (
     tester,
   ) async {
