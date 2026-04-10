@@ -13,40 +13,47 @@ import 'package:reminder_app/features/reminders/ui/pages/reminder_edit_page.dart
 import 'package:reminder_app/features/reminders/ui/pages/reminders_list_page.dart';
 
 void main() {
-  testWidgets('recurring reminder tab is available and FAB opens form', (
-    tester,
-  ) async {
-    final db = AppDatabase.forTesting(NativeDatabase.memory());
-    addTearDown(db.close);
+  testWidgets(
+    'recurring reminder tab is template management without create FAB',
+    (tester) async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [appDatabaseProvider.overrideWithValue(db)],
-        child: const ReminderApp(),
-      ),
-    );
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [appDatabaseProvider.overrideWithValue(db)],
+          child: const ReminderApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('習慣'), findsOneWidget);
+      expect(find.text('設定'), findsOneWidget);
 
-    await tester.tap(find.text('習慣'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('設定'));
+      await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const Key('add-recurring-reminder-button')),
-      findsOneWidget,
-    );
-    expect(find.text('新增習慣'), findsOneWidget);
+      expect(
+        find.byKey(const Key('add-recurring-reminder-button')),
+        findsNothing,
+      );
+      expect(find.text('新增習慣'), findsNothing);
+      expect(find.text('建立習慣'), findsNothing);
+      expect(find.text('建立從某天開始'), findsNothing);
 
-    await tester.tap(find.byKey(const Key('add-recurring-reminder-button')));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('進行中'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('add-reminder-button')), findsOneWidget);
 
-    expect(find.text('新增習慣'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('add-reminder-button')));
+      await tester.pumpAndSettle();
 
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.idle();
-    await tester.pump();
-  });
+      expect(find.text('新增任務'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.idle();
+      await tester.pump();
+    },
+  );
 
   testWidgets(
     'recurring reminder create saves template and first reminder together',
@@ -211,8 +218,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('習慣'));
+      await tester.tap(find.text('設定'));
       await tester.pumpAndSettle();
+
+      expect(find.text('Pending stop'), findsOneWidget);
+      expect(find.text('狀態: 進行中'), findsNWidgets(2));
+      expect(find.text('類型: 固定時間'), findsWidgets);
+      expect(find.text('規則摘要: 每週'), findsWidgets);
 
       expect(
         find.byKey(Key('recurring-edit-button-${stopped.recurringReminderId}')),

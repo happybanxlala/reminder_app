@@ -109,7 +109,6 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
     final pendingAsync = ref.watch(activePendingProvider);
     final historyAsync = ref.watch(completedOrSkippedProvider);
     final recurringAsync = ref.watch(recurringRemindersProvider);
-    final isRecurringTab = _tabController.index == 2;
 
     return Scaffold(
       appBar: AppBar(
@@ -137,7 +136,7 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
           tabs: const [
             Tab(text: ReminderUiText.pendingTab),
             Tab(text: ReminderUiText.historyTab),
-            Tab(text: ReminderUiText.habit),
+            Tab(text: ReminderUiText.settingsTab),
           ],
         ),
       ),
@@ -202,28 +201,20 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        key: Key(
-          isRecurringTab
-              ? 'add-recurring-reminder-button'
-              : 'add-reminder-button',
-        ),
-        onPressed: () async {
-          await _commitAndResetPendingSession();
-          if (!context.mounted) {
-            return;
-          }
-          context.pushNamed(
-            isRecurringTab
-                ? ReminderEditPage.recurringNewRouteName
-                : ReminderEditPage.newRouteName,
-          );
-        },
-        icon: const Icon(Icons.add),
-        label: Text(
-          isRecurringTab ? ReminderUiText.addHabit : ReminderUiText.addTask,
-        ),
-      ),
+      floatingActionButton: _tabController.index == 2
+          ? null
+          : FloatingActionButton.extended(
+              key: const Key('add-reminder-button'),
+              onPressed: () async {
+                await _commitAndResetPendingSession();
+                if (!context.mounted) {
+                  return;
+                }
+                context.pushNamed(ReminderEditPage.newRouteName);
+              },
+              icon: const Icon(Icons.add),
+              label: const Text(ReminderUiText.addTask),
+            ),
     );
   }
 }
@@ -522,8 +513,8 @@ class _RecurringReminderList extends ConsumerWidget {
                 ),
                 const SizedBox(height: 8),
                 Text('狀態: ${habit.statusLabel}'),
-                Text('時間設定: ${habit.trackingModeLabel}'),
-                Text('重複規則: ${habit.repeatRuleLabel}'),
+                Text('類型: ${habit.trackingModeLabel}'),
+                Text('規則摘要: ${habit.repeatRuleLabel}'),
                 if (habit.categoryLabel.isNotEmpty)
                   Text('分類: ${habit.categoryLabel}'),
                 const SizedBox(height: 12),

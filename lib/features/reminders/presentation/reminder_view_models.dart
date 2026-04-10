@@ -16,6 +16,7 @@ class ReminderUiText {
 
   static const pendingTab = '進行中';
   static const historyTab = '完成/跳過';
+  static const settingsTab = '設定';
   static const addTask = '新增任務';
   static const addHabit = '新增習慣';
   static const editTask = '編輯任務';
@@ -29,7 +30,7 @@ class ReminderUiText {
   static const unsetFixedTime = '未設定固定時間';
   static const noPendingTasks = '目前沒有進行中的任務。';
   static const noHistoryTasks = '目前沒有完成或跳過的任務。';
-  static const noHabits = '目前沒有習慣。';
+  static const noHabits = '目前沒有提醒模板。';
   static const cancelTask = '取消任務';
   static const deferTask = '延期任務';
   static const restorePendingTitle = '恢復未完成';
@@ -278,7 +279,7 @@ class RecurringReminderItemViewModel {
       trackingModeLabel: ReminderUiText.trackingModeLabel(
         reminder.trackingMode,
       ),
-      repeatRuleLabel: reminder.repeatRule ?? ReminderUiText.unset,
+      repeatRuleLabel: _repeatRuleSummary(reminder.repeatRule),
       categoryLabel: category,
       isPending: reminder.status == RecurringReminderStatus.pending,
       isStopped: reminder.status == RecurringReminderStatus.stopped,
@@ -307,6 +308,30 @@ class RecurringReminderItemViewModel {
     }
     return rule.advance(today);
   }
+}
+
+String _repeatRuleSummary(String? repeatRule) {
+  final rule = RepeatRule.parse(repeatRule);
+  if (rule == null) {
+    return repeatRule == null || repeatRule.isEmpty
+        ? ReminderUiText.unset
+        : repeatRule;
+  }
+
+  final unit = switch (rule.kind) {
+    'D' => '天',
+    'W' => '週',
+    'M' => '月',
+    'Y' => '年',
+    _ => '',
+  };
+  if (unit.isEmpty) {
+    return repeatRule ?? ReminderUiText.unset;
+  }
+  if (rule.interval == 1) {
+    return '每$unit';
+  }
+  return '每 ${rule.interval} $unit';
 }
 
 class ReminderFormDraft {
