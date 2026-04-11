@@ -1,53 +1,49 @@
-class RepeatRule {
-  const RepeatRule._(this.kind, this.interval);
+enum RepeatUnit { day, week, month, year }
 
-  final String kind;
+class RepeatRule {
+  const RepeatRule({required this.unit, required this.interval});
+
+  final RepeatUnit unit;
   final int interval;
 
-  static RepeatRule? parse(String? raw) {
-    if (raw == null) return null;
-    final value = raw.trim().toUpperCase();
-    if (value.isEmpty) return null;
-
-    final match = RegExp(r'^([DWMY])(\d+)$').firstMatch(value);
-    if (match == null) return null;
-
-    final interval = int.tryParse(match.group(2)!);
-    if (interval == null || interval < 1) return null;
-
-    return RepeatRule._(match.group(1)!, interval);
+  String encode() {
+    final prefix = switch (unit) {
+      RepeatUnit.day => 'D',
+      RepeatUnit.week => 'W',
+      RepeatUnit.month => 'M',
+      RepeatUnit.year => 'Y',
+    };
+    return '$prefix$interval';
   }
 
-  DateTime advance(DateTime base) {
-    switch (kind) {
-      case 'D':
-        return base.add(Duration(days: interval));
-      case 'W':
-        return base.add(Duration(days: interval * 7));
-      case 'M':
-        return DateTime(
-          base.year,
-          base.month + interval,
-          base.day,
-          base.hour,
-          base.minute,
-          base.second,
-          base.millisecond,
-          base.microsecond,
-        );
-      case 'Y':
-        return DateTime(
-          base.year + interval,
-          base.month,
-          base.day,
-          base.hour,
-          base.minute,
-          base.second,
-          base.millisecond,
-          base.microsecond,
-        );
-      default:
-        return base;
+  DateTime advance(DateTime date) {
+    return switch (unit) {
+      RepeatUnit.day => date.add(Duration(days: interval)),
+      RepeatUnit.week => date.add(Duration(days: interval * 7)),
+      RepeatUnit.month => DateTime(date.year, date.month + interval, date.day),
+      RepeatUnit.year => DateTime(date.year + interval, date.month, date.day),
+    };
+  }
+
+  static RepeatRule? parse(String? value) {
+    if (value == null || value.isEmpty) {
+      return null;
     }
+    final prefix = value.substring(0, 1);
+    final interval = int.tryParse(value.substring(1));
+    if (interval == null || interval < 1) {
+      return null;
+    }
+    final unit = switch (prefix) {
+      'D' => RepeatUnit.day,
+      'W' => RepeatUnit.week,
+      'M' => RepeatUnit.month,
+      'Y' => RepeatUnit.year,
+      _ => null,
+    };
+    if (unit == null) {
+      return null;
+    }
+    return RepeatRule(unit: unit, interval: interval);
   }
 }

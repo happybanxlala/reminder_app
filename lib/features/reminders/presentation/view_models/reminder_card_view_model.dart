@@ -1,93 +1,48 @@
-import '../../domain/reminder.dart';
+import '../../data/local/daos.dart';
 import '../formatters/reminder_formatters.dart';
-import '../text/reminder_ui_text.dart';
 
-class PendingReminderItemViewModel {
-  const PendingReminderItemViewModel({
-    required this.id,
-    required this.title,
-    required this.primaryText,
-    required this.secondaryText,
-    required this.metaText,
-    required this.isDone,
-    required this.canDefer,
-    required this.isRecurring,
-  });
-
-  factory PendingReminderItemViewModel.fromDomain(
-    ReminderModel reminder, {
-    DateTime? now,
-  }) {
-    return PendingReminderItemViewModel(
-      id: reminder.id,
-      title: reminder.title,
-      primaryText: ReminderFormatters.pendingPrimaryText(reminder, now: now),
-      secondaryText: ReminderFormatters.pendingSecondaryText(reminder),
-      metaText: ReminderFormatters.pendingMetaText(reminder),
-      isDone: reminder.isDone,
-      canDefer: reminder.trackingMode == ReminderTrackingMode.countdown,
-      isRecurring: reminder.isRecurring,
-    );
-  }
-
-  final int id;
-  final String title;
-  final String primaryText;
-  final String secondaryText;
-  final String metaText;
-  final bool isDone;
-  final bool canDefer;
-  final bool isRecurring;
-}
-
-class CompletedPendingReminderItemViewModel {
-  const CompletedPendingReminderItemViewModel({
+class TaskCardViewModel {
+  const TaskCardViewModel({
     required this.id,
     required this.title,
     required this.subtitle,
+    required this.status,
   });
 
-  factory CompletedPendingReminderItemViewModel.fromDomain(
-    ReminderModel reminder,
-  ) {
-    return CompletedPendingReminderItemViewModel(
-      id: reminder.id,
-      title: reminder.title,
-      subtitle: ReminderUiText.stagedCompletedSubtitle,
-    );
-  }
-
-  factory CompletedPendingReminderItemViewModel.fromPending(
-    PendingReminderItemViewModel reminder,
-  ) {
-    return CompletedPendingReminderItemViewModel(
-      id: reminder.id,
-      title: reminder.title,
-      subtitle: ReminderUiText.stagedCompletedSubtitle,
+  factory TaskCardViewModel.fromBundle(TaskBundle bundle) {
+    return TaskCardViewModel(
+      id: bundle.task.id,
+      title: bundle.task.titleSnapshot,
+      subtitle: ReminderFormatters.taskSummary(bundle),
+      status: bundle.task.status.name,
     );
   }
 
   final int id;
   final String title;
   final String subtitle;
+  final String status;
 }
 
-class HistoryReminderItemViewModel {
-  const HistoryReminderItemViewModel({
+class MilestoneCardViewModel {
+  const MilestoneCardViewModel({
+    required this.id,
     required this.title,
     required this.subtitle,
-    required this.isDone,
+    required this.status,
   });
 
-  factory HistoryReminderItemViewModel.fromDomain(ReminderModel reminder) {
-    return HistoryReminderItemViewModel(
-      title: reminder.title,
-      isDone: reminder.isDone,
-      subtitle: ReminderFormatters.historySubtitle(reminder),
+  factory MilestoneCardViewModel.fromBundle(MilestoneBundle bundle) {
+    return MilestoneCardViewModel(
+      id: bundle.milestone.id,
+      title: bundle.timeline.title,
+      subtitle: ReminderFormatters.milestoneSummary(bundle),
+      status: bundle.milestone.status.name,
     );
   }
 
+  final int id;
   final String title;
   final String subtitle;
-  final bool isDone;
+  final String status;
 }

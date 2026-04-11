@@ -1,10 +1,17 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../domain/action_category.dart';
-import '../domain/reminder.dart';
-import '../domain/recurring_reminder.dart';
-import '../domain/topic_category.dart';
+import '../domain/milestone.dart';
+import '../domain/milestone_reminder_rule.dart';
+import '../domain/reminder_rule.dart';
+import '../domain/repeat_rule.dart';
+import '../domain/task.dart';
+import '../domain/task_scheduler.dart';
+import '../domain/task_template.dart';
+import '../domain/timeline.dart';
+import '../domain/timeline_calculator.dart';
 import 'local/app_database.dart';
 import 'local/daos.dart';
 
@@ -14,514 +21,615 @@ final appDatabaseProvider = Provider<AppDatabase>((ref) {
   return database;
 });
 
-final reminderRepositoryProvider = Provider<ReminderRepository>((ref) {
-  final database = ref.watch(appDatabaseProvider);
-  return ReminderRepository(database.reminderDao);
+final taskRepositoryProvider = Provider<TaskRepository>((ref) {
+  return TaskRepository(ref.watch(appDatabaseProvider).reminderDao);
 });
 
-final remindersListProvider = StreamProvider<List<ReminderModel>>((ref) {
-  return ref.watch(reminderRepositoryProvider).watchAll();
+final timelineRepositoryProvider = Provider<TimelineRepository>((ref) {
+  return TimelineRepository(ref.watch(appDatabaseProvider).reminderDao);
 });
 
-final activePendingProvider = StreamProvider<List<ReminderModel>>((ref) {
-  return ref.watch(reminderRepositoryProvider).watchActivePending();
+final homeRepositoryProvider = Provider<HomeRepository>((ref) {
+  return HomeRepository(
+    taskRepository: ref.watch(taskRepositoryProvider),
+    timelineRepository: ref.watch(timelineRepositoryProvider),
+  );
 });
 
-final todayPendingProvider = StreamProvider<List<ReminderModel>>((ref) {
-  return ref.watch(reminderRepositoryProvider).watchTodayPending();
+final todayHomeItemsProvider = StreamProvider<List<HomeItem>>((ref) {
+  return ref.watch(homeRepositoryProvider).watchTodayItems();
 });
 
-final completedOrSkippedProvider = StreamProvider<List<ReminderModel>>((ref) {
-  return ref
-      .watch(reminderRepositoryProvider)
-      .watchCompletedOrSkipped(limit: 30);
+final upcomingHomeItemsProvider = StreamProvider<List<HomeItem>>((ref) {
+  return ref.watch(homeRepositoryProvider).watchUpcomingItems();
 });
 
-final nextReminderProvider = StreamProvider<ReminderModel?>((ref) {
-  return ref.watch(reminderRepositoryProvider).watchNextReminder();
+final overdueTasksProvider = StreamProvider<List<TaskBundle>>((ref) {
+  return ref.watch(taskRepositoryProvider).watchOverdueTasks();
 });
 
-final reminderDetailProvider = FutureProvider.family<ReminderModel?, int>((
+final historyItemsProvider = StreamProvider<List<HistoryItem>>((ref) {
+  return ref.watch(homeRepositoryProvider).watchHistoryItems();
+});
+
+final taskTemplatesProvider = StreamProvider<List<TaskTemplate>>((ref) {
+  return ref.watch(taskRepositoryProvider).watchTemplates();
+});
+
+final timelinesProvider = StreamProvider<List<Timeline>>((ref) {
+  return ref.watch(timelineRepositoryProvider).watchTimelines();
+});
+
+final taskDetailProvider = FutureProvider.family<TaskBundle?, int>((ref, id) {
+  return ref.watch(taskRepositoryProvider).getTaskById(id);
+});
+
+final taskTemplateDetailProvider = FutureProvider.family<TaskTemplate?, int>((
   ref,
-  reminderId,
+  id,
 ) {
-  return ref.watch(reminderRepositoryProvider).getEditableById(reminderId);
+  return ref.watch(taskRepositoryProvider).getTemplateById(id);
 });
 
-final recurringRemindersProvider = StreamProvider<List<RecurringReminderModel>>(
-  (ref) {
-    return ref.watch(reminderRepositoryProvider).watchAllRecurringReminders();
-  },
-);
-
-@Deprecated('Use recurringRemindersProvider instead.')
-final reminderSeriesListProvider = recurringRemindersProvider;
-
-final recurringReminderDetailProvider =
-    FutureProvider.family<RecurringReminderModel?, int>((
-      ref,
-      recurringReminderId,
-    ) {
-      return ref
-          .watch(reminderRepositoryProvider)
-          .getRecurringReminderDetailById(recurringReminderId);
-    });
-
-@Deprecated('Use recurringReminderDetailProvider instead.')
-final reminderSeriesDetailProvider = recurringReminderDetailProvider;
-
-final topicCategoriesProvider = FutureProvider<List<TopicCategoryModel>>((ref) {
-  return ref.watch(reminderRepositoryProvider).listTopicCategories();
+final timelineDetailProvider = FutureProvider.family<Timeline?, int>((ref, id) {
+  return ref.watch(timelineRepositoryProvider).getTimelineById(id);
 });
 
-@Deprecated('Use topicCategoriesProvider instead.')
-final issueTypesProvider = topicCategoriesProvider;
-
-final actionCategoriesProvider = FutureProvider<List<ActionCategoryModel>>((
-  ref,
-) {
-  return ref.watch(reminderRepositoryProvider).listActionCategories();
-});
-
-@Deprecated('Use actionCategoriesProvider instead.')
-final handleTypesProvider = actionCategoriesProvider;
-
-class ReminderInput {
-  const ReminderInput({
+class TaskTemplateInput {
+  const TaskTemplateInput({
     required this.title,
     this.note,
-    required this.trackingMode,
-    required this.triggerMode,
-    this.triggerOffsetDays,
-    this.dueAt,
-    this.startAt,
+    this.categoryId,
+    required this.kind,
+    required this.firstDueDate,
     this.repeatRule,
-    this.topicCategoryId,
-    this.actionCategoryId,
+    required this.reminderRule,
   });
 
   final String title;
   final String? note;
-  final int trackingMode;
-  final int triggerMode;
-  final int? triggerOffsetDays;
-  final DateTime? dueAt;
-  final DateTime? startAt;
-  final String? repeatRule;
-  final int? topicCategoryId;
-  final int? actionCategoryId;
-
-  bool get isRecurring => repeatRule != null;
+  final int? categoryId;
+  final TaskKind kind;
+  final DateTime firstDueDate;
+  final RepeatRule? repeatRule;
+  final ReminderRule reminderRule;
 }
 
-@Deprecated('Use ReminderInput instead.')
-class ReminderUpsert extends ReminderInput {
-  const ReminderUpsert({
-    required super.title,
-    super.note,
-    required int timeBasis,
-    required int notifyStrategy,
-    int? remindDays,
-    super.dueAt,
-    super.startAt,
-    super.repeatRule,
-    int? issueTypeId,
-    int? handleTypeId,
-  }) : super(
-         trackingMode: timeBasis,
-         triggerMode: notifyStrategy,
-         triggerOffsetDays: remindDays,
-         topicCategoryId: issueTypeId,
-         actionCategoryId: handleTypeId,
-       );
+class TimelineInput {
+  const TimelineInput({
+    required this.title,
+    required this.startDate,
+    required this.displayUnit,
+    required this.milestoneReminderRule,
+  });
+
+  final String title;
+  final DateTime startDate;
+  final TimelineDisplayUnit displayUnit;
+  final MilestoneReminderRule milestoneReminderRule;
 }
 
-class ReminderRepository {
-  const ReminderRepository(this._dao);
+class MilestoneInput {
+  const MilestoneInput({
+    required this.targetDate,
+    this.description,
+    this.source = MilestoneSource.custom,
+  });
+
+  final DateTime targetDate;
+  final String? description;
+  final MilestoneSource source;
+}
+
+sealed class HomeItem {
+  const HomeItem();
+}
+
+class TaskHomeItem extends HomeItem {
+  const TaskHomeItem(this.bundle);
+
+  final TaskBundle bundle;
+}
+
+class MilestoneHomeItem extends HomeItem {
+  const MilestoneHomeItem(this.bundle);
+
+  final MilestoneBundle bundle;
+}
+
+sealed class HistoryItem {
+  const HistoryItem();
+}
+
+class TaskHistoryItem extends HistoryItem {
+  const TaskHistoryItem(this.bundle);
+
+  final TaskBundle bundle;
+}
+
+class MilestoneHistoryItem extends HistoryItem {
+  const MilestoneHistoryItem(this.bundle);
+
+  final MilestoneBundle bundle;
+}
+
+class TaskRepository {
+  TaskRepository(this._dao, {TaskScheduler? scheduler})
+    : _scheduler = scheduler ?? const TaskScheduler();
 
   final ReminderDao _dao;
+  final TaskScheduler _scheduler;
 
-  Stream<List<ReminderModel>> watchAll() {
-    return _dao.watchAll().map((items) => items.map(_toDomain).toList());
-  }
+  Stream<List<TaskTemplate>> watchTemplates() => _dao.watchTaskTemplates();
 
-  Stream<List<ReminderModel>> watchActivePending() {
-    return _dao.watchActivePending().map(
-      (items) => items.map(_toDomain).toList(),
+  Stream<List<TaskBundle>> watchAllTasks() => _dao.watchTaskBundles();
+
+  Stream<List<TaskBundle>> watchTodayTasks({DateTime? now}) {
+    return _dao.watchTaskBundles().map(
+      (items) => items
+          .where(
+            (item) => _scheduler.isInToday(
+              item.task,
+              item.template.reminderRule,
+              now ?? DateTime.now(),
+            ),
+          )
+          .toList(growable: false),
     );
   }
 
-  Stream<List<ReminderModel>> watchTodayPending() {
-    return _dao.watchTodayPending().map(
-      (items) => items.map(_toDomain).toList(),
+  Stream<List<TaskBundle>> watchUpcomingTasks({DateTime? now}) {
+    return _dao.watchTaskBundles().map(
+      (items) => items
+          .where(
+            (item) => _scheduler.isUpcoming(
+              item.task,
+              item.template.reminderRule,
+              now ?? DateTime.now(),
+            ),
+          )
+          .toList(growable: false),
     );
   }
 
-  Stream<List<ReminderModel>> watchCompletedOrSkipped({int limit = 30}) {
-    return _dao
-        .watchCompletedOrSkipped(limit: limit)
-        .map((items) => items.map(_toDomain).toList());
-  }
-
-  Stream<ReminderModel?> watchNextReminder() {
-    return _dao.watchNextReminder().map(
-      (item) => item == null ? null : _toDomain(item),
+  Stream<List<TaskBundle>> watchOverdueTasks({DateTime? now}) {
+    return _dao.watchTaskBundles().map(
+      (items) => items
+          .where(
+            (item) => _scheduler.isOverdue(item.task, now ?? DateTime.now()),
+          )
+          .toList(growable: false),
     );
   }
 
-  Stream<List<RecurringReminderModel>> watchAllRecurringReminders() {
-    return _dao.watchAllRecurringReminders().map(
-      (items) => items.map(_toRecurringReminderDomain).toList(),
+  Stream<List<TaskBundle>> watchTaskHistory() {
+    return _dao.watchTaskBundles().map(
+      (items) =>
+          items
+              .where((item) => item.task.status != TaskStatus.pending)
+              .toList(growable: false)
+            ..sort(
+              (a, b) => (b.task.resolvedAt ?? b.task.updatedAt).compareTo(
+                a.task.resolvedAt ?? a.task.updatedAt,
+              ),
+            ),
     );
   }
 
-  @Deprecated('Use watchAllRecurringReminders instead.')
-  Stream<List<RecurringReminderModel>> watchAllSeries() {
-    return watchAllRecurringReminders();
-  }
-
-  Future<ReminderModel?> getEditableById(int id) async {
-    final item = await _dao.getEditableById(id);
-    if (item == null) {
-      return null;
-    }
-    return _toDomain(item);
-  }
-
-  Future<RecurringReminderModel?> getRecurringReminderDetailById(int id) async {
-    final item = await _dao.getRecurringReminderRecordById(id);
-    if (item == null) {
-      return null;
-    }
-    return _toRecurringReminderDomain(item);
-  }
-
-  @Deprecated('Use getRecurringReminderDetailById instead.')
-  Future<RecurringReminderModel?> getSeriesDetailById(int id) {
-    return getRecurringReminderDetailById(id);
-  }
-
-  Future<List<TopicCategoryModel>> listTopicCategories() async {
-    final items = await _dao.listTopicCategories();
-    return items.map(_toTopicCategory).toList();
-  }
-
-  @Deprecated('Use listTopicCategories instead.')
-  Future<List<TopicCategoryModel>> listIssueTypes() {
-    return listTopicCategories();
-  }
-
-  Future<List<ActionCategoryModel>> listActionCategories() async {
-    final items = await _dao.listActionCategories();
-    return items.map(_toActionCategory).toList();
-  }
-
-  @Deprecated('Use listActionCategories instead.')
-  Future<List<ActionCategoryModel>> listHandleTypes() {
-    return listActionCategories();
-  }
-
-  Future<int> create(ReminderInput input) async {
+  Future<int> createTemplate(TaskTemplateInput input) async {
     final now = DateTime.now();
-    final nowMs = now.millisecondsSinceEpoch;
-    final normalizedDueAt = _normalizeToDayStart(input.dueAt);
-    final normalizedStartAt = _normalizeToDayStart(input.startAt ?? now)!;
+    return _dao.insertTaskTemplate(
+      TaskTemplatesCompanion.insert(
+        title: input.title,
+        categoryId: Value(input.categoryId),
+        note: Value(input.note),
+        kind: input.kind.name,
+        status: TaskTemplateStatus.active.name,
+        firstDueDate: _normalizeDate(input.firstDueDate).millisecondsSinceEpoch,
+        repeatRule: Value(input.repeatRule?.encode()),
+        reminderRule: input.reminderRule.encode(),
+        createdAt: now.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
+      ),
+    );
+  }
 
-    int? recurringReminderId;
-    if (input.isRecurring) {
-      recurringReminderId = await _dao.insertRecurringReminder(
-        RecurringRemindersCompanion.insert(
-          title: input.title,
-          note: Value(input.note),
-          trackingMode: input.trackingMode,
-          triggerMode: input.triggerMode,
-          triggerOffsetDays: Value(input.triggerOffsetDays),
-          repeatRule: Value(input.repeatRule),
-          topicCategoryId: Value(input.topicCategoryId),
-          actionCategoryId: Value(input.actionCategoryId),
-          createdAt: nowMs,
-          updatedAt: nowMs,
+  Future<int> createTemplateWithFirstTask(TaskTemplateInput input) async {
+    final templateId = await createTemplate(input);
+    final template = await getTemplateById(templateId);
+    if (template == null) {
+      throw StateError('Failed to create task template.');
+    }
+    await _createTaskFromTemplate(template, dueDate: template.firstDueDate);
+    return templateId;
+  }
+
+  Future<bool> updateTemplate(int id, TaskTemplateInput input) async {
+    final existing = await getTemplateById(id);
+    if (existing == null) {
+      return false;
+    }
+    final now = DateTime.now();
+    return _dao.updateTaskTemplateRecord(
+      TaskTemplateRow(
+        id: id,
+        title: input.title,
+        categoryId: input.categoryId,
+        note: input.note,
+        kind: input.kind.name,
+        status: existing.status.name,
+        firstDueDate: _normalizeDate(input.firstDueDate).millisecondsSinceEpoch,
+        repeatRule: input.repeatRule?.encode(),
+        reminderRule: input.reminderRule.encode(),
+        createdAt: existing.createdAt.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
+      ),
+    );
+  }
+
+  Future<bool> pauseTemplate(int id) async {
+    final existing = await getTemplateById(id);
+    if (existing == null) {
+      return false;
+    }
+    return _dao.updateTaskTemplateRecord(
+      TaskTemplateRow(
+        id: existing.id,
+        title: existing.title,
+        categoryId: existing.categoryId,
+        note: existing.note,
+        kind: existing.kind.name,
+        status: TaskTemplateStatus.paused.name,
+        firstDueDate: existing.firstDueDate.millisecondsSinceEpoch,
+        repeatRule: existing.repeatRule?.encode(),
+        reminderRule: existing.reminderRule.encode(),
+        createdAt: existing.createdAt.millisecondsSinceEpoch,
+        updatedAt: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
+  }
+
+  Future<TaskBundle?> getTaskById(int id) => _dao.getTaskBundleById(id);
+
+  Future<TaskTemplate?> getTemplateById(int id) => _dao.getTaskTemplateById(id);
+
+  Future<bool> updateTask(int id, DateTime dueDate) async {
+    final bundle = await getTaskById(id);
+    if (bundle == null || !bundle.task.isPending) {
+      return false;
+    }
+    return _dao.updateTaskRecord(
+      TaskRow(
+        id: bundle.task.id,
+        templateId: bundle.task.templateId,
+        titleSnapshot: bundle.task.titleSnapshot,
+        noteSnapshot: bundle.task.noteSnapshot,
+        categoryId: bundle.task.categoryId,
+        dueDate: _normalizeDate(dueDate).millisecondsSinceEpoch,
+        deferredDueDate: bundle.task.deferredDueDate?.millisecondsSinceEpoch,
+        status: bundle.task.status.name,
+        createdAt: bundle.task.createdAt.millisecondsSinceEpoch,
+        updatedAt: DateTime.now().millisecondsSinceEpoch,
+        resolvedAt: bundle.task.resolvedAt?.millisecondsSinceEpoch,
+      ),
+    );
+  }
+
+  Future<void> completeTask(int id) =>
+      _dao.transitionTask(id, TaskStatus.done, scheduler: _scheduler);
+
+  Future<void> skipTask(int id) =>
+      _dao.transitionTask(id, TaskStatus.skipped, scheduler: _scheduler);
+
+  Future<void> cancelTask(int id) =>
+      _dao.transitionTask(id, TaskStatus.canceled, scheduler: _scheduler);
+
+  Future<bool> deferTask(int id, int days) => _dao.deferTask(id, days);
+
+  Future<void> _createTaskFromTemplate(
+    TaskTemplate template, {
+    required DateTime dueDate,
+  }) {
+    final now = DateTime.now();
+    return _dao.insertTask(
+      TasksCompanion.insert(
+        templateId: template.id,
+        titleSnapshot: template.title,
+        noteSnapshot: Value(template.note),
+        categoryId: Value(template.categoryId),
+        dueDate: _normalizeDate(dueDate).millisecondsSinceEpoch,
+        deferredDueDate: const Value.absent(),
+        status: TaskStatus.pending.name,
+        createdAt: now.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
+        resolvedAt: const Value.absent(),
+      ),
+    );
+  }
+}
+
+class TimelineRepository {
+  TimelineRepository(this._dao, {TimelineCalculator? calculator})
+    : _calculator = calculator ?? const TimelineCalculator();
+
+  final ReminderDao _dao;
+  final TimelineCalculator _calculator;
+
+  Stream<List<Timeline>> watchTimelines() => _dao.watchTimelines();
+
+  Stream<List<MilestoneBundle>> watchTodayMilestones({DateTime? now}) {
+    return _dao.watchMilestoneBundles().map(
+      (items) => items
+          .where(
+            (item) => _calculator.isToday(
+              item.milestone,
+              item.timeline.milestoneReminderRule,
+              now ?? DateTime.now(),
+            ),
+          )
+          .toList(growable: false),
+    );
+  }
+
+  Stream<List<MilestoneBundle>> watchUpcomingMilestones({DateTime? now}) {
+    return _dao.watchMilestoneBundles().map(
+      (items) => items
+          .where(
+            (item) => _calculator.isUpcoming(
+              item.milestone,
+              item.timeline.milestoneReminderRule,
+              now ?? DateTime.now(),
+            ),
+          )
+          .toList(growable: false),
+    );
+  }
+
+  Stream<List<MilestoneBundle>> watchMilestoneHistory() {
+    return _dao.watchMilestoneBundles().map(
+      (items) =>
+          items
+              .where(
+                (item) => item.milestone.status != MilestoneStatus.upcoming,
+              )
+              .toList(growable: false)
+            ..sort(
+              (a, b) => b.milestone.updatedAt.compareTo(a.milestone.updatedAt),
+            ),
+    );
+  }
+
+  Future<Timeline?> getTimelineById(int id) => _dao.getTimelineById(id);
+
+  Future<int> createTimeline(
+    TimelineInput input, {
+    List<MilestoneInput> customMilestones = const [],
+  }) async {
+    final now = DateTime.now();
+    final timelineId = await _dao.insertTimeline(
+      TimelinesCompanion.insert(
+        title: input.title,
+        startDate: _normalizeDate(input.startDate).millisecondsSinceEpoch,
+        displayUnit: input.displayUnit.name,
+        status: TimelineStatus.active.name,
+        milestoneReminderRule: input.milestoneReminderRule.encode(),
+        createdAt: now.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
+      ),
+    );
+
+    await _regenerateRuleBasedMilestones(
+      timelineId,
+      startDate: input.startDate,
+      displayUnit: input.displayUnit,
+    );
+    for (final item in customMilestones) {
+      await addMilestone(timelineId, item);
+    }
+    return timelineId;
+  }
+
+  Future<bool> updateTimeline(
+    int id,
+    TimelineInput input, {
+    List<MilestoneInput> customMilestones = const [],
+  }) async {
+    final existing = await getTimelineById(id);
+    if (existing == null) {
+      return false;
+    }
+    final success = await _dao.updateTimelineRecord(
+      TimelineRow(
+        id: existing.id,
+        title: input.title,
+        startDate: _normalizeDate(input.startDate).millisecondsSinceEpoch,
+        displayUnit: input.displayUnit.name,
+        status: existing.status.name,
+        milestoneReminderRule: input.milestoneReminderRule.encode(),
+        createdAt: existing.createdAt.millisecondsSinceEpoch,
+        updatedAt: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
+    if (!success) {
+      return false;
+    }
+    await _regenerateRuleBasedMilestones(
+      id,
+      startDate: input.startDate,
+      displayUnit: input.displayUnit,
+    );
+    for (final item in customMilestones) {
+      await addMilestone(id, item);
+    }
+    return true;
+  }
+
+  Future<bool> pauseTimeline(int id) async {
+    final existing = await getTimelineById(id);
+    if (existing == null) {
+      return false;
+    }
+    return _dao.updateTimelineRecord(
+      TimelineRow(
+        id: existing.id,
+        title: existing.title,
+        startDate: existing.startDate.millisecondsSinceEpoch,
+        displayUnit: existing.displayUnit.name,
+        status: TimelineStatus.paused.name,
+        milestoneReminderRule: existing.milestoneReminderRule.encode(),
+        createdAt: existing.createdAt.millisecondsSinceEpoch,
+        updatedAt: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
+  }
+
+  Future<int> addMilestone(int timelineId, MilestoneInput input) {
+    final now = DateTime.now();
+    return _dao.insertMilestone(
+      MilestonesCompanion.insert(
+        timelineId: timelineId,
+        targetDate: _normalizeDate(input.targetDate).millisecondsSinceEpoch,
+        description: Value(input.description),
+        source: input.source.name,
+        status: MilestoneStatus.upcoming.name,
+        createdAt: now.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
+      ),
+    );
+  }
+
+  Future<void> noticeMilestone(int id) => _dao.noticeMilestone(id);
+
+  Future<void> skipMilestone(int id) => _dao.skipMilestone(id);
+
+  Future<void> _regenerateRuleBasedMilestones(
+    int timelineId, {
+    required DateTime startDate,
+    required TimelineDisplayUnit displayUnit,
+  }) async {
+    await _dao.deleteUpcomingRuleBasedMilestones(timelineId);
+    final start = _normalizeDate(startDate);
+    for (var index = 1; index <= 12; index++) {
+      final targetDate = switch (displayUnit) {
+        TimelineDisplayUnit.day => start.add(Duration(days: index - 1)),
+        TimelineDisplayUnit.week => start.add(Duration(days: (index - 1) * 7)),
+        TimelineDisplayUnit.month => DateTime(
+          start.year,
+          start.month + index - 1,
+          start.day,
+        ),
+        TimelineDisplayUnit.year => DateTime(
+          start.year + index - 1,
+          start.month,
+          start.day,
+        ),
+      };
+      await addMilestone(
+        timelineId,
+        MilestoneInput(
+          targetDate: targetDate,
+          description: _ruleBasedMilestoneDescription(displayUnit, index),
+          source: MilestoneSource.ruleBased,
         ),
       );
     }
-
-    return _dao.insertReminder(
-      RemindersCompanion.insert(
-        recurringReminderId: Value(recurringReminderId),
-        previousOccurrenceId: const Value.absent(),
-        trackingMode: input.trackingMode,
-        triggerMode: input.triggerMode,
-        title: input.title,
-        note: Value(input.note),
-        triggerOffsetDays: Value(input.triggerOffsetDays),
-        statusNote: const Value.absent(),
-        dueAt: Value(normalizedDueAt?.millisecondsSinceEpoch),
-        startAt: normalizedStartAt.millisecondsSinceEpoch,
-        deferredDueAt: const Value.absent(),
-        topicCategoryId: Value(input.topicCategoryId),
-        actionCategoryId: Value(input.actionCategoryId),
-        createdAt: nowMs,
-        updatedAt: nowMs,
-      ),
-    );
   }
 
-  Future<int> createRecurringReminderWithFirstOccurrence(
-    ReminderInput input,
-  ) async {
-    final repeatRule = input.repeatRule;
-    if (repeatRule == null || repeatRule.isEmpty) {
-      throw ArgumentError('Recurring reminder requires repeatRule.');
-    }
-
-    final now = DateTime.now();
-    final nowMs = now.millisecondsSinceEpoch;
-    final normalizedDueAt = _normalizeToDayStart(input.dueAt);
-    final normalizedStartAt = _normalizeToDayStart(input.startAt ?? now)!;
-
-    final recurringReminderId = await _dao.insertRecurringReminder(
-      RecurringRemindersCompanion.insert(
-        title: input.title,
-        note: Value(input.note),
-        trackingMode: input.trackingMode,
-        triggerMode: input.triggerMode,
-        triggerOffsetDays: Value(input.triggerOffsetDays),
-        repeatRule: Value(repeatRule),
-        topicCategoryId: Value(input.topicCategoryId),
-        actionCategoryId: Value(input.actionCategoryId),
-        createdAt: nowMs,
-        updatedAt: nowMs,
-      ),
-    );
-
-    await _dao.insertReminder(
-      RemindersCompanion.insert(
-        recurringReminderId: Value(recurringReminderId),
-        previousOccurrenceId: const Value.absent(),
-        trackingMode: input.trackingMode,
-        triggerMode: input.triggerMode,
-        title: input.title,
-        note: Value(input.note),
-        triggerOffsetDays: Value(input.triggerOffsetDays),
-        statusNote: const Value.absent(),
-        dueAt: Value(normalizedDueAt?.millisecondsSinceEpoch),
-        startAt: normalizedStartAt.millisecondsSinceEpoch,
-        deferredDueAt: const Value.absent(),
-        topicCategoryId: Value(input.topicCategoryId),
-        actionCategoryId: Value(input.actionCategoryId),
-        createdAt: nowMs,
-        updatedAt: nowMs,
-      ),
-    );
-
-    return recurringReminderId;
-  }
-
-  @Deprecated('Use createRecurringReminderWithFirstOccurrence instead.')
-  Future<int> createSeriesWithFirstReminder(ReminderInput input) {
-    return createRecurringReminderWithFirstOccurrence(input);
-  }
-
-  Future<bool> updateById(int id, ReminderInput input) async {
-    final existing = await _dao.getById(id);
-    if (existing == null ||
-        existing.reminder.status != ReminderStatus.pending) {
-      return false;
-    }
-
-    final nowMs = DateTime.now().millisecondsSinceEpoch;
-    final normalizedDueAt = _normalizeToDayStart(input.dueAt);
-    final normalizedStartAt =
-        _normalizeToDayStart(input.startAt) ??
-        DateTime.fromMillisecondsSinceEpoch(existing.reminder.startAt);
-    if (existing.recurringReminder != null) {
-      final updatedRecurringReminder = existing.recurringReminder!.copyWith(
-        title: input.title,
-        note: Value(input.note),
-        trackingMode: input.trackingMode,
-        triggerMode: input.triggerMode,
-        triggerOffsetDays: Value(input.triggerOffsetDays),
-        repeatRule: Value(input.repeatRule),
-        topicCategoryId: Value(input.topicCategoryId),
-        actionCategoryId: Value(input.actionCategoryId),
-        updatedAt: nowMs,
-      );
-      await _dao.updateRecurringReminder(updatedRecurringReminder);
-    }
-
-    final updatedReminder = existing.reminder.copyWith(
-      trackingMode: input.trackingMode,
-      triggerMode: input.triggerMode,
-      title: input.title,
-      note: Value(input.note),
-      triggerOffsetDays: Value(input.triggerOffsetDays),
-      dueAt: Value(normalizedDueAt?.millisecondsSinceEpoch),
-      startAt: normalizedStartAt.millisecondsSinceEpoch,
-      topicCategoryId: Value(input.topicCategoryId),
-      actionCategoryId: Value(input.actionCategoryId),
-      updatedAt: nowMs,
-    );
-
-    return _dao.updateReminder(updatedReminder);
-  }
-
-  Future<bool> updateRecurringReminderById(int id, ReminderInput input) async {
-    final existing = await _dao.getRecurringReminderById(id);
-    if (existing == null ||
-        existing.status == RecurringReminderStatus.canceled) {
-      return false;
-    }
-
-    final updatedRecurringReminder = existing.copyWith(
-      title: input.title,
-      note: Value(input.note),
-      // Recurring template type is immutable after creation; the edit UI
-      // locks the fixed-time/from-start choice and this repository preserves it.
-      trackingMode: existing.trackingMode,
-      triggerMode: input.triggerMode,
-      triggerOffsetDays: Value(input.triggerOffsetDays),
-      repeatRule: Value(input.repeatRule),
-      topicCategoryId: Value(input.topicCategoryId),
-      actionCategoryId: Value(input.actionCategoryId),
-      updatedAt: DateTime.now().millisecondsSinceEpoch,
-    );
-    return _dao.updateRecurringReminder(updatedRecurringReminder);
-  }
-
-  @Deprecated('Use updateRecurringReminderById instead.')
-  Future<bool> updateSeriesById(int id, ReminderInput input) {
-    return updateRecurringReminderById(id, input);
-  }
-
-  Future<int> delete(int id) => _dao.deleteReminder(id);
-
-  Future<void> complete(int id) => _dao.complete(id);
-
-  Future<void> commitStagedCompletions(List<int> ids) =>
-      _dao.commitCompleted(ids);
-
-  Future<void> skip(int id) => _dao.skip(id);
-
-  Future<void> cancel(int id) => _dao.cancel(id);
-
-  Future<bool> defer(int id, int days) => _dao.deferReminder(id, days);
-
-  Future<void> restore(int id) => _dao.restore(id);
-
-  Future<void> stopRecurringReminderById(int id) =>
-      _dao.stopRecurringReminder(id);
-
-  @Deprecated('Use stopRecurringReminderById instead.')
-  Future<void> stopSeriesById(int id) => stopRecurringReminderById(id);
-
-  Future<void> cancelRecurringReminderById(int id) =>
-      _dao.cancelRecurringReminder(id);
-
-  @Deprecated('Use cancelRecurringReminderById instead.')
-  Future<void> cancelSeriesById(int id) => cancelRecurringReminderById(id);
-
-  Future<int?> reactivateRecurringReminderById(
-    int id, {
-    DateTime? dueAt,
-    DateTime? startAt,
-  }) {
-    return _dao.reactivateRecurringReminder(
-      id,
-      dueAtEpochMs: _normalizeToDayStart(dueAt)?.millisecondsSinceEpoch,
-      startAtEpochMs: _normalizeToDayStart(startAt)?.millisecondsSinceEpoch,
-    );
-  }
-
-  @Deprecated('Use reactivateRecurringReminderById instead.')
-  Future<int?> reactivateSeriesById(
-    int id, {
-    DateTime? dueAt,
-    DateTime? startAt,
-  }) {
-    return reactivateRecurringReminderById(id, dueAt: dueAt, startAt: startAt);
-  }
-
-  ReminderModel _toDomain(ReminderRecord item) {
-    return ReminderModel(
-      id: item.reminder.id,
-      recurringReminderId: item.reminder.recurringReminderId,
-      previousOccurrenceId: item.reminder.previousOccurrenceId,
-      trackingMode: item.reminder.trackingMode,
-      triggerMode: item.reminder.triggerMode,
-      status: item.reminder.status,
-      title: item.reminder.title,
-      note: item.reminder.note,
-      triggerOffsetDays: item.reminder.triggerOffsetDays,
-      statusNote: item.reminder.statusNote,
-      dueAt: _fromEpoch(item.reminder.dueAt),
-      startAt: DateTime.fromMillisecondsSinceEpoch(item.reminder.startAt),
-      deferredDueAt: _fromEpoch(item.reminder.deferredDueAt),
-      topicCategoryId: item.reminder.topicCategoryId,
-      actionCategoryId: item.reminder.actionCategoryId,
-      topicCategoryName: item.topicCategory?.name,
-      actionCategoryName: item.actionCategory?.name,
-      repeatRule: item.recurringReminder?.repeatRule,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(item.reminder.createdAt),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(item.reminder.updatedAt),
-    );
-  }
-
-  RecurringReminderModel _toRecurringReminderDomain(
-    RecurringReminderRecord item,
+  String _ruleBasedMilestoneDescription(
+    TimelineDisplayUnit displayUnit,
+    int index,
   ) {
-    return RecurringReminderModel(
-      id: item.recurringReminder.id,
-      status: item.recurringReminder.status,
-      title: item.recurringReminder.title,
-      note: item.recurringReminder.note,
-      trackingMode: item.recurringReminder.trackingMode,
-      triggerMode: item.recurringReminder.triggerMode,
-      triggerOffsetDays: item.recurringReminder.triggerOffsetDays,
-      repeatRule: item.recurringReminder.repeatRule,
-      topicCategoryId: item.recurringReminder.topicCategoryId,
-      actionCategoryId: item.recurringReminder.actionCategoryId,
-      topicCategoryName: item.topicCategory?.name,
-      actionCategoryName: item.actionCategory?.name,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(
-        item.recurringReminder.createdAt,
-      ),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(
-        item.recurringReminder.updatedAt,
-      ),
+    return switch (displayUnit) {
+      TimelineDisplayUnit.day => '第 $index 天',
+      TimelineDisplayUnit.week => '第 $index 週',
+      TimelineDisplayUnit.month => '第 $index 個月',
+      TimelineDisplayUnit.year => '第 $index 年',
+    };
+  }
+}
+
+class HomeRepository {
+  HomeRepository({
+    required TaskRepository taskRepository,
+    required TimelineRepository timelineRepository,
+  }) : _taskRepository = taskRepository,
+       _timelineRepository = timelineRepository;
+
+  final TaskRepository _taskRepository;
+  final TimelineRepository _timelineRepository;
+
+  Stream<List<HomeItem>> watchTodayItems() {
+    return _combineLatest(
+      _taskRepository.watchTodayTasks(),
+      _timelineRepository.watchTodayMilestones(),
+      (tasks, milestones) => [
+        ...tasks.map(TaskHomeItem.new),
+        ...milestones.map(MilestoneHomeItem.new),
+      ],
     );
   }
 
-  TopicCategoryModel _toTopicCategory(TopicCategory item) {
-    return TopicCategoryModel(
-      id: item.id,
-      name: item.name,
-      description: item.description,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(item.createdAt),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(item.updatedAt),
+  Stream<List<HomeItem>> watchUpcomingItems() {
+    return _combineLatest(
+      _taskRepository.watchUpcomingTasks(),
+      _timelineRepository.watchUpcomingMilestones(),
+      (tasks, milestones) => [
+        ...tasks.map(TaskHomeItem.new),
+        ...milestones.map(MilestoneHomeItem.new),
+      ],
     );
   }
 
-  ActionCategoryModel _toActionCategory(ActionCategory item) {
-    return ActionCategoryModel(
-      id: item.id,
-      name: item.name,
-      description: item.description,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(item.createdAt),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(item.updatedAt),
+  Stream<List<HistoryItem>> watchHistoryItems() {
+    return _combineLatest(
+      _taskRepository.watchTaskHistory(),
+      _timelineRepository.watchMilestoneHistory(),
+      (tasks, milestones) => [
+        ...tasks.map(TaskHistoryItem.new),
+        ...milestones.map(MilestoneHistoryItem.new),
+      ],
     );
   }
 
-  DateTime? _fromEpoch(int? ms) {
-    if (ms == null) {
-      return null;
+  Stream<T> _combineLatest<A, B, T>(
+    Stream<A> streamA,
+    Stream<B> streamB,
+    T Function(A a, B b) combine,
+  ) {
+    late StreamController<T> controller;
+    StreamSubscription<A>? subA;
+    StreamSubscription<B>? subB;
+    A? latestA;
+    B? latestB;
+
+    void emitIfReady() {
+      final valueA = latestA;
+      final valueB = latestB;
+      if (valueA != null && valueB != null) {
+        controller.add(combine(valueA, valueB));
+      }
     }
-    return DateTime.fromMillisecondsSinceEpoch(ms);
-  }
 
-  DateTime? _normalizeToDayStart(DateTime? value) {
-    if (value == null) {
-      return null;
-    }
-    return DateTime(value.year, value.month, value.day);
+    controller = StreamController<T>.broadcast(
+      onListen: () {
+        subA = streamA.listen((value) {
+          latestA = value;
+          emitIfReady();
+        });
+        subB = streamB.listen((value) {
+          latestB = value;
+          emitIfReady();
+        });
+      },
+      onCancel: () async {
+        await subA?.cancel();
+        await subB?.cancel();
+      },
+    );
+    return controller.stream;
   }
+}
+
+DateTime _normalizeDate(DateTime value) {
+  return DateTime(value.year, value.month, value.day);
 }

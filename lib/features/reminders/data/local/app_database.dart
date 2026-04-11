@@ -11,7 +11,7 @@ import 'tables.dart';
 part 'app_database.g.dart';
 
 @DriftDatabase(
-  tables: [RecurringReminders, TopicCategories, ActionCategories, Reminders],
+  tables: [TaskTemplates, Tasks, Timelines, Milestones],
   daos: [ReminderDao],
 )
 class AppDatabase extends _$AppDatabase {
@@ -19,20 +19,24 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
     onUpgrade: (m, from, to) async {
-      if (from < 5) {
+      if (from < 6) {
         await customStatement('DROP TABLE IF EXISTS reminders');
-        await customStatement('DROP TABLE IF EXISTS reminder_series');
         await customStatement('DROP TABLE IF EXISTS recurring_reminders');
+        await customStatement('DROP TABLE IF EXISTS reminder_series');
         await customStatement('DROP TABLE IF EXISTS issue_types');
         await customStatement('DROP TABLE IF EXISTS topic_categories');
         await customStatement('DROP TABLE IF EXISTS handle_types');
         await customStatement('DROP TABLE IF EXISTS action_categories');
+        await customStatement('DROP TABLE IF EXISTS task_templates');
+        await customStatement('DROP TABLE IF EXISTS tasks');
+        await customStatement('DROP TABLE IF EXISTS timelines');
+        await customStatement('DROP TABLE IF EXISTS milestones');
         await m.createAll();
       }
     },

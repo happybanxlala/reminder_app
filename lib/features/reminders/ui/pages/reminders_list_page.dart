@@ -1,13 +1,11 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../data/local/daos.dart';
 import '../../data/reminder_repository.dart';
-import '../../domain/reminder.dart';
 import '../../presentation/reminder_view_models.dart';
-import '../widgets/reminder_list_tile.dart';
+import 'management_page.dart';
 import 'reminder_edit_page.dart';
 
 class RemindersListPage extends ConsumerStatefulWidget {
@@ -21,497 +19,237 @@ class RemindersListPage extends ConsumerStatefulWidget {
 }
 
 class _RemindersListPageState extends ConsumerState<RemindersListPage>
-    with TickerProviderStateMixin, WidgetsBindingObserver {
+    with SingleTickerProviderStateMixin {
   late final TabController _tabController;
-  final GlobalKey<_PendingListState> _todayListKey =
-      GlobalKey<_PendingListState>();
-  final GlobalKey<_PendingListState> _upcomingListKey =
-      GlobalKey<_PendingListState>();
-  bool _isFlushingPending = false;
-  int _stagedPendingCount = 0;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _tabController = TabController(length: 4, vsync: this);
-    _tabController.addListener(_handleTabChange);
+    _tabController.addListener(() {
+      if (mounted) {
+        setState(() {});
+      }
+    });
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
     super.dispose();
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.paused ||
-        state == AppLifecycleState.detached) {
-      unawaited(_commitAndResetPendingSession());
-    }
-  }
-
-  void _handleTabChange() {
-    if (_tabController.indexIsChanging) {
-      return;
-    }
-    if (_tabController.index > 1) {
-      unawaited(_commitAndResetPendingSession());
-    }
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
-  Future<void> _commitAndResetPendingSession() async {
-    await _flushPendingCompletions();
-  }
-
-  Future<void> _flushPendingCompletions() async {
-    if (_isFlushingPending) {
-      return;
-    }
-    final pendingListStates = [
-      _todayListKey.currentState,
-      _upcomingListKey.currentState,
-    ].whereType<_PendingListState>().toList(growable: false);
-    if (pendingListStates.isEmpty) {
-      return;
-    }
-
-    final stagedIds = pendingListStates
-        .expand((state) => state.stagedReminderIds)
-        .toSet()
-        .toList(growable: false);
-    if (stagedIds.isEmpty) {
-      for (final state in pendingListStates) {
-        state.clearStaged();
-      }
-      return;
-    }
-
-    _isFlushingPending = true;
-    if (mounted) {
-      setState(() {});
-    }
-    try {
-      await ref
-          .read(reminderRepositoryProvider)
-          .commitStagedCompletions(stagedIds);
-      if (mounted) {
-        for (final state in pendingListStates) {
-          state.clearStaged();
-        }
-      }
-    } finally {
-      _isFlushingPending = false;
-      if (mounted) {
-        setState(() {
-          _stagedPendingCount = 0;
-        });
-      }
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final todayAsync = ref.watch(todayPendingProvider);
-    final upcomingAsync = ref.watch(activePendingProvider);
-    final historyAsync = ref.watch(completedOrSkippedProvider);
-    final recurringAsync = ref.watch(recurringRemindersProvider);
-    final isTaskTab = _tabController.index == 0 || _tabController.index == 1;
+    final todayAsync = ref.watch(todayHomeItemsProvider);
+    final upcomingAsync = ref.watch(upcomingHomeItemsProvider);
+    final overdueAsync = ref.watch(overdueTasksProvider);
+    final historyAsync = ref.watch(historyItemsProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(ReminderUiText.appTitle),
+        title: const Text(ReminderUiText.homeTitle),
         actions: [
-          if (isTaskTab && _stagedPendingCount > 0)
-            IconButton(
-              key: const Key('commit-staged-button'),
-              onPressed: _isFlushingPending
-                  ? null
-                  : () async {
-                      await _commitAndResetPendingSession();
-                    },
-              tooltip: '批次完成',
-              icon: const Icon(Icons.done_all),
-            ),
+          IconButton(
+            key: const Key('manage-button'),
+            onPressed: () => context.pushNamed(ManagementPage.routeName),
+            icon: const Icon(Icons.dashboard_customize_outlined),
+            tooltip: ReminderUiText.manageAction,
+          ),
+          IconButton(
+            key: const Key('quick-add-task-template-button'),
+            onPressed: () =>
+                context.pushNamed(ReminderEditPage.taskTemplateNewRouteName),
+            icon: const Icon(Icons.add_task),
+            tooltip: ReminderUiText.addTaskTemplate,
+          ),
         ],
         bottom: TabBar(
           controller: _tabController,
-          onTap: (index) {
-            if (index > 1) {
-              unawaited(_commitAndResetPendingSession());
-            }
-          },
           tabs: const [
             Tab(text: ReminderUiText.todayTab),
             Tab(text: ReminderUiText.upcomingTab),
-            Tab(text: ReminderUiText.completedTab),
-            Tab(text: ReminderUiText.habitTab),
+            Tab(text: ReminderUiText.overdueTab),
+            Tab(text: ReminderUiText.historyTab),
           ],
         ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          todayAsync.when(
-            data: (items) => _PendingList(
-              key: _todayListKey,
-              items: items
-                  .map(PendingReminderItemViewModel.fromDomain)
-                  .toList(growable: false),
-              emptyMessage: ReminderUiText.noTodayTasks,
-              onStagedChanged: (_) => _refreshStagedPendingCount(),
-              onEditReminder: (reminderId) async {
-                await _commitAndResetPendingSession();
-                if (!context.mounted) {
-                  return;
-                }
-                context.pushNamed(
-                  ReminderEditPage.editRouteName,
-                  pathParameters: {'id': reminderId.toString()},
-                );
-              },
-            ),
-            error: (error, stack) => Center(child: Text('讀取失敗: $error')),
-            loading: () => const Center(child: CircularProgressIndicator()),
-          ),
-          upcomingAsync.when(
-            data: (items) => _PendingList(
-              key: _upcomingListKey,
-              items: items
-                  .where((item) => !_isTodayPendingReminder(item))
-                  .map(PendingReminderItemViewModel.fromDomain)
-                  .toList(growable: false),
-              emptyMessage: ReminderUiText.noUpcomingTasks,
-              onStagedChanged: (_) => _refreshStagedPendingCount(),
-              onEditReminder: (reminderId) async {
-                await _commitAndResetPendingSession();
-                if (!context.mounted) {
-                  return;
-                }
-                context.pushNamed(
-                  ReminderEditPage.editRouteName,
-                  pathParameters: {'id': reminderId.toString()},
-                );
-              },
-            ),
-            error: (error, stack) => Center(child: Text('讀取失敗: $error')),
-            loading: () => const Center(child: CircularProgressIndicator()),
-          ),
-          historyAsync.when(
-            data: (items) => _HistoryList(
-              items: items
-                  .map(HistoryReminderItemViewModel.fromDomain)
-                  .toList(growable: false),
-            ),
-            error: (error, stack) => Center(child: Text('讀取失敗: $error')),
-            loading: () => const Center(child: CircularProgressIndicator()),
-          ),
-          recurringAsync.when(
-            data: (items) => _RecurringReminderList(
-              items: items
-                  .map(RecurringReminderItemViewModel.fromDomain)
-                  .toList(growable: false),
-              onEditRecurringReminder: (recurringReminderId) async {
-                await _commitAndResetPendingSession();
-                if (!context.mounted) {
-                  return;
-                }
-                context.pushNamed(
-                  ReminderEditPage.recurringEditRouteName,
-                  pathParameters: {'id': recurringReminderId.toString()},
-                );
-              },
-            ),
-            error: (error, stack) => Center(child: Text('讀取失敗: $error')),
-            loading: () => const Center(child: CircularProgressIndicator()),
-          ),
-        ],
       ),
       floatingActionButton: _tabController.index == 3
           ? null
           : FloatingActionButton.extended(
-              key: const Key('add-reminder-button'),
-              onPressed: () async {
-                await _commitAndResetPendingSession();
-                if (!context.mounted) {
-                  return;
-                }
-                context.pushNamed(ReminderEditPage.newRouteName);
+              key: const Key('fab-add-timeline'),
+              onPressed: () {
+                context.pushNamed(ReminderEditPage.timelineNewRouteName);
               },
-              icon: const Icon(Icons.add),
-              label: const Text(ReminderUiText.addTask),
+              icon: const Icon(Icons.timeline),
+              label: const Text(ReminderUiText.addTimeline),
             ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          todayAsync.when(
+            data: (items) => _HomeItemList(
+              items: items,
+              emptyMessage: ReminderUiText.noTodayItems,
+            ),
+            error: (error, stack) => Text('讀取失敗: $error'),
+            loading: () => const Center(child: CircularProgressIndicator()),
+          ),
+          upcomingAsync.when(
+            data: (items) => _HomeItemList(
+              items: items,
+              emptyMessage: ReminderUiText.noUpcomingItems,
+            ),
+            error: (error, stack) => Text('讀取失敗: $error'),
+            loading: () => const Center(child: CircularProgressIndicator()),
+          ),
+          overdueAsync.when(
+            data: (items) => _OverdueList(items: items),
+            error: (error, stack) => Text('讀取失敗: $error'),
+            loading: () => const Center(child: CircularProgressIndicator()),
+          ),
+          historyAsync.when(
+            data: (items) => _HistoryList(items: items),
+            error: (error, stack) => Text('讀取失敗: $error'),
+            loading: () => const Center(child: CircularProgressIndicator()),
+          ),
+        ],
+      ),
     );
-  }
-
-  void _refreshStagedPendingCount() {
-    if (!mounted) {
-      return;
-    }
-    final count =
-        (_todayListKey.currentState?.stagedReminderIds.length ?? 0) +
-        (_upcomingListKey.currentState?.stagedReminderIds.length ?? 0);
-    if (_stagedPendingCount == count) {
-      return;
-    }
-    setState(() {
-      _stagedPendingCount = count;
-    });
-  }
-
-  bool _isTodayPendingReminder(ReminderModel reminder) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    if (reminder.trackingMode == ReminderTrackingMode.countdown) {
-      final dueAt = reminder.deferredDueAt ?? reminder.dueAt;
-      if (dueAt == null) {
-        return false;
-      }
-      return _isSameDate(dueAt, today);
-    }
-
-    final target = reminder.startAt.add(
-      Duration(days: reminder.triggerOffsetDays ?? 0),
-    );
-    return _isSameDate(target, today);
-  }
-
-  bool _isSameDate(DateTime value, DateTime date) {
-    return value.year == date.year &&
-        value.month == date.month &&
-        value.day == date.day;
   }
 }
 
-class _PendingList extends ConsumerStatefulWidget {
-  const _PendingList({
-    super.key,
-    required this.items,
-    required this.emptyMessage,
-    required this.onStagedChanged,
-    required this.onEditReminder,
-  });
+class _HomeItemList extends ConsumerWidget {
+  const _HomeItemList({required this.items, required this.emptyMessage});
 
-  final List<PendingReminderItemViewModel> items;
+  final List<HomeItem> items;
   final String emptyMessage;
-  final ValueChanged<int> onStagedChanged;
-  final Future<void> Function(int reminderId) onEditReminder;
 
   @override
-  ConsumerState<_PendingList> createState() => _PendingListState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (items.isEmpty) {
+      return Center(child: Text(emptyMessage));
+    }
+    return ListView.builder(
+      itemCount: items.length,
+      itemBuilder: (context, index) {
+        final item = items[index];
+        if (item is TaskHomeItem) {
+          final viewModel = TaskCardViewModel.fromBundle(item.bundle);
+          return Card(
+            child: Column(
+              children: [
+                ListTile(
+                  key: Key('task-item-${viewModel.id}'),
+                  title: Text(viewModel.title),
+                  subtitle: Text(viewModel.subtitle),
+                  trailing: const Text('Task'),
+                  onTap: () {
+                    context.pushNamed(
+                      ReminderEditPage.taskEditRouteName,
+                      pathParameters: {'id': viewModel.id.toString()},
+                    );
+                  },
+                ),
+                OverflowBar(
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        ref
+                            .read(taskRepositoryProvider)
+                            .completeTask(viewModel.id);
+                      },
+                      child: const Text(ReminderUiText.completeAction),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        ref.read(taskRepositoryProvider).skipTask(viewModel.id);
+                      },
+                      child: const Text(ReminderUiText.skipAction),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        ref
+                            .read(taskRepositoryProvider)
+                            .deferTask(viewModel.id, 1);
+                      },
+                      child: const Text(ReminderUiText.deferAction),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        ref
+                            .read(taskRepositoryProvider)
+                            .cancelTask(viewModel.id);
+                      },
+                      child: const Text(ReminderUiText.cancelAction),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        }
+
+        final milestone = (item as MilestoneHomeItem).bundle;
+        final viewModel = MilestoneCardViewModel.fromBundle(milestone);
+        return Card(
+          child: Column(
+            children: [
+              ListTile(
+                key: Key('milestone-item-${viewModel.id}'),
+                title: Text(viewModel.title),
+                subtitle: Text(viewModel.subtitle),
+                trailing: const Text('Milestone'),
+              ),
+              OverflowBar(
+                children: [
+                  TextButton(
+                    onPressed: () {
+                      ref
+                          .read(timelineRepositoryProvider)
+                          .noticeMilestone(viewModel.id);
+                    },
+                    child: const Text(ReminderUiText.noticedAction),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      ref
+                          .read(timelineRepositoryProvider)
+                          .skipMilestone(viewModel.id);
+                    },
+                    child: const Text(ReminderUiText.skipAction),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
 
-class _PendingListState extends ConsumerState<_PendingList> {
-  final Map<int, PendingReminderItemViewModel> _recentDone =
-      <int, PendingReminderItemViewModel>{};
+class _OverdueList extends StatelessWidget {
+  const _OverdueList({required this.items});
 
-  List<int> get stagedReminderIds => _recentDone.keys.toList(growable: false);
-
-  void clearStaged() {
-    if (!mounted) {
-      return;
-    }
-    setState(_recentDone.clear);
-    widget.onStagedChanged(_recentDone.length);
-  }
+  final List<TaskBundle> items;
 
   @override
   Widget build(BuildContext context) {
-    if (widget.items.isEmpty && _recentDone.isEmpty) {
-      return Center(child: Text(widget.emptyMessage));
+    if (items.isEmpty) {
+      return const Center(child: Text(ReminderUiText.noOverdueItems));
     }
-
-    final repository = ref.read(reminderRepositoryProvider);
-    final visibleItems = widget.items
-        .where((item) => !_recentDone.containsKey(item.id))
-        .toList(growable: false);
-
-    final rows = <Widget>[
-      ...visibleItems.map(
-        (reminder) => PendingReminderTile(
-          reminder: reminder,
-          onToggleDone: () async {
-            setState(() {
-              _recentDone[reminder.id] = reminder;
-            });
-            widget.onStagedChanged(_recentDone.length);
-          },
-          onDefer: () async {
-            final days = await _promptDeferDays(context, reminder);
-            if (days == null) {
-              return;
-            }
-            final success = await repository.defer(reminder.id, days);
-            if (!success || !context.mounted) {
-              return;
-            }
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(ReminderUiText.deferredDaysMessage(days))),
-            );
-          },
-          onSkip: () async {
-            await repository.skip(reminder.id);
-          },
-          onCancel: () async {
-            final confirmed = await _confirmCancel(context, reminder);
-            if (!confirmed) {
-              return;
-            }
-            await repository.cancel(reminder.id);
-          },
-          onLongPress: () async {
-            await widget.onEditReminder(reminder.id);
-          },
-        ),
-      ),
-    ];
-
-    if (_recentDone.isNotEmpty) {
-      rows.add(
-        const Padding(
-          padding: EdgeInsets.only(top: 16, bottom: 8),
-          child: Text(
-            ReminderUiText.stagedCompletedHeader,
-            style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600),
-          ),
-        ),
-      );
-
-      rows.addAll(
-        _recentDone.values.map(
-          (reminder) => CompletedPendingTile(
-            reminder: CompletedPendingReminderItemViewModel.fromPending(
-              reminder,
+    return ListView(
+      children: items
+          .map(
+            (item) => ListTile(
+              key: Key('overdue-task-${item.task.id}'),
+              title: Text(item.task.titleSnapshot),
+              subtitle: Text(ReminderFormatters.taskSummary(item)),
+              trailing: const Text('Task'),
             ),
-            onRestore: () async {
-              final confirmed = await _confirmRestore(context);
-              if (!confirmed) {
-                return;
-              }
-              if (!mounted) {
-                return;
-              }
-              setState(() {
-                _recentDone.remove(reminder.id);
-              });
-              widget.onStagedChanged(_recentDone.length);
-            },
-          ),
-        ),
-      );
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: rows.length,
-      separatorBuilder: (_, _) => const Divider(height: 1),
-      itemBuilder: (context, index) => rows[index],
-    );
-  }
-
-  Future<bool> _confirmCancel(
-    BuildContext context,
-    PendingReminderItemViewModel reminder,
-  ) async {
-    final content = ReminderUiText.cancelTaskMessage(
-      isRecurring: reminder.isRecurring,
-    );
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text(ReminderUiText.cancelTask),
-          content: Text(content),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text(ReminderUiText.confirmNo),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text(ReminderUiText.confirmYes),
-            ),
-          ],
-        );
-      },
-    );
-
-    return result ?? false;
-  }
-
-  Future<bool> _confirmRestore(BuildContext context) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text(ReminderUiText.restorePendingTitle),
-          content: const Text(ReminderUiText.restorePendingMessage),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text(ReminderUiText.confirmNo),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text(ReminderUiText.confirmYes),
-            ),
-          ],
-        );
-      },
-    );
-
-    return result ?? false;
-  }
-
-  Future<int?> _promptDeferDays(
-    BuildContext context,
-    PendingReminderItemViewModel reminder,
-  ) async {
-    if (!reminder.canDefer) {
-      return null;
-    }
-
-    final controller = TextEditingController(text: '1');
-    return showDialog<int>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text(ReminderUiText.deferTask),
-          content: TextField(
-            key: const Key('defer-days-field'),
-            controller: controller,
-            autofocus: true,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: '延期天數',
-              hintText: '請輸入 1 或以上',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text(ReminderUiText.cancelActionButton),
-            ),
-            FilledButton(
-              onPressed: () {
-                final days = int.tryParse(controller.text.trim());
-                if (days == null || days < 1) {
-                  return;
-                }
-                Navigator.of(context).pop(days);
-              },
-              child: const Text(ReminderUiText.confirmActionButton),
-            ),
-          ],
-        );
-      },
+          )
+          .toList(growable: false),
     );
   }
 }
@@ -519,301 +257,35 @@ class _PendingListState extends ConsumerState<_PendingList> {
 class _HistoryList extends StatelessWidget {
   const _HistoryList({required this.items});
 
-  final List<HistoryReminderItemViewModel> items;
+  final List<HistoryItem> items;
 
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) {
-      return const Center(child: Text(ReminderUiText.noHistoryTasks));
+      return const Center(child: Text(ReminderUiText.noHistoryItems));
     }
-
-    return Column(
-      children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              ReminderUiText.historyRecentHint,
-              style: TextStyle(color: Colors.grey),
-            ),
-          ),
-        ),
-        Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            itemCount: items.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              return HistoryReminderTile(reminder: items[index]);
-            },
-          ),
-        ),
-      ],
+    return ListView(
+      children: items
+          .map((item) {
+            if (item is TaskHistoryItem) {
+              return ListTile(
+                key: Key('history-task-${item.bundle.task.id}'),
+                title: Text(item.bundle.task.titleSnapshot),
+                subtitle: Text(ReminderFormatters.taskHistory(item.bundle)),
+                trailing: const Text('Task'),
+              );
+            }
+            final milestone = item as MilestoneHistoryItem;
+            return ListTile(
+              key: Key('history-milestone-${milestone.bundle.milestone.id}'),
+              title: Text(milestone.bundle.timeline.title),
+              subtitle: Text(
+                ReminderFormatters.milestoneHistory(milestone.bundle),
+              ),
+              trailing: const Text('Milestone'),
+            );
+          })
+          .toList(growable: false),
     );
   }
-}
-
-class _RecurringReminderList extends ConsumerWidget {
-  const _RecurringReminderList({
-    required this.items,
-    required this.onEditRecurringReminder,
-  });
-
-  final List<RecurringReminderItemViewModel> items;
-  final Future<void> Function(int recurringReminderId) onEditRecurringReminder;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (items.isEmpty) {
-      return const Center(child: Text(ReminderUiText.noHabits));
-    }
-
-    final repository = ref.read(reminderRepositoryProvider);
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: items.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final habit = items[index];
-        return Card(
-          clipBehavior: Clip.antiAlias,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: Colors.grey.shade300),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        habit.title,
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade50,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        habit.typeLabel,
-                        style: Theme.of(context).textTheme.labelMedium
-                            ?.copyWith(
-                              color: Colors.orange.shade800,
-                              fontWeight: FontWeight.w700,
-                            ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  habit.summaryText,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(height: 1.4),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  habit.statusLabel,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: habit.isPending
-                        ? Colors.green.shade700
-                        : habit.isStopped
-                        ? Colors.orange.shade800
-                        : Colors.grey.shade700,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    if (!habit.isCanceled)
-                      OutlinedButton(
-                        key: Key('recurring-edit-button-${habit.id}'),
-                        onPressed: () => onEditRecurringReminder(habit.id),
-                        child: const Text(ReminderUiText.editAction),
-                      ),
-                    if (habit.isPending)
-                      OutlinedButton(
-                        key: Key('recurring-stop-button-${habit.id}'),
-                        onPressed: () async {
-                          final confirmed =
-                              await _confirmRecurringReminderAction(
-                                context,
-                                title: ReminderUiText.stopHabit,
-                                content: ReminderUiText.recurringActionMessage(
-                                  ReminderUiText.stopAction,
-                                ),
-                              );
-                          if (!confirmed) {
-                            return;
-                          }
-                          await repository.stopRecurringReminderById(habit.id);
-                        },
-                        child: const Text(ReminderUiText.stopAction),
-                      ),
-                    if (habit.isPending)
-                      FilledButton.tonal(
-                        key: Key('recurring-cancel-button-${habit.id}'),
-                        onPressed: () async {
-                          final confirmed =
-                              await _confirmRecurringReminderAction(
-                                context,
-                                title: ReminderUiText.cancelHabit,
-                                content: ReminderUiText.recurringActionMessage(
-                                  ReminderUiText.cancelAction,
-                                ),
-                              );
-                          if (!confirmed) {
-                            return;
-                          }
-                          await repository.cancelRecurringReminderById(
-                            habit.id,
-                          );
-                        },
-                        child: const Text(ReminderUiText.cancelAction),
-                      ),
-                    if (habit.isStopped)
-                      FilledButton(
-                        key: Key('recurring-reactivate-button-${habit.id}'),
-                        onPressed: () async {
-                          final reactivation = await _showReactivateDialog(
-                            context,
-                            habit,
-                          );
-                          if (reactivation == null) {
-                            return;
-                          }
-                          await repository.reactivateRecurringReminderById(
-                            habit.id,
-                            dueAt: reactivation.dueAt,
-                            startAt: reactivation.startAt,
-                          );
-                        },
-                        child: const Text(ReminderUiText.reactivateAction),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<bool> _confirmRecurringReminderAction(
-    BuildContext context, {
-    required String title,
-    required String content,
-  }) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(title),
-          content: Text(content),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text(ReminderUiText.confirmNo),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text(ReminderUiText.confirmYes),
-            ),
-          ],
-        );
-      },
-    );
-    return result ?? false;
-  }
-
-  Future<_RecurringReminderReactivationInput?> _showReactivateDialog(
-    BuildContext context,
-    RecurringReminderItemViewModel habit,
-  ) async {
-    final option = await showDialog<_RecurringReminderReactivationOption>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text(ReminderUiText.reactivateHabit),
-          content: Text(habit.isFixedTime ? '選擇新的固定時間方式。' : '選擇新的開始日期方式。'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text(ReminderUiText.cancelActionButton),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(
-                context,
-              ).pop(_RecurringReminderReactivationOption.todayBased),
-              child: Text(habit.isFixedTime ? '依今天推算下一次固定時間' : '從今天開始'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(
-                context,
-              ).pop(_RecurringReminderReactivationOption.manualDate),
-              child: Text(habit.isFixedTime ? '重新選擇固定時間' : '重新選擇開始日期'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (option == null) {
-      return null;
-    }
-    if (!context.mounted) {
-      return null;
-    }
-
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    if (option == _RecurringReminderReactivationOption.todayBased) {
-      return habit.isFixedTime
-          ? _RecurringReminderReactivationInput(
-              dueAt: habit.nextFixedTimeFrom(today),
-            )
-          : _RecurringReminderReactivationInput(startAt: today);
-    }
-
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: today,
-      firstDate: DateTime(now.year - 5),
-      lastDate: DateTime(now.year + 10),
-    );
-    if (picked == null) {
-      return null;
-    }
-
-    final normalized = DateTime(picked.year, picked.month, picked.day);
-    return habit.isFixedTime
-        ? _RecurringReminderReactivationInput(dueAt: normalized)
-        : _RecurringReminderReactivationInput(startAt: normalized);
-  }
-}
-
-enum _RecurringReminderReactivationOption { todayBased, manualDate }
-
-class _RecurringReminderReactivationInput {
-  const _RecurringReminderReactivationInput({this.dueAt, this.startAt});
-
-  final DateTime? dueAt;
-  final DateTime? startAt;
 }

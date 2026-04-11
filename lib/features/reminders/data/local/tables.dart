@@ -1,106 +1,67 @@
 import 'package:drift/drift.dart';
 
-class RecurringReminders extends Table {
+@DataClassName('TaskTemplateRow')
+class TaskTemplates extends Table {
   @override
-  String get tableName => 'recurring_reminders';
+  String get tableName => 'task_templates';
 
   IntColumn get id => integer().autoIncrement()();
-
-  /// 0: pending, 1: stopped, 2: canceled.
-  IntColumn get status => integer().withDefault(const Constant(0))();
-
   TextColumn get title => text()();
-
+  IntColumn get categoryId => integer().nullable()();
   TextColumn get note => text().nullable()();
-
-  /// 1: countdown, 2: count-up.
-  IntColumn get trackingMode => integer()();
-
-  /// 1: in-range, 2: immediate, 3: on-point.
-  IntColumn get triggerMode => integer()();
-
-  IntColumn get triggerOffsetDays => integer().nullable()();
-
-  /// Null means not recurring; otherwise D25 / W3 / M1 / Y1.
+  TextColumn get kind => text()();
+  TextColumn get status => text()();
+  IntColumn get firstDueDate => integer()();
   TextColumn get repeatRule => text().nullable()();
-
-  IntColumn get topicCategoryId => integer().nullable()();
-
-  IntColumn get actionCategoryId => integer().nullable()();
-
+  TextColumn get reminderRule => text()();
   IntColumn get createdAt => integer()();
-
   IntColumn get updatedAt => integer()();
 }
 
-class TopicCategories extends Table {
+@DataClassName('TaskRow')
+class Tasks extends Table {
   @override
-  String get tableName => 'topic_categories';
+  String get tableName => 'tasks';
 
   IntColumn get id => integer().autoIncrement()();
-
-  TextColumn get name => text()();
-
-  TextColumn get description => text().nullable()();
-
+  IntColumn get templateId => integer()();
+  TextColumn get titleSnapshot => text()();
+  TextColumn get noteSnapshot => text().nullable()();
+  IntColumn get categoryId => integer().nullable()();
+  IntColumn get dueDate => integer()();
+  IntColumn get deferredDueDate => integer().nullable()();
+  TextColumn get status => text()();
   IntColumn get createdAt => integer()();
-
   IntColumn get updatedAt => integer()();
+  IntColumn get resolvedAt => integer().nullable()();
 }
 
-class ActionCategories extends Table {
+@DataClassName('TimelineRow')
+class Timelines extends Table {
   @override
-  String get tableName => 'action_categories';
+  String get tableName => 'timelines';
 
   IntColumn get id => integer().autoIncrement()();
-
-  TextColumn get name => text()();
-
-  TextColumn get description => text().nullable()();
-
-  IntColumn get createdAt => integer()();
-
-  IntColumn get updatedAt => integer()();
-}
-
-class Reminders extends Table {
-  @override
-  String get tableName => 'reminders';
-
-  IntColumn get id => integer().autoIncrement()();
-
-  IntColumn get recurringReminderId => integer().nullable()();
-
-  IntColumn get previousOccurrenceId => integer().nullable()();
-
-  /// 1: countdown, 2: count-up.
-  IntColumn get trackingMode => integer()();
-
-  /// 1: in-range, 2: immediate, 3: on-point.
-  IntColumn get triggerMode => integer()();
-
-  /// 0: pending, 1: done, 2: skipped, 3: canceled.
-  IntColumn get status => integer().withDefault(const Constant(0))();
-
   TextColumn get title => text()();
-
-  TextColumn get note => text().nullable()();
-
-  IntColumn get triggerOffsetDays => integer().nullable()();
-
-  TextColumn get statusNote => text().nullable()();
-
-  IntColumn get dueAt => integer().nullable()();
-
-  IntColumn get startAt => integer()();
-
-  IntColumn get deferredDueAt => integer().nullable()();
-
-  IntColumn get topicCategoryId => integer().nullable()();
-
-  IntColumn get actionCategoryId => integer().nullable()();
-
+  IntColumn get startDate => integer()();
+  TextColumn get displayUnit => text()();
+  TextColumn get status => text()();
+  TextColumn get milestoneReminderRule => text()();
   IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+}
 
+@DataClassName('MilestoneRow')
+class Milestones extends Table {
+  @override
+  String get tableName => 'milestones';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get timelineId => integer()();
+  IntColumn get targetDate => integer()();
+  TextColumn get description => text().nullable()();
+  TextColumn get source => text()();
+  TextColumn get status => text()();
+  IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 }

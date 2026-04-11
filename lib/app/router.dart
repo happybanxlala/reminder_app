@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/reminders/ui/pages/management_page.dart';
 import '../features/reminders/ui/pages/reminder_edit_page.dart';
 import '../features/reminders/ui/pages/reminders_list_page.dart';
 
@@ -14,36 +15,47 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const RemindersListPage(),
       ),
       GoRoute(
-        path: ReminderEditPage.newRoutePath,
-        name: ReminderEditPage.newRouteName,
-        builder: (context, state) => const ReminderEditPage(),
+        path: ManagementPage.routePath,
+        name: ManagementPage.routeName,
+        builder: (context, state) => const ManagementPage(),
       ),
       GoRoute(
-        path: ReminderEditPage.editRoutePath,
-        name: ReminderEditPage.editRouteName,
+        path: ReminderEditPage.taskTemplateNewRoutePath,
+        name: ReminderEditPage.taskTemplateNewRouteName,
+        builder: (context, state) =>
+            const ReminderEditPage(mode: ReminderFormMode.taskTemplateCreate),
+      ),
+      GoRoute(
+        path: ReminderEditPage.taskTemplateEditRoutePath,
+        name: ReminderEditPage.taskTemplateEditRouteName,
         builder: (context, state) {
-          final reminderId = int.tryParse(state.pathParameters['id'] ?? '');
+          final id = int.tryParse(state.pathParameters['id'] ?? '');
           return ReminderEditPage(
-            mode: ReminderFormMode.reminderEdit,
-            reminderId: reminderId,
+            mode: ReminderFormMode.taskTemplateEdit,
+            id: id,
           );
         },
       ),
       GoRoute(
-        path: ReminderEditPage.recurringNewRoutePath,
-        name: ReminderEditPage.recurringNewRouteName,
-        builder: (context, state) =>
-            const ReminderEditPage(mode: ReminderFormMode.seriesCreate),
+        path: ReminderEditPage.taskEditRoutePath,
+        name: ReminderEditPage.taskEditRouteName,
+        builder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '');
+          return ReminderEditPage(mode: ReminderFormMode.taskEdit, id: id);
+        },
       ),
       GoRoute(
-        path: ReminderEditPage.recurringEditRoutePath,
-        name: ReminderEditPage.recurringEditRouteName,
+        path: ReminderEditPage.timelineNewRoutePath,
+        name: ReminderEditPage.timelineNewRouteName,
+        builder: (context, state) =>
+            const ReminderEditPage(mode: ReminderFormMode.timelineCreate),
+      ),
+      GoRoute(
+        path: ReminderEditPage.timelineEditRoutePath,
+        name: ReminderEditPage.timelineEditRouteName,
         builder: (context, state) {
-          final seriesId = int.tryParse(state.pathParameters['id'] ?? '');
-          return ReminderEditPage(
-            mode: ReminderFormMode.seriesEdit,
-            seriesId: seriesId,
-          );
+          final id = int.tryParse(state.pathParameters['id'] ?? '');
+          return ReminderEditPage(mode: ReminderFormMode.timelineEdit, id: id);
         },
       ),
     ],

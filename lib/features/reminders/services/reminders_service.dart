@@ -1,17 +1,12 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../data/reminder_repository.dart';
-import '../domain/reminder.dart';
-
-@Deprecated('Use reminderRepositoryProvider and stream providers directly.')
-final remindersServiceProvider = Provider<RemindersService>((ref) {
-  return RemindersService(ref.watch(reminderRepositoryProvider));
-});
+import '../domain/task_scheduler.dart';
+import '../domain/timeline_calculator.dart';
 
 class RemindersService {
-  const RemindersService(this._repository);
+  const RemindersService({
+    this.taskScheduler = const TaskScheduler(),
+    this.timelineCalculator = const TimelineCalculator(),
+  });
 
-  final ReminderRepository _repository;
-
-  Stream<List<ReminderModel>> watchAll() => _repository.watchAll();
+  final TaskScheduler taskScheduler;
+  final TimelineCalculator timelineCalculator;
 }
