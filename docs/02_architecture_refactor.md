@@ -38,6 +38,7 @@ Key decisions:
   - computes display counters
   - classifies milestone today / upcoming
   - computes milestone reminder dates
+  - supports rule-based milestone windows within the next 1 year for MVP
 
 ## UI Shape
 

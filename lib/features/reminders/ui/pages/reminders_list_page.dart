@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../data/local/daos.dart';
 import '../../data/reminder_repository.dart';
 import '../../presentation/reminder_view_models.dart';
+import 'history_page.dart';
 import 'management_page.dart';
 import 'reminder_edit_page.dart';
 
@@ -25,7 +26,7 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(() {
       if (mounted) {
         setState(() {});
@@ -44,12 +45,17 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
     final todayAsync = ref.watch(todayHomeItemsProvider);
     final upcomingAsync = ref.watch(upcomingHomeItemsProvider);
     final overdueAsync = ref.watch(overdueTasksProvider);
-    final historyAsync = ref.watch(historyItemsProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text(ReminderUiText.homeTitle),
         actions: [
+          IconButton(
+            key: const Key('history-button'),
+            onPressed: () => context.pushNamed(HistoryPage.routeName),
+            icon: const Icon(Icons.history),
+            tooltip: ReminderUiText.historyAction,
+          ),
           IconButton(
             key: const Key('manage-button'),
             onPressed: () => context.pushNamed(ManagementPage.routeName),
@@ -57,11 +63,11 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
             tooltip: ReminderUiText.manageAction,
           ),
           IconButton(
-            key: const Key('quick-add-task-template-button'),
+            key: const Key('quick-add-task-button'),
             onPressed: () =>
-                context.pushNamed(ReminderEditPage.taskTemplateNewRouteName),
+                context.pushNamed(ReminderEditPage.taskNewRouteName),
             icon: const Icon(Icons.add_task),
-            tooltip: ReminderUiText.addTaskTemplate,
+            tooltip: ReminderUiText.addTask,
           ),
         ],
         bottom: TabBar(
@@ -70,20 +76,9 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
             Tab(text: ReminderUiText.todayTab),
             Tab(text: ReminderUiText.upcomingTab),
             Tab(text: ReminderUiText.overdueTab),
-            Tab(text: ReminderUiText.historyTab),
           ],
         ),
       ),
-      floatingActionButton: _tabController.index == 3
-          ? null
-          : FloatingActionButton.extended(
-              key: const Key('fab-add-timeline'),
-              onPressed: () {
-                context.pushNamed(ReminderEditPage.timelineNewRouteName);
-              },
-              icon: const Icon(Icons.timeline),
-              label: const Text(ReminderUiText.addTimeline),
-            ),
       body: TabBarView(
         controller: _tabController,
         children: [
@@ -105,11 +100,6 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
           ),
           overdueAsync.when(
             data: (items) => _OverdueList(items: items),
-            error: (error, stack) => Text('讀取失敗: $error'),
-            loading: () => const Center(child: CircularProgressIndicator()),
-          ),
-          historyAsync.when(
-            data: (items) => _HistoryList(items: items),
             error: (error, stack) => Text('讀取失敗: $error'),
             loading: () => const Center(child: CircularProgressIndicator()),
           ),
@@ -249,42 +239,6 @@ class _OverdueList extends StatelessWidget {
               trailing: const Text('Task'),
             ),
           )
-          .toList(growable: false),
-    );
-  }
-}
-
-class _HistoryList extends StatelessWidget {
-  const _HistoryList({required this.items});
-
-  final List<HistoryItem> items;
-
-  @override
-  Widget build(BuildContext context) {
-    if (items.isEmpty) {
-      return const Center(child: Text(ReminderUiText.noHistoryItems));
-    }
-    return ListView(
-      children: items
-          .map((item) {
-            if (item is TaskHistoryItem) {
-              return ListTile(
-                key: Key('history-task-${item.bundle.task.id}'),
-                title: Text(item.bundle.task.titleSnapshot),
-                subtitle: Text(ReminderFormatters.taskHistory(item.bundle)),
-                trailing: const Text('Task'),
-              );
-            }
-            final milestone = item as MilestoneHistoryItem;
-            return ListTile(
-              key: Key('history-milestone-${milestone.bundle.milestone.id}'),
-              title: Text(milestone.bundle.timeline.title),
-              subtitle: Text(
-                ReminderFormatters.milestoneHistory(milestone.bundle),
-              ),
-              trailing: const Text('Milestone'),
-            );
-          })
           .toList(growable: false),
     );
   }

@@ -30,6 +30,7 @@ void main() {
 
       expect(upcoming, isNotEmpty);
       expect(history, isEmpty);
+      expect(upcoming.length, 365);
     },
   );
 
@@ -59,6 +60,62 @@ void main() {
       final history = await repository.watchMilestoneHistory().first;
       expect(history, hasLength(1));
       expect(history.single.milestone.status, MilestoneStatus.noticed);
+    },
+  );
+
+  test(
+    'timeline update keeps custom milestones and refreshes rule-based range',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = TimelineRepository(db.reminderDao);
+
+      final timelineId = await repository.createTimeline(
+        TimelineInput(
+          title: 'Sober',
+          startDate: DateTime(2026, 4, 10),
+          displayUnit: TimelineDisplayUnit.month,
+          milestoneReminderRule: const MilestoneReminderRule.onDay(),
+        ),
+      customMilestones: [
+        MilestoneInput(
+          targetDate: DateTime(2026, 5, 1),
+          description: '30 days',
+          source: MilestoneSource.custom,
+        ),
+      ],
+      );
+
+      final detailBefore = await repository.getTimelineDetailById(timelineId);
+      expect(detailBefore, isNotNull);
+      expect(detailBefore!.customMilestones, hasLength(1));
+      expect(detailBefore.ruleBasedMilestones, hasLength(12));
+
+      await repository.updateTimeline(
+        timelineId,
+        TimelineInput(
+          title: 'Sober',
+          startDate: DateTime(2026, 4, 10),
+          displayUnit: TimelineDisplayUnit.year,
+          milestoneReminderRule: const MilestoneReminderRule.onDay(),
+        ),
+      customMilestones: [
+        MilestoneInput(
+          targetDate: DateTime(2026, 6, 1),
+          description: '60 days',
+          source: MilestoneSource.custom,
+          ),
+        ],
+      );
+
+      final detailAfter = await repository.getTimelineDetailById(timelineId);
+      expect(detailAfter, isNotNull);
+      expect(detailAfter!.customMilestones, hasLength(1));
+      expect(
+        detailAfter.customMilestones.single.milestone.description,
+        '60 days',
+      );
+      expect(detailAfter.ruleBasedMilestones, hasLength(1));
     },
   );
 }

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/reminders/ui/pages/history_page.dart';
 import '../features/reminders/ui/pages/management_page.dart';
 import '../features/reminders/ui/pages/reminder_edit_page.dart';
 import '../features/reminders/ui/pages/reminders_list_page.dart';
@@ -18,6 +19,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: ManagementPage.routePath,
         name: ManagementPage.routeName,
         builder: (context, state) => const ManagementPage(),
+      ),
+      GoRoute(
+        path: HistoryPage.routePath,
+        name: HistoryPage.routeName,
+        builder: (context, state) => const HistoryPage(),
+      ),
+      GoRoute(
+        path: ReminderEditPage.taskNewRoutePath,
+        name: ReminderEditPage.taskNewRouteName,
+        builder: (context, state) =>
+            const ReminderEditPage(mode: ReminderFormMode.taskCreate),
       ),
       GoRoute(
         path: ReminderEditPage.taskTemplateNewRoutePath,

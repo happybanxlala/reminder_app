@@ -27,6 +27,18 @@ class MilestoneBundle {
   final Timeline timeline;
 }
 
+class TimelineDetailRecord {
+  const TimelineDetailRecord({
+    required this.timeline,
+    required this.customMilestones,
+    required this.ruleBasedMilestones,
+  });
+
+  final Timeline timeline;
+  final List<MilestoneBundle> customMilestones;
+  final List<MilestoneBundle> ruleBasedMilestones;
+}
+
 @DriftAccessor(tables: [TaskTemplates, Tasks, Timelines, Milestones])
 class ReminderDao extends DatabaseAccessor<AppDatabase>
     with _$ReminderDaoMixin {
@@ -133,6 +145,23 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     ).get().then((rows) => rows.map(_mapMilestoneBundle).toList());
   }
 
+  Future<TimelineDetailRecord?> getTimelineDetailRecordById(int id) async {
+    final timeline = await getTimelineById(id);
+    if (timeline == null) {
+      return null;
+    }
+    final milestones = await listMilestoneBundlesForTimeline(id);
+    return TimelineDetailRecord(
+      timeline: timeline,
+      customMilestones: milestones
+          .where((item) => item.milestone.source == MilestoneSource.custom)
+          .toList(growable: false),
+      ruleBasedMilestones: milestones
+          .where((item) => item.milestone.source == MilestoneSource.ruleBased)
+          .toList(growable: false),
+    );
+  }
+
   Future<MilestoneBundle?> getMilestoneBundleById(int id) async {
     final rows = await _milestoneBundleQuery(
       where: (m) => m.id.equals(id),
@@ -149,6 +178,16 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
           (m) =>
               m.timelineId.equals(timelineId) &
               m.source.equals(MilestoneSource.ruleBased.name) &
+              m.status.equals(MilestoneStatus.upcoming.name),
+        ))
+        .go();
+  }
+
+  Future<void> deleteUpcomingCustomMilestones(int timelineId) {
+    return (delete(milestones)..where(
+          (m) =>
+              m.timelineId.equals(timelineId) &
+              m.source.equals(MilestoneSource.custom.name) &
               m.status.equals(MilestoneStatus.upcoming.name),
         ))
         .go();

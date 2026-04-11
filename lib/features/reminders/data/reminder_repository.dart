@@ -52,6 +52,14 @@ final historyItemsProvider = StreamProvider<List<HistoryItem>>((ref) {
   return ref.watch(homeRepositoryProvider).watchHistoryItems();
 });
 
+final taskHistoryProvider = StreamProvider<List<TaskBundle>>((ref) {
+  return ref.watch(taskRepositoryProvider).watchTaskHistory();
+});
+
+final milestoneHistoryProvider = StreamProvider<List<MilestoneBundle>>((ref) {
+  return ref.watch(timelineRepositoryProvider).watchMilestoneHistory();
+});
+
 final taskTemplatesProvider = StreamProvider<List<TaskTemplate>>((ref) {
   return ref.watch(taskRepositoryProvider).watchTemplates();
 });
@@ -74,6 +82,11 @@ final taskTemplateDetailProvider = FutureProvider.family<TaskTemplate?, int>((
 final timelineDetailProvider = FutureProvider.family<Timeline?, int>((ref, id) {
   return ref.watch(timelineRepositoryProvider).getTimelineById(id);
 });
+
+final timelineEditorDetailProvider =
+    FutureProvider.family<TimelineDetail?, int>((ref, id) {
+      return ref.watch(timelineRepositoryProvider).getTimelineDetailById(id);
+    });
 
 class TaskTemplateInput {
   const TaskTemplateInput({
@@ -119,6 +132,18 @@ class MilestoneInput {
   final DateTime targetDate;
   final String? description;
   final MilestoneSource source;
+}
+
+class TimelineDetail {
+  const TimelineDetail({
+    required this.timeline,
+    required this.customMilestones,
+    required this.ruleBasedMilestones,
+  });
+
+  final Timeline timeline;
+  final List<MilestoneBundle> customMilestones;
+  final List<MilestoneBundle> ruleBasedMilestones;
 }
 
 sealed class HomeItem {
@@ -401,6 +426,18 @@ class TimelineRepository {
 
   Future<Timeline?> getTimelineById(int id) => _dao.getTimelineById(id);
 
+  Future<TimelineDetail?> getTimelineDetailById(int id) async {
+    final record = await _dao.getTimelineDetailRecordById(id);
+    if (record == null) {
+      return null;
+    }
+    return TimelineDetail(
+      timeline: record.timeline,
+      customMilestones: record.customMilestones,
+      ruleBasedMilestones: record.ruleBasedMilestones,
+    );
+  }
+
   Future<int> createTimeline(
     TimelineInput input, {
     List<MilestoneInput> customMilestones = const [],
@@ -458,9 +495,7 @@ class TimelineRepository {
       startDate: input.startDate,
       displayUnit: input.displayUnit,
     );
-    for (final item in customMilestones) {
-      await addMilestone(id, item);
-    }
+    await _replaceUpcomingCustomMilestones(id, customMilestones);
     return true;
   }
 
@@ -509,7 +544,11 @@ class TimelineRepository {
   }) async {
     await _dao.deleteUpcomingRuleBasedMilestones(timelineId);
     final start = _normalizeDate(startDate);
-    for (var index = 1; index <= 12; index++) {
+    for (
+      var index = 1;
+      index <= _ruleBasedMilestoneCount(displayUnit);
+      index++
+    ) {
       final targetDate = switch (displayUnit) {
         TimelineDisplayUnit.day => start.add(Duration(days: index - 1)),
         TimelineDisplayUnit.week => start.add(Duration(days: (index - 1) * 7)),
@@ -533,6 +572,25 @@ class TimelineRepository {
         ),
       );
     }
+  }
+
+  Future<void> _replaceUpcomingCustomMilestones(
+    int timelineId,
+    List<MilestoneInput> milestones,
+  ) async {
+    await _dao.deleteUpcomingCustomMilestones(timelineId);
+    for (final item in milestones) {
+      await addMilestone(timelineId, item);
+    }
+  }
+
+  int _ruleBasedMilestoneCount(TimelineDisplayUnit displayUnit) {
+    return switch (displayUnit) {
+      TimelineDisplayUnit.day => 365,
+      TimelineDisplayUnit.week => 53,
+      TimelineDisplayUnit.month => 12,
+      TimelineDisplayUnit.year => 1,
+    };
   }
 
   String _ruleBasedMilestoneDescription(
