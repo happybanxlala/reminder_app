@@ -67,19 +67,30 @@ void main() {
 
     expect(find.text('Old task'), findsOneWidget);
     expect(find.text('Milestone'), findsNothing);
+    expect(find.text('完成'), findsOneWidget);
+    expect(find.text('跳過'), findsOneWidget);
+    expect(find.text('延期 1 天'), findsOneWidget);
+    expect(find.text('取消'), findsOneWidget);
   });
 
-  testWidgets('history page separates task and milestone sections', (
+  testWidgets('history page paginates task and milestone sections', (
     tester,
   ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           taskHistoryProvider.overrideWith(
-            (ref) => Stream.value([_taskBundle(title: 'Completed task')]),
+            (ref) => Stream.value(
+              List.generate(11, (index) => _taskBundle(title: 'Task $index')),
+            ),
           ),
           milestoneHistoryProvider.overrideWith(
-            (ref) => Stream.value([_milestoneBundle(title: 'Dating')]),
+            (ref) => Stream.value(
+              List.generate(
+                11,
+                (index) => _milestoneBundle(title: 'Timeline $index'),
+              ),
+            ),
           ),
         ],
         child: const MaterialApp(home: HistoryPage()),
@@ -88,26 +99,48 @@ void main() {
     await tester.pump();
 
     expect(find.text('Task History'), findsOneWidget);
+    expect(find.text('Task 0'), findsOneWidget);
+    expect(find.text('Task 9'), findsOneWidget);
+    expect(find.text('Task 10'), findsNothing);
+    expect(find.textContaining('最後更新'), findsWidgets);
+
+    await tester.ensureVisible(find.byKey(const Key('task-history-next')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('task-history-next')));
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView), const Offset(0, 600));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 / 2'), findsWidgets);
+    expect(find.text('Task 10'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('Milestone History', skipOffstage: false),
+      400,
+    );
+    await tester.pumpAndSettle();
+
     expect(find.text('Milestone History'), findsOneWidget);
-    expect(find.text('Completed task'), findsOneWidget);
-    expect(find.text('Dating'), findsOneWidget);
   });
 }
 
 TaskBundle _taskBundle({required String title}) {
+  final id = title.hashCode;
   return TaskBundle(
     task: Task(
-      id: 1,
+      id: id,
       templateId: 1,
+      kind: TaskKind.oneTime,
       titleSnapshot: title,
       dueDate: DateTime(2026, 4, 10),
+      reminderRule: const ReminderRule.onDue(),
       status: TaskStatus.done,
       createdAt: DateTime(2026, 4, 1),
       updatedAt: DateTime(2026, 4, 1),
       resolvedAt: DateTime(2026, 4, 10),
     ),
     template: TaskTemplate(
-      id: 1,
+      id: id,
       title: title,
       kind: TaskKind.oneTime,
       status: TaskTemplateStatus.active,
@@ -120,10 +153,11 @@ TaskBundle _taskBundle({required String title}) {
 }
 
 MilestoneBundle _milestoneBundle({required String title}) {
+  final id = title.hashCode;
   return MilestoneBundle(
     milestone: Milestone(
-      id: 1,
-      timelineId: 1,
+      id: id,
+      timelineId: id,
       targetDate: DateTime(2026, 4, 10),
       description: '30 days',
       source: MilestoneSource.custom,
@@ -132,7 +166,7 @@ MilestoneBundle _milestoneBundle({required String title}) {
       updatedAt: DateTime(2026, 4, 1),
     ),
     timeline: Timeline(
-      id: 1,
+      id: id,
       title: title,
       startDate: DateTime(2026, 4, 1),
       displayUnit: TimelineDisplayUnit.day,

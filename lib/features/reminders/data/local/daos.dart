@@ -17,7 +17,7 @@ class TaskBundle {
   const TaskBundle({required this.task, required this.template});
 
   final Task task;
-  final TaskTemplate template;
+  final TaskTemplate? template;
 }
 
 class MilestoneBundle {
@@ -213,17 +213,25 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
         ),
       );
 
+      final template = bundle.template;
       if ((nextStatus == TaskStatus.done || nextStatus == TaskStatus.skipped) &&
-          bundle.template.kind == TaskKind.recurring &&
-          bundle.template.status == TaskTemplateStatus.active) {
-        final nextDueDate = scheduler.nextDueDate(bundle.task, bundle.template);
+          bundle.task.isRecurring &&
+          template != null &&
+          template.status == TaskTemplateStatus.active) {
+        final nextDueDate = scheduler.nextDueDate(
+          bundle.task,
+          template.repeatRule,
+        );
         await insertTask(
           TasksCompanion.insert(
-            templateId: bundle.template.id,
-            titleSnapshot: bundle.template.title,
-            noteSnapshot: Value(bundle.template.note),
-            categoryId: Value(bundle.template.categoryId),
+            templateId: Value(template.id),
+            kind: template.kind.name,
+            titleSnapshot: template.title,
+            noteSnapshot: Value(template.note),
+            categoryId: Value(template.categoryId),
             dueDate: nextDueDate.millisecondsSinceEpoch,
+            repeatRule: Value(template.repeatRule?.encode()),
+            reminderRule: template.reminderRule.encode(),
             deferredDueDate: const Value.absent(),
             status: TaskStatus.pending.name,
             createdAt: now.millisecondsSinceEpoch,
@@ -233,15 +241,10 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
         );
       }
 
-      if (nextStatus == TaskStatus.canceled) {
-        await (update(
-          taskTemplates,
-        )..where((t) => t.id.equals(bundle.template.id))).write(
-          TaskTemplatesCompanion(
-            status: Value(TaskTemplateStatus.paused.name),
-            updatedAt: Value(now.millisecondsSinceEpoch),
-          ),
-        );
+      if (nextStatus == TaskStatus.canceled &&
+          bundle.task.isRecurring &&
+          template != null) {
+        await _pauseTemplateAndCancelPendingTasks(template.id, now);
       }
     });
   }
@@ -289,7 +292,10 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     int? limit,
   }) {
     final query = select(tasks).join([
-      innerJoin(taskTemplates, taskTemplates.id.equalsExp(tasks.templateId)),
+      leftOuterJoin(
+        taskTemplates,
+        taskTemplates.id.equalsExp(tasks.templateId),
+      ),
     ]);
     if (where != null) {
       query.where(where(tasks));
@@ -327,7 +333,9 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
   TaskBundle _mapTaskBundle(TypedResult row) {
     return TaskBundle(
       task: _toTask(row.readTable(tasks)),
-      template: _toTaskTemplate(row.readTable(taskTemplates)),
+      template: row.readTableOrNull(taskTemplates) == null
+          ? null
+          : _toTaskTemplate(row.readTable(taskTemplates)),
     );
   }
 
@@ -358,10 +366,13 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     return Task(
       id: row.id,
       templateId: row.templateId,
+      kind: TaskKind.values.byName(row.kind),
       titleSnapshot: row.titleSnapshot,
       noteSnapshot: row.noteSnapshot,
       categoryId: row.categoryId,
       dueDate: DateTime.fromMillisecondsSinceEpoch(row.dueDate),
+      repeatRule: RepeatRule.parse(row.repeatRule),
+      reminderRule: ReminderRule.decode(row.reminderRule),
       deferredDueDate: row.deferredDueDate == null
           ? null
           : DateTime.fromMillisecondsSinceEpoch(row.deferredDueDate!),
@@ -372,6 +383,31 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
           ? null
           : DateTime.fromMillisecondsSinceEpoch(row.resolvedAt!),
     );
+  }
+
+  Future<void> _pauseTemplateAndCancelPendingTasks(
+    int templateId,
+    DateTime now,
+  ) async {
+    await (update(taskTemplates)..where((t) => t.id.equals(templateId))).write(
+      TaskTemplatesCompanion(
+        status: Value(TaskTemplateStatus.paused.name),
+        updatedAt: Value(now.millisecondsSinceEpoch),
+      ),
+    );
+    await (update(tasks)..where(
+          (t) =>
+              t.templateId.equals(templateId) &
+              t.status.equals(TaskStatus.pending.name),
+        ))
+        .write(
+          TasksCompanion(
+            status: Value(TaskStatus.canceled.name),
+            deferredDueDate: const Value(null),
+            updatedAt: Value(now.millisecondsSinceEpoch),
+            resolvedAt: Value(now.millisecondsSinceEpoch),
+          ),
+        );
   }
 
   Timeline _toTimeline(TimelineRow row) {

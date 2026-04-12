@@ -5,8 +5,10 @@ import '../../domain/milestone.dart';
 import '../../domain/reminder_rule.dart';
 import '../../domain/repeat_rule.dart';
 import '../../domain/task.dart';
+import '../../domain/task_template.dart';
 import '../../domain/timeline.dart';
 import '../../domain/timeline_calculator.dart';
+import '../text/reminder_ui_text.dart';
 
 class ReminderFormatters {
   const ReminderFormatters._();
@@ -15,16 +17,23 @@ class ReminderFormatters {
     return DateFormat('yyyy/MM/dd').format(value.toLocal());
   }
 
+  static String dateTime(DateTime value) {
+    return DateFormat('yyyy/MM/dd HH:mm').format(value.toLocal());
+  }
+
   static String taskSummary(TaskBundle bundle) {
     final task = bundle.task;
-    final template = bundle.template;
-    final rule = template.repeatRule;
+    final rule = task.repeatRule;
     final repeatText = rule == null ? '單次' : repeatRule(rule);
-    return '${date(task.effectiveDueDate)} • $repeatText • ${reminderRule(template.reminderRule)}';
+    return '${date(task.effectiveDueDate)} • $repeatText • ${reminderRule(task.reminderRule)}';
   }
 
   static String taskHistory(TaskBundle bundle) {
     return '${bundle.task.status.name} • ${date(bundle.task.effectiveDueDate)}';
+  }
+
+  static String taskHistoryUpdatedAt(TaskBundle bundle) {
+    return '${ReminderUiText.updatedAtLabel}：${dateTime(bundle.task.updatedAt)}';
   }
 
   static String milestoneSummary(
@@ -44,6 +53,10 @@ class ReminderFormatters {
     return '${bundle.milestone.status.name} • ${date(bundle.milestone.targetDate)}';
   }
 
+  static String milestoneHistoryUpdatedAt(MilestoneBundle bundle) {
+    return '${ReminderUiText.updatedAtLabel}：${dateTime(bundle.milestone.updatedAt)}';
+  }
+
   static String templateSummary(
     RepeatRule? repeatRuleValue,
     ReminderRule reminder,
@@ -56,6 +69,21 @@ class ReminderFormatters {
 
   static String timelineSummary(Timeline timeline) {
     return '${date(timeline.startDate)} • ${displayUnitLabel(timeline.displayUnit)}';
+  }
+
+  static String taskTemplateStatus(TaskTemplateStatus status) {
+    return switch (status) {
+      TaskTemplateStatus.active => 'active',
+      TaskTemplateStatus.paused => 'paused',
+      TaskTemplateStatus.archived => 'archived',
+    };
+  }
+
+  static String timelineStatus(TimelineStatus status) {
+    return switch (status) {
+      TimelineStatus.active => 'active',
+      TimelineStatus.archived => 'archived',
+    };
   }
 
   static String repeatRule(RepeatRule rule) {

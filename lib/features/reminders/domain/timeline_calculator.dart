@@ -42,10 +42,9 @@ class TimelineCalculator {
   ) {
     final today = DateTime(now.year, now.month, now.day);
     final tomorrow = today.add(const Duration(days: 1));
-    final date = reminderDate(milestone, reminderRule);
     return milestone.status == MilestoneStatus.upcoming &&
-        !date.isBefore(today) &&
-        date.isBefore(tomorrow);
+        !milestone.targetDate.isBefore(today) &&
+        milestone.targetDate.isBefore(tomorrow);
   }
 
   bool isUpcoming(
@@ -54,7 +53,16 @@ class TimelineCalculator {
     DateTime now,
   ) {
     final today = DateTime(now.year, now.month, now.day);
-    final date = reminderDate(milestone, reminderRule);
-    return milestone.status == MilestoneStatus.upcoming && date.isAfter(today);
+    if (milestone.status != MilestoneStatus.upcoming ||
+        !milestone.targetDate.isAfter(today)) {
+      return false;
+    }
+
+    return switch (reminderRule.type) {
+      MilestoneReminderRuleType.advance => !today.isBefore(
+        reminderDate(milestone, reminderRule),
+      ),
+      MilestoneReminderRuleType.onDay => false,
+    };
   }
 }

@@ -38,6 +38,15 @@ class ReminderUiText {
   static const cancelAction = '取消';
   static const deferAction = '延期 1 天';
   static const noticedAction = '已看過';
+  static const editAction = '編輯';
+  static const pauseAction = '暫停';
+  static const resumeAction = '恢復';
+  static const archiveAction = '封存';
+  static const viewAllAction = '查看全部';
+  static const collapseAction = '收起';
+  static const updatedAtLabel = '最後更新';
+  static const previousPageAction = '上一頁';
+  static const nextPageAction = '下一頁';
   static const pausedLabel = 'Paused';
   static const archivedLabel = 'Archived';
 }

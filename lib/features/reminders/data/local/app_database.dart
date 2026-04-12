@@ -19,13 +19,13 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
     onUpgrade: (m, from, to) async {
-      if (from < 6) {
+      if (from < 7) {
         await customStatement('DROP TABLE IF EXISTS reminders');
         await customStatement('DROP TABLE IF EXISTS recurring_reminders');
         await customStatement('DROP TABLE IF EXISTS reminder_series');

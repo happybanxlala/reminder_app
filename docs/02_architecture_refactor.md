@@ -24,19 +24,23 @@ Drift tables:
 
 Key decisions:
 
-- `tasks` keep snapshot fields such as `titleSnapshot` so template edits do not rewrite historical tasks.
-- `task_templates` own repeat and reminder rules.
+- one-time task is stored directly in `tasks` and may have `templateId = null`.
+- `tasks` keep snapshot fields such as `titleSnapshot`, `repeatRule`, and `reminderRule` so template edits do not rewrite historical tasks.
+- `task_templates` own recurring template lifecycle, but task-side reminder/repeat snapshots are persisted onto each task row.
 - `milestones` are separate from tasks and are excluded from overdue queries by design.
+- `timelines` no longer use a `paused` status; active and archived are sufficient.
 
 ## Domain Services
 
 - `TaskScheduler`
   - classifies today / upcoming / overdue
-  - computes reminder start from `ReminderRule`
+  - `Today`: `effectiveDueDate == today`
+  - `Upcoming`: future tasks already inside reminder window
   - generates the next recurring task after `done / skipped`
 - `TimelineCalculator`
   - computes display counters
-  - classifies milestone today / upcoming
+  - `Today`: `targetDate == today`
+  - `Upcoming`: future milestones already inside reminder window
   - computes milestone reminder dates
   - supports rule-based milestone windows within the next 1 year for MVP
 
@@ -56,7 +60,7 @@ Management is separate from Home:
 
 ## Migration Policy
 
-Schema version `6` drops legacy reminder tables and recreates the new schema.
+Schema version `7` drops legacy reminder tables and recreates the new schema.
 
 Legacy concepts intentionally removed:
 
@@ -64,3 +68,4 @@ Legacy concepts intentionally removed:
 - `triggerMode`
 - mixed `Reminder/RecurringReminder`
 - treating timeline-like entities as tasks
+- `TimelineStatus.paused`

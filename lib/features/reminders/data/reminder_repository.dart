@@ -108,6 +108,22 @@ class TaskTemplateInput {
   final ReminderRule reminderRule;
 }
 
+class TaskInput {
+  const TaskInput({
+    required this.title,
+    this.note,
+    this.categoryId,
+    required this.dueDate,
+    required this.reminderRule,
+  });
+
+  final String title;
+  final String? note;
+  final int? categoryId;
+  final DateTime dueDate;
+  final ReminderRule reminderRule;
+}
+
 class TimelineInput {
   const TimelineInput({
     required this.title,
@@ -193,11 +209,7 @@ class TaskRepository {
     return _dao.watchTaskBundles().map(
       (items) => items
           .where(
-            (item) => _scheduler.isInToday(
-              item.task,
-              item.template.reminderRule,
-              now ?? DateTime.now(),
-            ),
+            (item) => _scheduler.isInToday(item.task, now ?? DateTime.now()),
           )
           .toList(growable: false),
     );
@@ -207,11 +219,7 @@ class TaskRepository {
     return _dao.watchTaskBundles().map(
       (items) => items
           .where(
-            (item) => _scheduler.isUpcoming(
-              item.task,
-              item.template.reminderRule,
-              now ?? DateTime.now(),
-            ),
+            (item) => _scheduler.isUpcoming(item.task, now ?? DateTime.now()),
           )
           .toList(growable: false),
     );
@@ -269,9 +277,30 @@ class TaskRepository {
     return templateId;
   }
 
+  Future<int> createStandaloneTask(TaskInput input) {
+    final now = DateTime.now();
+    return _dao.insertTask(
+      TasksCompanion.insert(
+        templateId: const Value(null),
+        kind: TaskKind.oneTime.name,
+        titleSnapshot: input.title,
+        noteSnapshot: Value(input.note),
+        categoryId: Value(input.categoryId),
+        dueDate: _normalizeDate(input.dueDate).millisecondsSinceEpoch,
+        repeatRule: const Value(null),
+        reminderRule: input.reminderRule.encode(),
+        deferredDueDate: const Value.absent(),
+        status: TaskStatus.pending.name,
+        createdAt: now.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
+        resolvedAt: const Value.absent(),
+      ),
+    );
+  }
+
   Future<bool> updateTemplate(int id, TaskTemplateInput input) async {
     final existing = await getTemplateById(id);
-    if (existing == null) {
+    if (existing == null || existing.status == TaskTemplateStatus.archived) {
       return false;
     }
     final now = DateTime.now();
@@ -294,24 +323,30 @@ class TaskRepository {
 
   Future<bool> pauseTemplate(int id) async {
     final existing = await getTemplateById(id);
-    if (existing == null) {
+    if (existing == null || existing.status == TaskTemplateStatus.archived) {
       return false;
     }
-    return _dao.updateTaskTemplateRecord(
-      TaskTemplateRow(
-        id: existing.id,
-        title: existing.title,
-        categoryId: existing.categoryId,
-        note: existing.note,
-        kind: existing.kind.name,
-        status: TaskTemplateStatus.paused.name,
-        firstDueDate: existing.firstDueDate.millisecondsSinceEpoch,
-        repeatRule: existing.repeatRule?.encode(),
-        reminderRule: existing.reminderRule.encode(),
-        createdAt: existing.createdAt.millisecondsSinceEpoch,
-        updatedAt: DateTime.now().millisecondsSinceEpoch,
-      ),
+    return _updateTemplateStatus(
+      existing,
+      TaskTemplateStatus.paused,
+      cancelPendingTasks: true,
     );
+  }
+
+  Future<bool> resumeTemplate(int id) async {
+    final existing = await getTemplateById(id);
+    if (existing == null || existing.status != TaskTemplateStatus.paused) {
+      return false;
+    }
+    return _updateTemplateStatus(existing, TaskTemplateStatus.active);
+  }
+
+  Future<bool> archiveTemplate(int id) async {
+    final existing = await getTemplateById(id);
+    if (existing == null || existing.status == TaskTemplateStatus.archived) {
+      return false;
+    }
+    return _updateTemplateStatus(existing, TaskTemplateStatus.archived);
   }
 
   Future<TaskBundle?> getTaskById(int id) => _dao.getTaskBundleById(id);
@@ -320,17 +355,22 @@ class TaskRepository {
 
   Future<bool> updateTask(int id, DateTime dueDate) async {
     final bundle = await getTaskById(id);
-    if (bundle == null || !bundle.task.isPending) {
+    if (bundle == null ||
+        !bundle.task.isPending ||
+        bundle.template?.status == TaskTemplateStatus.archived) {
       return false;
     }
     return _dao.updateTaskRecord(
       TaskRow(
         id: bundle.task.id,
         templateId: bundle.task.templateId,
+        kind: bundle.task.kind.name,
         titleSnapshot: bundle.task.titleSnapshot,
         noteSnapshot: bundle.task.noteSnapshot,
         categoryId: bundle.task.categoryId,
         dueDate: _normalizeDate(dueDate).millisecondsSinceEpoch,
+        repeatRule: bundle.task.repeatRule?.encode(),
+        reminderRule: bundle.task.reminderRule.encode(),
         deferredDueDate: bundle.task.deferredDueDate?.millisecondsSinceEpoch,
         status: bundle.task.status.name,
         createdAt: bundle.task.createdAt.millisecondsSinceEpoch,
@@ -358,11 +398,14 @@ class TaskRepository {
     final now = DateTime.now();
     return _dao.insertTask(
       TasksCompanion.insert(
-        templateId: template.id,
+        templateId: Value(template.id),
+        kind: template.kind.name,
         titleSnapshot: template.title,
         noteSnapshot: Value(template.note),
         categoryId: Value(template.categoryId),
         dueDate: _normalizeDate(dueDate).millisecondsSinceEpoch,
+        repeatRule: Value(template.repeatRule?.encode()),
+        reminderRule: template.reminderRule.encode(),
         deferredDueDate: const Value.absent(),
         status: TaskStatus.pending.name,
         createdAt: now.millisecondsSinceEpoch,
@@ -370,6 +413,59 @@ class TaskRepository {
         resolvedAt: const Value.absent(),
       ),
     );
+  }
+
+  Future<bool> _updateTemplateStatus(
+    TaskTemplate existing,
+    TaskTemplateStatus status, {
+    bool cancelPendingTasks = false,
+  }) async {
+    final now = DateTime.now();
+    final updated = await _dao.updateTaskTemplateRecord(
+      TaskTemplateRow(
+        id: existing.id,
+        title: existing.title,
+        categoryId: existing.categoryId,
+        note: existing.note,
+        kind: existing.kind.name,
+        status: status.name,
+        firstDueDate: existing.firstDueDate.millisecondsSinceEpoch,
+        repeatRule: existing.repeatRule?.encode(),
+        reminderRule: existing.reminderRule.encode(),
+        createdAt: existing.createdAt.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
+      ),
+    );
+    if (!updated || !cancelPendingTasks) {
+      return updated;
+    }
+
+    final bundles = await _dao.listTaskBundles();
+    for (final bundle in bundles.where(
+      (item) =>
+          item.task.templateId == existing.id &&
+          item.task.status == TaskStatus.pending,
+    )) {
+      await _dao.updateTaskRecord(
+        TaskRow(
+          id: bundle.task.id,
+          templateId: bundle.task.templateId,
+          kind: bundle.task.kind.name,
+          titleSnapshot: bundle.task.titleSnapshot,
+          noteSnapshot: bundle.task.noteSnapshot,
+          categoryId: bundle.task.categoryId,
+          dueDate: bundle.task.dueDate.millisecondsSinceEpoch,
+          repeatRule: bundle.task.repeatRule?.encode(),
+          reminderRule: bundle.task.reminderRule.encode(),
+          deferredDueDate: null,
+          status: TaskStatus.canceled.name,
+          createdAt: bundle.task.createdAt.millisecondsSinceEpoch,
+          updatedAt: now.millisecondsSinceEpoch,
+          resolvedAt: now.millisecondsSinceEpoch,
+        ),
+      );
+    }
+    return true;
   }
 }
 
@@ -472,7 +568,7 @@ class TimelineRepository {
     List<MilestoneInput> customMilestones = const [],
   }) async {
     final existing = await getTimelineById(id);
-    if (existing == null) {
+    if (existing == null || existing.status == TimelineStatus.archived) {
       return false;
     }
     final success = await _dao.updateTimelineRecord(
@@ -497,25 +593,6 @@ class TimelineRepository {
     );
     await _replaceUpcomingCustomMilestones(id, customMilestones);
     return true;
-  }
-
-  Future<bool> pauseTimeline(int id) async {
-    final existing = await getTimelineById(id);
-    if (existing == null) {
-      return false;
-    }
-    return _dao.updateTimelineRecord(
-      TimelineRow(
-        id: existing.id,
-        title: existing.title,
-        startDate: existing.startDate.millisecondsSinceEpoch,
-        displayUnit: existing.displayUnit.name,
-        status: TimelineStatus.paused.name,
-        milestoneReminderRule: existing.milestoneReminderRule.encode(),
-        createdAt: existing.createdAt.millisecondsSinceEpoch,
-        updatedAt: DateTime.now().millisecondsSinceEpoch,
-      ),
-    );
   }
 
   Future<int> addMilestone(int timelineId, MilestoneInput input) {

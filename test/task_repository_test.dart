@@ -31,7 +31,7 @@ void main() {
     expect(tasks.first.task.status, TaskStatus.done);
     expect(tasks.last.task.status, TaskStatus.pending);
     expect(tasks.last.task.dueDate, DateTime(2026, 4, 17));
-    expect(tasks.last.template.id, templateId);
+    expect(tasks.last.template!.id, templateId);
   });
 
   test('defer only affects current task effective due date', () async {
@@ -39,11 +39,10 @@ void main() {
     addTearDown(db.close);
     final repository = TaskRepository(db.reminderDao);
 
-    await repository.createTemplateWithFirstTask(
-      TaskTemplateInput(
+    await repository.createStandaloneTask(
+      TaskInput(
         title: 'Laundry',
-        kind: TaskKind.oneTime,
-        firstDueDate: DateTime(2026, 4, 10),
+        dueDate: DateTime(2026, 4, 10),
         reminderRule: const ReminderRule.onDue(),
       ),
     );
@@ -51,11 +50,10 @@ void main() {
     final task = (await repository.watchAllTasks().first).single;
     final deferred = await repository.deferTask(task.task.id, 2);
     final updatedTask = (await repository.watchAllTasks().first).single.task;
-    final template = (await repository.watchTemplates().first).single;
 
     expect(deferred, isTrue);
     expect(updatedTask.effectiveDueDate, DateTime(2026, 4, 12));
-    expect(template.firstDueDate, DateTime(2026, 4, 10));
+    expect(updatedTask.templateId, isNull);
   });
 
   test('cancel task pauses template and does not create next task', () async {
@@ -82,6 +80,33 @@ void main() {
     expect(tasks.single.task.status, TaskStatus.canceled);
     expect(template!.status, TaskTemplateStatus.paused);
   });
+
+  test(
+    'pausing template cancels all pending tasks and clears deferred date',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = TaskRepository(db.reminderDao);
+
+      final templateId = await repository.createTemplateWithFirstTask(
+        TaskTemplateInput(
+          title: 'Vaccum',
+          kind: TaskKind.recurring,
+          firstDueDate: DateTime(2026, 4, 10),
+          repeatRule: const RepeatRule(unit: RepeatUnit.week, interval: 1),
+          reminderRule: const ReminderRule.advance(1),
+        ),
+      );
+
+      final firstTask = (await repository.watchAllTasks().first).single.task;
+      await repository.deferTask(firstTask.id, 2);
+      expect(await repository.pauseTemplate(templateId), isTrue);
+
+      final pausedTask = (await repository.watchAllTasks().first).single.task;
+      expect(pausedTask.status, TaskStatus.canceled);
+      expect(pausedTask.deferredDueDate, isNull);
+    },
+  );
 
   test('editing template does not mutate existing task snapshot', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -113,5 +138,72 @@ void main() {
     final template = await repository.getTemplateById(templateId);
     expect(task.titleSnapshot, 'Original title');
     expect(template!.title, 'Updated title');
+  });
+
+  test('template can resume from paused and archive from active', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = TaskRepository(db.reminderDao);
+
+    final templateId = await repository.createTemplate(
+      TaskTemplateInput(
+        title: 'Status test',
+        kind: TaskKind.recurring,
+        firstDueDate: DateTime(2026, 4, 10),
+        repeatRule: const RepeatRule(unit: RepeatUnit.week, interval: 1),
+        reminderRule: const ReminderRule.onDue(),
+      ),
+    );
+
+    expect(await repository.pauseTemplate(templateId), isTrue);
+    expect(
+      (await repository.getTemplateById(templateId))!.status,
+      TaskTemplateStatus.paused,
+    );
+
+    expect(await repository.resumeTemplate(templateId), isTrue);
+    expect(
+      (await repository.getTemplateById(templateId))!.status,
+      TaskTemplateStatus.active,
+    );
+
+    expect(await repository.archiveTemplate(templateId), isTrue);
+    expect(
+      (await repository.getTemplateById(templateId))!.status,
+      TaskTemplateStatus.archived,
+    );
+  });
+
+  test('archived template is read-only', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = TaskRepository(db.reminderDao);
+
+    final templateId = await repository.createTemplate(
+      TaskTemplateInput(
+        title: 'Archived rule',
+        kind: TaskKind.recurring,
+        firstDueDate: DateTime(2026, 4, 10),
+        repeatRule: const RepeatRule(unit: RepeatUnit.week, interval: 1),
+        reminderRule: const ReminderRule.onDue(),
+      ),
+    );
+    expect(await repository.archiveTemplate(templateId), isTrue);
+
+    expect(
+      await repository.updateTemplate(
+        templateId,
+        TaskTemplateInput(
+          title: 'Should fail',
+          kind: TaskKind.recurring,
+          firstDueDate: DateTime(2026, 4, 10),
+          repeatRule: const RepeatRule(unit: RepeatUnit.week, interval: 2),
+          reminderRule: const ReminderRule.immediate(),
+        ),
+      ),
+      isFalse,
+    );
+    expect(await repository.pauseTemplate(templateId), isFalse);
+    expect(await repository.resumeTemplate(templateId), isFalse);
   });
 }

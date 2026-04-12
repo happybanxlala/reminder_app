@@ -134,40 +134,36 @@ class _HomeItemList extends ConsumerWidget {
                   title: Text(viewModel.title),
                   subtitle: Text(viewModel.subtitle),
                   trailing: const Text('Task'),
-                  onTap: () {
-                    context.pushNamed(
-                      ReminderEditPage.taskEditRouteName,
-                      pathParameters: {'id': viewModel.id.toString()},
-                    );
-                  },
                 ),
                 OverflowBar(
                   children: [
                     TextButton(
-                      onPressed: () {
-                        ref
+                      onPressed: () async {
+                        await ref
                             .read(taskRepositoryProvider)
                             .completeTask(viewModel.id);
                       },
                       child: const Text(ReminderUiText.completeAction),
                     ),
                     TextButton(
-                      onPressed: () {
-                        ref.read(taskRepositoryProvider).skipTask(viewModel.id);
+                      onPressed: () async {
+                        await ref
+                            .read(taskRepositoryProvider)
+                            .skipTask(viewModel.id);
                       },
                       child: const Text(ReminderUiText.skipAction),
                     ),
                     TextButton(
-                      onPressed: () {
-                        ref
+                      onPressed: () async {
+                        await ref
                             .read(taskRepositoryProvider)
                             .deferTask(viewModel.id, 1);
                       },
                       child: const Text(ReminderUiText.deferAction),
                     ),
                     TextButton(
-                      onPressed: () {
-                        ref
+                      onPressed: () async {
+                        await ref
                             .read(taskRepositoryProvider)
                             .cancelTask(viewModel.id);
                       },
@@ -194,16 +190,16 @@ class _HomeItemList extends ConsumerWidget {
               OverflowBar(
                 children: [
                   TextButton(
-                    onPressed: () {
-                      ref
+                    onPressed: () async {
+                      await ref
                           .read(timelineRepositoryProvider)
                           .noticeMilestone(viewModel.id);
                     },
                     child: const Text(ReminderUiText.noticedAction),
                   ),
                   TextButton(
-                    onPressed: () {
-                      ref
+                    onPressed: () async {
+                      await ref
                           .read(timelineRepositoryProvider)
                           .skipMilestone(viewModel.id);
                     },
@@ -219,24 +215,66 @@ class _HomeItemList extends ConsumerWidget {
   }
 }
 
-class _OverdueList extends StatelessWidget {
+class _OverdueList extends ConsumerWidget {
   const _OverdueList({required this.items});
 
   final List<TaskBundle> items;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
       return const Center(child: Text(ReminderUiText.noOverdueItems));
     }
     return ListView(
       children: items
           .map(
-            (item) => ListTile(
-              key: Key('overdue-task-${item.task.id}'),
-              title: Text(item.task.titleSnapshot),
-              subtitle: Text(ReminderFormatters.taskSummary(item)),
-              trailing: const Text('Task'),
+            (item) => Card(
+              child: Column(
+                children: [
+                  ListTile(
+                    key: Key('overdue-task-${item.task.id}'),
+                    title: Text(item.task.titleSnapshot),
+                    subtitle: Text(ReminderFormatters.taskSummary(item)),
+                    trailing: const Text('Task'),
+                  ),
+                  OverflowBar(
+                    children: [
+                      TextButton(
+                        onPressed: () async {
+                          await ref
+                              .read(taskRepositoryProvider)
+                              .completeTask(item.task.id);
+                        },
+                        child: const Text(ReminderUiText.completeAction),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          await ref
+                              .read(taskRepositoryProvider)
+                              .skipTask(item.task.id);
+                        },
+                        child: const Text(ReminderUiText.skipAction),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          await ref
+                              .read(taskRepositoryProvider)
+                              .deferTask(item.task.id, 1);
+                        },
+                        child: const Text(ReminderUiText.deferAction),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          await ref
+                              .read(taskRepositoryProvider)
+                              .cancelTask(item.task.id);
+                        },
+                        child: const Text(ReminderUiText.cancelAction),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           )
           .toList(growable: false),
