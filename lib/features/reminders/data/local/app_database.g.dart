@@ -681,8 +681,17 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
   late final GeneratedColumn<int> templateId = GeneratedColumn<int>(
     'template_id',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
   static const VerificationMeta _titleSnapshotMeta = const VerificationMeta(
@@ -727,6 +736,28 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
     aliasedName,
     false,
     type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _repeatRuleMeta = const VerificationMeta(
+    'repeatRule',
+  );
+  @override
+  late final GeneratedColumn<String> repeatRule = GeneratedColumn<String>(
+    'repeat_rule',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _reminderRuleMeta = const VerificationMeta(
+    'reminderRule',
+  );
+  @override
+  late final GeneratedColumn<String> reminderRule = GeneratedColumn<String>(
+    'reminder_rule',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
   static const VerificationMeta _deferredDueDateMeta = const VerificationMeta(
@@ -786,10 +817,13 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
   List<GeneratedColumn> get $columns => [
     id,
     templateId,
+    kind,
     titleSnapshot,
     noteSnapshot,
     categoryId,
     dueDate,
+    repeatRule,
+    reminderRule,
     deferredDueDate,
     status,
     createdAt,
@@ -816,8 +850,14 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
         _templateIdMeta,
         templateId.isAcceptableOrUnknown(data['template_id']!, _templateIdMeta),
       );
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
     } else if (isInserting) {
-      context.missing(_templateIdMeta);
+      context.missing(_kindMeta);
     }
     if (data.containsKey('title_snapshot')) {
       context.handle(
@@ -852,6 +892,23 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
       );
     } else if (isInserting) {
       context.missing(_dueDateMeta);
+    }
+    if (data.containsKey('repeat_rule')) {
+      context.handle(
+        _repeatRuleMeta,
+        repeatRule.isAcceptableOrUnknown(data['repeat_rule']!, _repeatRuleMeta),
+      );
+    }
+    if (data.containsKey('reminder_rule')) {
+      context.handle(
+        _reminderRuleMeta,
+        reminderRule.isAcceptableOrUnknown(
+          data['reminder_rule']!,
+          _reminderRuleMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_reminderRuleMeta);
     }
     if (data.containsKey('deferred_due_date')) {
       context.handle(
@@ -908,6 +965,10 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
       templateId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}template_id'],
+      ),
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
       )!,
       titleSnapshot: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -924,6 +985,14 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
       dueDate: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}due_date'],
+      )!,
+      repeatRule: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}repeat_rule'],
+      ),
+      reminderRule: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reminder_rule'],
       )!,
       deferredDueDate: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
@@ -956,11 +1025,14 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
 
 class TaskRow extends DataClass implements Insertable<TaskRow> {
   final int id;
-  final int templateId;
+  final int? templateId;
+  final String kind;
   final String titleSnapshot;
   final String? noteSnapshot;
   final int? categoryId;
   final int dueDate;
+  final String? repeatRule;
+  final String reminderRule;
   final int? deferredDueDate;
   final String status;
   final int createdAt;
@@ -968,11 +1040,14 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
   final int? resolvedAt;
   const TaskRow({
     required this.id,
-    required this.templateId,
+    this.templateId,
+    required this.kind,
     required this.titleSnapshot,
     this.noteSnapshot,
     this.categoryId,
     required this.dueDate,
+    this.repeatRule,
+    required this.reminderRule,
     this.deferredDueDate,
     required this.status,
     required this.createdAt,
@@ -983,7 +1058,10 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
-    map['template_id'] = Variable<int>(templateId);
+    if (!nullToAbsent || templateId != null) {
+      map['template_id'] = Variable<int>(templateId);
+    }
+    map['kind'] = Variable<String>(kind);
     map['title_snapshot'] = Variable<String>(titleSnapshot);
     if (!nullToAbsent || noteSnapshot != null) {
       map['note_snapshot'] = Variable<String>(noteSnapshot);
@@ -992,6 +1070,10 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       map['category_id'] = Variable<int>(categoryId);
     }
     map['due_date'] = Variable<int>(dueDate);
+    if (!nullToAbsent || repeatRule != null) {
+      map['repeat_rule'] = Variable<String>(repeatRule);
+    }
+    map['reminder_rule'] = Variable<String>(reminderRule);
     if (!nullToAbsent || deferredDueDate != null) {
       map['deferred_due_date'] = Variable<int>(deferredDueDate);
     }
@@ -1007,7 +1089,10 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
   TasksCompanion toCompanion(bool nullToAbsent) {
     return TasksCompanion(
       id: Value(id),
-      templateId: Value(templateId),
+      templateId: templateId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(templateId),
+      kind: Value(kind),
       titleSnapshot: Value(titleSnapshot),
       noteSnapshot: noteSnapshot == null && nullToAbsent
           ? const Value.absent()
@@ -1016,6 +1101,10 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
           ? const Value.absent()
           : Value(categoryId),
       dueDate: Value(dueDate),
+      repeatRule: repeatRule == null && nullToAbsent
+          ? const Value.absent()
+          : Value(repeatRule),
+      reminderRule: Value(reminderRule),
       deferredDueDate: deferredDueDate == null && nullToAbsent
           ? const Value.absent()
           : Value(deferredDueDate),
@@ -1035,11 +1124,14 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return TaskRow(
       id: serializer.fromJson<int>(json['id']),
-      templateId: serializer.fromJson<int>(json['templateId']),
+      templateId: serializer.fromJson<int?>(json['templateId']),
+      kind: serializer.fromJson<String>(json['kind']),
       titleSnapshot: serializer.fromJson<String>(json['titleSnapshot']),
       noteSnapshot: serializer.fromJson<String?>(json['noteSnapshot']),
       categoryId: serializer.fromJson<int?>(json['categoryId']),
       dueDate: serializer.fromJson<int>(json['dueDate']),
+      repeatRule: serializer.fromJson<String?>(json['repeatRule']),
+      reminderRule: serializer.fromJson<String>(json['reminderRule']),
       deferredDueDate: serializer.fromJson<int?>(json['deferredDueDate']),
       status: serializer.fromJson<String>(json['status']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
@@ -1052,11 +1144,14 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
-      'templateId': serializer.toJson<int>(templateId),
+      'templateId': serializer.toJson<int?>(templateId),
+      'kind': serializer.toJson<String>(kind),
       'titleSnapshot': serializer.toJson<String>(titleSnapshot),
       'noteSnapshot': serializer.toJson<String?>(noteSnapshot),
       'categoryId': serializer.toJson<int?>(categoryId),
       'dueDate': serializer.toJson<int>(dueDate),
+      'repeatRule': serializer.toJson<String?>(repeatRule),
+      'reminderRule': serializer.toJson<String>(reminderRule),
       'deferredDueDate': serializer.toJson<int?>(deferredDueDate),
       'status': serializer.toJson<String>(status),
       'createdAt': serializer.toJson<int>(createdAt),
@@ -1067,11 +1162,14 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
 
   TaskRow copyWith({
     int? id,
-    int? templateId,
+    Value<int?> templateId = const Value.absent(),
+    String? kind,
     String? titleSnapshot,
     Value<String?> noteSnapshot = const Value.absent(),
     Value<int?> categoryId = const Value.absent(),
     int? dueDate,
+    Value<String?> repeatRule = const Value.absent(),
+    String? reminderRule,
     Value<int?> deferredDueDate = const Value.absent(),
     String? status,
     int? createdAt,
@@ -1079,11 +1177,14 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     Value<int?> resolvedAt = const Value.absent(),
   }) => TaskRow(
     id: id ?? this.id,
-    templateId: templateId ?? this.templateId,
+    templateId: templateId.present ? templateId.value : this.templateId,
+    kind: kind ?? this.kind,
     titleSnapshot: titleSnapshot ?? this.titleSnapshot,
     noteSnapshot: noteSnapshot.present ? noteSnapshot.value : this.noteSnapshot,
     categoryId: categoryId.present ? categoryId.value : this.categoryId,
     dueDate: dueDate ?? this.dueDate,
+    repeatRule: repeatRule.present ? repeatRule.value : this.repeatRule,
+    reminderRule: reminderRule ?? this.reminderRule,
     deferredDueDate: deferredDueDate.present
         ? deferredDueDate.value
         : this.deferredDueDate,
@@ -1098,6 +1199,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       templateId: data.templateId.present
           ? data.templateId.value
           : this.templateId,
+      kind: data.kind.present ? data.kind.value : this.kind,
       titleSnapshot: data.titleSnapshot.present
           ? data.titleSnapshot.value
           : this.titleSnapshot,
@@ -1108,6 +1210,12 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
           ? data.categoryId.value
           : this.categoryId,
       dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
+      repeatRule: data.repeatRule.present
+          ? data.repeatRule.value
+          : this.repeatRule,
+      reminderRule: data.reminderRule.present
+          ? data.reminderRule.value
+          : this.reminderRule,
       deferredDueDate: data.deferredDueDate.present
           ? data.deferredDueDate.value
           : this.deferredDueDate,
@@ -1125,10 +1233,13 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     return (StringBuffer('TaskRow(')
           ..write('id: $id, ')
           ..write('templateId: $templateId, ')
+          ..write('kind: $kind, ')
           ..write('titleSnapshot: $titleSnapshot, ')
           ..write('noteSnapshot: $noteSnapshot, ')
           ..write('categoryId: $categoryId, ')
           ..write('dueDate: $dueDate, ')
+          ..write('repeatRule: $repeatRule, ')
+          ..write('reminderRule: $reminderRule, ')
           ..write('deferredDueDate: $deferredDueDate, ')
           ..write('status: $status, ')
           ..write('createdAt: $createdAt, ')
@@ -1142,10 +1253,13 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
   int get hashCode => Object.hash(
     id,
     templateId,
+    kind,
     titleSnapshot,
     noteSnapshot,
     categoryId,
     dueDate,
+    repeatRule,
+    reminderRule,
     deferredDueDate,
     status,
     createdAt,
@@ -1158,10 +1272,13 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       (other is TaskRow &&
           other.id == this.id &&
           other.templateId == this.templateId &&
+          other.kind == this.kind &&
           other.titleSnapshot == this.titleSnapshot &&
           other.noteSnapshot == this.noteSnapshot &&
           other.categoryId == this.categoryId &&
           other.dueDate == this.dueDate &&
+          other.repeatRule == this.repeatRule &&
+          other.reminderRule == this.reminderRule &&
           other.deferredDueDate == this.deferredDueDate &&
           other.status == this.status &&
           other.createdAt == this.createdAt &&
@@ -1171,11 +1288,14 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
 
 class TasksCompanion extends UpdateCompanion<TaskRow> {
   final Value<int> id;
-  final Value<int> templateId;
+  final Value<int?> templateId;
+  final Value<String> kind;
   final Value<String> titleSnapshot;
   final Value<String?> noteSnapshot;
   final Value<int?> categoryId;
   final Value<int> dueDate;
+  final Value<String?> repeatRule;
+  final Value<String> reminderRule;
   final Value<int?> deferredDueDate;
   final Value<String> status;
   final Value<int> createdAt;
@@ -1184,10 +1304,13 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
   const TasksCompanion({
     this.id = const Value.absent(),
     this.templateId = const Value.absent(),
+    this.kind = const Value.absent(),
     this.titleSnapshot = const Value.absent(),
     this.noteSnapshot = const Value.absent(),
     this.categoryId = const Value.absent(),
     this.dueDate = const Value.absent(),
+    this.repeatRule = const Value.absent(),
+    this.reminderRule = const Value.absent(),
     this.deferredDueDate = const Value.absent(),
     this.status = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -1196,29 +1319,36 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
   });
   TasksCompanion.insert({
     this.id = const Value.absent(),
-    required int templateId,
+    this.templateId = const Value.absent(),
+    required String kind,
     required String titleSnapshot,
     this.noteSnapshot = const Value.absent(),
     this.categoryId = const Value.absent(),
     required int dueDate,
+    this.repeatRule = const Value.absent(),
+    required String reminderRule,
     this.deferredDueDate = const Value.absent(),
     required String status,
     required int createdAt,
     required int updatedAt,
     this.resolvedAt = const Value.absent(),
-  }) : templateId = Value(templateId),
+  }) : kind = Value(kind),
        titleSnapshot = Value(titleSnapshot),
        dueDate = Value(dueDate),
+       reminderRule = Value(reminderRule),
        status = Value(status),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
   static Insertable<TaskRow> custom({
     Expression<int>? id,
     Expression<int>? templateId,
+    Expression<String>? kind,
     Expression<String>? titleSnapshot,
     Expression<String>? noteSnapshot,
     Expression<int>? categoryId,
     Expression<int>? dueDate,
+    Expression<String>? repeatRule,
+    Expression<String>? reminderRule,
     Expression<int>? deferredDueDate,
     Expression<String>? status,
     Expression<int>? createdAt,
@@ -1228,10 +1358,13 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (templateId != null) 'template_id': templateId,
+      if (kind != null) 'kind': kind,
       if (titleSnapshot != null) 'title_snapshot': titleSnapshot,
       if (noteSnapshot != null) 'note_snapshot': noteSnapshot,
       if (categoryId != null) 'category_id': categoryId,
       if (dueDate != null) 'due_date': dueDate,
+      if (repeatRule != null) 'repeat_rule': repeatRule,
+      if (reminderRule != null) 'reminder_rule': reminderRule,
       if (deferredDueDate != null) 'deferred_due_date': deferredDueDate,
       if (status != null) 'status': status,
       if (createdAt != null) 'created_at': createdAt,
@@ -1242,11 +1375,14 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
 
   TasksCompanion copyWith({
     Value<int>? id,
-    Value<int>? templateId,
+    Value<int?>? templateId,
+    Value<String>? kind,
     Value<String>? titleSnapshot,
     Value<String?>? noteSnapshot,
     Value<int?>? categoryId,
     Value<int>? dueDate,
+    Value<String?>? repeatRule,
+    Value<String>? reminderRule,
     Value<int?>? deferredDueDate,
     Value<String>? status,
     Value<int>? createdAt,
@@ -1256,10 +1392,13 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     return TasksCompanion(
       id: id ?? this.id,
       templateId: templateId ?? this.templateId,
+      kind: kind ?? this.kind,
       titleSnapshot: titleSnapshot ?? this.titleSnapshot,
       noteSnapshot: noteSnapshot ?? this.noteSnapshot,
       categoryId: categoryId ?? this.categoryId,
       dueDate: dueDate ?? this.dueDate,
+      repeatRule: repeatRule ?? this.repeatRule,
+      reminderRule: reminderRule ?? this.reminderRule,
       deferredDueDate: deferredDueDate ?? this.deferredDueDate,
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
@@ -1277,6 +1416,9 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     if (templateId.present) {
       map['template_id'] = Variable<int>(templateId.value);
     }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
     if (titleSnapshot.present) {
       map['title_snapshot'] = Variable<String>(titleSnapshot.value);
     }
@@ -1288,6 +1430,12 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     }
     if (dueDate.present) {
       map['due_date'] = Variable<int>(dueDate.value);
+    }
+    if (repeatRule.present) {
+      map['repeat_rule'] = Variable<String>(repeatRule.value);
+    }
+    if (reminderRule.present) {
+      map['reminder_rule'] = Variable<String>(reminderRule.value);
     }
     if (deferredDueDate.present) {
       map['deferred_due_date'] = Variable<int>(deferredDueDate.value);
@@ -1312,10 +1460,13 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     return (StringBuffer('TasksCompanion(')
           ..write('id: $id, ')
           ..write('templateId: $templateId, ')
+          ..write('kind: $kind, ')
           ..write('titleSnapshot: $titleSnapshot, ')
           ..write('noteSnapshot: $noteSnapshot, ')
           ..write('categoryId: $categoryId, ')
           ..write('dueDate: $dueDate, ')
+          ..write('repeatRule: $repeatRule, ')
+          ..write('reminderRule: $reminderRule, ')
           ..write('deferredDueDate: $deferredDueDate, ')
           ..write('status: $status, ')
           ..write('createdAt: $createdAt, ')
@@ -2687,11 +2838,14 @@ typedef $$TaskTemplatesTableProcessedTableManager =
 typedef $$TasksTableCreateCompanionBuilder =
     TasksCompanion Function({
       Value<int> id,
-      required int templateId,
+      Value<int?> templateId,
+      required String kind,
       required String titleSnapshot,
       Value<String?> noteSnapshot,
       Value<int?> categoryId,
       required int dueDate,
+      Value<String?> repeatRule,
+      required String reminderRule,
       Value<int?> deferredDueDate,
       required String status,
       required int createdAt,
@@ -2701,11 +2855,14 @@ typedef $$TasksTableCreateCompanionBuilder =
 typedef $$TasksTableUpdateCompanionBuilder =
     TasksCompanion Function({
       Value<int> id,
-      Value<int> templateId,
+      Value<int?> templateId,
+      Value<String> kind,
       Value<String> titleSnapshot,
       Value<String?> noteSnapshot,
       Value<int?> categoryId,
       Value<int> dueDate,
+      Value<String?> repeatRule,
+      Value<String> reminderRule,
       Value<int?> deferredDueDate,
       Value<String> status,
       Value<int> createdAt,
@@ -2731,6 +2888,11 @@ class $$TasksTableFilterComposer extends Composer<_$AppDatabase, $TasksTable> {
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get titleSnapshot => $composableBuilder(
     column: $table.titleSnapshot,
     builder: (column) => ColumnFilters(column),
@@ -2748,6 +2910,16 @@ class $$TasksTableFilterComposer extends Composer<_$AppDatabase, $TasksTable> {
 
   ColumnFilters<int> get dueDate => $composableBuilder(
     column: $table.dueDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get repeatRule => $composableBuilder(
+    column: $table.repeatRule,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reminderRule => $composableBuilder(
+    column: $table.reminderRule,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2796,6 +2968,11 @@ class $$TasksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get titleSnapshot => $composableBuilder(
     column: $table.titleSnapshot,
     builder: (column) => ColumnOrderings(column),
@@ -2813,6 +2990,16 @@ class $$TasksTableOrderingComposer
 
   ColumnOrderings<int> get dueDate => $composableBuilder(
     column: $table.dueDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get repeatRule => $composableBuilder(
+    column: $table.repeatRule,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reminderRule => $composableBuilder(
+    column: $table.reminderRule,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -2859,6 +3046,9 @@ class $$TasksTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
   GeneratedColumn<String> get titleSnapshot => $composableBuilder(
     column: $table.titleSnapshot,
     builder: (column) => column,
@@ -2876,6 +3066,16 @@ class $$TasksTableAnnotationComposer
 
   GeneratedColumn<int> get dueDate =>
       $composableBuilder(column: $table.dueDate, builder: (column) => column);
+
+  GeneratedColumn<String> get repeatRule => $composableBuilder(
+    column: $table.repeatRule,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get reminderRule => $composableBuilder(
+    column: $table.reminderRule,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get deferredDueDate => $composableBuilder(
     column: $table.deferredDueDate,
@@ -2926,11 +3126,14 @@ class $$TasksTableTableManager
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                Value<int> templateId = const Value.absent(),
+                Value<int?> templateId = const Value.absent(),
+                Value<String> kind = const Value.absent(),
                 Value<String> titleSnapshot = const Value.absent(),
                 Value<String?> noteSnapshot = const Value.absent(),
                 Value<int?> categoryId = const Value.absent(),
                 Value<int> dueDate = const Value.absent(),
+                Value<String?> repeatRule = const Value.absent(),
+                Value<String> reminderRule = const Value.absent(),
                 Value<int?> deferredDueDate = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
@@ -2939,10 +3142,13 @@ class $$TasksTableTableManager
               }) => TasksCompanion(
                 id: id,
                 templateId: templateId,
+                kind: kind,
                 titleSnapshot: titleSnapshot,
                 noteSnapshot: noteSnapshot,
                 categoryId: categoryId,
                 dueDate: dueDate,
+                repeatRule: repeatRule,
+                reminderRule: reminderRule,
                 deferredDueDate: deferredDueDate,
                 status: status,
                 createdAt: createdAt,
@@ -2952,11 +3158,14 @@ class $$TasksTableTableManager
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                required int templateId,
+                Value<int?> templateId = const Value.absent(),
+                required String kind,
                 required String titleSnapshot,
                 Value<String?> noteSnapshot = const Value.absent(),
                 Value<int?> categoryId = const Value.absent(),
                 required int dueDate,
+                Value<String?> repeatRule = const Value.absent(),
+                required String reminderRule,
                 Value<int?> deferredDueDate = const Value.absent(),
                 required String status,
                 required int createdAt,
@@ -2965,10 +3174,13 @@ class $$TasksTableTableManager
               }) => TasksCompanion.insert(
                 id: id,
                 templateId: templateId,
+                kind: kind,
                 titleSnapshot: titleSnapshot,
                 noteSnapshot: noteSnapshot,
                 categoryId: categoryId,
                 dueDate: dueDate,
+                repeatRule: repeatRule,
+                reminderRule: reminderRule,
                 deferredDueDate: deferredDueDate,
                 status: status,
                 createdAt: createdAt,

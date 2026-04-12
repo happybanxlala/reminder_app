@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
@@ -9,7 +10,7 @@ void main() {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
 
-      expect(db.schemaVersion, 6);
+      expect(db.schemaVersion, 7);
 
       final templateId = await db
           .into(db.taskTemplates)
@@ -39,8 +40,24 @@ void main() {
             ),
           );
 
+      final taskId = await db
+          .into(db.tasks)
+          .insert(
+            TasksCompanion.insert(
+              templateId: const Value(null),
+              kind: 'oneTime',
+              titleSnapshot: 'Standalone task',
+              dueDate: DateTime(2026, 4, 10).millisecondsSinceEpoch,
+              reminderRule: 'onDue',
+              status: 'pending',
+              createdAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+              updatedAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+            ),
+          );
+
       expect(templateId, greaterThan(0));
       expect(timelineId, greaterThan(0));
+      expect(taskId, greaterThan(0));
     },
   );
 }

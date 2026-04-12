@@ -19,7 +19,7 @@ void main() {
           title: 'No sugar',
           startDate: DateTime(2026, 4, 10),
           displayUnit: TimelineDisplayUnit.day,
-          milestoneReminderRule: const MilestoneReminderRule.onDay(),
+          milestoneReminderRule: const MilestoneReminderRule.advance(1),
         ),
       );
 
@@ -28,9 +28,9 @@ void main() {
           .first;
       final history = await repository.watchMilestoneHistory().first;
 
-      expect(upcoming, isNotEmpty);
+      expect(upcoming, hasLength(1));
       expect(history, isEmpty);
-      expect(upcoming.length, 365);
+      expect(upcoming.single.milestone.targetDate, DateTime(2026, 4, 10));
     },
   );
 
@@ -77,13 +77,13 @@ void main() {
           displayUnit: TimelineDisplayUnit.month,
           milestoneReminderRule: const MilestoneReminderRule.onDay(),
         ),
-      customMilestones: [
-        MilestoneInput(
-          targetDate: DateTime(2026, 5, 1),
-          description: '30 days',
-          source: MilestoneSource.custom,
-        ),
-      ],
+        customMilestones: [
+          MilestoneInput(
+            targetDate: DateTime(2026, 5, 1),
+            description: '30 days',
+            source: MilestoneSource.custom,
+          ),
+        ],
       );
 
       final detailBefore = await repository.getTimelineDetailById(timelineId);
@@ -99,11 +99,11 @@ void main() {
           displayUnit: TimelineDisplayUnit.year,
           milestoneReminderRule: const MilestoneReminderRule.onDay(),
         ),
-      customMilestones: [
-        MilestoneInput(
-          targetDate: DateTime(2026, 6, 1),
-          description: '60 days',
-          source: MilestoneSource.custom,
+        customMilestones: [
+          MilestoneInput(
+            targetDate: DateTime(2026, 6, 1),
+            description: '60 days',
+            source: MilestoneSource.custom,
           ),
         ],
       );

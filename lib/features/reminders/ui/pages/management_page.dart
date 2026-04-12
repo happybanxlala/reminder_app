@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/reminder_repository.dart';
+import '../../domain/task_template.dart';
+import '../../domain/timeline.dart';
 import '../../presentation/reminder_view_models.dart';
 import 'reminder_edit_page.dart';
 
@@ -47,20 +49,7 @@ class ManagementPage extends ConsumerWidget {
               }
               return Column(
                 children: items
-                    .map(TemplateListItemViewModel.fromDomain)
-                    .map(
-                      (item) => ListTile(
-                        title: Text(item.title),
-                        subtitle: Text(item.subtitle),
-                        trailing: Text(item.status),
-                        onTap: () {
-                          context.pushNamed(
-                            ReminderEditPage.taskTemplateEditRouteName,
-                            pathParameters: {'id': item.id.toString()},
-                          );
-                        },
-                      ),
-                    )
+                    .map((item) => _TaskTemplateCard(template: item))
                     .toList(growable: false),
               );
             },
@@ -93,20 +82,7 @@ class ManagementPage extends ConsumerWidget {
               }
               return Column(
                 children: items
-                    .map(TimelineListItemViewModel.fromDomain)
-                    .map(
-                      (item) => ListTile(
-                        title: Text(item.title),
-                        subtitle: Text(item.subtitle),
-                        trailing: Text(item.status),
-                        onTap: () {
-                          context.pushNamed(
-                            ReminderEditPage.timelineEditRouteName,
-                            pathParameters: {'id': item.id.toString()},
-                          );
-                        },
-                      ),
-                    )
+                    .map((item) => _TimelineCard(timeline: item))
                     .toList(growable: false),
               );
             },
@@ -114,6 +90,163 @@ class ManagementPage extends ConsumerWidget {
             loading: () => const Center(child: CircularProgressIndicator()),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TaskTemplateCard extends ConsumerWidget {
+  const _TaskTemplateCard({required this.template});
+
+  final TaskTemplate template;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final repository = ref.read(taskRepositoryProvider);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        template.title,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        ReminderFormatters.templateSummary(
+                          template.repeatRule,
+                          template.reminderRule,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(ReminderFormatters.taskTemplateStatus(template.status)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: switch (template.status) {
+                TaskTemplateStatus.active => [
+                  OutlinedButton(
+                    key: Key('template-edit-${template.id}'),
+                    onPressed: () {
+                      context.pushNamed(
+                        ReminderEditPage.taskTemplateEditRouteName,
+                        pathParameters: {'id': template.id.toString()},
+                      );
+                    },
+                    child: const Text(ReminderUiText.editAction),
+                  ),
+                  OutlinedButton(
+                    key: Key('template-pause-${template.id}'),
+                    onPressed: () async {
+                      await repository.pauseTemplate(template.id);
+                    },
+                    child: const Text(ReminderUiText.pauseAction),
+                  ),
+                  OutlinedButton(
+                    key: Key('template-archive-${template.id}'),
+                    onPressed: () async {
+                      await repository.archiveTemplate(template.id);
+                    },
+                    child: const Text(ReminderUiText.archiveAction),
+                  ),
+                ],
+                TaskTemplateStatus.paused => [
+                  OutlinedButton(
+                    key: Key('template-resume-${template.id}'),
+                    onPressed: () async {
+                      await repository.resumeTemplate(template.id);
+                    },
+                    child: const Text(ReminderUiText.resumeAction),
+                  ),
+                  OutlinedButton(
+                    key: Key('template-archive-${template.id}'),
+                    onPressed: () async {
+                      await repository.archiveTemplate(template.id);
+                    },
+                    child: const Text(ReminderUiText.archiveAction),
+                  ),
+                  OutlinedButton(
+                    key: Key('template-edit-${template.id}'),
+                    onPressed: () {
+                      context.pushNamed(
+                        ReminderEditPage.taskTemplateEditRouteName,
+                        pathParameters: {'id': template.id.toString()},
+                      );
+                    },
+                    child: const Text(ReminderUiText.editAction),
+                  ),
+                ],
+                TaskTemplateStatus.archived => <Widget>[],
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TimelineCard extends StatelessWidget {
+  const _TimelineCard({required this.timeline});
+
+  final Timeline timeline;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        timeline.title,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(ReminderFormatters.timelineSummary(timeline)),
+                    ],
+                  ),
+                ),
+                Text(ReminderFormatters.timelineStatus(timeline.status)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (timeline.status != TimelineStatus.archived)
+              OutlinedButton(
+                key: Key('timeline-edit-${timeline.id}'),
+                onPressed: () {
+                  context.pushNamed(
+                    ReminderEditPage.timelineEditRouteName,
+                    pathParameters: {'id': timeline.id.toString()},
+                  );
+                },
+                child: const Text(ReminderUiText.editAction),
+              ),
+          ],
+        ),
       ),
     );
   }

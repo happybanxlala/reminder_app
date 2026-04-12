@@ -2,7 +2,7 @@ import 'milestone_reminder_rule.dart';
 
 enum TimelineDisplayUnit { day, week, month, year }
 
-enum TimelineStatus { active, paused, archived }
+enum TimelineStatus { active, archived }
 
 class Timeline {
   const Timeline({

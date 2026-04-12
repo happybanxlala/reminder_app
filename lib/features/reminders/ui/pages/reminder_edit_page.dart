@@ -44,12 +44,15 @@ class ReminderEditPage extends ConsumerStatefulWidget {
 }
 
 class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
+  static const _milestonePreviewCount = 3;
+
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _titleController;
   late final TextEditingController _noteController;
   late final TextEditingController _dateController;
   late final TextEditingController _intervalController;
-  late final TextEditingController _offsetController;
+  late final TextEditingController _taskOffsetController;
+  late final TextEditingController _milestoneOffsetController;
 
   DateTime _selectedDate = DateTime.now();
   bool _recurring = false;
@@ -59,8 +62,12 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
       MilestoneReminderRuleType.onDay;
   TimelineDisplayUnit _displayUnit = TimelineDisplayUnit.day;
   bool _initialized = false;
+  bool _showAllCustomMilestones = false;
+  bool _showAllRuleBasedMilestones = false;
   List<_MilestoneDraft> _customMilestones = const [];
   List<MilestoneBundle> _ruleBasedMilestones = const [];
+
+  bool get _isDirectTaskCreate => widget.mode == ReminderFormMode.taskCreate;
 
   bool get _isTaskCreate =>
       widget.mode == ReminderFormMode.taskCreate ||
@@ -77,6 +84,12 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
       widget.mode == ReminderFormMode.timelineCreate ||
       widget.mode == ReminderFormMode.timelineEdit;
 
+  bool get _showTaskOffsetField =>
+      _reminderRuleType == ReminderRuleType.advance;
+
+  bool get _showMilestoneOffsetField =>
+      _milestoneReminderRuleType == MilestoneReminderRuleType.advance;
+
   @override
   void initState() {
     super.initState();
@@ -84,7 +97,9 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
     _noteController = TextEditingController();
     _dateController = TextEditingController();
     _intervalController = TextEditingController(text: '1');
-    _offsetController = TextEditingController(text: '0');
+    _taskOffsetController = TextEditingController(text: '0');
+    _milestoneOffsetController = TextEditingController(text: '0');
+    _recurring = !_isDirectTaskCreate && !_isTimeline;
   }
 
   @override
@@ -93,7 +108,8 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
     _noteController.dispose();
     _dateController.dispose();
     _intervalController.dispose();
-    _offsetController.dispose();
+    _taskOffsetController.dispose();
+    _milestoneOffsetController.dispose();
     super.dispose();
   }
 
@@ -206,16 +222,17 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
   List<Widget> _buildTaskRuleSection() {
     return [
       const SizedBox(height: 12),
-      SwitchListTile(
-        key: const Key('recurring-switch'),
-        value: _recurring,
-        title: const Text('Recurring task'),
-        onChanged: (value) {
-          setState(() {
-            _recurring = value;
-          });
-        },
-      ),
+      if (_isDirectTaskCreate)
+        SwitchListTile(
+          key: const Key('recurring-switch'),
+          value: _recurring,
+          title: const Text('Recurring task'),
+          onChanged: (value) {
+            setState(() {
+              _recurring = value;
+            });
+          },
+        ),
       if (_recurring) ...[
         DropdownButtonFormField<RepeatUnit>(
           key: const Key('repeat-unit-field'),
@@ -262,17 +279,23 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
           }
         },
       ),
-      const SizedBox(height: 12),
-      TextFormField(
-        key: const Key('offset-field'),
-        controller: _offsetController,
-        keyboardType: TextInputType.number,
-        decoration: const InputDecoration(labelText: 'Offset Days'),
-      ),
+      if (_showTaskOffsetField) ...[
+        const SizedBox(height: 12),
+        TextFormField(
+          key: const Key('offset-field'),
+          controller: _taskOffsetController,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Offset Days'),
+          validator: _validateOffsetDays,
+        ),
+      ],
     ];
   }
 
   List<Widget> _buildTimelineSection(BuildContext context) {
+    final customMilestones = _visibleCustomMilestones;
+    final ruleBasedMilestones = _visibleRuleBasedMilestones;
+
     return [
       const SizedBox(height: 12),
       DropdownButtonFormField<TimelineDisplayUnit>(
@@ -313,9 +336,9 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
       if (_customMilestones.isEmpty)
         const Text('尚未設定 custom milestone。')
       else
-        ..._customMilestones.asMap().entries.map(
+        ...customMilestones.asMap().entries.map(
           (entry) => _MilestoneDraftCard(
-            key: Key('custom-milestone-${entry.key}'),
+            key: Key('custom-milestone-${entry.value.id}'),
             draft: entry.value,
             onPickDate: () => _pickDate(
               initial: entry.value.targetDate,
@@ -349,6 +372,23 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
             },
           ),
         ),
+      if (_customMilestones.length > _milestonePreviewCount)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            key: const Key('custom-milestone-toggle'),
+            onPressed: () {
+              setState(() {
+                _showAllCustomMilestones = !_showAllCustomMilestones;
+              });
+            },
+            child: Text(
+              _showAllCustomMilestones
+                  ? ReminderUiText.collapseAction
+                  : ReminderUiText.viewAllAction,
+            ),
+          ),
+        ),
       const SizedBox(height: 16),
       const Text(
         ReminderUiText.ruleBasedMilestoneTitle,
@@ -358,12 +398,29 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
       if (_ruleBasedMilestones.isEmpty)
         const Text('將依 display unit 產生未來 1 年內的 rule-based milestones。')
       else
-        ..._ruleBasedMilestones.map(
+        ...ruleBasedMilestones.map(
           (item) => ListTile(
             key: Key('rule-based-milestone-${item.milestone.id}'),
             title: Text(item.milestone.description ?? item.timeline.title),
             subtitle: Text(ReminderFormatters.milestoneSummary(item)),
             trailing: Text(item.milestone.status.name),
+          ),
+        ),
+      if (_ruleBasedMilestones.length > _milestonePreviewCount)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            key: const Key('rule-based-milestone-toggle'),
+            onPressed: () {
+              setState(() {
+                _showAllRuleBasedMilestones = !_showAllRuleBasedMilestones;
+              });
+            },
+            child: Text(
+              _showAllRuleBasedMilestones
+                  ? ReminderUiText.collapseAction
+                  : ReminderUiText.viewAllAction,
+            ),
           ),
         ),
       const SizedBox(height: 12),
@@ -385,13 +442,16 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
           }
         },
       ),
-      const SizedBox(height: 12),
-      TextFormField(
-        key: const Key('milestone-offset-field'),
-        controller: _offsetController,
-        keyboardType: TextInputType.number,
-        decoration: const InputDecoration(labelText: 'Reminder Offset Days'),
-      ),
+      if (_showMilestoneOffsetField) ...[
+        const SizedBox(height: 12),
+        TextFormField(
+          key: const Key('milestone-offset-field'),
+          controller: _milestoneOffsetController,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Reminder Offset Days'),
+          validator: _validateOffsetDays,
+        ),
+      ],
     ];
   }
 
@@ -414,7 +474,8 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
         _intervalController.text = '${taskTemplate.repeatRule!.interval}';
       }
       _reminderRuleType = taskTemplate.reminderRule.type;
-      _offsetController.text = '${taskTemplate.reminderRule.offsetDays ?? 0}';
+      _taskOffsetController.text =
+          '${taskTemplate.reminderRule.offsetDays ?? 0}';
     } else if (taskBundle != null) {
       _titleController.text = taskBundle.task.titleSnapshot;
       _selectedDate = taskBundle.task.effectiveDueDate;
@@ -428,12 +489,13 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
       _dateController.text = ReminderFormatters.date(timeline.startDate);
       _displayUnit = timeline.displayUnit;
       _milestoneReminderRuleType = timeline.milestoneReminderRule.type;
-      _offsetController.text =
+      _milestoneOffsetController.text =
           '${timeline.milestoneReminderRule.offsetDays ?? 0}';
       _customMilestones = timelineDetail.customMilestones
           .where((item) => item.milestone.status == MilestoneStatus.upcoming)
           .map(
             (item) => _MilestoneDraft(
+              id: item.milestone.id,
               targetDate: item.milestone.targetDate,
               description: item.milestone.description ?? '',
             ),
@@ -470,7 +532,11 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
         setState(() {
           _customMilestones = [
             ..._customMilestones,
-            _MilestoneDraft(targetDate: value, description: ''),
+            _MilestoneDraft(
+              id: DateTime.now().microsecondsSinceEpoch,
+              targetDate: value,
+              description: '',
+            ),
           ];
         });
       },
@@ -484,32 +550,45 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
 
     if (_isTaskTemplateFlow) {
       final repository = ref.read(taskRepositoryProvider);
-      final input = TaskTemplateInput(
-        title: _titleController.text.trim(),
-        note: _noteController.text.trim().isEmpty
-            ? null
-            : _noteController.text.trim(),
-        kind: _recurring ? TaskKind.recurring : TaskKind.oneTime,
-        firstDueDate: _selectedDate,
-        repeatRule: _recurring
-            ? RepeatRule(
-                unit: _repeatUnit,
-                interval: int.tryParse(_intervalController.text) ?? 1,
-              )
-            : null,
-        reminderRule: switch (_reminderRuleType) {
-          ReminderRuleType.advance => ReminderRule.advance(
-            int.tryParse(_offsetController.text) ?? 0,
-          ),
-          ReminderRuleType.onDue => const ReminderRule.onDue(),
-          ReminderRuleType.immediate => const ReminderRule.immediate(),
-        },
-      );
+      final reminderRule = switch (_reminderRuleType) {
+        ReminderRuleType.advance => ReminderRule.advance(
+          int.parse(_taskOffsetController.text),
+        ),
+        ReminderRuleType.onDue => const ReminderRule.onDue(),
+        ReminderRuleType.immediate => const ReminderRule.immediate(),
+      };
 
-      if (widget.mode == ReminderFormMode.taskTemplateEdit) {
-        await repository.updateTemplate(widget.id!, input);
+      if (_isDirectTaskCreate && !_recurring) {
+        await repository.createStandaloneTask(
+          TaskInput(
+            title: _titleController.text.trim(),
+            note: _noteController.text.trim().isEmpty
+                ? null
+                : _noteController.text.trim(),
+            dueDate: _selectedDate,
+            reminderRule: reminderRule,
+          ),
+        );
       } else {
-        await repository.createTemplateWithFirstTask(input);
+        final input = TaskTemplateInput(
+          title: _titleController.text.trim(),
+          note: _noteController.text.trim().isEmpty
+              ? null
+              : _noteController.text.trim(),
+          kind: TaskKind.recurring,
+          firstDueDate: _selectedDate,
+          repeatRule: RepeatRule(
+            unit: _repeatUnit,
+            interval: int.tryParse(_intervalController.text) ?? 1,
+          ),
+          reminderRule: reminderRule,
+        );
+
+        if (widget.mode == ReminderFormMode.taskTemplateEdit) {
+          await repository.updateTemplate(widget.id!, input);
+        } else {
+          await repository.createTemplateWithFirstTask(input);
+        }
       }
     } else if (_isTaskEdit) {
       await ref
@@ -522,7 +601,7 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
         displayUnit: _displayUnit,
         milestoneReminderRule: switch (_milestoneReminderRuleType) {
           MilestoneReminderRuleType.advance => MilestoneReminderRule.advance(
-            int.tryParse(_offsetController.text) ?? 0,
+            int.parse(_milestoneOffsetController.text),
           ),
           MilestoneReminderRuleType.onDay =>
             const MilestoneReminderRule.onDay(),
@@ -558,16 +637,55 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
       Navigator.of(context).pop();
     }
   }
+
+  String? _validateOffsetDays(String? value) {
+    final parsed = int.tryParse(value ?? '');
+    if (parsed == null || parsed < 0) {
+      return '請輸入 0 或以上的整數';
+    }
+    return null;
+  }
+
+  List<_MilestoneDraft> get _sortedCustomMilestones {
+    final items = [..._customMilestones];
+    items.sort((a, b) => a.targetDate.compareTo(b.targetDate));
+    return items;
+  }
+
+  List<_MilestoneDraft> get _visibleCustomMilestones {
+    final items = _sortedCustomMilestones;
+    if (_showAllCustomMilestones || items.length <= _milestonePreviewCount) {
+      return items;
+    }
+    return items.take(_milestonePreviewCount).toList(growable: false);
+  }
+
+  List<MilestoneBundle> get _visibleRuleBasedMilestones {
+    if (_showAllRuleBasedMilestones ||
+        _ruleBasedMilestones.length <= _milestonePreviewCount) {
+      return _ruleBasedMilestones;
+    }
+    return _ruleBasedMilestones
+        .take(_milestonePreviewCount)
+        .toList(growable: false);
+  }
 }
 
 class _MilestoneDraft {
-  const _MilestoneDraft({required this.targetDate, required this.description});
+  const _MilestoneDraft({
+    required this.id,
+    required this.targetDate,
+    required this.description,
+  });
+
+  final int id;
 
   final DateTime targetDate;
   final String description;
 
   _MilestoneDraft copyWith({DateTime? targetDate, String? description}) {
     return _MilestoneDraft(
+      id: id,
       targetDate: targetDate ?? this.targetDate,
       description: description ?? this.description,
     );

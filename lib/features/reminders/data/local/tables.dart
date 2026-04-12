@@ -24,11 +24,14 @@ class Tasks extends Table {
   String get tableName => 'tasks';
 
   IntColumn get id => integer().autoIncrement()();
-  IntColumn get templateId => integer()();
+  IntColumn get templateId => integer().nullable()();
+  TextColumn get kind => text()();
   TextColumn get titleSnapshot => text()();
   TextColumn get noteSnapshot => text().nullable()();
   IntColumn get categoryId => integer().nullable()();
   IntColumn get dueDate => integer()();
+  TextColumn get repeatRule => text().nullable()();
+  TextColumn get reminderRule => text()();
   IntColumn get deferredDueDate => integer().nullable()();
   TextColumn get status => text()();
   IntColumn get createdAt => integer()();

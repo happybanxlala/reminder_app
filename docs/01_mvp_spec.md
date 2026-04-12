@@ -70,7 +70,7 @@
 
 ### Timeline
 
-* active / paused / archived
+* active / archived
 
 ### Milestone
 
@@ -105,7 +105,13 @@
 取消：
 
 * Task → canceled
-* Template → paused
+* 若 recurring 且來自 TaskTemplate → Template → paused
+
+補充規則：
+
+* 暫停 TaskTemplate 時，既有 pending Task 一律批次轉為 canceled
+* 上述批次取消時，需清除 deferredDueDate
+* archived TaskTemplate 為唯讀，不可再編輯
 
 ---
 
@@ -144,13 +150,20 @@
 
 ### 7.1 Today
 
-* Task（已進入提醒期）
-* Milestone 提示卡片
+* Task（effectiveDueDate = today）
+* Milestone（targetDate = today）
 
 ### 7.2 Upcoming
 
 * 未來 Task
+* 條件：
+  * immediate：只要尚未到 dueDate，即列入 Upcoming
+  * advance：已進入提醒期且 dueDate 仍在未來，列入 Upcoming
+  * onDue：不列入 Upcoming
 * 未來 Milestone
+* 條件：
+  * advance：已進入提醒期且 targetDate 仍在未來，列入 Upcoming
+  * onDay：不列入 Upcoming
 
 ### 7.3 Overdue
 
@@ -200,9 +213,18 @@
 
 * id
 * templateId
+* kind
 * dueDate
 * deferredDueDate
+* repeatRule
+* reminderRule
 * status
+
+補充：
+
+* oneTime Task 可直接建立於 `tasks`
+* oneTime Task 允許 `templateId = null`
+* Task 需保留 snapshot 欄位，避免後續 template 變更回寫歷史 Task
 
 ### Timeline
 
@@ -228,6 +250,9 @@
 * Milestone 不可進入 Overdue
 * TaskTemplate 修改不影響既有 Task
 * Milestone 不依使用者操作產生下一筆
+* oneTime Task 不建立 TaskTemplate
+* recurring Task 取消時，對應 TaskTemplate 需同步轉為 paused
+* archived Timeline 為唯讀，不可再編輯
 
 ---
 
@@ -242,6 +267,10 @@
 
 * TaskTemplate + Task
 * Timeline + Milestone
+
+目前 schema 版本：
+
+* `7`
 
 ---
 
