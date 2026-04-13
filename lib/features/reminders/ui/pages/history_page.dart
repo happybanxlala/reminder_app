@@ -3,9 +3,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/local/daos.dart';
-import '../../data/reminder_repository.dart';
-import '../../presentation/reminder_view_models.dart';
+import '../../presentation/formatters/reminder_formatters.dart';
+import '../../presentation/text/reminder_ui_text.dart';
+import '../../providers/history_providers.dart';
 
 class HistoryPage extends ConsumerStatefulWidget {
   const HistoryPage({super.key});

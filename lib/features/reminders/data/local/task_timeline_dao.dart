@@ -11,7 +11,7 @@ import '../../domain/timeline.dart';
 import 'app_database.dart';
 import 'tables.dart';
 
-part 'daos.g.dart';
+part 'task_timeline_dao.g.dart';
 
 class TaskBundle {
   const TaskBundle({required this.task, required this.template});
@@ -40,9 +40,9 @@ class TimelineDetailRecord {
 }
 
 @DriftAccessor(tables: [TaskTemplates, Tasks, Timelines, Milestones])
-class ReminderDao extends DatabaseAccessor<AppDatabase>
-    with _$ReminderDaoMixin {
-  ReminderDao(super.attachedDatabase);
+class TaskTimelineDao extends DatabaseAccessor<AppDatabase>
+    with _$TaskTimelineDaoMixin {
+  TaskTimelineDao(super.attachedDatabase);
 
   Future<int> insertTaskTemplate(TaskTemplatesCompanion entry) {
     return into(taskTemplates).insert(entry);

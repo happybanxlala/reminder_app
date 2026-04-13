@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/local/daos.dart';
-import '../../data/reminder_repository.dart';
+import '../../data/local/task_timeline_dao.dart';
+import '../../data/task_repository.dart';
+import '../../data/timeline_repository.dart';
 import '../../domain/milestone.dart';
 import '../../domain/milestone_reminder_rule.dart';
 import '../../domain/reminder_rule.dart';
 import '../../domain/repeat_rule.dart';
 import '../../domain/task_template.dart';
 import '../../domain/timeline.dart';
-import '../../presentation/reminder_view_models.dart';
+import '../../presentation/formatters/reminder_formatters.dart';
+import '../../presentation/text/reminder_ui_text.dart';
+import '../../providers/task_providers.dart';
+import '../../providers/timeline_providers.dart';
 
-enum ReminderFormMode {
+enum TaskTimelineEditorMode {
   taskCreate,
   taskTemplateCreate,
   taskTemplateEdit,
@@ -20,8 +24,8 @@ enum ReminderFormMode {
   timelineEdit,
 }
 
-class ReminderEditPage extends ConsumerStatefulWidget {
-  const ReminderEditPage({super.key, required this.mode, this.id});
+class TaskTimelineEditorPage extends ConsumerStatefulWidget {
+  const TaskTimelineEditorPage({super.key, required this.mode, this.id});
 
   static const taskNewRouteName = 'task-new';
   static const taskNewRoutePath = '/task/new';
@@ -36,14 +40,16 @@ class ReminderEditPage extends ConsumerStatefulWidget {
   static const timelineEditRouteName = 'timeline-edit';
   static const timelineEditRoutePath = '/timeline/:id';
 
-  final ReminderFormMode mode;
+  final TaskTimelineEditorMode mode;
   final int? id;
 
   @override
-  ConsumerState<ReminderEditPage> createState() => _ReminderEditPageState();
+  ConsumerState<TaskTimelineEditorPage> createState() =>
+      _TaskTimelineEditorPageState();
 }
 
-class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
+class _TaskTimelineEditorPageState
+    extends ConsumerState<TaskTimelineEditorPage> {
   static const _milestonePreviewCount = 3;
 
   final _formKey = GlobalKey<FormState>();
@@ -67,22 +73,23 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
   List<_MilestoneDraft> _customMilestones = const [];
   List<MilestoneBundle> _ruleBasedMilestones = const [];
 
-  bool get _isDirectTaskCreate => widget.mode == ReminderFormMode.taskCreate;
+  bool get _isDirectTaskCreate =>
+      widget.mode == TaskTimelineEditorMode.taskCreate;
 
   bool get _isTaskCreate =>
-      widget.mode == ReminderFormMode.taskCreate ||
-      widget.mode == ReminderFormMode.taskTemplateCreate;
+      widget.mode == TaskTimelineEditorMode.taskCreate ||
+      widget.mode == TaskTimelineEditorMode.taskTemplateCreate;
 
   bool get _isTaskTemplateEdit =>
-      widget.mode == ReminderFormMode.taskTemplateEdit;
+      widget.mode == TaskTimelineEditorMode.taskTemplateEdit;
 
   bool get _isTaskTemplateFlow => _isTaskCreate || _isTaskTemplateEdit;
 
-  bool get _isTaskEdit => widget.mode == ReminderFormMode.taskEdit;
+  bool get _isTaskEdit => widget.mode == TaskTimelineEditorMode.taskEdit;
 
   bool get _isTimeline =>
-      widget.mode == ReminderFormMode.timelineCreate ||
-      widget.mode == ReminderFormMode.timelineEdit;
+      widget.mode == TaskTimelineEditorMode.timelineCreate ||
+      widget.mode == TaskTimelineEditorMode.timelineEdit;
 
   bool get _showTaskOffsetField =>
       _reminderRuleType == ReminderRuleType.advance;
@@ -164,12 +171,14 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
 
   String get _pageTitle {
     return switch (widget.mode) {
-      ReminderFormMode.taskCreate => ReminderUiText.addTask,
-      ReminderFormMode.taskTemplateCreate => ReminderUiText.addTaskTemplate,
-      ReminderFormMode.taskTemplateEdit => ReminderUiText.editTaskTemplate,
-      ReminderFormMode.taskEdit => ReminderUiText.editTask,
-      ReminderFormMode.timelineCreate => ReminderUiText.addTimeline,
-      ReminderFormMode.timelineEdit => ReminderUiText.editTimeline,
+      TaskTimelineEditorMode.taskCreate => ReminderUiText.addTask,
+      TaskTimelineEditorMode.taskTemplateCreate =>
+        ReminderUiText.addTaskTemplate,
+      TaskTimelineEditorMode.taskTemplateEdit =>
+        ReminderUiText.editTaskTemplate,
+      TaskTimelineEditorMode.taskEdit => ReminderUiText.editTask,
+      TaskTimelineEditorMode.timelineCreate => ReminderUiText.addTimeline,
+      TaskTimelineEditorMode.timelineEdit => ReminderUiText.editTimeline,
     };
   }
 
@@ -236,7 +245,7 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
       if (_recurring) ...[
         DropdownButtonFormField<RepeatUnit>(
           key: const Key('repeat-unit-field'),
-          value: _repeatUnit,
+          initialValue: _repeatUnit,
           decoration: const InputDecoration(labelText: 'Repeat Unit'),
           items: RepeatUnit.values
               .map(
@@ -263,7 +272,7 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
       const SizedBox(height: 12),
       DropdownButtonFormField<ReminderRuleType>(
         key: const Key('reminder-rule-field'),
-        value: _reminderRuleType,
+        initialValue: _reminderRuleType,
         decoration: const InputDecoration(labelText: 'Reminder Rule'),
         items: ReminderRuleType.values
             .map(
@@ -300,7 +309,7 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
       const SizedBox(height: 12),
       DropdownButtonFormField<TimelineDisplayUnit>(
         key: const Key('display-unit-field'),
-        value: _displayUnit,
+        initialValue: _displayUnit,
         decoration: const InputDecoration(labelText: 'Display Unit'),
         items: TimelineDisplayUnit.values
             .map(
@@ -426,7 +435,7 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
       const SizedBox(height: 12),
       DropdownButtonFormField<MilestoneReminderRuleType>(
         key: const Key('milestone-reminder-rule-field'),
-        value: _milestoneReminderRuleType,
+        initialValue: _milestoneReminderRuleType,
         decoration: const InputDecoration(labelText: 'Milestone Reminder Rule'),
         items: MilestoneReminderRuleType.values
             .map(
@@ -584,7 +593,7 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
           reminderRule: reminderRule,
         );
 
-        if (widget.mode == ReminderFormMode.taskTemplateEdit) {
+        if (widget.mode == TaskTimelineEditorMode.taskTemplateEdit) {
           await repository.updateTemplate(widget.id!, input);
         } else {
           await repository.createTemplateWithFirstTask(input);
@@ -618,7 +627,7 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
             ),
           )
           .toList(growable: false);
-      if (widget.mode == ReminderFormMode.timelineCreate) {
+      if (widget.mode == TaskTimelineEditorMode.timelineCreate) {
         await ref
             .read(timelineRepositoryProvider)
             .createTimeline(input, customMilestones: customMilestones);

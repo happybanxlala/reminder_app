@@ -1,303 +1,194 @@
-# Reminder App MVP Spec（正式版）
+# Reminder App MVP Spec
 
-> 本文件為 repo 正式規格，取代舊版 spec。所有實作應以本文件為準。
+本文件是 repo 的正式規格。若文件、實作、命名有衝突，應以本文件、`docs/02_architecture_refactor.md` 與目前 Drift schema 一致的版本為準。
 
----
-
-## 1. 目標（Goal）
-
-建立一個協助使用者：
-
-* 管理「需要完成的事情」（Task）
-* 追蹤「從某天開始的時間」（Timeline）
-
-並在正確的時間點提供清楚、不混亂的提醒。
-
----
-
-## 2. 範圍（Scope）
-
-### 包含
-
-* Task（單次 / 定期）
-* Timeline（從某天開始）
-* 首頁 Today / Upcoming / Overdue
-* 歷史紀錄
-* Wizard 建立流程
-
-### 不包含（MVP）
-
-* 複雜排程（如每月第幾個週幾）
-* 跨裝置同步
-* 推播系統（先用 UI 提示）
-
----
-
-## 3. 核心模型
-
-### 3.1 Task（任務）
-
-* 有 dueDate
-* 可完成 / 跳過 / 延期 / 取消
-* 可逾期
-* 可由規則產生下一筆
-
-### 3.2 Timeline（時間軸）
-
-* 有 startDate
-* 不可完成
-* 不會逾期
-* 透過 Milestone 顯示重要日子
-
-### 3.3 Milestone（重要日子）
-
-* 屬於 Timeline
-* 有 targetDate
-* 可被「查看 / 忽略」
-* 不會產生下一筆（非任務）
-
----
-
-## 4. 狀態定義
-
-### TaskTemplate
-
-* active / paused / archived
+## 1. Product Model
 
 ### Task
 
-* pending / done / skipped / canceled
+- `Task` 是要完成的事。
+- `Task` 有 `dueDate`，可 `done / skipped / canceled`，也可 defer。
+- `Task` 可以 overdue。
+- recurring `Task` 在 `done / skipped` 後會依 `repeatRule` 產生下一筆。
 
 ### Timeline
 
-* active / archived
+- `Timeline` 是從某天開始經過的時間。
+- `Timeline` 有 `startDate`，不可完成，也不會 overdue。
+- `Timeline` 透過 `Milestone` 顯示重要日子。
 
 ### Milestone
 
-* upcoming / noticed / skipped
+- `Milestone` 屬於 `Timeline`。
+- `Milestone` 有 `targetDate`。
+- `Milestone` 只可 `noticed / skipped`。
+- `Milestone` 不會產生下一筆，也不可進入 overdue。
 
----
+## 2. Status Sets
 
-## 5. Task 系統
+- `TaskTemplateStatus = active / paused / archived`
+- `TaskStatus = pending / done / skipped / canceled`
+- `TimelineStatus = active / archived`
+- `MilestoneStatus = upcoming / noticed / skipped`
 
-### 5.1 類型
+## 3. Task Rules
 
-* oneTime
-* recurring
+### Kinds
 
-### 5.2 ReminderRule
+- `oneTime`
+- `recurring`
 
-* advance（提前 N 天）
-* onDue（當天）
-* immediate（立即）
+### ReminderRule
 
-### 5.3 行為
+- `advance`
+- `onDue`
+- `immediate`
 
-完成 / 跳過：
+### Lifecycle
 
-* 更新狀態
-* 若 recurring → 產生下一筆
+- `done / skipped`: 更新狀態；若 recurring 且 template 仍為 `active`，產生下一筆 `Task`
+- `defer`: 更新 `deferredDueDate`
+- `cancel`: `Task.status -> canceled`
+- recurring `Task` 被取消且來自 `TaskTemplate` 時，對應 `TaskTemplate.status -> paused`
+- `pause TaskTemplate`: 所有既有 pending `Task` 批次轉為 `canceled`，並清空 `deferredDueDate`
+- archived `TaskTemplate` 為唯讀
 
-延期：
+## 4. Timeline Rules
 
-* 更新 deferredDueDate
+### Display
 
-取消：
+- `Timeline.displayUnit = day / week / month / year`
+- 顯示值由 `TimelineCalculator` 根據 `startDate` 與今天計算
 
-* Task → canceled
-* 若 recurring 且來自 TaskTemplate → Template → paused
+### Milestone Source
 
-補充規則：
+- `ruleBased`
+- `custom`
 
-* 暫停 TaskTemplate 時，既有 pending Task 一律批次轉為 canceled
-* 上述批次取消時，需清除 deferredDueDate
-* archived TaskTemplate 為唯讀，不可再編輯
+### MilestoneReminderRule
 
----
+- `advance`
+- `onDay`
 
-## 6. Timeline 系統
+### User Actions
 
-### 6.1 顯示
+- `noticed`
+- `skipped`
 
-* 第 N 天 / 週 / 月 / 年
+## 5. Home Semantics
 
-### 6.2 Milestone
+### Today
 
-來源：
+- today `Task`: `effectiveDueDate == today`
+- today `Milestone`: `targetDate == today`
 
-* rule-based
-* custom
+### Upcoming
 
-### 6.3 提示規則
+- future `Task`
+- `immediate`: 只要尚未到 due date 就列入 Upcoming
+- `advance`: 已進入提醒期且 due date 仍在未來時列入 Upcoming
+- `onDue`: 不列入 Upcoming
+- future `Milestone`
+- `advance`: 已進入提醒期且 target date 仍在未來時列入 Upcoming
+- `onDay`: 不列入 Upcoming
 
-* advance（提前）
-* onDay（當天）
+### Overdue
 
-### 6.4 使用者行為
+- 只顯示 `Task`
 
-* 查看（noticed）
-* 忽略（skipped）
+## 6. History
 
----
+- `Task History`: `done / skipped / canceled`
+- `Milestone History`: `noticed / skipped`
 
-## 7. 首頁（Home）
+## 7. Wizard Flows
 
-### Tabs
-
-1. Today
-2. Upcoming
-3. Overdue
-
-### 7.1 Today
-
-* Task（effectiveDueDate = today）
-* Milestone（targetDate = today）
-
-### 7.2 Upcoming
-
-* 未來 Task
-* 條件：
-  * immediate：只要尚未到 dueDate，即列入 Upcoming
-  * advance：已進入提醒期且 dueDate 仍在未來，列入 Upcoming
-  * onDue：不列入 Upcoming
-* 未來 Milestone
-* 條件：
-  * advance：已進入提醒期且 targetDate 仍在未來，列入 Upcoming
-  * onDay：不列入 Upcoming
-
-### 7.3 Overdue
-
-* 只顯示 Task
-
----
-
-## 8. 歷史
-
-分為：
-
-* Task History（done / skipped / canceled）
-* Milestone History（noticed / skipped）
-
----
-
-## 9. Wizard
-
-### 9.1 Task
+### Task
 
 1. 輸入內容
 2. 是否重複
 3. 日期設定
 4. 提醒設定
 
-### 9.2 Timeline
+### Timeline
 
 1. 輸入內容
 2. milestone 設定
 3. 提醒設定
 
----
+## 8. Data Model
 
-## 10. Data Model（MVP）
+### task_templates
 
-### TaskTemplate
+- `id`
+- `title`
+- `categoryId`
+- `note`
+- `kind`
+- `status`
+- `firstDueDate`
+- `repeatRule`
+- `reminderRule`
+- `createdAt`
+- `updatedAt`
 
-* id
-* title
-* kind
-* status
-* firstDueDate
-* repeatRule
-* reminderRule
+### tasks
 
-### Task
-
-* id
-* templateId
-* kind
-* dueDate
-* deferredDueDate
-* repeatRule
-* reminderRule
-* status
+- `id`
+- `templateId`
+- `kind`
+- `titleSnapshot`
+- `noteSnapshot`
+- `categoryId`
+- `dueDate`
+- `repeatRule`
+- `reminderRule`
+- `deferredDueDate`
+- `status`
+- `createdAt`
+- `updatedAt`
+- `resolvedAt`
 
 補充：
 
-* oneTime Task 可直接建立於 `tasks`
-* oneTime Task 允許 `templateId = null`
-* Task 需保留 snapshot 欄位，避免後續 template 變更回寫歷史 Task
+- one-time `Task` 直接建立於 `tasks`
+- one-time `Task` 允許 `templateId = null`
+- `Task` 保留 snapshot 欄位，避免後續 template 變更回寫歷史 task
 
-### Timeline
+### timelines
 
-* id
-* title
-* startDate
-* displayUnit
-* status
+- `id`
+- `title`
+- `startDate`
+- `displayUnit`
+- `status`
+- `milestoneReminderRule`
+- `createdAt`
+- `updatedAt`
 
-### Milestone
+### milestones
 
-* id
-* timelineId
-* targetDate
-* description
-* status
+- `id`
+- `timelineId`
+- `targetDate`
+- `description`
+- `source`
+- `status`
+- `createdAt`
+- `updatedAt`
 
----
+## 9. Domain Constraints
 
-## 11. Domain 規則
+- `Task` 與 `Timeline` 不可混用
+- `Milestone` 不可進入 overdue
+- `TaskTemplate` 修改不影響既有 `Task`
+- `Milestone` 不依使用者操作產生下一筆
+- one-time `Task` 不建立 `TaskTemplate`
+- archived `Timeline` 為唯讀，不可再編輯
 
-* Task 與 Timeline 不可混用
-* Milestone 不可進入 Overdue
-* TaskTemplate 修改不影響既有 Task
-* Milestone 不依使用者操作產生下一筆
-* oneTime Task 不建立 TaskTemplate
-* recurring Task 取消時，對應 TaskTemplate 需同步轉為 paused
-* archived Timeline 為唯讀，不可再編輯
+## 10. Migration Policy
 
----
-
-## 12. Migration 原則
-
-舊系統需移除：
-
-* trackingMode
-* triggerMode
-
-並改為：
-
-* TaskTemplate + Task
-* Timeline + Milestone
-
-目前 schema 版本：
-
-* `7`
-
----
-
-## 13. MVP 優先順序
-
-P0：
-
-* Task / Timeline 分離
-* Today / Upcoming / Overdue
-
-P1：
-
-* 完整 Task 行為
-* Milestone 提示
-
-P2：
-
-* 進階規則
-* UI 優化
-
----
-
-## 14. 結論
-
-本系統核心為：
-
-* Task = 要完成的事
-* Timeline = 經過的時間
-
-所有設計需維持此分離原則。
+- 已移除 `trackingMode`
+- 已移除 `triggerMode`
+- 已移除 mixed `Reminder / RecurringReminder` 核心模型
+- schema version 目前為 `7`

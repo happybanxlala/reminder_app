@@ -1,7 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
-import 'package:reminder_app/features/reminders/data/reminder_repository.dart';
+import 'package:reminder_app/features/reminders/data/task_repository.dart';
 import 'package:reminder_app/features/reminders/domain/reminder_rule.dart';
 import 'package:reminder_app/features/reminders/domain/repeat_rule.dart';
 import 'package:reminder_app/features/reminders/domain/task.dart';
@@ -11,7 +11,7 @@ void main() {
   test('recurring task done creates next task occurrence', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = TaskRepository(db.reminderDao);
+    final repository = TaskRepository(db.taskTimelineDao);
 
     final templateId = await repository.createTemplateWithFirstTask(
       TaskTemplateInput(
@@ -34,10 +34,35 @@ void main() {
     expect(tasks.last.template!.id, templateId);
   });
 
+  test('recurring task skipped creates next task occurrence', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = TaskRepository(db.taskTimelineDao);
+
+    await repository.createTemplateWithFirstTask(
+      TaskTemplateInput(
+        title: 'Weekly recycling',
+        kind: TaskKind.recurring,
+        firstDueDate: DateTime(2026, 4, 10),
+        repeatRule: const RepeatRule(unit: RepeatUnit.week, interval: 1),
+        reminderRule: const ReminderRule.onDue(),
+      ),
+    );
+
+    final task = (await repository.watchAllTasks().first).single;
+    await repository.skipTask(task.task.id);
+
+    final tasks = await repository.watchAllTasks().first;
+    expect(tasks, hasLength(2));
+    expect(tasks.first.task.status, TaskStatus.skipped);
+    expect(tasks.last.task.status, TaskStatus.pending);
+    expect(tasks.last.task.dueDate, DateTime(2026, 4, 17));
+  });
+
   test('defer only affects current task effective due date', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = TaskRepository(db.reminderDao);
+    final repository = TaskRepository(db.taskTimelineDao);
 
     await repository.createStandaloneTask(
       TaskInput(
@@ -59,7 +84,7 @@ void main() {
   test('cancel task pauses template and does not create next task', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = TaskRepository(db.reminderDao);
+    final repository = TaskRepository(db.taskTimelineDao);
 
     final templateId = await repository.createTemplateWithFirstTask(
       TaskTemplateInput(
@@ -86,7 +111,7 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = TaskRepository(db.reminderDao);
+      final repository = TaskRepository(db.taskTimelineDao);
 
       final templateId = await repository.createTemplateWithFirstTask(
         TaskTemplateInput(
@@ -111,7 +136,7 @@ void main() {
   test('editing template does not mutate existing task snapshot', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = TaskRepository(db.reminderDao);
+    final repository = TaskRepository(db.taskTimelineDao);
 
     final templateId = await repository.createTemplateWithFirstTask(
       TaskTemplateInput(
@@ -143,7 +168,7 @@ void main() {
   test('template can resume from paused and archive from active', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = TaskRepository(db.reminderDao);
+    final repository = TaskRepository(db.taskTimelineDao);
 
     final templateId = await repository.createTemplate(
       TaskTemplateInput(
@@ -177,7 +202,7 @@ void main() {
   test('archived template is read-only', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = TaskRepository(db.reminderDao);
+    final repository = TaskRepository(db.taskTimelineDao);
 
     final templateId = await repository.createTemplate(
       TaskTemplateInput(

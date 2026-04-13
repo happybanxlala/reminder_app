@@ -74,4 +74,11 @@ void main() {
       );
     },
   );
+
+  test('timeline status only allows active and archived', () {
+    expect(TimelineStatus.values.map((status) => status.name).toList(), [
+      'active',
+      'archived',
+    ]);
+  });
 }

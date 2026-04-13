@@ -10,7 +10,6 @@ class ReminderUiText {
   static const todayTab = 'Today';
   static const upcomingTab = 'Upcoming';
   static const overdueTab = 'Overdue';
-  static const historyTab = 'History';
   static const addTask = '新增 Task';
   static const addTaskTemplate = '新增 Task Template';
   static const addTimeline = '新增 Timeline';
@@ -20,7 +19,6 @@ class ReminderUiText {
   static const noTodayItems = '今天沒有 Task 或 Milestone。';
   static const noUpcomingItems = '接下來沒有排程中的內容。';
   static const noOverdueItems = '目前沒有逾期 Task。';
-  static const noHistoryItems = '目前沒有歷史紀錄。';
   static const noTaskHistory = '目前沒有 Task History。';
   static const noMilestoneHistory = '目前沒有 Milestone History。';
   static const noTemplates = '目前沒有 Task Template。';
@@ -47,6 +45,4 @@ class ReminderUiText {
   static const updatedAtLabel = '最後更新';
   static const previousPageAction = '上一頁';
   static const nextPageAction = '下一頁';
-  static const pausedLabel = 'Paused';
-  static const archivedLabel = 'Archived';
 }

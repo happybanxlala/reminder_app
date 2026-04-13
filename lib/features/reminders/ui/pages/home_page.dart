@@ -2,24 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../data/local/daos.dart';
-import '../../data/reminder_repository.dart';
-import '../../presentation/reminder_view_models.dart';
+import '../../data/home_query_service.dart';
+import '../../data/local/task_timeline_dao.dart';
+import '../../presentation/formatters/reminder_formatters.dart';
+import '../../presentation/text/reminder_ui_text.dart';
+import '../../presentation/view_models/task_milestone_card_view_model.dart';
+import '../../providers/home_providers.dart';
+import '../../providers/task_providers.dart';
+import '../../providers/timeline_providers.dart';
 import 'history_page.dart';
 import 'management_page.dart';
-import 'reminder_edit_page.dart';
+import 'task_timeline_editor_page.dart';
 
-class RemindersListPage extends ConsumerStatefulWidget {
-  const RemindersListPage({super.key});
+class HomePage extends ConsumerStatefulWidget {
+  const HomePage({super.key});
 
-  static const routeName = 'reminders-list';
+  static const routeName = 'home';
   static const routePath = '/';
 
   @override
-  ConsumerState<RemindersListPage> createState() => _RemindersListPageState();
+  ConsumerState<HomePage> createState() => _HomePageState();
 }
 
-class _RemindersListPageState extends ConsumerState<RemindersListPage>
+class _HomePageState extends ConsumerState<HomePage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
@@ -65,7 +70,7 @@ class _RemindersListPageState extends ConsumerState<RemindersListPage>
           IconButton(
             key: const Key('quick-add-task-button'),
             onPressed: () =>
-                context.pushNamed(ReminderEditPage.taskNewRouteName),
+                context.pushNamed(TaskTimelineEditorPage.taskNewRouteName),
             icon: const Icon(Icons.add_task),
             tooltip: ReminderUiText.addTask,
           ),

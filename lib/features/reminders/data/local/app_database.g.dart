@@ -2506,7 +2506,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $TasksTable tasks = $TasksTable(this);
   late final $TimelinesTable timelines = $TimelinesTable(this);
   late final $MilestonesTable milestones = $MilestonesTable(this);
-  late final ReminderDao reminderDao = ReminderDao(this as AppDatabase);
+  late final TaskTimelineDao taskTimelineDao = TaskTimelineDao(
+    this as AppDatabase,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();

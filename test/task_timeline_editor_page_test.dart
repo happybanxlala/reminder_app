@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:reminder_app/features/reminders/data/reminder_repository.dart';
+import 'package:reminder_app/features/reminders/data/timeline_repository.dart';
 import 'package:reminder_app/features/reminders/domain/milestone_reminder_rule.dart';
 import 'package:reminder_app/features/reminders/domain/reminder_rule.dart';
-import 'package:reminder_app/features/reminders/domain/task.dart';
 import 'package:reminder_app/features/reminders/domain/task_template.dart';
 import 'package:reminder_app/features/reminders/domain/timeline.dart';
-import 'package:reminder_app/features/reminders/ui/pages/reminder_edit_page.dart';
+import 'package:reminder_app/features/reminders/providers/task_providers.dart';
+import 'package:reminder_app/features/reminders/providers/timeline_providers.dart';
+import 'package:reminder_app/features/reminders/ui/pages/task_timeline_editor_page.dart';
 
 void main() {
   testWidgets(
@@ -16,7 +17,9 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: const MaterialApp(
-            home: ReminderEditPage(mode: ReminderFormMode.taskTemplateCreate),
+            home: TaskTimelineEditorPage(
+              mode: TaskTimelineEditorMode.taskTemplateCreate,
+            ),
           ),
         ),
       );
@@ -62,8 +65,8 @@ void main() {
           ),
         ],
         child: const MaterialApp(
-          home: ReminderEditPage(
-            mode: ReminderFormMode.taskTemplateEdit,
+          home: TaskTimelineEditorPage(
+            mode: TaskTimelineEditorMode.taskTemplateEdit,
             id: 7,
           ),
         ),
@@ -82,7 +85,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         child: const MaterialApp(
-          home: ReminderEditPage(mode: ReminderFormMode.timelineCreate),
+          home: TaskTimelineEditorPage(
+            mode: TaskTimelineEditorMode.timelineCreate,
+          ),
         ),
       ),
     );
@@ -131,7 +136,10 @@ void main() {
           ),
         ],
         child: const MaterialApp(
-          home: ReminderEditPage(mode: ReminderFormMode.timelineEdit, id: 9),
+          home: TaskTimelineEditorPage(
+            mode: TaskTimelineEditorMode.timelineEdit,
+            id: 9,
+          ),
         ),
       ),
     );

@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../data/reminder_repository.dart';
 import '../../domain/task_template.dart';
 import '../../domain/timeline.dart';
-import '../../presentation/reminder_view_models.dart';
-import 'reminder_edit_page.dart';
+import '../../presentation/formatters/reminder_formatters.dart';
+import '../../presentation/text/reminder_ui_text.dart';
+import '../../providers/task_providers.dart';
+import '../../providers/timeline_providers.dart';
+import 'task_timeline_editor_page.dart';
 
 class ManagementPage extends ConsumerWidget {
   const ManagementPage({super.key});
@@ -35,7 +37,9 @@ class ManagementPage extends ConsumerWidget {
               FilledButton(
                 key: const Key('add-task-template-button'),
                 onPressed: () {
-                  context.pushNamed(ReminderEditPage.taskTemplateNewRouteName);
+                  context.pushNamed(
+                    TaskTimelineEditorPage.taskTemplateNewRouteName,
+                  );
                 },
                 child: const Text(ReminderUiText.addTaskTemplate),
               ),
@@ -68,7 +72,9 @@ class ManagementPage extends ConsumerWidget {
               FilledButton(
                 key: const Key('add-timeline-button'),
                 onPressed: () {
-                  context.pushNamed(ReminderEditPage.timelineNewRouteName);
+                  context.pushNamed(
+                    TaskTimelineEditorPage.timelineNewRouteName,
+                  );
                 },
                 child: const Text(ReminderUiText.addTimeline),
               ),
@@ -144,7 +150,7 @@ class _TaskTemplateCard extends ConsumerWidget {
                     key: Key('template-edit-${template.id}'),
                     onPressed: () {
                       context.pushNamed(
-                        ReminderEditPage.taskTemplateEditRouteName,
+                        TaskTimelineEditorPage.taskTemplateEditRouteName,
                         pathParameters: {'id': template.id.toString()},
                       );
                     },
@@ -184,7 +190,7 @@ class _TaskTemplateCard extends ConsumerWidget {
                     key: Key('template-edit-${template.id}'),
                     onPressed: () {
                       context.pushNamed(
-                        ReminderEditPage.taskTemplateEditRouteName,
+                        TaskTimelineEditorPage.taskTemplateEditRouteName,
                         pathParameters: {'id': template.id.toString()},
                       );
                     },
@@ -239,7 +245,7 @@ class _TimelineCard extends StatelessWidget {
                 key: Key('timeline-edit-${timeline.id}'),
                 onPressed: () {
                   context.pushNamed(
-                    ReminderEditPage.timelineEditRouteName,
+                    TaskTimelineEditorPage.timelineEditRouteName,
                     pathParameters: {'id': timeline.id.toString()},
                   );
                 },

@@ -1,71 +1,105 @@
 # Reminder App Architecture
 
-## Core Split
+本文件描述目前已落地的架構切分，並與 `docs/01_mvp_spec.md` 與 Drift schema 對齊。
 
-Reminder App now uses two independent domain tracks:
+## 1. Canonical Sources
+
+唯一真相來源：
+
+- `docs/01_mvp_spec.md`
+- `docs/02_architecture_refactor.md`
+- `lib/features/reminders/data/local/tables.dart`
+- `lib/features/reminders/data/local/app_database.dart`
+
+## 2. Core Split
+
+系統只允許兩條獨立 domain track：
 
 - `TaskTemplate + Task`
 - `Timeline + Milestone`
 
-This split is mandatory:
+這個切分是強制的：
 
-- Task has `dueDate`, can be `done / skipped / deferred / canceled`, and may become overdue.
-- Timeline has `startDate`, is not a todo item, and never becomes overdue.
-- Milestone belongs to Timeline and can be `noticed / skipped`, but does not generate the next milestone from user actions.
+- `Task` 有 `dueDate`，可 `done / skipped / canceled / defer`，且可能 overdue
+- `Timeline` 有 `startDate`，不是 todo item，不會 overdue
+- `Milestone` 屬於 `Timeline`，只可 `noticed / skipped`，不會產生下一筆
 
-## Data Model
+## 3. Data Layer
 
-Drift tables:
+Drift tables：
 
 - `task_templates`
 - `tasks`
 - `timelines`
 - `milestones`
 
-Key decisions:
+已落地決策：
 
-- one-time task is stored directly in `tasks` and may have `templateId = null`.
-- `tasks` keep snapshot fields such as `titleSnapshot`, `repeatRule`, and `reminderRule` so template edits do not rewrite historical tasks.
-- `task_templates` own recurring template lifecycle, but task-side reminder/repeat snapshots are persisted onto each task row.
-- `milestones` are separate from tasks and are excluded from overdue queries by design.
-- `timelines` no longer use a `paused` status; active and archived are sufficient.
+- one-time task 直接存在 `tasks`，可 `templateId = null`
+- `tasks` 保存 snapshot 欄位，如 `titleSnapshot / repeatRule / reminderRule`
+- `task_templates` 只負責 recurring template lifecycle
+- `milestones` 與 `tasks` 分離，設計上排除 overdue query
+- `timelines` 只有 `active / archived`，沒有 `paused`
+- schema version 是 `7`
 
-## Domain Services
+## 4. Domain Services
 
-- `TaskScheduler`
-  - classifies today / upcoming / overdue
-  - `Today`: `effectiveDueDate == today`
-  - `Upcoming`: future tasks already inside reminder window
-  - generates the next recurring task after `done / skipped`
-- `TimelineCalculator`
-  - computes display counters
-  - `Today`: `targetDate == today`
-  - `Upcoming`: future milestones already inside reminder window
-  - computes milestone reminder dates
-  - supports rule-based milestone windows within the next 1 year for MVP
+### TaskScheduler
 
-## UI Shape
+- 計算 task 的 today / upcoming / overdue
+- `Today`: `effectiveDueDate == today`
+- `Upcoming`: future task 且已進入 reminder window
+- recurring task 在 `done / skipped` 後推算下一筆 due date
 
-Home tabs:
+### TimelineCalculator
 
-- `Today`
-- `Upcoming`
-- `Overdue`
-- `History`
+- 計算 timeline display counter
+- 計算 milestone reminder date
+- `Today`: `targetDate == today`
+- `Upcoming`: future milestone 且已進入 reminder window
+- milestone 永遠不進 overdue
 
-Management is separate from Home:
+## 5. Repository And Query Boundaries
 
-- Task Template management
-- Timeline management
+### TaskRepository
 
-## Migration Policy
+- `TaskTemplate` CRUD
+- `Task` CRUD
+- task lifecycle transition
 
-Schema version `7` drops legacy reminder tables and recreates the new schema.
+### TimelineRepository
 
-Legacy concepts intentionally removed:
+- `Timeline` CRUD
+- `Milestone` CRUD
+- timeline lifecycle
+
+### HomeQueryService
+
+- 組合 Today / Upcoming 首頁資料
+- Today = today tasks + today milestones
+- Upcoming = upcoming tasks + upcoming milestones
+- Overdue 由 task query 單獨提供，因 milestone 不可 overdue
+
+### History Providers
+
+- `Task History`
+- `Milestone History`
+
+歷史查詢不再提供 mixed history aggregate。
+
+## 6. UI Shape
+
+- Home：`Today / Upcoming / Overdue`
+- History：分開顯示 `Task History / Milestone History`
+- Management：分開顯示 `Task Template management / Timeline management`
+- Shared editor page 允許 `task / task template / timeline` mode，但 route 與 mode 命名必須明確
+
+## 7. Removed Legacy Concepts
+
+以下概念已從主流程移除：
 
 - `trackingMode`
 - `triggerMode`
-- mixed `Reminder/RecurringReminder`
-- treating timeline-like entities as tasks
+- mixed `Reminder / RecurringReminder`
+- 把 timeline-like entity 當成 task
 - `TimelineStatus.paused`

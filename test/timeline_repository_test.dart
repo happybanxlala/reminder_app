@@ -1,7 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
-import 'package:reminder_app/features/reminders/data/reminder_repository.dart';
+import 'package:reminder_app/features/reminders/data/timeline_repository.dart';
 import 'package:reminder_app/features/reminders/domain/milestone.dart';
 import 'package:reminder_app/features/reminders/domain/milestone_reminder_rule.dart';
 import 'package:reminder_app/features/reminders/domain/timeline.dart';
@@ -12,7 +12,7 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = TimelineRepository(db.reminderDao);
+      final repository = TimelineRepository(db.taskTimelineDao);
 
       await repository.createTimeline(
         TimelineInput(
@@ -39,7 +39,7 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = TimelineRepository(db.reminderDao);
+      final repository = TimelineRepository(db.taskTimelineDao);
 
       await repository.createTimeline(
         TimelineInput(
@@ -68,7 +68,7 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = TimelineRepository(db.reminderDao);
+      final repository = TimelineRepository(db.taskTimelineDao);
 
       final timelineId = await repository.createTimeline(
         TimelineInput(

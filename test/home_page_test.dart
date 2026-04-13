@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:reminder_app/features/reminders/data/local/daos.dart';
-import 'package:reminder_app/features/reminders/data/reminder_repository.dart';
+import 'package:reminder_app/features/reminders/data/home_query_service.dart';
+import 'package:reminder_app/features/reminders/data/local/task_timeline_dao.dart';
 import 'package:reminder_app/features/reminders/domain/milestone.dart';
 import 'package:reminder_app/features/reminders/domain/milestone_reminder_rule.dart';
 import 'package:reminder_app/features/reminders/domain/reminder_rule.dart';
 import 'package:reminder_app/features/reminders/domain/task.dart';
 import 'package:reminder_app/features/reminders/domain/task_template.dart';
 import 'package:reminder_app/features/reminders/domain/timeline.dart';
+import 'package:reminder_app/features/reminders/providers/history_providers.dart';
+import 'package:reminder_app/features/reminders/providers/home_providers.dart';
+import 'package:reminder_app/features/reminders/providers/task_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/history_page.dart';
-import 'package:reminder_app/features/reminders/ui/pages/reminders_list_page.dart';
+import 'package:reminder_app/features/reminders/ui/pages/home_page.dart';
 
 void main() {
   testWidgets('home shows only today upcoming overdue tabs', (tester) async {
@@ -30,7 +33,7 @@ void main() {
             (ref) => Stream.value(<TaskBundle>[]),
           ),
         ],
-        child: const MaterialApp(home: RemindersListPage()),
+        child: const MaterialApp(home: HomePage()),
       ),
     );
     await tester.pump();
@@ -57,7 +60,7 @@ void main() {
             (ref) => Stream.value([_taskBundle(title: 'Old task')]),
           ),
         ],
-        child: const MaterialApp(home: RemindersListPage()),
+        child: const MaterialApp(home: HomePage()),
       ),
     );
     await tester.pump();

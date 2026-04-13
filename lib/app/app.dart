@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../features/reminders/presentation/reminder_view_models.dart';
+import '../features/reminders/presentation/text/reminder_ui_text.dart';
 import 'router.dart';
 
 class ReminderApp extends ConsumerWidget {

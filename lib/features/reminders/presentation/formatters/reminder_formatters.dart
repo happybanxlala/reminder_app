@@ -1,10 +1,9 @@
 import 'package:intl/intl.dart';
 
-import '../../data/local/daos.dart';
+import '../../data/local/task_timeline_dao.dart';
 import '../../domain/milestone.dart';
 import '../../domain/reminder_rule.dart';
 import '../../domain/repeat_rule.dart';
-import '../../domain/task.dart';
 import '../../domain/task_template.dart';
 import '../../domain/timeline.dart';
 import '../../domain/timeline_calculator.dart';

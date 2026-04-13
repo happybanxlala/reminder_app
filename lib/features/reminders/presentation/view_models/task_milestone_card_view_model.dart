@@ -1,4 +1,4 @@
-import '../../data/local/daos.dart';
+import '../../data/local/task_timeline_dao.dart';
 import '../formatters/reminder_formatters.dart';
 
 class TaskCardViewModel {
