@@ -7,6 +7,7 @@ import '../../domain/task_template.dart';
 import '../../domain/timeline.dart';
 import '../../domain/timeline_milestone_occurrence.dart';
 import '../../domain/timeline_milestone_record.dart';
+import '../../domain/timeline_milestone_rule.dart';
 import '../../domain/timeline_milestone_service.dart';
 import '../text/reminder_ui_text.dart';
 
@@ -55,6 +56,26 @@ class ReminderFormatters {
     TimelineMilestoneRecordBundle bundle,
   ) {
     return '${ReminderUiText.updatedAtLabel}：${dateTime(bundle.record.updatedAt)}';
+  }
+
+  static String timelineMilestoneRuleSummary(TimelineMilestoneRule rule) {
+    final unit = switch (rule.intervalUnit) {
+      TimelineMilestoneIntervalUnit.days => '天',
+      TimelineMilestoneIntervalUnit.weeks => '週',
+      TimelineMilestoneIntervalUnit.months => '個月',
+      TimelineMilestoneIntervalUnit.years => '年',
+    };
+    return '每 ${rule.intervalValue} $unit';
+  }
+
+  static String timelineMilestoneRuleStatus(
+    TimelineMilestoneRuleStatus status,
+  ) {
+    return switch (status) {
+      TimelineMilestoneRuleStatus.active => 'active',
+      TimelineMilestoneRuleStatus.paused => 'paused',
+      TimelineMilestoneRuleStatus.archived => 'archived',
+    };
   }
 
   static String templateSummary(

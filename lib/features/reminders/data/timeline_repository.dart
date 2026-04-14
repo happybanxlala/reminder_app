@@ -7,54 +7,7 @@ import '../domain/timeline_milestone_rule.dart';
 import '../domain/timeline_milestone_service.dart';
 import 'local/app_database.dart';
 import 'local/task_timeline_dao.dart';
-
-class TimelineMilestoneRuleInput {
-  const TimelineMilestoneRuleInput({
-    this.id,
-    required this.type,
-    required this.intervalValue,
-    required this.intervalUnit,
-    this.labelTemplate,
-    this.reminderOffsetDays = 0,
-    this.status = TimelineMilestoneRuleStatus.active,
-  });
-
-  final int? id;
-  final TimelineMilestoneRuleType type;
-  final int intervalValue;
-  final TimelineMilestoneIntervalUnit intervalUnit;
-  final String? labelTemplate;
-  final int reminderOffsetDays;
-  final TimelineMilestoneRuleStatus status;
-}
-
-class TimelineInput {
-  const TimelineInput({
-    required this.title,
-    required this.startDate,
-    required this.displayUnit,
-    this.milestoneRules = const [],
-  });
-
-  final String title;
-  final DateTime startDate;
-  final TimelineDisplayUnit displayUnit;
-  final List<TimelineMilestoneRuleInput> milestoneRules;
-}
-
-class TimelineDetail {
-  const TimelineDetail({
-    required this.timeline,
-    required this.rules,
-    required this.upcomingOccurrences,
-    required this.historyRecords,
-  });
-
-  final Timeline timeline;
-  final List<TimelineMilestoneRule> rules;
-  final List<TimelineMilestoneOccurrence> upcomingOccurrences;
-  final List<TimelineMilestoneRecordBundle> historyRecords;
-}
+import 'timeline_models.dart';
 
 class TimelineRepository {
   TimelineRepository(this._dao, {TimelineMilestoneService? milestoneService})
@@ -91,21 +44,39 @@ class TimelineRepository {
       return null;
     }
     final current = _normalizeDate(now ?? DateTime.now());
-    final upcomingOccurrences = _milestoneService.getUpcomingOccurrences(
+    final milestoneHistory = record.milestoneHistory;
+    final milestoneRules = record.milestoneRules;
+    final upcomingMilestones = _milestoneService.getUpcomingOccurrences(
       record.timeline,
-      record.rules,
-      record.historyRecords.map((item) => item.record).toList(growable: false),
+      milestoneRules,
+      milestoneHistory.map((item) => item.record).toList(growable: false),
       TimelineMilestoneRange(
         start: current,
         end: current.add(const Duration(days: 366)),
       ),
       now: current,
     );
+    final milestoneRuleDetails = milestoneRules
+        .map((rule) {
+          final nextMilestone = _milestoneService.getNextOccurrence(
+            rule,
+            record.timeline,
+            after: current.subtract(const Duration(days: 1)),
+          );
+          return TimelineMilestoneRuleDetail(
+            rule: rule,
+            nextMilestone: nextMilestone,
+            historyRecords: milestoneHistory
+                .where((item) => item.rule.id == rule.id)
+                .toList(growable: false),
+          );
+        })
+        .toList(growable: false);
     return TimelineDetail(
       timeline: record.timeline,
-      rules: record.rules,
-      upcomingOccurrences: upcomingOccurrences,
-      historyRecords: record.historyRecords,
+      milestoneRuleDetails: milestoneRuleDetails,
+      upcomingMilestones: upcomingMilestones,
+      milestoneHistory: milestoneHistory,
     );
   }
 

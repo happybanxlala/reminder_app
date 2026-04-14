@@ -17,11 +17,11 @@ final taskTemplatesProvider = StreamProvider<List<TaskTemplate>>((ref) {
   return ref.watch(taskRepositoryProvider).watchTemplates();
 });
 
-final taskDetailProvider = FutureProvider.family<TaskBundle?, int>((ref, id) {
+final taskBundleProvider = FutureProvider.family<TaskBundle?, int>((ref, id) {
   return ref.watch(taskRepositoryProvider).getTaskById(id);
 });
 
-final taskTemplateDetailProvider = FutureProvider.family<TaskTemplate?, int>((
+final taskTemplateProvider = FutureProvider.family<TaskTemplate?, int>((
   ref,
   id,
 ) {

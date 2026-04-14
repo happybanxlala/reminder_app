@@ -5,28 +5,13 @@ import '../domain/timeline_milestone_occurrence.dart';
 import '../domain/timeline_milestone_record.dart';
 import '../domain/timeline_milestone_rule.dart';
 import '../domain/timeline_milestone_service.dart';
+import 'home_models.dart';
 import 'local/task_timeline_dao.dart';
 import 'task_repository.dart';
 import 'timeline_repository.dart';
 
-sealed class HomeItem {
-  const HomeItem();
-}
-
-class TaskHomeItem extends HomeItem {
-  const TaskHomeItem(this.bundle);
-
-  final TaskBundle bundle;
-}
-
-class MilestoneHomeItem extends HomeItem {
-  const MilestoneHomeItem(this.occurrence);
-
-  final TimelineMilestoneOccurrence occurrence;
-}
-
-class HomeQueryService {
-  HomeQueryService({
+class HomeRepository {
+  HomeRepository({
     required TaskRepository taskRepository,
     required TimelineRepository timelineRepository,
     TimelineMilestoneService? milestoneService,
@@ -38,26 +23,26 @@ class HomeQueryService {
   final TimelineRepository _timelineRepository;
   final TimelineMilestoneService _milestoneService;
 
-  Stream<List<HomeItem>> watchTodayItems({DateTime? now}) {
+  Stream<List<HomeEntry>> watchTodayEntries({DateTime? now}) {
     final current = _normalizeDate(now ?? DateTime.now());
     return _combineLatest(
       _taskRepository.watchTodayTasks(now: current),
       _watchTodayMilestoneOccurrences(current),
       (tasks, milestones) => [
-        ...tasks.map(TaskHomeItem.new),
-        ...milestones.map(MilestoneHomeItem.new),
+        ...tasks.map(TaskHomeEntry.new),
+        ...milestones.map(TimelineMilestoneHomeEntry.new),
       ],
     );
   }
 
-  Stream<List<HomeItem>> watchUpcomingItems({DateTime? now}) {
+  Stream<List<HomeEntry>> watchUpcomingEntries({DateTime? now}) {
     final current = _normalizeDate(now ?? DateTime.now());
     return _combineLatest(
       _taskRepository.watchUpcomingTasks(now: current),
       _watchUpcomingMilestoneOccurrences(current),
       (tasks, milestones) => [
-        ...tasks.map(TaskHomeItem.new),
-        ...milestones.map(MilestoneHomeItem.new),
+        ...tasks.map(TaskHomeEntry.new),
+        ...milestones.map(TimelineMilestoneHomeEntry.new),
       ],
     );
   }

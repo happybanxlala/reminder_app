@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../data/home_query_service.dart';
+import '../../data/home_models.dart';
 import '../../data/local/task_timeline_dao.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
@@ -12,7 +12,7 @@ import '../../providers/task_providers.dart';
 import '../../providers/timeline_providers.dart';
 import 'history_page.dart';
 import 'management_page.dart';
-import 'task_timeline_editor_page.dart';
+import 'task_edit_page.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -47,8 +47,8 @@ class _HomePageState extends ConsumerState<HomePage>
 
   @override
   Widget build(BuildContext context) {
-    final todayAsync = ref.watch(todayHomeItemsProvider);
-    final upcomingAsync = ref.watch(upcomingHomeItemsProvider);
+    final todayAsync = ref.watch(todayHomeEntriesProvider);
+    final upcomingAsync = ref.watch(upcomingHomeEntriesProvider);
     final overdueAsync = ref.watch(overdueTasksProvider);
 
     return Scaffold(
@@ -69,8 +69,7 @@ class _HomePageState extends ConsumerState<HomePage>
           ),
           IconButton(
             key: const Key('quick-add-task-button'),
-            onPressed: () =>
-                context.pushNamed(TaskTimelineEditorPage.taskNewRouteName),
+            onPressed: () => context.pushNamed(TaskEditPage.taskNewRouteName),
             icon: const Icon(Icons.add_task),
             tooltip: ReminderUiText.addTask,
           ),
@@ -88,7 +87,7 @@ class _HomePageState extends ConsumerState<HomePage>
         controller: _tabController,
         children: [
           todayAsync.when(
-            data: (items) => _HomeItemList(
+            data: (items) => _HomeEntryList(
               items: items,
               emptyMessage: ReminderUiText.noTodayItems,
             ),
@@ -96,7 +95,7 @@ class _HomePageState extends ConsumerState<HomePage>
             loading: () => const Center(child: CircularProgressIndicator()),
           ),
           upcomingAsync.when(
-            data: (items) => _HomeItemList(
+            data: (items) => _HomeEntryList(
               items: items,
               emptyMessage: ReminderUiText.noUpcomingItems,
             ),
@@ -114,10 +113,10 @@ class _HomePageState extends ConsumerState<HomePage>
   }
 }
 
-class _HomeItemList extends ConsumerWidget {
-  const _HomeItemList({required this.items, required this.emptyMessage});
+class _HomeEntryList extends ConsumerWidget {
+  const _HomeEntryList({required this.items, required this.emptyMessage});
 
-  final List<HomeItem> items;
+  final List<HomeEntry> items;
   final String emptyMessage;
 
   @override
@@ -129,7 +128,7 @@ class _HomeItemList extends ConsumerWidget {
       itemCount: items.length,
       itemBuilder: (context, index) {
         final item = items[index];
-        if (item is TaskHomeItem) {
+        if (item is TaskHomeEntry) {
           final viewModel = TaskCardViewModel.fromBundle(item.bundle);
           return Card(
             child: Column(
@@ -181,7 +180,7 @@ class _HomeItemList extends ConsumerWidget {
           );
         }
 
-        final occurrence = (item as MilestoneHomeItem).occurrence;
+        final occurrence = (item as TimelineMilestoneHomeEntry).occurrence;
         final viewModel = MilestoneCardViewModel.fromOccurrence(occurrence);
         return Card(
           child: Column(

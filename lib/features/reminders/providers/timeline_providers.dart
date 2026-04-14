@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/timeline_models.dart';
 import '../data/timeline_repository.dart';
 import '../domain/timeline.dart';
 import 'database_providers.dart';
@@ -12,12 +13,14 @@ final timelinesProvider = StreamProvider<List<Timeline>>((ref) {
   return ref.watch(timelineRepositoryProvider).watchTimelines();
 });
 
-final timelineDetailProvider = FutureProvider.autoDispose
-    .family<Timeline?, int>((ref, id) {
-      return ref.watch(timelineRepositoryProvider).getTimelineById(id);
-    });
+final timelineByIdProvider = FutureProvider.autoDispose.family<Timeline?, int>((
+  ref,
+  id,
+) {
+  return ref.watch(timelineRepositoryProvider).getTimelineById(id);
+});
 
-final timelineEditorDetailProvider = FutureProvider.autoDispose
+final timelineDetailProvider = FutureProvider.autoDispose
     .family<TimelineDetail?, int>((ref, id) {
       return ref.watch(timelineRepositoryProvider).getTimelineDetailById(id);
     });

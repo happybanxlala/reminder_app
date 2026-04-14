@@ -15,7 +15,7 @@ class TimelineMilestoneHistoryPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final detailAsync = ref.watch(timelineEditorDetailProvider(timelineId));
+    final detailAsync = ref.watch(timelineDetailProvider(timelineId));
 
     return detailAsync.when(
       data: (detail) {
@@ -29,10 +29,10 @@ class TimelineMilestoneHistoryPage extends ConsumerWidget {
             children: [
               if (detail == null)
                 const Text('讀取失敗：找不到 Timeline。')
-              else if (detail.historyRecords.isEmpty)
+              else if (detail.milestoneHistory.isEmpty)
                 const Text(ReminderUiText.noTimelineMilestoneHistory)
               else
-                ...detail.historyRecords.map(
+                ...detail.milestoneHistory.map(
                   (item) => ListTile(
                     key: Key('timeline-history-${item.record.id}'),
                     title: Text(ReminderFormatters.milestoneHistory(item)),

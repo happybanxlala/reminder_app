@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:reminder_app/features/reminders/data/home_query_service.dart';
+import 'package:reminder_app/features/reminders/data/home_models.dart';
 import 'package:reminder_app/features/reminders/data/local/task_timeline_dao.dart';
 import 'package:reminder_app/features/reminders/domain/reminder_rule.dart';
 import 'package:reminder_app/features/reminders/domain/task.dart';
@@ -21,14 +21,14 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          todayHomeItemsProvider.overrideWith(
+          todayHomeEntriesProvider.overrideWith(
             (ref) => Stream.value([
-              TaskHomeItem(_taskBundle(title: 'Laundry')),
-              MilestoneHomeItem(_occurrence(title: 'No sugar')),
+              TaskHomeEntry(_taskBundle(title: 'Laundry')),
+              TimelineMilestoneHomeEntry(_occurrence(title: 'No sugar')),
             ]),
           ),
-          upcomingHomeItemsProvider.overrideWith(
-            (ref) => Stream.value(<HomeItem>[]),
+          upcomingHomeEntriesProvider.overrideWith(
+            (ref) => Stream.value(<HomeEntry>[]),
           ),
           overdueTasksProvider.overrideWith(
             (ref) => Stream.value(<TaskBundle>[]),
@@ -51,11 +51,11 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          todayHomeItemsProvider.overrideWith(
-            (ref) => Stream.value(<HomeItem>[]),
+          todayHomeEntriesProvider.overrideWith(
+            (ref) => Stream.value(<HomeEntry>[]),
           ),
-          upcomingHomeItemsProvider.overrideWith(
-            (ref) => Stream.value(<HomeItem>[]),
+          upcomingHomeEntriesProvider.overrideWith(
+            (ref) => Stream.value(<HomeEntry>[]),
           ),
           overdueTasksProvider.overrideWith(
             (ref) => Stream.value([_taskBundle(title: 'Old task')]),

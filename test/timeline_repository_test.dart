@@ -1,6 +1,8 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:reminder_app/features/reminders/data/home_query_service.dart';
+import 'package:reminder_app/features/reminders/data/home_models.dart';
+import 'package:reminder_app/features/reminders/data/home_repository.dart';
+import 'package:reminder_app/features/reminders/data/timeline_models.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/task_repository.dart';
 import 'package:reminder_app/features/reminders/data/timeline_repository.dart';
@@ -42,13 +44,13 @@ void main() {
       expect(rules, hasLength(1));
       expect(records, isEmpty);
       expect(detail, isNotNull);
-      expect(detail!.rules, hasLength(1));
-      expect(detail.upcomingOccurrences, hasLength(1));
+      expect(detail!.milestoneRuleDetails, hasLength(1));
+      expect(detail.upcomingMilestones, hasLength(1));
       expect(
-        detail.upcomingOccurrences.single.targetDate,
+        detail.upcomingMilestones.single.targetDate,
         DateTime(2026, 4, 10),
       );
-      expect(detail.upcomingOccurrences.single.label, '第 1天');
+      expect(detail.upcomingMilestones.single.label, '第 1天');
     },
   );
 
@@ -82,9 +84,9 @@ void main() {
       );
 
       expect(detail, isNotNull);
-      expect(detail!.upcomingOccurrences, hasLength(1));
+      expect(detail!.upcomingMilestones, hasLength(1));
 
-      await repository.noticeOccurrence(detail.upcomingOccurrences.single);
+      await repository.noticeOccurrence(detail.upcomingMilestones.single);
 
       final history = await repository.watchMilestoneHistory().first;
       expect(history, hasLength(1));
@@ -100,7 +102,7 @@ void main() {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
       final timelineRepository = TimelineRepository(db.taskTimelineDao);
-      final homeQueryService = HomeQueryService(
+      final homeRepository = HomeRepository(
         taskRepository: TaskRepository(db.taskTimelineDao),
         timelineRepository: timelineRepository,
       );
@@ -130,16 +132,20 @@ void main() {
         ),
       );
 
-      final homeItems = await homeQueryService
-          .watchUpcomingItems(now: DateTime(2026, 5, 7))
+      final homeItems = await homeRepository
+          .watchUpcomingEntries(now: DateTime(2026, 5, 7))
           .first;
-      final overdueTasks = await homeQueryService
+      final overdueTasks = await homeRepository
           .watchOverdueTasks(now: DateTime(2026, 5, 7))
           .first;
 
-      expect(homeItems.whereType<MilestoneHomeItem>(), hasLength(1));
+      expect(homeItems.whereType<TimelineMilestoneHomeEntry>(), hasLength(1));
       expect(
-        homeItems.whereType<MilestoneHomeItem>().single.occurrence.label,
+        homeItems
+            .whereType<TimelineMilestoneHomeEntry>()
+            .single
+            .occurrence
+            .label,
         '第 30天',
       );
       expect(overdueTasks, isEmpty);
@@ -174,12 +180,15 @@ void main() {
     );
 
     expect(detail, isNotNull);
-    expect(detail!.rules.single.type, TimelineMilestoneRuleType.everyNWeeks);
     expect(
-      detail.rules.single.intervalUnit,
+      detail!.milestoneRuleDetails.single.rule.type,
+      TimelineMilestoneRuleType.everyNWeeks,
+    );
+    expect(
+      detail.milestoneRuleDetails.single.rule.intervalUnit,
       TimelineMilestoneIntervalUnit.weeks,
     );
-    expect(detail.upcomingOccurrences.single.label, '第 2週');
+    expect(detail.upcomingMilestones.single.label, '第 2週');
   });
 
   test(
@@ -206,12 +215,12 @@ void main() {
         ),
       );
 
-    final before = await repository.getTimelineDetailById(
-      timelineId,
-      now: DateTime(2026, 5, 8),
-    );
+      final before = await repository.getTimelineDetailById(
+        timelineId,
+        now: DateTime(2026, 5, 8),
+      );
       expect(before, isNotNull);
-      await repository.noticeOccurrence(before!.upcomingOccurrences.single);
+      await repository.noticeOccurrence(before!.upcomingMilestones.single);
 
       await repository.updateTimeline(
         timelineId,
@@ -226,13 +235,13 @@ void main() {
       final allRules = await repository.watchMilestoneRules().first;
       expect(allRules.single.status, TimelineMilestoneRuleStatus.archived);
 
-    final detail = await repository.getTimelineDetailById(
-      timelineId,
-      now: DateTime(2026, 5, 8),
-    );
+      final detail = await repository.getTimelineDetailById(
+        timelineId,
+        now: DateTime(2026, 5, 8),
+      );
       expect(detail, isNotNull);
-      expect(detail!.rules, isEmpty);
-      expect(detail.upcomingOccurrences, isEmpty);
+      expect(detail!.milestoneRuleDetails, isEmpty);
+      expect(detail.upcomingMilestones, isEmpty);
 
       final history = await repository.watchMilestoneHistory().first;
       expect(history, hasLength(1));

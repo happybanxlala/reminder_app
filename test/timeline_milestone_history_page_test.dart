@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/local/task_timeline_dao.dart';
-import 'package:reminder_app/features/reminders/data/timeline_repository.dart';
+import 'package:reminder_app/features/reminders/data/timeline_models.dart';
 import 'package:reminder_app/features/reminders/domain/timeline.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_record.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_rule.dart';
@@ -16,7 +16,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            timelineEditorDetailProvider(9).overrideWith(
+            timelineDetailProvider(9).overrideWith(
               (ref) => Future.value(
                 TimelineDetail(
                   timeline: Timeline(
@@ -28,9 +28,9 @@ void main() {
                     createdAt: DateTime(2026, 4, 1),
                     updatedAt: DateTime(2026, 4, 1),
                   ),
-                  rules: const [],
-                  upcomingOccurrences: const [],
-                  historyRecords: [_historyBundle(9)],
+                  milestoneRuleDetails: const [],
+                  upcomingMilestones: const [],
+                  milestoneHistory: [_historyBundle(9)],
                 ),
               ),
             ),
@@ -55,7 +55,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          timelineEditorDetailProvider(10).overrideWith(
+          timelineDetailProvider(10).overrideWith(
             (ref) => Future.value(
               TimelineDetail(
                 timeline: Timeline(
@@ -67,9 +67,9 @@ void main() {
                   createdAt: DateTime(2026, 4, 1),
                   updatedAt: DateTime(2026, 4, 1),
                 ),
-                rules: const [],
-                upcomingOccurrences: const [],
-                historyRecords: const [],
+                milestoneRuleDetails: const [],
+                upcomingMilestones: const [],
+                milestoneHistory: const [],
               ),
             ),
           ),

@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:reminder_app/features/reminders/data/timeline_repository.dart';
+import 'package:reminder_app/features/reminders/data/timeline_models.dart';
 import 'package:reminder_app/features/reminders/domain/reminder_rule.dart';
 import 'package:reminder_app/features/reminders/domain/task_template.dart';
 import 'package:reminder_app/features/reminders/domain/timeline.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_occurrence.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_record.dart';
+import 'package:reminder_app/features/reminders/domain/timeline_milestone_rule.dart';
 import 'package:reminder_app/features/reminders/providers/task_providers.dart';
 import 'package:reminder_app/features/reminders/providers/timeline_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/management_page.dart';
@@ -47,7 +48,7 @@ void main() {
               ),
             ]),
           ),
-          timelineEditorDetailProvider(9).overrideWith(
+          timelineDetailProvider(9).overrideWith(
             (ref) => Future.value(
               TimelineDetail(
                 timeline: Timeline(
@@ -59,8 +60,37 @@ void main() {
                   createdAt: DateTime(2026, 4, 1),
                   updatedAt: DateTime(2026, 4, 1),
                 ),
-                rules: const [],
-                upcomingOccurrences: [
+                milestoneRuleDetails: [
+                  TimelineMilestoneRuleDetail(
+                    rule: _rule(92, TimelineMilestoneRuleStatus.active),
+                    nextMilestone: TimelineMilestoneOccurrence(
+                      timelineId: 9,
+                      timelineTitle: 'No sugar',
+                      ruleId: 92,
+                      occurrenceIndex: 1,
+                      targetDate: DateTime(2026, 4, 20),
+                      label: '第 10天',
+                      status: MilestoneStatus.upcoming,
+                      reminderOffsetDays: 0,
+                    ),
+                    historyRecords: const [],
+                  ),
+                  TimelineMilestoneRuleDetail(
+                    rule: _rule(91, TimelineMilestoneRuleStatus.active),
+                    nextMilestone: TimelineMilestoneOccurrence(
+                      timelineId: 9,
+                      timelineTitle: 'No sugar',
+                      ruleId: 91,
+                      occurrenceIndex: 1,
+                      targetDate: DateTime(2026, 5, 10),
+                      label: '第 30天',
+                      status: MilestoneStatus.upcoming,
+                      reminderOffsetDays: 0,
+                    ),
+                    historyRecords: const [],
+                  ),
+                ],
+                upcomingMilestones: [
                   TimelineMilestoneOccurrence(
                     timelineId: 9,
                     timelineTitle: 'No sugar',
@@ -92,11 +122,11 @@ void main() {
                     reminderOffsetDays: 0,
                   ),
                 ],
-                historyRecords: const [],
+                milestoneHistory: const [],
               ),
             ),
           ),
-          timelineEditorDetailProvider(10).overrideWith(
+          timelineDetailProvider(10).overrideWith(
             (ref) => Future.value(
               TimelineDetail(
                 timeline: Timeline(
@@ -108,9 +138,9 @@ void main() {
                   createdAt: DateTime(2026, 4, 1),
                   updatedAt: DateTime(2026, 4, 1),
                 ),
-                rules: const [],
-                upcomingOccurrences: const [],
-                historyRecords: const [],
+                milestoneRuleDetails: const [],
+                upcomingMilestones: const [],
+                milestoneHistory: const [],
               ),
             ),
           ),
@@ -141,8 +171,12 @@ void main() {
 
     expect(find.byKey(const Key('timeline-edit-9')), findsOneWidget);
     expect(find.byKey(const Key('timeline-history-9')), findsOneWidget);
+    expect(find.byKey(const Key('timeline-rule-9-92')), findsOneWidget);
+    expect(find.byKey(const Key('timeline-rule-9-91')), findsOneWidget);
     expect(find.byKey(const Key('timeline-upcoming-9-92')), findsOneWidget);
     expect(find.byKey(const Key('timeline-upcoming-9-91')), findsOneWidget);
+    expect(find.text('每 10 天'), findsOneWidget);
+    expect(find.text('每 30 天'), findsOneWidget);
     expect(find.text('第 10天'), findsOneWidget);
     expect(find.text('2026/04/20'), findsOneWidget);
     expect(find.text('第 30天'), findsOneWidget);
@@ -172,6 +206,21 @@ TaskTemplate _template(int id, TaskTemplateStatus status) {
     status: status,
     firstDueDate: DateTime(2026, 4, 10),
     reminderRule: const ReminderRule.onDue(),
+    createdAt: DateTime(2026, 4, 1),
+    updatedAt: DateTime(2026, 4, 1),
+  );
+}
+
+TimelineMilestoneRule _rule(int id, TimelineMilestoneRuleStatus status) {
+  return TimelineMilestoneRule(
+    id: id,
+    timelineId: 9,
+    type: TimelineMilestoneRuleType.everyNDays,
+    intervalValue: id == 92 ? 10 : 30,
+    intervalUnit: TimelineMilestoneIntervalUnit.days,
+    labelTemplate: '第 {value}{unit}',
+    reminderOffsetDays: 0,
+    status: status,
     createdAt: DateTime(2026, 4, 1),
     updatedAt: DateTime(2026, 4, 1),
   );

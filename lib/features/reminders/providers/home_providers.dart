@@ -1,20 +1,21 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../data/home_query_service.dart';
+import '../data/home_models.dart';
+import '../data/home_repository.dart';
 import 'task_providers.dart';
 import 'timeline_providers.dart';
 
-final homeQueryServiceProvider = Provider<HomeQueryService>((ref) {
-  return HomeQueryService(
+final homeRepositoryProvider = Provider<HomeRepository>((ref) {
+  return HomeRepository(
     taskRepository: ref.watch(taskRepositoryProvider),
     timelineRepository: ref.watch(timelineRepositoryProvider),
   );
 });
 
-final todayHomeItemsProvider = StreamProvider<List<HomeItem>>((ref) {
-  return ref.watch(homeQueryServiceProvider).watchTodayItems();
+final todayHomeEntriesProvider = StreamProvider<List<HomeEntry>>((ref) {
+  return ref.watch(homeRepositoryProvider).watchTodayEntries();
 });
 
-final upcomingHomeItemsProvider = StreamProvider<List<HomeItem>>((ref) {
-  return ref.watch(homeQueryServiceProvider).watchUpcomingItems();
+final upcomingHomeEntriesProvider = StreamProvider<List<HomeEntry>>((ref) {
+  return ref.watch(homeRepositoryProvider).watchUpcomingEntries();
 });

@@ -36,13 +36,13 @@ class TimelineMilestoneRecordBundle {
 class TimelineDetailRecord {
   const TimelineDetailRecord({
     required this.timeline,
-    required this.rules,
-    required this.historyRecords,
+    required this.milestoneRules,
+    required this.milestoneHistory,
   });
 
   final Timeline timeline;
-  final List<TimelineMilestoneRule> rules;
-  final List<TimelineMilestoneRecordBundle> historyRecords;
+  final List<TimelineMilestoneRule> milestoneRules;
+  final List<TimelineMilestoneRecordBundle> milestoneHistory;
 }
 
 @DriftAccessor(
@@ -267,8 +267,8 @@ class TaskTimelineDao extends DatabaseAccessor<AppDatabase>
     final records = await listTimelineMilestoneRecordBundlesForTimeline(id);
     return TimelineDetailRecord(
       timeline: timeline,
-      rules: rules,
-      historyRecords: records
+      milestoneRules: rules,
+      milestoneHistory: records
           .where((item) => item.record.status != MilestoneStatus.upcoming)
           .toList(growable: false),
     );

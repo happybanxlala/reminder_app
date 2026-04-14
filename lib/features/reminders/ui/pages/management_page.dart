@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../domain/timeline_milestone_occurrence.dart';
 import '../../domain/task_template.dart';
 import '../../domain/timeline.dart';
-import '../../domain/timeline_milestone_occurrence.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
 import '../../providers/task_providers.dart';
 import '../../providers/timeline_providers.dart';
-import 'task_timeline_editor_page.dart';
+import 'task_edit_page.dart';
+import 'timeline_edit_page.dart';
 import 'timeline_milestone_history_page.dart';
 
 class ManagementPage extends ConsumerWidget {
@@ -39,9 +40,7 @@ class ManagementPage extends ConsumerWidget {
               FilledButton(
                 key: const Key('add-task-template-button'),
                 onPressed: () {
-                  context.pushNamed(
-                    TaskTimelineEditorPage.taskTemplateNewRouteName,
-                  );
+                  context.pushNamed(TaskEditPage.taskTemplateNewRouteName);
                 },
                 child: const Text(ReminderUiText.addTaskTemplate),
               ),
@@ -74,9 +73,7 @@ class ManagementPage extends ConsumerWidget {
               FilledButton(
                 key: const Key('add-timeline-button'),
                 onPressed: () {
-                  context.pushNamed(
-                    TaskTimelineEditorPage.timelineNewRouteName,
-                  );
+                  context.pushNamed(TimelineEditPage.timelineNewRouteName);
                 },
                 child: const Text(ReminderUiText.addTimeline),
               ),
@@ -152,7 +149,7 @@ class _TaskTemplateCard extends ConsumerWidget {
                     key: Key('template-edit-${template.id}'),
                     onPressed: () {
                       context.pushNamed(
-                        TaskTimelineEditorPage.taskTemplateEditRouteName,
+                        TaskEditPage.taskTemplateEditRouteName,
                         pathParameters: {'id': template.id.toString()},
                       );
                     },
@@ -192,7 +189,7 @@ class _TaskTemplateCard extends ConsumerWidget {
                     key: Key('template-edit-${template.id}'),
                     onPressed: () {
                       context.pushNamed(
-                        TaskTimelineEditorPage.taskTemplateEditRouteName,
+                        TaskEditPage.taskTemplateEditRouteName,
                         pathParameters: {'id': template.id.toString()},
                       );
                     },
@@ -216,7 +213,7 @@ class _TimelineCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final detailAsync = ref.watch(timelineEditorDetailProvider(timeline.id));
+    final detailAsync = ref.watch(timelineDetailProvider(timeline.id));
 
     return Card(
       child: Padding(
@@ -246,8 +243,56 @@ class _TimelineCard extends ConsumerWidget {
             const SizedBox(height: 12),
             detailAsync.when(
               data: (detail) {
+                final ruleDetails = detail?.milestoneRuleDetails ?? const [];
+                if (ruleDetails.isEmpty) {
+                  return const Text('尚未建立 milestone rule。');
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(ReminderUiText.milestoneRulesTitle),
+                    const SizedBox(height: 8),
+                    ...ruleDetails.map(
+                      (item) => ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        key: Key(
+                          'timeline-rule-${timeline.id}-${item.rule.id}',
+                        ),
+                        title: Text(
+                          ReminderFormatters.timelineMilestoneRuleSummary(
+                            item.rule,
+                          ),
+                        ),
+                        subtitle: Text(
+                          item.nextMilestone == null
+                              ? '下一筆：目前無法產生 milestone'
+                              : '下一筆：${ReminderFormatters.milestoneSummary(item.nextMilestone!)}',
+                        ),
+                        trailing: Text(
+                          ReminderFormatters.timelineMilestoneRuleStatus(
+                            item.rule.status,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+              error: (error, stack) => const Text('讀取 milestone rule 失敗。'),
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            detailAsync.when(
+              data: (detail) {
                 final firstUpcomingByRule = _firstUpcomingByRule(
-                  detail?.upcomingOccurrences ?? const [],
+                  detail?.upcomingMilestones ?? const [],
                 );
                 if (firstUpcomingByRule.isEmpty) {
                   return const Text(ReminderUiText.noTimelineUpcomingMilestone);
@@ -302,7 +347,7 @@ class _TimelineCard extends ConsumerWidget {
                     key: Key('timeline-edit-${timeline.id}'),
                     onPressed: () {
                       context.pushNamed(
-                        TaskTimelineEditorPage.timelineEditRouteName,
+                        TimelineEditPage.timelineEditRouteName,
                         pathParameters: {'id': timeline.id.toString()},
                       );
                     },
