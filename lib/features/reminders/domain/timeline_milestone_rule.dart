@@ -1,6 +1,13 @@
-enum TimelineMilestoneRuleType { everyNDays, everyNMonths, everyNYears }
+enum TimelineMilestoneRuleType {
+  everyNDays,
+  everyNWeeks,
+  everyNMonths,
+  everyNYears,
+}
 
-enum TimelineMilestoneIntervalUnit { days, months, years }
+enum TimelineMilestoneIntervalUnit { days, weeks, months, years }
+
+enum TimelineMilestoneRuleStatus { active, paused, archived }
 
 class TimelineMilestoneRule {
   const TimelineMilestoneRule({
@@ -11,7 +18,7 @@ class TimelineMilestoneRule {
     required this.intervalUnit,
     this.labelTemplate,
     required this.reminderOffsetDays,
-    required this.isActive,
+    required this.status,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -23,7 +30,7 @@ class TimelineMilestoneRule {
   final TimelineMilestoneIntervalUnit intervalUnit;
   final String? labelTemplate;
   final int reminderOffsetDays;
-  final bool isActive;
+  final TimelineMilestoneRuleStatus status;
   final DateTime createdAt;
   final DateTime updatedAt;
 }

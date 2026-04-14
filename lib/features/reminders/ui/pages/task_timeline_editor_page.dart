@@ -51,8 +51,6 @@ class TaskTimelineEditorPage extends ConsumerStatefulWidget {
 
 class _TaskTimelineEditorPageState
     extends ConsumerState<TaskTimelineEditorPage> {
-  static const _previewCount = 3;
-
   final _formKey = GlobalKey<FormState>();
   final _milestoneService = const TimelineMilestoneService();
   late final TextEditingController _titleController;
@@ -67,9 +65,7 @@ class _TaskTimelineEditorPageState
   ReminderRuleType _reminderRuleType = ReminderRuleType.onDue;
   TimelineDisplayUnit _displayUnit = TimelineDisplayUnit.day;
   bool _initialized = false;
-  bool _showAllOccurrencePreview = false;
   List<_RuleDraft> _ruleDrafts = const [];
-  List<TimelineMilestoneRecordBundle> _historyRecords = const [];
 
   bool get _isDirectTaskCreate =>
       widget.mode == TaskTimelineEditorMode.taskCreate;
@@ -295,7 +291,6 @@ class _TaskTimelineEditorPageState
   }
 
   List<Widget> _buildTimelineSection() {
-    final previewItems = _visiblePreviewOccurrences;
     return [
       const SizedBox(height: 12),
       DropdownButtonFormField<TimelineDisplayUnit>(
@@ -340,6 +335,7 @@ class _TaskTimelineEditorPageState
           (entry) => _RuleDraftCard(
             key: Key('rule-draft-${entry.value.localId}'),
             draft: entry.value,
+            previewLabel: _previewLabelForDraft(entry.value),
             onChanged: (next) {
               setState(() {
                 _ruleDrafts = [
@@ -357,67 +353,7 @@ class _TaskTimelineEditorPageState
             },
             validatePositiveInt: _validatePositiveInt,
             validateOffsetDays: _validateOffsetDays,
-          ),
-        ),
-      const SizedBox(height: 16),
-      const Text(
-        ReminderUiText.upcomingMilestonesTitle,
-        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-      ),
-      const SizedBox(height: 8),
-      if (_previewOccurrences.isEmpty)
-        const Text('目前沒有可預覽的 upcoming milestone。')
-      else
-        ...previewItems.map(
-          (occurrence) => ListTile(
-            key: Key(
-              'upcoming-occurrence-${occurrence.ruleId}-${occurrence.occurrenceIndex}',
-            ),
-            title: Text(occurrence.label),
-            subtitle: Text(ReminderFormatters.milestoneSummary(occurrence)),
-            trailing: Text(occurrence.status.name),
-          ),
-        ),
-      if (_previewOccurrences.length > _previewCount)
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton(
-            key: const Key('occurrence-preview-toggle'),
-            onPressed: () {
-              setState(() {
-                _showAllOccurrencePreview = !_showAllOccurrencePreview;
-              });
-            },
-            child: Text(
-              _showAllOccurrencePreview
-                  ? ReminderUiText.collapseAction
-                  : ReminderUiText.viewAllAction,
-            ),
-          ),
-        ),
-      const SizedBox(height: 16),
-      const Text(
-        ReminderUiText.milestoneHistoryTitle,
-        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-      ),
-      const SizedBox(height: 8),
-      if (_historyRecords.isEmpty)
-        const Text('目前沒有 milestone history。')
-      else
-        ..._historyRecords.map(
-          (item) => ListTile(
-            key: Key('timeline-history-${item.record.id}'),
-            title: Text(
-              _milestoneService.formatLabel(
-                item.rule,
-                item.record.occurrenceIndex,
-              ),
-            ),
-            subtitle: Text(
-              '${ReminderFormatters.milestoneHistory(item)}\n'
-              '${ReminderFormatters.milestoneHistoryUpdatedAt(item)}',
-            ),
-            isThreeLine: true,
+            upcomingSummary: _upcomingSummaryForDraft(entry.value),
           ),
         ),
     ];
@@ -459,7 +395,6 @@ class _TaskTimelineEditorPageState
       _ruleDrafts = timelineDetail.rules
           .map((rule) => _RuleDraft.fromDomain(rule))
           .toList(growable: false);
-      _historyRecords = timelineDetail.historyRecords;
     } else {
       _dateController.text = ReminderFormatters.date(_selectedDate);
     }
@@ -554,7 +489,10 @@ class _TaskTimelineEditorPageState
         await ref
             .read(timelineRepositoryProvider)
             .updateTimeline(widget.id!, input);
+        ref.invalidate(timelineDetailProvider(widget.id!));
+        ref.invalidate(timelineEditorDetailProvider(widget.id!));
       }
+      ref.invalidate(timelinesProvider);
     }
 
     if (mounted) {
@@ -578,62 +516,44 @@ class _TaskTimelineEditorPageState
     return null;
   }
 
-  List<TimelineMilestoneOccurrence> get _previewOccurrences {
-    if (!_isTimeline || _ruleDrafts.isEmpty) {
-      return const [];
-    }
-    final now = DateTime.now();
-    final timeline = Timeline(
-      id: widget.id ?? 0,
-      title: _titleController.text.trim().isEmpty
-          ? 'Timeline'
-          : _titleController.text.trim(),
-      startDate: _selectedDate,
-      displayUnit: _displayUnit,
-      status: TimelineStatus.active,
-      createdAt: now,
-      updatedAt: now,
-    );
-    final rules = _ruleDrafts
-        .asMap()
-        .entries
-        .map((entry) {
-          final draft = entry.value;
-          return TimelineMilestoneRule(
-            id: draft.id ?? -(entry.key + 1),
-            timelineId: timeline.id,
-            type: draft.type,
-            intervalValue: int.tryParse(draft.intervalValue) ?? 1,
-            intervalUnit: draft.intervalUnit,
-            labelTemplate: draft.labelTemplate.trim().isEmpty
-                ? null
-                : draft.labelTemplate.trim(),
-            reminderOffsetDays: int.tryParse(draft.reminderOffsetDays) ?? 0,
-            isActive: draft.isActive,
-            createdAt: now,
-            updatedAt: now,
-          );
-        })
-        .toList(growable: false);
-    final normalizedNow = DateTime(now.year, now.month, now.day);
-    return _milestoneService.getUpcomingOccurrences(
-      timeline,
-      rules,
-      const [],
-      TimelineMilestoneRange(
-        start: normalizedNow,
-        end: normalizedNow.add(const Duration(days: 366)),
-      ),
-      now: normalizedNow,
-    );
+  String? _previewLabelForDraft(_RuleDraft draft) {
+    final occurrence = _previewOccurrenceForDraft(draft);
+    return occurrence?.label;
   }
 
-  List<TimelineMilestoneOccurrence> get _visiblePreviewOccurrences {
-    if (_showAllOccurrencePreview ||
-        _previewOccurrences.length <= _previewCount) {
-      return _previewOccurrences;
+  String? _upcomingSummaryForDraft(_RuleDraft draft) {
+    final occurrence = _previewOccurrenceForDraft(draft);
+    if (occurrence == null) {
+      return null;
     }
-    return _previewOccurrences.take(_previewCount).toList(growable: false);
+    return '${occurrence.label} • ${ReminderFormatters.date(occurrence.targetDate)}';
+  }
+
+  TimelineMilestoneOccurrence? _previewOccurrenceForDraft(_RuleDraft draft) {
+    if (!_isTimeline) {
+      return null;
+    }
+    final now = DateTime.now();
+    final normalizedNow = DateTime(now.year, now.month, now.day);
+    return _milestoneService.getNextOccurrence(
+      draft.toDomain(
+        timelineId: widget.id ?? 0,
+        ruleId: draft.effectiveRuleId,
+        now: now,
+      ),
+      Timeline(
+        id: widget.id ?? 0,
+        title: _titleController.text.trim().isEmpty
+            ? 'Timeline'
+            : _titleController.text.trim(),
+        startDate: _selectedDate,
+        displayUnit: _displayUnit,
+        status: TimelineStatus.active,
+        createdAt: now,
+        updatedAt: now,
+      ),
+      after: normalizedNow.subtract(const Duration(days: 1)),
+    );
   }
 }
 
@@ -646,7 +566,7 @@ class _RuleDraft {
     required this.intervalUnit,
     required this.labelTemplate,
     required this.reminderOffsetDays,
-    required this.isActive,
+    required this.status,
   });
 
   factory _RuleDraft.fromDomain(TimelineMilestoneRule rule) {
@@ -658,7 +578,7 @@ class _RuleDraft {
       intervalUnit: rule.intervalUnit,
       labelTemplate: rule.labelTemplate ?? '',
       reminderOffsetDays: '${rule.reminderOffsetDays}',
-      isActive: rule.isActive,
+      status: rule.status,
     );
   }
 
@@ -670,36 +590,36 @@ class _RuleDraft {
         type: TimelineMilestoneRuleType.everyNDays,
         intervalValue: '1',
         intervalUnit: TimelineMilestoneIntervalUnit.days,
-        labelTemplate: '第 {n} 天',
+        labelTemplate: '第 {value}{unit}',
         reminderOffsetDays: '0',
-        isActive: true,
+        status: TimelineMilestoneRuleStatus.active,
       ),
       TimelineDisplayUnit.week => _RuleDraft(
         localId: seed,
-        type: TimelineMilestoneRuleType.everyNDays,
-        intervalValue: '7',
-        intervalUnit: TimelineMilestoneIntervalUnit.days,
-        labelTemplate: '第 {n} 週',
+        type: TimelineMilestoneRuleType.everyNWeeks,
+        intervalValue: '1',
+        intervalUnit: TimelineMilestoneIntervalUnit.weeks,
+        labelTemplate: '第 {value}{unit}',
         reminderOffsetDays: '0',
-        isActive: true,
+        status: TimelineMilestoneRuleStatus.active,
       ),
       TimelineDisplayUnit.month => _RuleDraft(
         localId: seed,
         type: TimelineMilestoneRuleType.everyNMonths,
         intervalValue: '1',
         intervalUnit: TimelineMilestoneIntervalUnit.months,
-        labelTemplate: '第 {n} 個月',
+        labelTemplate: '第 {value}{unit}',
         reminderOffsetDays: '0',
-        isActive: true,
+        status: TimelineMilestoneRuleStatus.active,
       ),
       TimelineDisplayUnit.year => _RuleDraft(
         localId: seed,
         type: TimelineMilestoneRuleType.everyNYears,
         intervalValue: '1',
         intervalUnit: TimelineMilestoneIntervalUnit.years,
-        labelTemplate: '第 {n} 年',
+        labelTemplate: '第 {value}{unit}',
         reminderOffsetDays: '0',
-        isActive: true,
+        status: TimelineMilestoneRuleStatus.active,
       ),
     };
   }
@@ -711,7 +631,9 @@ class _RuleDraft {
   final TimelineMilestoneIntervalUnit intervalUnit;
   final String labelTemplate;
   final String reminderOffsetDays;
-  final bool isActive;
+  final TimelineMilestoneRuleStatus status;
+
+  int get effectiveRuleId => id ?? -localId;
 
   _RuleDraft copyWith({
     TimelineMilestoneRuleType? type,
@@ -719,7 +641,7 @@ class _RuleDraft {
     TimelineMilestoneIntervalUnit? intervalUnit,
     String? labelTemplate,
     String? reminderOffsetDays,
-    bool? isActive,
+    TimelineMilestoneRuleStatus? status,
   }) {
     return _RuleDraft(
       localId: localId,
@@ -729,7 +651,7 @@ class _RuleDraft {
       intervalUnit: intervalUnit ?? this.intervalUnit,
       labelTemplate: labelTemplate ?? this.labelTemplate,
       reminderOffsetDays: reminderOffsetDays ?? this.reminderOffsetDays,
-      isActive: isActive ?? this.isActive,
+      status: status ?? this.status,
     );
   }
 
@@ -741,15 +663,36 @@ class _RuleDraft {
       intervalUnit: intervalUnit,
       labelTemplate: labelTemplate.trim().isEmpty ? null : labelTemplate.trim(),
       reminderOffsetDays: int.tryParse(reminderOffsetDays) ?? 0,
-      isActive: isActive,
+      status: status,
+    );
+  }
+
+  TimelineMilestoneRule toDomain({
+    required int timelineId,
+    required int ruleId,
+    required DateTime now,
+  }) {
+    return TimelineMilestoneRule(
+      id: ruleId,
+      timelineId: timelineId,
+      type: type,
+      intervalValue: int.tryParse(intervalValue) ?? 1,
+      intervalUnit: intervalUnit,
+      labelTemplate: labelTemplate.trim().isEmpty ? null : labelTemplate.trim(),
+      reminderOffsetDays: int.tryParse(reminderOffsetDays) ?? 0,
+      status: status,
+      createdAt: now,
+      updatedAt: now,
     );
   }
 }
 
-class _RuleDraftCard extends StatelessWidget {
+class _RuleDraftCard extends StatefulWidget {
   const _RuleDraftCard({
     super.key,
     required this.draft,
+    required this.previewLabel,
+    required this.upcomingSummary,
     required this.onChanged,
     required this.onRemove,
     required this.validatePositiveInt,
@@ -757,10 +700,49 @@ class _RuleDraftCard extends StatelessWidget {
   });
 
   final _RuleDraft draft;
+  final String? previewLabel;
+  final String? upcomingSummary;
   final ValueChanged<_RuleDraft> onChanged;
   final VoidCallback onRemove;
   final FormFieldValidator<String> validatePositiveInt;
   final FormFieldValidator<String> validateOffsetDays;
+
+  @override
+  State<_RuleDraftCard> createState() => _RuleDraftCardState();
+}
+
+class _RuleDraftCardState extends State<_RuleDraftCard> {
+  late final TextEditingController _labelController;
+
+  @override
+  void initState() {
+    super.initState();
+    _labelController = TextEditingController(text: widget.draft.labelTemplate);
+  }
+
+  @override
+  void didUpdateWidget(covariant _RuleDraftCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.draft.labelTemplate != widget.draft.labelTemplate &&
+        _labelController.text != widget.draft.labelTemplate) {
+      _labelController.text = widget.draft.labelTemplate;
+    }
+  }
+
+  @override
+  void dispose() {
+    _labelController.dispose();
+    super.dispose();
+  }
+
+  void _appendToken(String token) {
+    final next = '${_labelController.text}$token';
+    _labelController.value = TextEditingValue(
+      text: next,
+      selection: TextSelection.collapsed(offset: next.length),
+    );
+    widget.onChanged(widget.draft.copyWith(labelTemplate: next));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -773,8 +755,8 @@ class _RuleDraftCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<TimelineMilestoneRuleType>(
-                    key: Key('rule-type-${draft.localId}'),
-                    initialValue: draft.type,
+                    key: Key('rule-type-${widget.draft.localId}'),
+                    initialValue: widget.draft.type,
                     decoration: const InputDecoration(labelText: 'Rule Type'),
                     items: TimelineMilestoneRuleType.values
                         .map(
@@ -788,12 +770,14 @@ class _RuleDraftCard extends StatelessWidget {
                       if (value == null) {
                         return;
                       }
-                      onChanged(
-                        draft.copyWith(
+                      widget.onChanged(
+                        widget.draft.copyWith(
                           type: value,
                           intervalUnit: switch (value) {
                             TimelineMilestoneRuleType.everyNDays =>
                               TimelineMilestoneIntervalUnit.days,
+                            TimelineMilestoneRuleType.everyNWeeks =>
+                              TimelineMilestoneIntervalUnit.weeks,
                             TimelineMilestoneRuleType.everyNMonths =>
                               TimelineMilestoneIntervalUnit.months,
                             TimelineMilestoneRuleType.everyNYears =>
@@ -806,47 +790,96 @@ class _RuleDraftCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 IconButton(
-                  key: Key('remove-rule-${draft.localId}'),
-                  onPressed: onRemove,
+                  key: Key('remove-rule-${widget.draft.localId}'),
+                  onPressed: widget.onRemove,
                   icon: const Icon(Icons.delete_outline),
                 ),
               ],
             ),
             TextFormField(
-              key: Key('rule-interval-${draft.localId}'),
-              initialValue: draft.intervalValue,
+              key: Key('rule-interval-${widget.draft.localId}'),
+              initialValue: widget.draft.intervalValue,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(labelText: 'Interval Value'),
-              validator: validatePositiveInt,
+              validator: widget.validatePositiveInt,
               onChanged: (value) =>
-                  onChanged(draft.copyWith(intervalValue: value)),
+                  widget.onChanged(widget.draft.copyWith(intervalValue: value)),
             ),
             const SizedBox(height: 12),
             TextFormField(
-              key: Key('rule-label-${draft.localId}'),
-              initialValue: draft.labelTemplate,
+              key: Key('rule-label-${widget.draft.localId}'),
+              controller: _labelController,
               decoration: const InputDecoration(labelText: 'Label Template'),
               onChanged: (value) =>
-                  onChanged(draft.copyWith(labelTemplate: value)),
+                  widget.onChanged(widget.draft.copyWith(labelTemplate: value)),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton(
+                  key: Key('rule-token-n-${widget.draft.localId}'),
+                  onPressed: () => _appendToken('{n}'),
+                  child: const Text('次數'),
+                ),
+                OutlinedButton(
+                  key: Key('rule-token-value-${widget.draft.localId}'),
+                  onPressed: () => _appendToken('{value}'),
+                  child: const Text('累積值'),
+                ),
+                OutlinedButton(
+                  key: Key('rule-token-unit-${widget.draft.localId}'),
+                  onPressed: () => _appendToken('{unit}'),
+                  child: const Text('單位'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                widget.previewLabel == null
+                    ? '預覽：目前無法產生下一筆 milestone'
+                    : '預覽：${widget.previewLabel}',
+                key: Key('rule-preview-${widget.draft.localId}'),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                widget.upcomingSummary == null
+                    ? '下一筆：目前無法產生 upcoming milestone'
+                    : '下一筆：${widget.upcomingSummary}',
+                key: Key('rule-next-occurrence-${widget.draft.localId}'),
+              ),
             ),
             const SizedBox(height: 12),
             TextFormField(
-              key: Key('rule-offset-${draft.localId}'),
-              initialValue: draft.reminderOffsetDays,
+              key: Key('rule-offset-${widget.draft.localId}'),
+              initialValue: widget.draft.reminderOffsetDays,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
                 labelText: 'Reminder Offset Days',
               ),
-              validator: validateOffsetDays,
-              onChanged: (value) =>
-                  onChanged(draft.copyWith(reminderOffsetDays: value)),
+              validator: widget.validateOffsetDays,
+              onChanged: (value) => widget.onChanged(
+                widget.draft.copyWith(reminderOffsetDays: value),
+              ),
             ),
             SwitchListTile(
-              key: Key('rule-active-${draft.localId}'),
+              key: Key('rule-active-${widget.draft.localId}'),
               contentPadding: EdgeInsets.zero,
-              value: draft.isActive,
+              value: widget.draft.status == TimelineMilestoneRuleStatus.active,
               title: const Text('Active'),
-              onChanged: (value) => onChanged(draft.copyWith(isActive: value)),
+              onChanged: (value) => widget.onChanged(
+                widget.draft.copyWith(
+                  status: value
+                      ? TimelineMilestoneRuleStatus.active
+                      : TimelineMilestoneRuleStatus.paused,
+                ),
+              ),
             ),
           ],
         ),

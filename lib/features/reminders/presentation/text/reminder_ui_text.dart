@@ -31,6 +31,12 @@ class ReminderUiText {
   static const upcomingMilestonesTitle = 'Upcoming Milestones';
   static const taskHistoryTitle = 'Task History';
   static const milestoneHistoryTitle = 'Milestone History';
+  static const timelineMilestoneHistoryTitle = 'Timeline Milestone History';
+  static const noTimelineUpcomingMilestone = '目前沒有 upcoming milestone。';
+  static const noTimelineMilestoneHistory =
+      '此 Timeline 目前沒有 milestone history。';
+  static const nextMilestoneLabel = '下一筆';
+  static const historyEntryAction = 'History';
   static const completeAction = '完成';
   static const skipAction = '跳過';
   static const cancelAction = '取消';

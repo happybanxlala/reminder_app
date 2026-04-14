@@ -4,11 +4,13 @@ import 'package:go_router/go_router.dart';
 
 import '../../domain/task_template.dart';
 import '../../domain/timeline.dart';
+import '../../domain/timeline_milestone_occurrence.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
 import '../../providers/task_providers.dart';
 import '../../providers/timeline_providers.dart';
 import 'task_timeline_editor_page.dart';
+import 'timeline_milestone_history_page.dart';
 
 class ManagementPage extends ConsumerWidget {
   const ManagementPage({super.key});
@@ -207,13 +209,15 @@ class _TaskTemplateCard extends ConsumerWidget {
   }
 }
 
-class _TimelineCard extends StatelessWidget {
+class _TimelineCard extends ConsumerWidget {
   const _TimelineCard({required this.timeline});
 
   final Timeline timeline;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final detailAsync = ref.watch(timelineEditorDetailProvider(timeline.id));
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -240,20 +244,87 @@ class _TimelineCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            if (timeline.status != TimelineStatus.archived)
-              OutlinedButton(
-                key: Key('timeline-edit-${timeline.id}'),
-                onPressed: () {
-                  context.pushNamed(
-                    TaskTimelineEditorPage.timelineEditRouteName,
-                    pathParameters: {'id': timeline.id.toString()},
-                  );
-                },
-                child: const Text(ReminderUiText.editAction),
+            detailAsync.when(
+              data: (detail) {
+                final firstUpcomingByRule = _firstUpcomingByRule(
+                  detail?.upcomingOccurrences ?? const [],
+                );
+                if (firstUpcomingByRule.isEmpty) {
+                  return const Text(ReminderUiText.noTimelineUpcomingMilestone);
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(ReminderUiText.nextMilestoneLabel),
+                    const SizedBox(height: 8),
+                    ...firstUpcomingByRule.map(
+                      (occurrence) => ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        key: Key(
+                          'timeline-upcoming-${timeline.id}-${occurrence.ruleId}',
+                        ),
+                        title: Text(occurrence.label),
+                        subtitle: Text(
+                          ReminderFormatters.date(occurrence.targetDate),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+              error: (error, stack) => const Text('讀取 upcoming milestone 失敗。'),
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
               ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton(
+                  key: Key('timeline-history-${timeline.id}'),
+                  onPressed: () {
+                    context.pushNamed(
+                      TimelineMilestoneHistoryPage.routeName,
+                      pathParameters: {'id': timeline.id.toString()},
+                    );
+                  },
+                  child: const Text(ReminderUiText.historyEntryAction),
+                ),
+                if (timeline.status != TimelineStatus.archived)
+                  OutlinedButton(
+                    key: Key('timeline-edit-${timeline.id}'),
+                    onPressed: () {
+                      context.pushNamed(
+                        TaskTimelineEditorPage.timelineEditRouteName,
+                        pathParameters: {'id': timeline.id.toString()},
+                      );
+                    },
+                    child: const Text(ReminderUiText.editAction),
+                  ),
+              ],
+            ),
           ],
         ),
       ),
     );
+  }
+
+  List<TimelineMilestoneOccurrence> _firstUpcomingByRule(
+    List<TimelineMilestoneOccurrence> items,
+  ) {
+    final byRule = <int, TimelineMilestoneOccurrence>{};
+    for (final item in items) {
+      byRule.putIfAbsent(item.ruleId, () => item);
+    }
+    final values = byRule.values.toList(growable: false);
+    values.sort((a, b) => a.targetDate.compareTo(b.targetDate));
+    return values;
   }
 }

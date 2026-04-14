@@ -2015,20 +2015,15 @@ class $TimelineMilestoneRulesTable extends TimelineMilestoneRules
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
-  static const VerificationMeta _isActiveMeta = const VerificationMeta(
-    'isActive',
-  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
-  late final GeneratedColumn<bool> isActive = GeneratedColumn<bool>(
-    'is_active',
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
     aliasedName,
     false,
-    type: DriftSqlType.bool,
+    type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("is_active" IN (0, 1))',
-    ),
-    defaultValue: const Constant(true),
+    defaultValue: const Constant('active'),
   );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
@@ -2061,7 +2056,7 @@ class $TimelineMilestoneRulesTable extends TimelineMilestoneRules
     intervalUnit,
     labelTemplate,
     reminderOffsetDays,
-    isActive,
+    status,
     createdAt,
     updatedAt,
   ];
@@ -2136,10 +2131,10 @@ class $TimelineMilestoneRulesTable extends TimelineMilestoneRules
         ),
       );
     }
-    if (data.containsKey('is_active')) {
+    if (data.containsKey('status')) {
       context.handle(
-        _isActiveMeta,
-        isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
       );
     }
     if (data.containsKey('created_at')) {
@@ -2198,9 +2193,9 @@ class $TimelineMilestoneRulesTable extends TimelineMilestoneRules
         DriftSqlType.int,
         data['${effectivePrefix}reminder_offset_days'],
       )!,
-      isActive: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}is_active'],
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
       )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
@@ -2228,7 +2223,7 @@ class TimelineMilestoneRuleRow extends DataClass
   final String intervalUnit;
   final String? labelTemplate;
   final int reminderOffsetDays;
-  final bool isActive;
+  final String status;
   final int createdAt;
   final int updatedAt;
   const TimelineMilestoneRuleRow({
@@ -2239,7 +2234,7 @@ class TimelineMilestoneRuleRow extends DataClass
     required this.intervalUnit,
     this.labelTemplate,
     required this.reminderOffsetDays,
-    required this.isActive,
+    required this.status,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -2255,7 +2250,7 @@ class TimelineMilestoneRuleRow extends DataClass
       map['label_template'] = Variable<String>(labelTemplate);
     }
     map['reminder_offset_days'] = Variable<int>(reminderOffsetDays);
-    map['is_active'] = Variable<bool>(isActive);
+    map['status'] = Variable<String>(status);
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     return map;
@@ -2272,7 +2267,7 @@ class TimelineMilestoneRuleRow extends DataClass
           ? const Value.absent()
           : Value(labelTemplate),
       reminderOffsetDays: Value(reminderOffsetDays),
-      isActive: Value(isActive),
+      status: Value(status),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -2291,7 +2286,7 @@ class TimelineMilestoneRuleRow extends DataClass
       intervalUnit: serializer.fromJson<String>(json['intervalUnit']),
       labelTemplate: serializer.fromJson<String?>(json['labelTemplate']),
       reminderOffsetDays: serializer.fromJson<int>(json['reminderOffsetDays']),
-      isActive: serializer.fromJson<bool>(json['isActive']),
+      status: serializer.fromJson<String>(json['status']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -2307,7 +2302,7 @@ class TimelineMilestoneRuleRow extends DataClass
       'intervalUnit': serializer.toJson<String>(intervalUnit),
       'labelTemplate': serializer.toJson<String?>(labelTemplate),
       'reminderOffsetDays': serializer.toJson<int>(reminderOffsetDays),
-      'isActive': serializer.toJson<bool>(isActive),
+      'status': serializer.toJson<String>(status),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -2321,7 +2316,7 @@ class TimelineMilestoneRuleRow extends DataClass
     String? intervalUnit,
     Value<String?> labelTemplate = const Value.absent(),
     int? reminderOffsetDays,
-    bool? isActive,
+    String? status,
     int? createdAt,
     int? updatedAt,
   }) => TimelineMilestoneRuleRow(
@@ -2334,7 +2329,7 @@ class TimelineMilestoneRuleRow extends DataClass
         ? labelTemplate.value
         : this.labelTemplate,
     reminderOffsetDays: reminderOffsetDays ?? this.reminderOffsetDays,
-    isActive: isActive ?? this.isActive,
+    status: status ?? this.status,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -2359,7 +2354,7 @@ class TimelineMilestoneRuleRow extends DataClass
       reminderOffsetDays: data.reminderOffsetDays.present
           ? data.reminderOffsetDays.value
           : this.reminderOffsetDays,
-      isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      status: data.status.present ? data.status.value : this.status,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -2375,7 +2370,7 @@ class TimelineMilestoneRuleRow extends DataClass
           ..write('intervalUnit: $intervalUnit, ')
           ..write('labelTemplate: $labelTemplate, ')
           ..write('reminderOffsetDays: $reminderOffsetDays, ')
-          ..write('isActive: $isActive, ')
+          ..write('status: $status, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -2391,7 +2386,7 @@ class TimelineMilestoneRuleRow extends DataClass
     intervalUnit,
     labelTemplate,
     reminderOffsetDays,
-    isActive,
+    status,
     createdAt,
     updatedAt,
   );
@@ -2406,7 +2401,7 @@ class TimelineMilestoneRuleRow extends DataClass
           other.intervalUnit == this.intervalUnit &&
           other.labelTemplate == this.labelTemplate &&
           other.reminderOffsetDays == this.reminderOffsetDays &&
-          other.isActive == this.isActive &&
+          other.status == this.status &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -2420,7 +2415,7 @@ class TimelineMilestoneRulesCompanion
   final Value<String> intervalUnit;
   final Value<String?> labelTemplate;
   final Value<int> reminderOffsetDays;
-  final Value<bool> isActive;
+  final Value<String> status;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   const TimelineMilestoneRulesCompanion({
@@ -2431,7 +2426,7 @@ class TimelineMilestoneRulesCompanion
     this.intervalUnit = const Value.absent(),
     this.labelTemplate = const Value.absent(),
     this.reminderOffsetDays = const Value.absent(),
-    this.isActive = const Value.absent(),
+    this.status = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -2443,7 +2438,7 @@ class TimelineMilestoneRulesCompanion
     required String intervalUnit,
     this.labelTemplate = const Value.absent(),
     this.reminderOffsetDays = const Value.absent(),
-    this.isActive = const Value.absent(),
+    this.status = const Value.absent(),
     required int createdAt,
     required int updatedAt,
   }) : timelineId = Value(timelineId),
@@ -2460,7 +2455,7 @@ class TimelineMilestoneRulesCompanion
     Expression<String>? intervalUnit,
     Expression<String>? labelTemplate,
     Expression<int>? reminderOffsetDays,
-    Expression<bool>? isActive,
+    Expression<String>? status,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
@@ -2473,7 +2468,7 @@ class TimelineMilestoneRulesCompanion
       if (labelTemplate != null) 'label_template': labelTemplate,
       if (reminderOffsetDays != null)
         'reminder_offset_days': reminderOffsetDays,
-      if (isActive != null) 'is_active': isActive,
+      if (status != null) 'status': status,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -2487,7 +2482,7 @@ class TimelineMilestoneRulesCompanion
     Value<String>? intervalUnit,
     Value<String?>? labelTemplate,
     Value<int>? reminderOffsetDays,
-    Value<bool>? isActive,
+    Value<String>? status,
     Value<int>? createdAt,
     Value<int>? updatedAt,
   }) {
@@ -2499,7 +2494,7 @@ class TimelineMilestoneRulesCompanion
       intervalUnit: intervalUnit ?? this.intervalUnit,
       labelTemplate: labelTemplate ?? this.labelTemplate,
       reminderOffsetDays: reminderOffsetDays ?? this.reminderOffsetDays,
-      isActive: isActive ?? this.isActive,
+      status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -2529,8 +2524,8 @@ class TimelineMilestoneRulesCompanion
     if (reminderOffsetDays.present) {
       map['reminder_offset_days'] = Variable<int>(reminderOffsetDays.value);
     }
-    if (isActive.present) {
-      map['is_active'] = Variable<bool>(isActive.value);
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
@@ -2551,7 +2546,7 @@ class TimelineMilestoneRulesCompanion
           ..write('intervalUnit: $intervalUnit, ')
           ..write('labelTemplate: $labelTemplate, ')
           ..write('reminderOffsetDays: $reminderOffsetDays, ')
-          ..write('isActive: $isActive, ')
+          ..write('status: $status, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -4136,7 +4131,7 @@ typedef $$TimelineMilestoneRulesTableCreateCompanionBuilder =
       required String intervalUnit,
       Value<String?> labelTemplate,
       Value<int> reminderOffsetDays,
-      Value<bool> isActive,
+      Value<String> status,
       required int createdAt,
       required int updatedAt,
     });
@@ -4149,7 +4144,7 @@ typedef $$TimelineMilestoneRulesTableUpdateCompanionBuilder =
       Value<String> intervalUnit,
       Value<String?> labelTemplate,
       Value<int> reminderOffsetDays,
-      Value<bool> isActive,
+      Value<String> status,
       Value<int> createdAt,
       Value<int> updatedAt,
     });
@@ -4198,8 +4193,8 @@ class $$TimelineMilestoneRulesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<bool> get isActive => $composableBuilder(
-    column: $table.isActive,
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4258,8 +4253,8 @@ class $$TimelineMilestoneRulesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<bool> get isActive => $composableBuilder(
-    column: $table.isActive,
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -4314,8 +4309,8 @@ class $$TimelineMilestoneRulesTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<bool> get isActive =>
-      $composableBuilder(column: $table.isActive, builder: (column) => column);
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -4377,7 +4372,7 @@ class $$TimelineMilestoneRulesTableTableManager
                 Value<String> intervalUnit = const Value.absent(),
                 Value<String?> labelTemplate = const Value.absent(),
                 Value<int> reminderOffsetDays = const Value.absent(),
-                Value<bool> isActive = const Value.absent(),
+                Value<String> status = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
               }) => TimelineMilestoneRulesCompanion(
@@ -4388,7 +4383,7 @@ class $$TimelineMilestoneRulesTableTableManager
                 intervalUnit: intervalUnit,
                 labelTemplate: labelTemplate,
                 reminderOffsetDays: reminderOffsetDays,
-                isActive: isActive,
+                status: status,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -4401,7 +4396,7 @@ class $$TimelineMilestoneRulesTableTableManager
                 required String intervalUnit,
                 Value<String?> labelTemplate = const Value.absent(),
                 Value<int> reminderOffsetDays = const Value.absent(),
-                Value<bool> isActive = const Value.absent(),
+                Value<String> status = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
               }) => TimelineMilestoneRulesCompanion.insert(
@@ -4412,7 +4407,7 @@ class $$TimelineMilestoneRulesTableTableManager
                 intervalUnit: intervalUnit,
                 labelTemplate: labelTemplate,
                 reminderOffsetDays: reminderOffsetDays,
-                isActive: isActive,
+                status: status,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),

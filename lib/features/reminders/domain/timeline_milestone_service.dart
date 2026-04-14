@@ -18,7 +18,7 @@ class TimelineMilestoneService {
     Timeline timeline, {
     DateTime? after,
   }) {
-    if (!rule.isActive) {
+    if (rule.status != TimelineMilestoneRuleStatus.active) {
       return null;
     }
 
@@ -121,7 +121,9 @@ class TimelineMilestoneService {
     };
     final occurrences = <TimelineMilestoneOccurrence>[];
 
-    for (final rule in rules.where((item) => item.isActive)) {
+    for (final rule in rules.where(
+      (item) => item.status == TimelineMilestoneRuleStatus.active,
+    )) {
       var occurrenceIndex = 1;
       while (occurrenceIndex < 10000) {
         final targetDate = _targetDateForOccurrence(
@@ -166,14 +168,30 @@ class TimelineMilestoneService {
   }
 
   String formatLabel(TimelineMilestoneRule rule, int occurrenceIndex) {
-    final template = rule.labelTemplate;
-    if (template != null && template.isNotEmpty) {
-      return template.replaceAll('{n}', '$occurrenceIndex');
-    }
+    final template =
+        (rule.labelTemplate != null && rule.labelTemplate!.isNotEmpty)
+        ? rule.labelTemplate!
+        : '第 {value}{unit}';
+    return template
+        .replaceAll('{n}', '${occurrenceCount(rule, occurrenceIndex)}')
+        .replaceAll('{value}', '${accumulatedValue(rule, occurrenceIndex)}')
+        .replaceAll('{unit}', displayUnitLabel(rule));
+  }
+
+  int occurrenceCount(TimelineMilestoneRule rule, int occurrenceIndex) {
+    return occurrenceIndex;
+  }
+
+  int accumulatedValue(TimelineMilestoneRule rule, int occurrenceIndex) {
+    return occurrenceIndex * rule.intervalValue;
+  }
+
+  String displayUnitLabel(TimelineMilestoneRule rule) {
     return switch (rule.intervalUnit) {
-      TimelineMilestoneIntervalUnit.days => '第 $occurrenceIndex 次天數里程碑',
-      TimelineMilestoneIntervalUnit.months => '第 $occurrenceIndex 次月里程碑',
-      TimelineMilestoneIntervalUnit.years => '第 $occurrenceIndex 次年里程碑',
+      TimelineMilestoneIntervalUnit.days => '天',
+      TimelineMilestoneIntervalUnit.weeks => '週',
+      TimelineMilestoneIntervalUnit.months => '個月',
+      TimelineMilestoneIntervalUnit.years => '年',
     };
   }
 
@@ -185,6 +203,9 @@ class TimelineMilestoneService {
     return switch (rule.intervalUnit) {
       TimelineMilestoneIntervalUnit.days => startDate.add(
         Duration(days: rule.intervalValue * occurrenceIndex - 1),
+      ),
+      TimelineMilestoneIntervalUnit.weeks => startDate.add(
+        Duration(days: rule.intervalValue * occurrenceIndex * 7 - 1),
       ),
       TimelineMilestoneIntervalUnit.months => _addMonthsClamped(
         startDate,

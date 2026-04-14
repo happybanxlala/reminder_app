@@ -16,7 +16,7 @@ class TimelineMilestoneRuleInput {
     required this.intervalUnit,
     this.labelTemplate,
     this.reminderOffsetDays = 0,
-    this.isActive = true,
+    this.status = TimelineMilestoneRuleStatus.active,
   });
 
   final int? id;
@@ -25,7 +25,7 @@ class TimelineMilestoneRuleInput {
   final TimelineMilestoneIntervalUnit intervalUnit;
   final String? labelTemplate;
   final int reminderOffsetDays;
-  final bool isActive;
+  final TimelineMilestoneRuleStatus status;
 }
 
 class TimelineInput {
@@ -201,7 +201,7 @@ class TimelineRepository {
           intervalUnit: rule.intervalUnit.name,
           labelTemplate: rule.labelTemplate,
           reminderOffsetDays: rule.reminderOffsetDays,
-          isActive: rule.isActive,
+          status: rule.status.name,
           createdAt: existing.createdAt.millisecondsSinceEpoch,
           updatedAt: now.millisecondsSinceEpoch,
         ),
@@ -211,7 +211,7 @@ class TimelineRepository {
     for (final existing in existingRules.where(
       (item) => !retainedIds.contains(item.id),
     )) {
-      if (!existing.isActive) {
+      if (existing.status == TimelineMilestoneRuleStatus.archived) {
         continue;
       }
       await _dao.updateTimelineMilestoneRuleRecord(
@@ -223,7 +223,7 @@ class TimelineRepository {
           intervalUnit: existing.intervalUnit.name,
           labelTemplate: existing.labelTemplate,
           reminderOffsetDays: existing.reminderOffsetDays,
-          isActive: false,
+          status: TimelineMilestoneRuleStatus.archived.name,
           createdAt: existing.createdAt.millisecondsSinceEpoch,
           updatedAt: now.millisecondsSinceEpoch,
         ),
@@ -244,7 +244,7 @@ class TimelineRepository {
         intervalUnit: rule.intervalUnit.name,
         labelTemplate: Value(rule.labelTemplate),
         reminderOffsetDays: Value(rule.reminderOffsetDays),
-        isActive: Value(rule.isActive),
+        status: Value(rule.status.name),
         createdAt: now.millisecondsSinceEpoch,
         updatedAt: now.millisecondsSinceEpoch,
       ),
@@ -254,6 +254,7 @@ class TimelineRepository {
   String _encodeRuleType(TimelineMilestoneRuleType type) {
     return switch (type) {
       TimelineMilestoneRuleType.everyNDays => 'every_n_days',
+      TimelineMilestoneRuleType.everyNWeeks => 'every_n_weeks',
       TimelineMilestoneRuleType.everyNMonths => 'every_n_months',
       TimelineMilestoneRuleType.everyNYears => 'every_n_years',
     };

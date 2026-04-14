@@ -5,6 +5,7 @@ import '../features/reminders/ui/pages/history_page.dart';
 import '../features/reminders/ui/pages/home_page.dart';
 import '../features/reminders/ui/pages/management_page.dart';
 import '../features/reminders/ui/pages/task_timeline_editor_page.dart';
+import '../features/reminders/ui/pages/timeline_milestone_history_page.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -77,6 +78,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             mode: TaskTimelineEditorMode.timelineEdit,
             id: id,
           );
+        },
+      ),
+      GoRoute(
+        path: TimelineMilestoneHistoryPage.routePath,
+        name: TimelineMilestoneHistoryPage.routeName,
+        builder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '');
+          return TimelineMilestoneHistoryPage(timelineId: id ?? 0);
         },
       ),
     ],

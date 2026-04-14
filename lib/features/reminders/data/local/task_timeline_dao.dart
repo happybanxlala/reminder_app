@@ -183,6 +183,22 @@ class TaskTimelineDao extends DatabaseAccessor<AppDatabase>
     return rows.map(_toTimelineMilestoneRule).toList(growable: false);
   }
 
+  Future<List<TimelineMilestoneRule>>
+  listVisibleTimelineMilestoneRulesForTimeline(int timelineId) async {
+    final rows =
+        await (select(timelineMilestoneRules)
+              ..where(
+                (t) =>
+                    t.timelineId.equals(timelineId) &
+                    t.status.isNotValue(
+                      TimelineMilestoneRuleStatus.archived.name,
+                    ),
+              )
+              ..orderBy([(t) => OrderingTerm.asc(t.id)]))
+            .get();
+    return rows.map(_toTimelineMilestoneRule).toList(growable: false);
+  }
+
   Future<TimelineMilestoneRule?> getTimelineMilestoneRuleById(int id) async {
     final row = await (select(
       timelineMilestoneRules,
@@ -247,7 +263,7 @@ class TaskTimelineDao extends DatabaseAccessor<AppDatabase>
     if (timeline == null) {
       return null;
     }
-    final rules = await listTimelineMilestoneRulesForTimeline(id);
+    final rules = await listVisibleTimelineMilestoneRulesForTimeline(id);
     final records = await listTimelineMilestoneRecordBundlesForTimeline(id);
     return TimelineDetailRecord(
       timeline: timeline,
@@ -571,7 +587,7 @@ class TaskTimelineDao extends DatabaseAccessor<AppDatabase>
       ),
       labelTemplate: row.labelTemplate,
       reminderOffsetDays: row.reminderOffsetDays,
-      isActive: row.isActive,
+      status: TimelineMilestoneRuleStatus.values.byName(row.status),
       createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
     );
@@ -601,6 +617,7 @@ class TaskTimelineDao extends DatabaseAccessor<AppDatabase>
   TimelineMilestoneRuleType _timelineMilestoneRuleType(String value) {
     return switch (value) {
       'every_n_days' => TimelineMilestoneRuleType.everyNDays,
+      'every_n_weeks' => TimelineMilestoneRuleType.everyNWeeks,
       'every_n_months' => TimelineMilestoneRuleType.everyNMonths,
       'every_n_years' => TimelineMilestoneRuleType.everyNYears,
       _ => TimelineMilestoneRuleType.everyNDays,

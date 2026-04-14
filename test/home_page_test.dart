@@ -194,7 +194,7 @@ TimelineMilestoneRecordBundle _milestoneRecordBundle({required String title}) {
       intervalUnit: TimelineMilestoneIntervalUnit.days,
       labelTemplate: '第 {n} 個 30 天',
       reminderOffsetDays: 0,
-      isActive: true,
+      status: TimelineMilestoneRuleStatus.active,
       createdAt: DateTime(2026, 4, 1),
       updatedAt: DateTime(2026, 4, 1),
     ),

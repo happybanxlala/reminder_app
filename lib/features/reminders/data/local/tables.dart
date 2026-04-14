@@ -66,7 +66,7 @@ class TimelineMilestoneRules extends Table {
   TextColumn get labelTemplate => text().nullable()();
   IntColumn get reminderOffsetDays =>
       integer().withDefault(const Constant(0))();
-  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  TextColumn get status => text().withDefault(const Constant('active'))();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 }

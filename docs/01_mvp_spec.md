@@ -85,6 +85,7 @@ Milestone Rule 是定義「什麼時候應該出現 milestone」的規則。
 ##### 支援類型（MVP）
 
 * `every_n_days`（每 N 天）
+* `every_n_weeks`（每 N 週）
 * `every_n_months`（每 N 個月）
 * `every_n_years`（每 N 年）
 
@@ -97,10 +98,10 @@ Milestone Rule 是定義「什麼時候應該出現 milestone」的規則。
 ##### 屬性（建議）
 
 * `intervalValue`（例如 100）
-* `intervalUnit`（days / months / years）
-* `labelTemplate`（例如「第 {n} 天」）
+* `intervalUnit`（days / weeks / months / years）
+* `labelTemplate`（例如「第 {value}{unit}」，其中 `{n}` = 次數、`{value}` = 累積值、`{unit}` = 單位）
 * `reminderOffsetDays`（提前幾天提醒）
-* `isActive`
+* `status`
 
 ---
 
@@ -361,7 +362,7 @@ Milestone Rule：
 - `intervalUnit`
 - `labelTemplate`
 - `reminderOffsetDays`
-- `isActive`
+- `status`
 - `createdAt`
 - `updatedAt`
 

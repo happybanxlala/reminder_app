@@ -12,11 +12,12 @@ final timelinesProvider = StreamProvider<List<Timeline>>((ref) {
   return ref.watch(timelineRepositoryProvider).watchTimelines();
 });
 
-final timelineDetailProvider = FutureProvider.family<Timeline?, int>((ref, id) {
-  return ref.watch(timelineRepositoryProvider).getTimelineById(id);
-});
+final timelineDetailProvider = FutureProvider.autoDispose
+    .family<Timeline?, int>((ref, id) {
+      return ref.watch(timelineRepositoryProvider).getTimelineById(id);
+    });
 
-final timelineEditorDetailProvider =
-    FutureProvider.family<TimelineDetail?, int>((ref, id) {
+final timelineEditorDetailProvider = FutureProvider.autoDispose
+    .family<TimelineDetail?, int>((ref, id) {
       return ref.watch(timelineRepositoryProvider).getTimelineDetailById(id);
     });
