@@ -3,13 +3,21 @@
 Flutter MVP for a split reminder product model:
 
 - `TaskTemplate + Task`
-- `Timeline + Milestone`
+- `Timeline + Milestone Rule + Milestone Record`
 
 正式規格與真相來源：
 
 - `docs/01_mvp_spec.md`
 - `docs/02_architecture_refactor.md`
+- `docs/03_timeline_milestone_rule.md`
 - Drift schema in `lib/features/reminders/data/local/`
+
+Milestone 模型採 rule-first：
+
+- `Timeline` 只保存 `startDate`
+- `Milestone Rule` 定義 interval 與 reminder offset
+- occurrence 於 Home / Timeline detail 動態計算
+- `timeline_milestone_records` 只在 noticed / skipped / notified 時持久化
 
 ## Setup
 

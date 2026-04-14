@@ -1,25 +1,27 @@
-enum MilestoneSource { ruleBased, custom }
-
 enum MilestoneStatus { upcoming, noticed, skipped }
 
-class Milestone {
-  const Milestone({
+class TimelineMilestoneRecord {
+  const TimelineMilestoneRecord({
     required this.id,
     required this.timelineId,
+    required this.ruleId,
+    required this.occurrenceIndex,
     required this.targetDate,
-    this.description,
-    required this.source,
     required this.status,
+    this.notifiedAt,
+    this.actedAt,
     required this.createdAt,
     required this.updatedAt,
   });
 
   final int id;
   final int timelineId;
+  final int ruleId;
+  final int occurrenceIndex;
   final DateTime targetDate;
-  final String? description;
-  final MilestoneSource source;
   final MilestoneStatus status;
+  final DateTime? notifiedAt;
+  final DateTime? actedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
 }

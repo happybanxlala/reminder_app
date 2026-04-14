@@ -26,9 +26,9 @@ class ReminderUiText {
   static const manageAction = '管理';
   static const historyAction = '歷史紀錄';
   static const saveAction = '儲存';
-  static const addMilestoneAction = '新增 Milestone';
-  static const customMilestoneTitle = 'Custom Milestones';
-  static const ruleBasedMilestoneTitle = 'Rule-based Milestones';
+  static const addRuleAction = '新增 Rule';
+  static const milestoneRulesTitle = 'Milestone Rules';
+  static const upcomingMilestonesTitle = 'Upcoming Milestones';
   static const taskHistoryTitle = 'Task History';
   static const milestoneHistoryTitle = 'Milestone History';
   static const completeAction = '完成';

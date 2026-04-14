@@ -99,7 +99,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                 children: [
                   ...pageItems.map(
                     (item) => ListTile(
-                      key: Key('milestone-history-${item.milestone.id}'),
+                      key: Key('milestone-history-${item.record.id}'),
                       title: Text(item.timeline.title),
                       subtitle: Text(
                         '${ReminderFormatters.milestoneHistory(item)}\n'

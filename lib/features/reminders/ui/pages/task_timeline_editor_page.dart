@@ -4,12 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/local/task_timeline_dao.dart';
 import '../../data/task_repository.dart';
 import '../../data/timeline_repository.dart';
-import '../../domain/milestone.dart';
-import '../../domain/milestone_reminder_rule.dart';
 import '../../domain/reminder_rule.dart';
 import '../../domain/repeat_rule.dart';
 import '../../domain/task_template.dart';
 import '../../domain/timeline.dart';
+import '../../domain/timeline_milestone_occurrence.dart';
+import '../../domain/timeline_milestone_rule.dart';
+import '../../domain/timeline_milestone_service.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
 import '../../providers/task_providers.dart';
@@ -50,28 +51,25 @@ class TaskTimelineEditorPage extends ConsumerStatefulWidget {
 
 class _TaskTimelineEditorPageState
     extends ConsumerState<TaskTimelineEditorPage> {
-  static const _milestonePreviewCount = 3;
+  static const _previewCount = 3;
 
   final _formKey = GlobalKey<FormState>();
+  final _milestoneService = const TimelineMilestoneService();
   late final TextEditingController _titleController;
   late final TextEditingController _noteController;
   late final TextEditingController _dateController;
   late final TextEditingController _intervalController;
   late final TextEditingController _taskOffsetController;
-  late final TextEditingController _milestoneOffsetController;
 
   DateTime _selectedDate = DateTime.now();
   bool _recurring = false;
   RepeatUnit _repeatUnit = RepeatUnit.week;
   ReminderRuleType _reminderRuleType = ReminderRuleType.onDue;
-  MilestoneReminderRuleType _milestoneReminderRuleType =
-      MilestoneReminderRuleType.onDay;
   TimelineDisplayUnit _displayUnit = TimelineDisplayUnit.day;
   bool _initialized = false;
-  bool _showAllCustomMilestones = false;
-  bool _showAllRuleBasedMilestones = false;
-  List<_MilestoneDraft> _customMilestones = const [];
-  List<MilestoneBundle> _ruleBasedMilestones = const [];
+  bool _showAllOccurrencePreview = false;
+  List<_RuleDraft> _ruleDrafts = const [];
+  List<TimelineMilestoneRecordBundle> _historyRecords = const [];
 
   bool get _isDirectTaskCreate =>
       widget.mode == TaskTimelineEditorMode.taskCreate;
@@ -94,9 +92,6 @@ class _TaskTimelineEditorPageState
   bool get _showTaskOffsetField =>
       _reminderRuleType == ReminderRuleType.advance;
 
-  bool get _showMilestoneOffsetField =>
-      _milestoneReminderRuleType == MilestoneReminderRuleType.advance;
-
   @override
   void initState() {
     super.initState();
@@ -105,7 +100,6 @@ class _TaskTimelineEditorPageState
     _dateController = TextEditingController();
     _intervalController = TextEditingController(text: '1');
     _taskOffsetController = TextEditingController(text: '0');
-    _milestoneOffsetController = TextEditingController(text: '0');
     _recurring = !_isDirectTaskCreate && !_isTimeline;
   }
 
@@ -116,7 +110,6 @@ class _TaskTimelineEditorPageState
     _dateController.dispose();
     _intervalController.dispose();
     _taskOffsetController.dispose();
-    _milestoneOffsetController.dispose();
     super.dispose();
   }
 
@@ -156,7 +149,7 @@ class _TaskTimelineEditorPageState
           children: [
             ..._buildBasicSection(context),
             if (_isTaskTemplateFlow) ..._buildTaskRuleSection(),
-            if (_isTimeline) ..._buildTimelineSection(context),
+            if (_isTimeline) ..._buildTimelineSection(),
             const SizedBox(height: 24),
             FilledButton(
               key: const Key('save-button'),
@@ -301,10 +294,8 @@ class _TaskTimelineEditorPageState
     ];
   }
 
-  List<Widget> _buildTimelineSection(BuildContext context) {
-    final customMilestones = _visibleCustomMilestones;
-    final ruleBasedMilestones = _visibleRuleBasedMilestones;
-
+  List<Widget> _buildTimelineSection() {
+    final previewItems = _visiblePreviewOccurrences;
     return [
       const SizedBox(height: 12),
       DropdownButtonFormField<TimelineDisplayUnit>(
@@ -330,69 +321,75 @@ class _TaskTimelineEditorPageState
         children: [
           const Expanded(
             child: Text(
-              ReminderUiText.customMilestoneTitle,
+              ReminderUiText.milestoneRulesTitle,
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
           ),
           TextButton.icon(
-            key: const Key('add-milestone-button'),
-            onPressed: _addMilestone,
+            key: const Key('add-rule-button'),
+            onPressed: _addRule,
             icon: const Icon(Icons.add),
-            label: const Text(ReminderUiText.addMilestoneAction),
+            label: const Text(ReminderUiText.addRuleAction),
           ),
         ],
       ),
-      if (_customMilestones.isEmpty)
-        const Text('尚未設定 custom milestone。')
+      if (_ruleDrafts.isEmpty)
+        const Text('尚未設定 milestone rule。')
       else
-        ...customMilestones.asMap().entries.map(
-          (entry) => _MilestoneDraftCard(
-            key: Key('custom-milestone-${entry.value.id}'),
+        ..._ruleDrafts.asMap().entries.map(
+          (entry) => _RuleDraftCard(
+            key: Key('rule-draft-${entry.value.localId}'),
             draft: entry.value,
-            onPickDate: () => _pickDate(
-              initial: entry.value.targetDate,
-              onPicked: (value) {
-                setState(() {
-                  _customMilestones = [
-                    for (final item in _customMilestones)
-                      identical(item, entry.value)
-                          ? item.copyWith(targetDate: value)
-                          : item,
-                  ];
-                });
-              },
-            ),
-            onDescriptionChanged: (value) {
+            onChanged: (next) {
               setState(() {
-                _customMilestones = [
-                  for (final item in _customMilestones)
-                    identical(item, entry.value)
-                        ? item.copyWith(description: value)
-                        : item,
+                _ruleDrafts = [
+                  for (final item in _ruleDrafts)
+                    item.localId == entry.value.localId ? next : item,
                 ];
               });
             },
             onRemove: () {
               setState(() {
-                _customMilestones = _customMilestones
-                    .where((item) => !identical(item, entry.value))
+                _ruleDrafts = _ruleDrafts
+                    .where((item) => item.localId != entry.value.localId)
                     .toList(growable: false);
               });
             },
+            validatePositiveInt: _validatePositiveInt,
+            validateOffsetDays: _validateOffsetDays,
           ),
         ),
-      if (_customMilestones.length > _milestonePreviewCount)
+      const SizedBox(height: 16),
+      const Text(
+        ReminderUiText.upcomingMilestonesTitle,
+        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      ),
+      const SizedBox(height: 8),
+      if (_previewOccurrences.isEmpty)
+        const Text('目前沒有可預覽的 upcoming milestone。')
+      else
+        ...previewItems.map(
+          (occurrence) => ListTile(
+            key: Key(
+              'upcoming-occurrence-${occurrence.ruleId}-${occurrence.occurrenceIndex}',
+            ),
+            title: Text(occurrence.label),
+            subtitle: Text(ReminderFormatters.milestoneSummary(occurrence)),
+            trailing: Text(occurrence.status.name),
+          ),
+        ),
+      if (_previewOccurrences.length > _previewCount)
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton(
-            key: const Key('custom-milestone-toggle'),
+            key: const Key('occurrence-preview-toggle'),
             onPressed: () {
               setState(() {
-                _showAllCustomMilestones = !_showAllCustomMilestones;
+                _showAllOccurrencePreview = !_showAllOccurrencePreview;
               });
             },
             child: Text(
-              _showAllCustomMilestones
+              _showAllOccurrencePreview
                   ? ReminderUiText.collapseAction
                   : ReminderUiText.viewAllAction,
             ),
@@ -400,67 +397,29 @@ class _TaskTimelineEditorPageState
         ),
       const SizedBox(height: 16),
       const Text(
-        ReminderUiText.ruleBasedMilestoneTitle,
+        ReminderUiText.milestoneHistoryTitle,
         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
       ),
       const SizedBox(height: 8),
-      if (_ruleBasedMilestones.isEmpty)
-        const Text('將依 display unit 產生未來 1 年內的 rule-based milestones。')
+      if (_historyRecords.isEmpty)
+        const Text('目前沒有 milestone history。')
       else
-        ...ruleBasedMilestones.map(
+        ..._historyRecords.map(
           (item) => ListTile(
-            key: Key('rule-based-milestone-${item.milestone.id}'),
-            title: Text(item.milestone.description ?? item.timeline.title),
-            subtitle: Text(ReminderFormatters.milestoneSummary(item)),
-            trailing: Text(item.milestone.status.name),
-          ),
-        ),
-      if (_ruleBasedMilestones.length > _milestonePreviewCount)
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton(
-            key: const Key('rule-based-milestone-toggle'),
-            onPressed: () {
-              setState(() {
-                _showAllRuleBasedMilestones = !_showAllRuleBasedMilestones;
-              });
-            },
-            child: Text(
-              _showAllRuleBasedMilestones
-                  ? ReminderUiText.collapseAction
-                  : ReminderUiText.viewAllAction,
+            key: Key('timeline-history-${item.record.id}'),
+            title: Text(
+              _milestoneService.formatLabel(
+                item.rule,
+                item.record.occurrenceIndex,
+              ),
             ),
+            subtitle: Text(
+              '${ReminderFormatters.milestoneHistory(item)}\n'
+              '${ReminderFormatters.milestoneHistoryUpdatedAt(item)}',
+            ),
+            isThreeLine: true,
           ),
         ),
-      const SizedBox(height: 12),
-      DropdownButtonFormField<MilestoneReminderRuleType>(
-        key: const Key('milestone-reminder-rule-field'),
-        initialValue: _milestoneReminderRuleType,
-        decoration: const InputDecoration(labelText: 'Milestone Reminder Rule'),
-        items: MilestoneReminderRuleType.values
-            .map(
-              (value) =>
-                  DropdownMenuItem(value: value, child: Text(value.name)),
-            )
-            .toList(growable: false),
-        onChanged: (value) {
-          if (value != null) {
-            setState(() {
-              _milestoneReminderRuleType = value;
-            });
-          }
-        },
-      ),
-      if (_showMilestoneOffsetField) ...[
-        const SizedBox(height: 12),
-        TextFormField(
-          key: const Key('milestone-offset-field'),
-          controller: _milestoneOffsetController,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Reminder Offset Days'),
-          validator: _validateOffsetDays,
-        ),
-      ],
     ];
   }
 
@@ -497,20 +456,10 @@ class _TaskTimelineEditorPageState
       _selectedDate = timeline.startDate;
       _dateController.text = ReminderFormatters.date(timeline.startDate);
       _displayUnit = timeline.displayUnit;
-      _milestoneReminderRuleType = timeline.milestoneReminderRule.type;
-      _milestoneOffsetController.text =
-          '${timeline.milestoneReminderRule.offsetDays ?? 0}';
-      _customMilestones = timelineDetail.customMilestones
-          .where((item) => item.milestone.status == MilestoneStatus.upcoming)
-          .map(
-            (item) => _MilestoneDraft(
-              id: item.milestone.id,
-              targetDate: item.milestone.targetDate,
-              description: item.milestone.description ?? '',
-            ),
-          )
+      _ruleDrafts = timelineDetail.rules
+          .map((rule) => _RuleDraft.fromDomain(rule))
           .toList(growable: false);
-      _ruleBasedMilestones = timelineDetail.ruleBasedMilestones;
+      _historyRecords = timelineDetail.historyRecords;
     } else {
       _dateController.text = ReminderFormatters.date(_selectedDate);
     }
@@ -533,23 +482,10 @@ class _TaskTimelineEditorPageState
     onPicked(DateTime(result.year, result.month, result.day));
   }
 
-  Future<void> _addMilestone() async {
-    final initial = _selectedDate;
-    await _pickDate(
-      initial: initial,
-      onPicked: (value) {
-        setState(() {
-          _customMilestones = [
-            ..._customMilestones,
-            _MilestoneDraft(
-              id: DateTime.now().microsecondsSinceEpoch,
-              targetDate: value,
-              description: '',
-            ),
-          ];
-        });
-      },
-    );
+  void _addRule() {
+    setState(() {
+      _ruleDrafts = [..._ruleDrafts, _RuleDraft.defaults(_displayUnit)];
+    });
   }
 
   Future<void> _save() async {
@@ -608,37 +544,16 @@ class _TaskTimelineEditorPageState
         title: _titleController.text.trim(),
         startDate: _selectedDate,
         displayUnit: _displayUnit,
-        milestoneReminderRule: switch (_milestoneReminderRuleType) {
-          MilestoneReminderRuleType.advance => MilestoneReminderRule.advance(
-            int.parse(_milestoneOffsetController.text),
-          ),
-          MilestoneReminderRuleType.onDay =>
-            const MilestoneReminderRule.onDay(),
-        },
+        milestoneRules: _ruleDrafts
+            .map((draft) => draft.toInput())
+            .toList(growable: false),
       );
-      final customMilestones = _customMilestones
-          .map(
-            (item) => MilestoneInput(
-              targetDate: item.targetDate,
-              description: item.description.trim().isEmpty
-                  ? null
-                  : item.description.trim(),
-              source: MilestoneSource.custom,
-            ),
-          )
-          .toList(growable: false);
       if (widget.mode == TaskTimelineEditorMode.timelineCreate) {
-        await ref
-            .read(timelineRepositoryProvider)
-            .createTimeline(input, customMilestones: customMilestones);
+        await ref.read(timelineRepositoryProvider).createTimeline(input);
       } else {
         await ref
             .read(timelineRepositoryProvider)
-            .updateTimeline(
-              widget.id!,
-              input,
-              customMilestones: customMilestones,
-            );
+            .updateTimeline(widget.id!, input);
       }
     }
 
@@ -655,65 +570,197 @@ class _TaskTimelineEditorPageState
     return null;
   }
 
-  List<_MilestoneDraft> get _sortedCustomMilestones {
-    final items = [..._customMilestones];
-    items.sort((a, b) => a.targetDate.compareTo(b.targetDate));
-    return items;
+  String? _validatePositiveInt(String? value) {
+    final parsed = int.tryParse(value ?? '');
+    if (parsed == null || parsed < 1) {
+      return '請輸入 1 或以上的整數';
+    }
+    return null;
   }
 
-  List<_MilestoneDraft> get _visibleCustomMilestones {
-    final items = _sortedCustomMilestones;
-    if (_showAllCustomMilestones || items.length <= _milestonePreviewCount) {
-      return items;
+  List<TimelineMilestoneOccurrence> get _previewOccurrences {
+    if (!_isTimeline || _ruleDrafts.isEmpty) {
+      return const [];
     }
-    return items.take(_milestonePreviewCount).toList(growable: false);
-  }
-
-  List<MilestoneBundle> get _visibleRuleBasedMilestones {
-    if (_showAllRuleBasedMilestones ||
-        _ruleBasedMilestones.length <= _milestonePreviewCount) {
-      return _ruleBasedMilestones;
-    }
-    return _ruleBasedMilestones
-        .take(_milestonePreviewCount)
+    final now = DateTime.now();
+    final timeline = Timeline(
+      id: widget.id ?? 0,
+      title: _titleController.text.trim().isEmpty
+          ? 'Timeline'
+          : _titleController.text.trim(),
+      startDate: _selectedDate,
+      displayUnit: _displayUnit,
+      status: TimelineStatus.active,
+      createdAt: now,
+      updatedAt: now,
+    );
+    final rules = _ruleDrafts
+        .asMap()
+        .entries
+        .map((entry) {
+          final draft = entry.value;
+          return TimelineMilestoneRule(
+            id: draft.id ?? -(entry.key + 1),
+            timelineId: timeline.id,
+            type: draft.type,
+            intervalValue: int.tryParse(draft.intervalValue) ?? 1,
+            intervalUnit: draft.intervalUnit,
+            labelTemplate: draft.labelTemplate.trim().isEmpty
+                ? null
+                : draft.labelTemplate.trim(),
+            reminderOffsetDays: int.tryParse(draft.reminderOffsetDays) ?? 0,
+            isActive: draft.isActive,
+            createdAt: now,
+            updatedAt: now,
+          );
+        })
         .toList(growable: false);
+    final normalizedNow = DateTime(now.year, now.month, now.day);
+    return _milestoneService.getUpcomingOccurrences(
+      timeline,
+      rules,
+      const [],
+      TimelineMilestoneRange(
+        start: normalizedNow,
+        end: normalizedNow.add(const Duration(days: 366)),
+      ),
+      now: normalizedNow,
+    );
+  }
+
+  List<TimelineMilestoneOccurrence> get _visiblePreviewOccurrences {
+    if (_showAllOccurrencePreview ||
+        _previewOccurrences.length <= _previewCount) {
+      return _previewOccurrences;
+    }
+    return _previewOccurrences.take(_previewCount).toList(growable: false);
   }
 }
 
-class _MilestoneDraft {
-  const _MilestoneDraft({
-    required this.id,
-    required this.targetDate,
-    required this.description,
+class _RuleDraft {
+  const _RuleDraft({
+    required this.localId,
+    this.id,
+    required this.type,
+    required this.intervalValue,
+    required this.intervalUnit,
+    required this.labelTemplate,
+    required this.reminderOffsetDays,
+    required this.isActive,
   });
 
-  final int id;
+  factory _RuleDraft.fromDomain(TimelineMilestoneRule rule) {
+    return _RuleDraft(
+      localId: rule.id,
+      id: rule.id,
+      type: rule.type,
+      intervalValue: '${rule.intervalValue}',
+      intervalUnit: rule.intervalUnit,
+      labelTemplate: rule.labelTemplate ?? '',
+      reminderOffsetDays: '${rule.reminderOffsetDays}',
+      isActive: rule.isActive,
+    );
+  }
 
-  final DateTime targetDate;
-  final String description;
+  factory _RuleDraft.defaults(TimelineDisplayUnit displayUnit) {
+    final seed = DateTime.now().microsecondsSinceEpoch;
+    return switch (displayUnit) {
+      TimelineDisplayUnit.day => _RuleDraft(
+        localId: seed,
+        type: TimelineMilestoneRuleType.everyNDays,
+        intervalValue: '1',
+        intervalUnit: TimelineMilestoneIntervalUnit.days,
+        labelTemplate: '第 {n} 天',
+        reminderOffsetDays: '0',
+        isActive: true,
+      ),
+      TimelineDisplayUnit.week => _RuleDraft(
+        localId: seed,
+        type: TimelineMilestoneRuleType.everyNDays,
+        intervalValue: '7',
+        intervalUnit: TimelineMilestoneIntervalUnit.days,
+        labelTemplate: '第 {n} 週',
+        reminderOffsetDays: '0',
+        isActive: true,
+      ),
+      TimelineDisplayUnit.month => _RuleDraft(
+        localId: seed,
+        type: TimelineMilestoneRuleType.everyNMonths,
+        intervalValue: '1',
+        intervalUnit: TimelineMilestoneIntervalUnit.months,
+        labelTemplate: '第 {n} 個月',
+        reminderOffsetDays: '0',
+        isActive: true,
+      ),
+      TimelineDisplayUnit.year => _RuleDraft(
+        localId: seed,
+        type: TimelineMilestoneRuleType.everyNYears,
+        intervalValue: '1',
+        intervalUnit: TimelineMilestoneIntervalUnit.years,
+        labelTemplate: '第 {n} 年',
+        reminderOffsetDays: '0',
+        isActive: true,
+      ),
+    };
+  }
 
-  _MilestoneDraft copyWith({DateTime? targetDate, String? description}) {
-    return _MilestoneDraft(
+  final int localId;
+  final int? id;
+  final TimelineMilestoneRuleType type;
+  final String intervalValue;
+  final TimelineMilestoneIntervalUnit intervalUnit;
+  final String labelTemplate;
+  final String reminderOffsetDays;
+  final bool isActive;
+
+  _RuleDraft copyWith({
+    TimelineMilestoneRuleType? type,
+    String? intervalValue,
+    TimelineMilestoneIntervalUnit? intervalUnit,
+    String? labelTemplate,
+    String? reminderOffsetDays,
+    bool? isActive,
+  }) {
+    return _RuleDraft(
+      localId: localId,
       id: id,
-      targetDate: targetDate ?? this.targetDate,
-      description: description ?? this.description,
+      type: type ?? this.type,
+      intervalValue: intervalValue ?? this.intervalValue,
+      intervalUnit: intervalUnit ?? this.intervalUnit,
+      labelTemplate: labelTemplate ?? this.labelTemplate,
+      reminderOffsetDays: reminderOffsetDays ?? this.reminderOffsetDays,
+      isActive: isActive ?? this.isActive,
+    );
+  }
+
+  TimelineMilestoneRuleInput toInput() {
+    return TimelineMilestoneRuleInput(
+      id: id,
+      type: type,
+      intervalValue: int.tryParse(intervalValue) ?? 1,
+      intervalUnit: intervalUnit,
+      labelTemplate: labelTemplate.trim().isEmpty ? null : labelTemplate.trim(),
+      reminderOffsetDays: int.tryParse(reminderOffsetDays) ?? 0,
+      isActive: isActive,
     );
   }
 }
 
-class _MilestoneDraftCard extends StatelessWidget {
-  const _MilestoneDraftCard({
+class _RuleDraftCard extends StatelessWidget {
+  const _RuleDraftCard({
     super.key,
     required this.draft,
-    required this.onPickDate,
-    required this.onDescriptionChanged,
+    required this.onChanged,
     required this.onRemove,
+    required this.validatePositiveInt,
+    required this.validateOffsetDays,
   });
 
-  final _MilestoneDraft draft;
-  final VoidCallback onPickDate;
-  final ValueChanged<String> onDescriptionChanged;
+  final _RuleDraft draft;
+  final ValueChanged<_RuleDraft> onChanged;
   final VoidCallback onRemove;
+  final FormFieldValidator<String> validatePositiveInt;
+  final FormFieldValidator<String> validateOffsetDays;
 
   @override
   Widget build(BuildContext context) {
@@ -725,19 +772,81 @@ class _MilestoneDraftCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(ReminderFormatters.date(draft.targetDate)),
+                  child: DropdownButtonFormField<TimelineMilestoneRuleType>(
+                    key: Key('rule-type-${draft.localId}'),
+                    initialValue: draft.type,
+                    decoration: const InputDecoration(labelText: 'Rule Type'),
+                    items: TimelineMilestoneRuleType.values
+                        .map(
+                          (value) => DropdownMenuItem(
+                            value: value,
+                            child: Text(value.name),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: (value) {
+                      if (value == null) {
+                        return;
+                      }
+                      onChanged(
+                        draft.copyWith(
+                          type: value,
+                          intervalUnit: switch (value) {
+                            TimelineMilestoneRuleType.everyNDays =>
+                              TimelineMilestoneIntervalUnit.days,
+                            TimelineMilestoneRuleType.everyNMonths =>
+                              TimelineMilestoneIntervalUnit.months,
+                            TimelineMilestoneRuleType.everyNYears =>
+                              TimelineMilestoneIntervalUnit.years,
+                          },
+                        ),
+                      );
+                    },
+                  ),
                 ),
-                TextButton(onPressed: onPickDate, child: const Text('選日期')),
+                const SizedBox(width: 12),
                 IconButton(
+                  key: Key('remove-rule-${draft.localId}'),
                   onPressed: onRemove,
                   icon: const Icon(Icons.delete_outline),
                 ),
               ],
             ),
             TextFormField(
-              initialValue: draft.description,
-              decoration: const InputDecoration(labelText: 'Description'),
-              onChanged: onDescriptionChanged,
+              key: Key('rule-interval-${draft.localId}'),
+              initialValue: draft.intervalValue,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Interval Value'),
+              validator: validatePositiveInt,
+              onChanged: (value) =>
+                  onChanged(draft.copyWith(intervalValue: value)),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              key: Key('rule-label-${draft.localId}'),
+              initialValue: draft.labelTemplate,
+              decoration: const InputDecoration(labelText: 'Label Template'),
+              onChanged: (value) =>
+                  onChanged(draft.copyWith(labelTemplate: value)),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              key: Key('rule-offset-${draft.localId}'),
+              initialValue: draft.reminderOffsetDays,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Reminder Offset Days',
+              ),
+              validator: validateOffsetDays,
+              onChanged: (value) =>
+                  onChanged(draft.copyWith(reminderOffsetDays: value)),
+            ),
+            SwitchListTile(
+              key: Key('rule-active-${draft.localId}'),
+              contentPadding: EdgeInsets.zero,
+              value: draft.isActive,
+              title: const Text('Active'),
+              onChanged: (value) => onChanged(draft.copyWith(isActive: value)),
             ),
           ],
         ),

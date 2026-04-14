@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/timeline_repository.dart';
-import 'package:reminder_app/features/reminders/domain/milestone_reminder_rule.dart';
 import 'package:reminder_app/features/reminders/domain/reminder_rule.dart';
 import 'package:reminder_app/features/reminders/domain/task_template.dart';
 import 'package:reminder_app/features/reminders/domain/timeline.dart';
+import 'package:reminder_app/features/reminders/domain/timeline_milestone_rule.dart';
 import 'package:reminder_app/features/reminders/providers/task_providers.dart';
 import 'package:reminder_app/features/reminders/providers/timeline_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/task_timeline_editor_page.dart';
@@ -79,9 +79,7 @@ void main() {
     expect(find.text('3'), findsWidgets);
   });
 
-  testWidgets('timeline form only shows offset for advance milestone rule', (
-    tester,
-  ) async {
+  testWidgets('timeline form adds milestone rules explicitly', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         child: const MaterialApp(
@@ -93,24 +91,21 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.byKey(const Key('milestone-offset-field')), findsNothing);
+    expect(find.text('Milestone Rules'), findsOneWidget);
+    expect(find.text('尚未設定 milestone rule。'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('milestone-reminder-rule-field')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text(MilestoneReminderRuleType.advance.name).last);
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const Key('milestone-offset-field')), findsOneWidget);
-
-    await tester.tap(find.byKey(const Key('milestone-reminder-rule-field')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text(MilestoneReminderRuleType.onDay.name).last);
+    await tester.tap(find.byKey(const Key('add-rule-button')));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('milestone-offset-field')), findsNothing);
+    expect(
+      find.text(TimelineMilestoneRuleType.everyNDays.name),
+      findsOneWidget,
+    );
+    expect(find.text('第 {n} 天'), findsOneWidget);
+    expect(find.text('Reminder Offset Days'), findsOneWidget);
   });
 
-  testWidgets('timeline edit initializes current milestone reminder rule', (
+  testWidgets('timeline edit initializes current milestone rules', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -125,12 +120,25 @@ void main() {
                   startDate: DateTime(2026, 4, 20),
                   displayUnit: TimelineDisplayUnit.week,
                   status: TimelineStatus.active,
-                  milestoneReminderRule: const MilestoneReminderRule.advance(5),
                   createdAt: DateTime(2026, 4, 1),
                   updatedAt: DateTime(2026, 4, 2),
                 ),
-                customMilestones: const [],
-                ruleBasedMilestones: const [],
+                rules: [
+                  TimelineMilestoneRule(
+                    id: 91,
+                    timelineId: 9,
+                    type: TimelineMilestoneRuleType.everyNMonths,
+                    intervalValue: 2,
+                    intervalUnit: TimelineMilestoneIntervalUnit.months,
+                    labelTemplate: '第 {n} 個 2 月',
+                    reminderOffsetDays: 5,
+                    isActive: true,
+                    createdAt: DateTime(2026, 4, 1),
+                    updatedAt: DateTime(2026, 4, 2),
+                  ),
+                ],
+                upcomingOccurrences: const [],
+                historyRecords: const [],
               ),
             ),
           ),
@@ -145,8 +153,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text(MilestoneReminderRuleType.advance.name), findsOneWidget);
-    expect(find.byKey(const Key('milestone-offset-field')), findsOneWidget);
+    expect(
+      find.text(TimelineMilestoneRuleType.everyNMonths.name),
+      findsOneWidget,
+    );
     expect(find.text('5'), findsWidgets);
+    expect(find.text('第 {n} 個 2 月'), findsOneWidget);
   });
 }

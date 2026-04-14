@@ -53,27 +53,214 @@
 - `pause TaskTemplate`: 所有既有 pending `Task` 批次轉為 `canceled`，並清空 `deferredDueDate`
 - archived `TaskTemplate` 為唯讀
 
-## 4. Timeline Rules
+## Timeline & Milestone
 
-### Display
+### 1. 概念調整（重要）
 
-- `Timeline.displayUnit = day / week / month / year`
-- 顯示值由 `TimelineCalculator` 根據 `startDate` 與今天計算
+**Milestones for a Timeline are rule-driven and computed on demand, rather than pre-generated in bulk when the Timeline is created.**
 
-### Milestone Source
+Timeline 的 milestone 不再於建立時批量生成。
+改為由使用者設定的「Milestone Rule」動態計算，在需要顯示、提醒或記錄時產生對應的 milestone occurrence。
 
-- `ruleBased`
-- `custom`
+---
 
-### MilestoneReminderRule
+### 2. 核心概念
 
-- `advance`
-- `onDay`
+#### Timeline
 
-### User Actions
+一段持續中的時間，具有：
 
-- `noticed`
-- `skipped`
+* `startDate`
+* 持續累積（例如第 N 天 / 週 / 月 / 年）
+* 不可完成、不會 overdue
+
+---
+
+#### Milestone Rule（新增）
+
+Milestone Rule 是定義「什麼時候應該出現 milestone」的規則。
+
+使用者可以在 Timeline 詳情頁中新增與管理規則。
+
+##### 支援類型（MVP）
+
+* `every_n_days`（每 N 天）
+* `every_n_months`（每 N 個月）
+* `every_n_years`（每 N 年）
+
+##### 範例
+
+* 每 100 天（交往紀念）
+* 每 1 年（週年紀念）
+* 每 30 天（定期檢視）
+
+##### 屬性（建議）
+
+* `intervalValue`（例如 100）
+* `intervalUnit`（days / months / years）
+* `labelTemplate`（例如「第 {n} 天」）
+* `reminderOffsetDays`（提前幾天提醒）
+* `isActive`
+
+---
+
+#### Milestone Occurrence（概念）
+
+Milestone Occurrence 是某條規則在某個時間點對應的一次具體 milestone。
+
+例如：
+
+* 第 100 天 → 2026-04-10
+* 第 200 天 → 2026-07-19
+
+Occurrence **不會在 Timeline 建立時全部預先生成**，而是：
+
+* 在 UI 顯示時動態計算
+* 在提醒流程中動態取得
+* 在需要記錄狀態時才持久化
+
+---
+
+#### Milestone Record（持久化資料）
+
+當 milestone 被實際使用或需要追蹤時，會建立對應記錄。
+
+##### 建立時機
+
+* 已發送提醒（notification）
+* 使用者標記為：
+
+  * `noticed`
+  * `skipped`
+
+##### 狀態
+
+* `upcoming`
+* `noticed`
+* `skipped`
+
+##### 特性
+
+* 不會產生下一筆 milestone（不同於 recurring task）
+* 不會 overdue
+* 僅用於記錄歷史與使用者互動
+
+---
+
+### 3. 行為規則
+
+#### 規則 1：Milestone 來源
+
+Milestone 由以下組成：
+
+* Timeline 的 `startDate`
+* Milestone Rule
+
+系統根據規則動態計算 occurrence。
+
+---
+
+#### 規則 2：不預生成
+
+系統**不應在 Timeline 建立時批量產生 milestone 資料**。
+
+原因：
+
+* 避免大量未使用資料
+* 保持規則驅動的模型
+* 提高彈性（規則可隨時新增/修改）
+
+---
+
+#### 規則 3：提醒機制
+
+對於每個 milestone occurrence：
+
+* 系統可根據 `reminderOffsetDays` 計算提醒時間
+* 當進入提醒範圍時：
+
+  * 顯示於 Home（Today / Upcoming）
+  * 可觸發通知
+
+---
+
+#### 規則 4：Home 顯示
+
+Milestone 在 Home 中的行為：
+
+* Today：targetDate 為今天
+* Upcoming：已進入提醒窗口，但日期尚未到
+* 不會出現在 Overdue
+
+---
+
+#### 規則 5：History
+
+History 僅包含：
+
+* 已被 `noticed` 或 `skipped` 的 milestone records
+
+未互動的 future milestones 不進入 History。
+
+---
+
+#### 規則 6：Timeline 詳情頁
+
+Timeline 詳情頁應提供：
+
+* Milestone Rule 列表
+* 新增 / 編輯 / 刪除規則
+* Upcoming milestones 預覽（動態計算）
+* 過去 milestone 紀錄（records）
+
+---
+
+### 4. 與 Task 的差異（強化語意）
+
+| 項目          | Task         | Milestone |
+| ----------- | ------------ | --------- |
+| 是否需要完成      | ✅ 是          | ❌ 否       |
+| 是否會 overdue | ✅ 會          | ❌ 不會      |
+| 是否會產生下一筆    | ✅（recurring） | ❌         |
+| 來源          | Template     | Rule      |
+| 產生方式        | 預先產生         | 動態計算      |
+
+---
+
+### 5. 設計原則（重要）
+
+1. **Rule over Data**
+   優先儲存規則，而非大量預生成資料
+
+2. **On-demand computation**
+   milestone occurrence 在需要時才計算
+
+3. **Lightweight persistence**
+   僅保存有互動或已通知的 milestone records
+
+4. **User mental model first**
+   使用者理解的是「每 100 天」，不是「第 17 筆 milestone」
+
+---
+
+### 6. 範例（實際使用）
+
+Timeline：
+「與 xxx 交往」
+startDate：2026-01-01
+
+Milestone Rule：
+
+* every 100 days
+* reminderOffsetDays = 3
+
+系統行為：
+
+* 第 100 天 → 2026-04-10
+* 第 200 天 → 2026-07-19
+* 於 2026-07-16 開始提醒
+* 若使用者標記 noticed → 建立 record
+* 未互動 → 不產生資料
 
 ## 5. Home Semantics
 
@@ -162,18 +349,32 @@
 - `startDate`
 - `displayUnit`
 - `status`
-- `milestoneReminderRule`
 - `createdAt`
 - `updatedAt`
 
-### milestones
+### timeline_milestone_rules
 
 - `id`
 - `timelineId`
+- `type`
+- `intervalValue`
+- `intervalUnit`
+- `labelTemplate`
+- `reminderOffsetDays`
+- `isActive`
+- `createdAt`
+- `updatedAt`
+
+### timeline_milestone_records
+
+- `id`
+- `timelineId`
+- `ruleId`
+- `occurrenceIndex`
 - `targetDate`
-- `description`
-- `source`
 - `status`
+- `notifiedAt`
+- `actedAt`
 - `createdAt`
 - `updatedAt`
 
@@ -181,6 +382,8 @@
 
 - `Task` 與 `Timeline` 不可混用
 - `Milestone` 不可進入 overdue
+- `Milestone Rule` 是 primary source，occurrence 為動態計算結果
+- 建立 `Timeline` 時不得預先批量生成 milestone occurrence
 - `TaskTemplate` 修改不影響既有 `Task`
 - `Milestone` 不依使用者操作產生下一筆
 - one-time `Task` 不建立 `TaskTemplate`

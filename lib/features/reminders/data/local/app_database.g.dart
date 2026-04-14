@@ -1536,17 +1536,6 @@ class $TimelinesTable extends Timelines
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _milestoneReminderRuleMeta =
-      const VerificationMeta('milestoneReminderRule');
-  @override
-  late final GeneratedColumn<String> milestoneReminderRule =
-      GeneratedColumn<String>(
-        'milestone_reminder_rule',
-        aliasedName,
-        false,
-        type: DriftSqlType.string,
-        requiredDuringInsert: true,
-      );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -1576,7 +1565,6 @@ class $TimelinesTable extends Timelines
     startDate,
     displayUnit,
     status,
-    milestoneReminderRule,
     createdAt,
     updatedAt,
   ];
@@ -1630,17 +1618,6 @@ class $TimelinesTable extends Timelines
     } else if (isInserting) {
       context.missing(_statusMeta);
     }
-    if (data.containsKey('milestone_reminder_rule')) {
-      context.handle(
-        _milestoneReminderRuleMeta,
-        milestoneReminderRule.isAcceptableOrUnknown(
-          data['milestone_reminder_rule']!,
-          _milestoneReminderRuleMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_milestoneReminderRuleMeta);
-    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -1686,10 +1663,6 @@ class $TimelinesTable extends Timelines
         DriftSqlType.string,
         data['${effectivePrefix}status'],
       )!,
-      milestoneReminderRule: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}milestone_reminder_rule'],
-      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
@@ -1713,7 +1686,6 @@ class TimelineRow extends DataClass implements Insertable<TimelineRow> {
   final int startDate;
   final String displayUnit;
   final String status;
-  final String milestoneReminderRule;
   final int createdAt;
   final int updatedAt;
   const TimelineRow({
@@ -1722,7 +1694,6 @@ class TimelineRow extends DataClass implements Insertable<TimelineRow> {
     required this.startDate,
     required this.displayUnit,
     required this.status,
-    required this.milestoneReminderRule,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -1734,7 +1705,6 @@ class TimelineRow extends DataClass implements Insertable<TimelineRow> {
     map['start_date'] = Variable<int>(startDate);
     map['display_unit'] = Variable<String>(displayUnit);
     map['status'] = Variable<String>(status);
-    map['milestone_reminder_rule'] = Variable<String>(milestoneReminderRule);
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     return map;
@@ -1747,7 +1717,6 @@ class TimelineRow extends DataClass implements Insertable<TimelineRow> {
       startDate: Value(startDate),
       displayUnit: Value(displayUnit),
       status: Value(status),
-      milestoneReminderRule: Value(milestoneReminderRule),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -1764,9 +1733,6 @@ class TimelineRow extends DataClass implements Insertable<TimelineRow> {
       startDate: serializer.fromJson<int>(json['startDate']),
       displayUnit: serializer.fromJson<String>(json['displayUnit']),
       status: serializer.fromJson<String>(json['status']),
-      milestoneReminderRule: serializer.fromJson<String>(
-        json['milestoneReminderRule'],
-      ),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -1780,7 +1746,6 @@ class TimelineRow extends DataClass implements Insertable<TimelineRow> {
       'startDate': serializer.toJson<int>(startDate),
       'displayUnit': serializer.toJson<String>(displayUnit),
       'status': serializer.toJson<String>(status),
-      'milestoneReminderRule': serializer.toJson<String>(milestoneReminderRule),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -1792,7 +1757,6 @@ class TimelineRow extends DataClass implements Insertable<TimelineRow> {
     int? startDate,
     String? displayUnit,
     String? status,
-    String? milestoneReminderRule,
     int? createdAt,
     int? updatedAt,
   }) => TimelineRow(
@@ -1801,7 +1765,6 @@ class TimelineRow extends DataClass implements Insertable<TimelineRow> {
     startDate: startDate ?? this.startDate,
     displayUnit: displayUnit ?? this.displayUnit,
     status: status ?? this.status,
-    milestoneReminderRule: milestoneReminderRule ?? this.milestoneReminderRule,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -1814,9 +1777,6 @@ class TimelineRow extends DataClass implements Insertable<TimelineRow> {
           ? data.displayUnit.value
           : this.displayUnit,
       status: data.status.present ? data.status.value : this.status,
-      milestoneReminderRule: data.milestoneReminderRule.present
-          ? data.milestoneReminderRule.value
-          : this.milestoneReminderRule,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -1830,7 +1790,6 @@ class TimelineRow extends DataClass implements Insertable<TimelineRow> {
           ..write('startDate: $startDate, ')
           ..write('displayUnit: $displayUnit, ')
           ..write('status: $status, ')
-          ..write('milestoneReminderRule: $milestoneReminderRule, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -1844,7 +1803,6 @@ class TimelineRow extends DataClass implements Insertable<TimelineRow> {
     startDate,
     displayUnit,
     status,
-    milestoneReminderRule,
     createdAt,
     updatedAt,
   );
@@ -1857,7 +1815,6 @@ class TimelineRow extends DataClass implements Insertable<TimelineRow> {
           other.startDate == this.startDate &&
           other.displayUnit == this.displayUnit &&
           other.status == this.status &&
-          other.milestoneReminderRule == this.milestoneReminderRule &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -1868,7 +1825,6 @@ class TimelinesCompanion extends UpdateCompanion<TimelineRow> {
   final Value<int> startDate;
   final Value<String> displayUnit;
   final Value<String> status;
-  final Value<String> milestoneReminderRule;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   const TimelinesCompanion({
@@ -1877,7 +1833,6 @@ class TimelinesCompanion extends UpdateCompanion<TimelineRow> {
     this.startDate = const Value.absent(),
     this.displayUnit = const Value.absent(),
     this.status = const Value.absent(),
-    this.milestoneReminderRule = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -1887,14 +1842,12 @@ class TimelinesCompanion extends UpdateCompanion<TimelineRow> {
     required int startDate,
     required String displayUnit,
     required String status,
-    required String milestoneReminderRule,
     required int createdAt,
     required int updatedAt,
   }) : title = Value(title),
        startDate = Value(startDate),
        displayUnit = Value(displayUnit),
        status = Value(status),
-       milestoneReminderRule = Value(milestoneReminderRule),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
   static Insertable<TimelineRow> custom({
@@ -1903,7 +1856,6 @@ class TimelinesCompanion extends UpdateCompanion<TimelineRow> {
     Expression<int>? startDate,
     Expression<String>? displayUnit,
     Expression<String>? status,
-    Expression<String>? milestoneReminderRule,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
@@ -1913,8 +1865,6 @@ class TimelinesCompanion extends UpdateCompanion<TimelineRow> {
       if (startDate != null) 'start_date': startDate,
       if (displayUnit != null) 'display_unit': displayUnit,
       if (status != null) 'status': status,
-      if (milestoneReminderRule != null)
-        'milestone_reminder_rule': milestoneReminderRule,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -1926,7 +1876,6 @@ class TimelinesCompanion extends UpdateCompanion<TimelineRow> {
     Value<int>? startDate,
     Value<String>? displayUnit,
     Value<String>? status,
-    Value<String>? milestoneReminderRule,
     Value<int>? createdAt,
     Value<int>? updatedAt,
   }) {
@@ -1936,8 +1885,6 @@ class TimelinesCompanion extends UpdateCompanion<TimelineRow> {
       startDate: startDate ?? this.startDate,
       displayUnit: displayUnit ?? this.displayUnit,
       status: status ?? this.status,
-      milestoneReminderRule:
-          milestoneReminderRule ?? this.milestoneReminderRule,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -1961,11 +1908,6 @@ class TimelinesCompanion extends UpdateCompanion<TimelineRow> {
     if (status.present) {
       map['status'] = Variable<String>(status.value);
     }
-    if (milestoneReminderRule.present) {
-      map['milestone_reminder_rule'] = Variable<String>(
-        milestoneReminderRule.value,
-      );
-    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -1983,7 +1925,6 @@ class TimelinesCompanion extends UpdateCompanion<TimelineRow> {
           ..write('startDate: $startDate, ')
           ..write('displayUnit: $displayUnit, ')
           ..write('status: $status, ')
-          ..write('milestoneReminderRule: $milestoneReminderRule, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -1991,12 +1932,12 @@ class TimelinesCompanion extends UpdateCompanion<TimelineRow> {
   }
 }
 
-class $MilestonesTable extends Milestones
-    with TableInfo<$MilestonesTable, MilestoneRow> {
+class $TimelineMilestoneRulesTable extends TimelineMilestoneRules
+    with TableInfo<$TimelineMilestoneRulesTable, TimelineMilestoneRuleRow> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
-  $MilestonesTable(this.attachedDatabase, [this._alias]);
+  $TimelineMilestoneRulesTable(this.attachedDatabase, [this._alias]);
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -2021,45 +1962,73 @@ class $MilestonesTable extends Milestones
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _targetDateMeta = const VerificationMeta(
-    'targetDate',
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _intervalValueMeta = const VerificationMeta(
+    'intervalValue',
   );
   @override
-  late final GeneratedColumn<int> targetDate = GeneratedColumn<int>(
-    'target_date',
+  late final GeneratedColumn<int> intervalValue = GeneratedColumn<int>(
+    'interval_value',
     aliasedName,
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _descriptionMeta = const VerificationMeta(
-    'description',
+  static const VerificationMeta _intervalUnitMeta = const VerificationMeta(
+    'intervalUnit',
   );
   @override
-  late final GeneratedColumn<String> description = GeneratedColumn<String>(
-    'description',
+  late final GeneratedColumn<String> intervalUnit = GeneratedColumn<String>(
+    'interval_unit',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _labelTemplateMeta = const VerificationMeta(
+    'labelTemplate',
+  );
+  @override
+  late final GeneratedColumn<String> labelTemplate = GeneratedColumn<String>(
+    'label_template',
     aliasedName,
     true,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  static const VerificationMeta _reminderOffsetDaysMeta =
+      const VerificationMeta('reminderOffsetDays');
   @override
-  late final GeneratedColumn<String> source = GeneratedColumn<String>(
-    'source',
+  late final GeneratedColumn<int> reminderOffsetDays = GeneratedColumn<int>(
+    'reminder_offset_days',
     aliasedName,
     false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
   );
-  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  static const VerificationMeta _isActiveMeta = const VerificationMeta(
+    'isActive',
+  );
   @override
-  late final GeneratedColumn<String> status = GeneratedColumn<String>(
-    'status',
+  late final GeneratedColumn<bool> isActive = GeneratedColumn<bool>(
+    'is_active',
     aliasedName,
     false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
   );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
@@ -2087,10 +2056,12 @@ class $MilestonesTable extends Milestones
   List<GeneratedColumn> get $columns => [
     id,
     timelineId,
-    targetDate,
-    description,
-    source,
-    status,
+    type,
+    intervalValue,
+    intervalUnit,
+    labelTemplate,
+    reminderOffsetDays,
+    isActive,
     createdAt,
     updatedAt,
   ];
@@ -2098,10 +2069,10 @@ class $MilestonesTable extends Milestones
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
-  static const String $name = 'milestones';
+  static const String $name = 'timeline_milestone_rules';
   @override
   VerificationContext validateIntegrity(
-    Insertable<MilestoneRow> instance, {
+    Insertable<TimelineMilestoneRuleRow> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -2117,38 +2088,59 @@ class $MilestonesTable extends Milestones
     } else if (isInserting) {
       context.missing(_timelineIdMeta);
     }
-    if (data.containsKey('target_date')) {
+    if (data.containsKey('type')) {
       context.handle(
-        _targetDateMeta,
-        targetDate.isAcceptableOrUnknown(data['target_date']!, _targetDateMeta),
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
       );
     } else if (isInserting) {
-      context.missing(_targetDateMeta);
+      context.missing(_typeMeta);
     }
-    if (data.containsKey('description')) {
+    if (data.containsKey('interval_value')) {
       context.handle(
-        _descriptionMeta,
-        description.isAcceptableOrUnknown(
-          data['description']!,
-          _descriptionMeta,
+        _intervalValueMeta,
+        intervalValue.isAcceptableOrUnknown(
+          data['interval_value']!,
+          _intervalValueMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_intervalValueMeta);
+    }
+    if (data.containsKey('interval_unit')) {
+      context.handle(
+        _intervalUnitMeta,
+        intervalUnit.isAcceptableOrUnknown(
+          data['interval_unit']!,
+          _intervalUnitMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_intervalUnitMeta);
+    }
+    if (data.containsKey('label_template')) {
+      context.handle(
+        _labelTemplateMeta,
+        labelTemplate.isAcceptableOrUnknown(
+          data['label_template']!,
+          _labelTemplateMeta,
         ),
       );
     }
-    if (data.containsKey('source')) {
+    if (data.containsKey('reminder_offset_days')) {
       context.handle(
-        _sourceMeta,
-        source.isAcceptableOrUnknown(data['source']!, _sourceMeta),
+        _reminderOffsetDaysMeta,
+        reminderOffsetDays.isAcceptableOrUnknown(
+          data['reminder_offset_days']!,
+          _reminderOffsetDaysMeta,
+        ),
       );
-    } else if (isInserting) {
-      context.missing(_sourceMeta);
     }
-    if (data.containsKey('status')) {
+    if (data.containsKey('is_active')) {
       context.handle(
-        _statusMeta,
-        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+        _isActiveMeta,
+        isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
       );
-    } else if (isInserting) {
-      context.missing(_statusMeta);
     }
     if (data.containsKey('created_at')) {
       context.handle(
@@ -2172,9 +2164,12 @@ class $MilestonesTable extends Milestones
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  MilestoneRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+  TimelineMilestoneRuleRow map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return MilestoneRow(
+    return TimelineMilestoneRuleRow(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -2183,21 +2178,29 @@ class $MilestonesTable extends Milestones
         DriftSqlType.int,
         data['${effectivePrefix}timeline_id'],
       )!,
-      targetDate: attachedDatabase.typeMapping.read(
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      intervalValue: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}target_date'],
+        data['${effectivePrefix}interval_value'],
       )!,
-      description: attachedDatabase.typeMapping.read(
+      intervalUnit: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}description'],
+        data['${effectivePrefix}interval_unit'],
+      )!,
+      labelTemplate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}label_template'],
       ),
-      source: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}source'],
+      reminderOffsetDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reminder_offset_days'],
       )!,
-      status: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}status'],
+      isActive: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_active'],
       )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
@@ -2211,27 +2214,32 @@ class $MilestonesTable extends Milestones
   }
 
   @override
-  $MilestonesTable createAlias(String alias) {
-    return $MilestonesTable(attachedDatabase, alias);
+  $TimelineMilestoneRulesTable createAlias(String alias) {
+    return $TimelineMilestoneRulesTable(attachedDatabase, alias);
   }
 }
 
-class MilestoneRow extends DataClass implements Insertable<MilestoneRow> {
+class TimelineMilestoneRuleRow extends DataClass
+    implements Insertable<TimelineMilestoneRuleRow> {
   final int id;
   final int timelineId;
-  final int targetDate;
-  final String? description;
-  final String source;
-  final String status;
+  final String type;
+  final int intervalValue;
+  final String intervalUnit;
+  final String? labelTemplate;
+  final int reminderOffsetDays;
+  final bool isActive;
   final int createdAt;
   final int updatedAt;
-  const MilestoneRow({
+  const TimelineMilestoneRuleRow({
     required this.id,
     required this.timelineId,
-    required this.targetDate,
-    this.description,
-    required this.source,
-    required this.status,
+    required this.type,
+    required this.intervalValue,
+    required this.intervalUnit,
+    this.labelTemplate,
+    required this.reminderOffsetDays,
+    required this.isActive,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -2240,44 +2248,50 @@ class MilestoneRow extends DataClass implements Insertable<MilestoneRow> {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['timeline_id'] = Variable<int>(timelineId);
-    map['target_date'] = Variable<int>(targetDate);
-    if (!nullToAbsent || description != null) {
-      map['description'] = Variable<String>(description);
+    map['type'] = Variable<String>(type);
+    map['interval_value'] = Variable<int>(intervalValue);
+    map['interval_unit'] = Variable<String>(intervalUnit);
+    if (!nullToAbsent || labelTemplate != null) {
+      map['label_template'] = Variable<String>(labelTemplate);
     }
-    map['source'] = Variable<String>(source);
-    map['status'] = Variable<String>(status);
+    map['reminder_offset_days'] = Variable<int>(reminderOffsetDays);
+    map['is_active'] = Variable<bool>(isActive);
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     return map;
   }
 
-  MilestonesCompanion toCompanion(bool nullToAbsent) {
-    return MilestonesCompanion(
+  TimelineMilestoneRulesCompanion toCompanion(bool nullToAbsent) {
+    return TimelineMilestoneRulesCompanion(
       id: Value(id),
       timelineId: Value(timelineId),
-      targetDate: Value(targetDate),
-      description: description == null && nullToAbsent
+      type: Value(type),
+      intervalValue: Value(intervalValue),
+      intervalUnit: Value(intervalUnit),
+      labelTemplate: labelTemplate == null && nullToAbsent
           ? const Value.absent()
-          : Value(description),
-      source: Value(source),
-      status: Value(status),
+          : Value(labelTemplate),
+      reminderOffsetDays: Value(reminderOffsetDays),
+      isActive: Value(isActive),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
   }
 
-  factory MilestoneRow.fromJson(
+  factory TimelineMilestoneRuleRow.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return MilestoneRow(
+    return TimelineMilestoneRuleRow(
       id: serializer.fromJson<int>(json['id']),
       timelineId: serializer.fromJson<int>(json['timelineId']),
-      targetDate: serializer.fromJson<int>(json['targetDate']),
-      description: serializer.fromJson<String?>(json['description']),
-      source: serializer.fromJson<String>(json['source']),
-      status: serializer.fromJson<String>(json['status']),
+      type: serializer.fromJson<String>(json['type']),
+      intervalValue: serializer.fromJson<int>(json['intervalValue']),
+      intervalUnit: serializer.fromJson<String>(json['intervalUnit']),
+      labelTemplate: serializer.fromJson<String?>(json['labelTemplate']),
+      reminderOffsetDays: serializer.fromJson<int>(json['reminderOffsetDays']),
+      isActive: serializer.fromJson<bool>(json['isActive']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -2288,48 +2302,64 @@ class MilestoneRow extends DataClass implements Insertable<MilestoneRow> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'timelineId': serializer.toJson<int>(timelineId),
-      'targetDate': serializer.toJson<int>(targetDate),
-      'description': serializer.toJson<String?>(description),
-      'source': serializer.toJson<String>(source),
-      'status': serializer.toJson<String>(status),
+      'type': serializer.toJson<String>(type),
+      'intervalValue': serializer.toJson<int>(intervalValue),
+      'intervalUnit': serializer.toJson<String>(intervalUnit),
+      'labelTemplate': serializer.toJson<String?>(labelTemplate),
+      'reminderOffsetDays': serializer.toJson<int>(reminderOffsetDays),
+      'isActive': serializer.toJson<bool>(isActive),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
   }
 
-  MilestoneRow copyWith({
+  TimelineMilestoneRuleRow copyWith({
     int? id,
     int? timelineId,
-    int? targetDate,
-    Value<String?> description = const Value.absent(),
-    String? source,
-    String? status,
+    String? type,
+    int? intervalValue,
+    String? intervalUnit,
+    Value<String?> labelTemplate = const Value.absent(),
+    int? reminderOffsetDays,
+    bool? isActive,
     int? createdAt,
     int? updatedAt,
-  }) => MilestoneRow(
+  }) => TimelineMilestoneRuleRow(
     id: id ?? this.id,
     timelineId: timelineId ?? this.timelineId,
-    targetDate: targetDate ?? this.targetDate,
-    description: description.present ? description.value : this.description,
-    source: source ?? this.source,
-    status: status ?? this.status,
+    type: type ?? this.type,
+    intervalValue: intervalValue ?? this.intervalValue,
+    intervalUnit: intervalUnit ?? this.intervalUnit,
+    labelTemplate: labelTemplate.present
+        ? labelTemplate.value
+        : this.labelTemplate,
+    reminderOffsetDays: reminderOffsetDays ?? this.reminderOffsetDays,
+    isActive: isActive ?? this.isActive,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
-  MilestoneRow copyWithCompanion(MilestonesCompanion data) {
-    return MilestoneRow(
+  TimelineMilestoneRuleRow copyWithCompanion(
+    TimelineMilestoneRulesCompanion data,
+  ) {
+    return TimelineMilestoneRuleRow(
       id: data.id.present ? data.id.value : this.id,
       timelineId: data.timelineId.present
           ? data.timelineId.value
           : this.timelineId,
-      targetDate: data.targetDate.present
-          ? data.targetDate.value
-          : this.targetDate,
-      description: data.description.present
-          ? data.description.value
-          : this.description,
-      source: data.source.present ? data.source.value : this.source,
-      status: data.status.present ? data.status.value : this.status,
+      type: data.type.present ? data.type.value : this.type,
+      intervalValue: data.intervalValue.present
+          ? data.intervalValue.value
+          : this.intervalValue,
+      intervalUnit: data.intervalUnit.present
+          ? data.intervalUnit.value
+          : this.intervalUnit,
+      labelTemplate: data.labelTemplate.present
+          ? data.labelTemplate.value
+          : this.labelTemplate,
+      reminderOffsetDays: data.reminderOffsetDays.present
+          ? data.reminderOffsetDays.value
+          : this.reminderOffsetDays,
+      isActive: data.isActive.present ? data.isActive.value : this.isActive,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -2337,13 +2367,15 @@ class MilestoneRow extends DataClass implements Insertable<MilestoneRow> {
 
   @override
   String toString() {
-    return (StringBuffer('MilestoneRow(')
+    return (StringBuffer('TimelineMilestoneRuleRow(')
           ..write('id: $id, ')
           ..write('timelineId: $timelineId, ')
-          ..write('targetDate: $targetDate, ')
-          ..write('description: $description, ')
-          ..write('source: $source, ')
-          ..write('status: $status, ')
+          ..write('type: $type, ')
+          ..write('intervalValue: $intervalValue, ')
+          ..write('intervalUnit: $intervalUnit, ')
+          ..write('labelTemplate: $labelTemplate, ')
+          ..write('reminderOffsetDays: $reminderOffsetDays, ')
+          ..write('isActive: $isActive, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -2354,100 +2386,120 @@ class MilestoneRow extends DataClass implements Insertable<MilestoneRow> {
   int get hashCode => Object.hash(
     id,
     timelineId,
-    targetDate,
-    description,
-    source,
-    status,
+    type,
+    intervalValue,
+    intervalUnit,
+    labelTemplate,
+    reminderOffsetDays,
+    isActive,
     createdAt,
     updatedAt,
   );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is MilestoneRow &&
+      (other is TimelineMilestoneRuleRow &&
           other.id == this.id &&
           other.timelineId == this.timelineId &&
-          other.targetDate == this.targetDate &&
-          other.description == this.description &&
-          other.source == this.source &&
-          other.status == this.status &&
+          other.type == this.type &&
+          other.intervalValue == this.intervalValue &&
+          other.intervalUnit == this.intervalUnit &&
+          other.labelTemplate == this.labelTemplate &&
+          other.reminderOffsetDays == this.reminderOffsetDays &&
+          other.isActive == this.isActive &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
 
-class MilestonesCompanion extends UpdateCompanion<MilestoneRow> {
+class TimelineMilestoneRulesCompanion
+    extends UpdateCompanion<TimelineMilestoneRuleRow> {
   final Value<int> id;
   final Value<int> timelineId;
-  final Value<int> targetDate;
-  final Value<String?> description;
-  final Value<String> source;
-  final Value<String> status;
+  final Value<String> type;
+  final Value<int> intervalValue;
+  final Value<String> intervalUnit;
+  final Value<String?> labelTemplate;
+  final Value<int> reminderOffsetDays;
+  final Value<bool> isActive;
   final Value<int> createdAt;
   final Value<int> updatedAt;
-  const MilestonesCompanion({
+  const TimelineMilestoneRulesCompanion({
     this.id = const Value.absent(),
     this.timelineId = const Value.absent(),
-    this.targetDate = const Value.absent(),
-    this.description = const Value.absent(),
-    this.source = const Value.absent(),
-    this.status = const Value.absent(),
+    this.type = const Value.absent(),
+    this.intervalValue = const Value.absent(),
+    this.intervalUnit = const Value.absent(),
+    this.labelTemplate = const Value.absent(),
+    this.reminderOffsetDays = const Value.absent(),
+    this.isActive = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
-  MilestonesCompanion.insert({
+  TimelineMilestoneRulesCompanion.insert({
     this.id = const Value.absent(),
     required int timelineId,
-    required int targetDate,
-    this.description = const Value.absent(),
-    required String source,
-    required String status,
+    required String type,
+    required int intervalValue,
+    required String intervalUnit,
+    this.labelTemplate = const Value.absent(),
+    this.reminderOffsetDays = const Value.absent(),
+    this.isActive = const Value.absent(),
     required int createdAt,
     required int updatedAt,
   }) : timelineId = Value(timelineId),
-       targetDate = Value(targetDate),
-       source = Value(source),
-       status = Value(status),
+       type = Value(type),
+       intervalValue = Value(intervalValue),
+       intervalUnit = Value(intervalUnit),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
-  static Insertable<MilestoneRow> custom({
+  static Insertable<TimelineMilestoneRuleRow> custom({
     Expression<int>? id,
     Expression<int>? timelineId,
-    Expression<int>? targetDate,
-    Expression<String>? description,
-    Expression<String>? source,
-    Expression<String>? status,
+    Expression<String>? type,
+    Expression<int>? intervalValue,
+    Expression<String>? intervalUnit,
+    Expression<String>? labelTemplate,
+    Expression<int>? reminderOffsetDays,
+    Expression<bool>? isActive,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (timelineId != null) 'timeline_id': timelineId,
-      if (targetDate != null) 'target_date': targetDate,
-      if (description != null) 'description': description,
-      if (source != null) 'source': source,
-      if (status != null) 'status': status,
+      if (type != null) 'type': type,
+      if (intervalValue != null) 'interval_value': intervalValue,
+      if (intervalUnit != null) 'interval_unit': intervalUnit,
+      if (labelTemplate != null) 'label_template': labelTemplate,
+      if (reminderOffsetDays != null)
+        'reminder_offset_days': reminderOffsetDays,
+      if (isActive != null) 'is_active': isActive,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
   }
 
-  MilestonesCompanion copyWith({
+  TimelineMilestoneRulesCompanion copyWith({
     Value<int>? id,
     Value<int>? timelineId,
-    Value<int>? targetDate,
-    Value<String?>? description,
-    Value<String>? source,
-    Value<String>? status,
+    Value<String>? type,
+    Value<int>? intervalValue,
+    Value<String>? intervalUnit,
+    Value<String?>? labelTemplate,
+    Value<int>? reminderOffsetDays,
+    Value<bool>? isActive,
     Value<int>? createdAt,
     Value<int>? updatedAt,
   }) {
-    return MilestonesCompanion(
+    return TimelineMilestoneRulesCompanion(
       id: id ?? this.id,
       timelineId: timelineId ?? this.timelineId,
-      targetDate: targetDate ?? this.targetDate,
-      description: description ?? this.description,
-      source: source ?? this.source,
-      status: status ?? this.status,
+      type: type ?? this.type,
+      intervalValue: intervalValue ?? this.intervalValue,
+      intervalUnit: intervalUnit ?? this.intervalUnit,
+      labelTemplate: labelTemplate ?? this.labelTemplate,
+      reminderOffsetDays: reminderOffsetDays ?? this.reminderOffsetDays,
+      isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -2462,17 +2514,23 @@ class MilestonesCompanion extends UpdateCompanion<MilestoneRow> {
     if (timelineId.present) {
       map['timeline_id'] = Variable<int>(timelineId.value);
     }
-    if (targetDate.present) {
-      map['target_date'] = Variable<int>(targetDate.value);
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
     }
-    if (description.present) {
-      map['description'] = Variable<String>(description.value);
+    if (intervalValue.present) {
+      map['interval_value'] = Variable<int>(intervalValue.value);
     }
-    if (source.present) {
-      map['source'] = Variable<String>(source.value);
+    if (intervalUnit.present) {
+      map['interval_unit'] = Variable<String>(intervalUnit.value);
     }
-    if (status.present) {
-      map['status'] = Variable<String>(status.value);
+    if (labelTemplate.present) {
+      map['label_template'] = Variable<String>(labelTemplate.value);
+    }
+    if (reminderOffsetDays.present) {
+      map['reminder_offset_days'] = Variable<int>(reminderOffsetDays.value);
+    }
+    if (isActive.present) {
+      map['is_active'] = Variable<bool>(isActive.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
@@ -2485,13 +2543,633 @@ class MilestonesCompanion extends UpdateCompanion<MilestoneRow> {
 
   @override
   String toString() {
-    return (StringBuffer('MilestonesCompanion(')
+    return (StringBuffer('TimelineMilestoneRulesCompanion(')
           ..write('id: $id, ')
           ..write('timelineId: $timelineId, ')
+          ..write('type: $type, ')
+          ..write('intervalValue: $intervalValue, ')
+          ..write('intervalUnit: $intervalUnit, ')
+          ..write('labelTemplate: $labelTemplate, ')
+          ..write('reminderOffsetDays: $reminderOffsetDays, ')
+          ..write('isActive: $isActive, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $TimelineMilestoneRecordsTable extends TimelineMilestoneRecords
+    with TableInfo<$TimelineMilestoneRecordsTable, TimelineMilestoneRecordRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TimelineMilestoneRecordsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _timelineIdMeta = const VerificationMeta(
+    'timelineId',
+  );
+  @override
+  late final GeneratedColumn<int> timelineId = GeneratedColumn<int>(
+    'timeline_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ruleIdMeta = const VerificationMeta('ruleId');
+  @override
+  late final GeneratedColumn<int> ruleId = GeneratedColumn<int>(
+    'rule_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _occurrenceIndexMeta = const VerificationMeta(
+    'occurrenceIndex',
+  );
+  @override
+  late final GeneratedColumn<int> occurrenceIndex = GeneratedColumn<int>(
+    'occurrence_index',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _targetDateMeta = const VerificationMeta(
+    'targetDate',
+  );
+  @override
+  late final GeneratedColumn<int> targetDate = GeneratedColumn<int>(
+    'target_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _notifiedAtMeta = const VerificationMeta(
+    'notifiedAt',
+  );
+  @override
+  late final GeneratedColumn<int> notifiedAt = GeneratedColumn<int>(
+    'notified_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _actedAtMeta = const VerificationMeta(
+    'actedAt',
+  );
+  @override
+  late final GeneratedColumn<int> actedAt = GeneratedColumn<int>(
+    'acted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    timelineId,
+    ruleId,
+    occurrenceIndex,
+    targetDate,
+    status,
+    notifiedAt,
+    actedAt,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'timeline_milestone_records';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TimelineMilestoneRecordRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('timeline_id')) {
+      context.handle(
+        _timelineIdMeta,
+        timelineId.isAcceptableOrUnknown(data['timeline_id']!, _timelineIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_timelineIdMeta);
+    }
+    if (data.containsKey('rule_id')) {
+      context.handle(
+        _ruleIdMeta,
+        ruleId.isAcceptableOrUnknown(data['rule_id']!, _ruleIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_ruleIdMeta);
+    }
+    if (data.containsKey('occurrence_index')) {
+      context.handle(
+        _occurrenceIndexMeta,
+        occurrenceIndex.isAcceptableOrUnknown(
+          data['occurrence_index']!,
+          _occurrenceIndexMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_occurrenceIndexMeta);
+    }
+    if (data.containsKey('target_date')) {
+      context.handle(
+        _targetDateMeta,
+        targetDate.isAcceptableOrUnknown(data['target_date']!, _targetDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_targetDateMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('notified_at')) {
+      context.handle(
+        _notifiedAtMeta,
+        notifiedAt.isAcceptableOrUnknown(data['notified_at']!, _notifiedAtMeta),
+      );
+    }
+    if (data.containsKey('acted_at')) {
+      context.handle(
+        _actedAtMeta,
+        actedAt.isAcceptableOrUnknown(data['acted_at']!, _actedAtMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {timelineId, ruleId, occurrenceIndex},
+  ];
+  @override
+  TimelineMilestoneRecordRow map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TimelineMilestoneRecordRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      timelineId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}timeline_id'],
+      )!,
+      ruleId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}rule_id'],
+      )!,
+      occurrenceIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}occurrence_index'],
+      )!,
+      targetDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}target_date'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      notifiedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}notified_at'],
+      ),
+      actedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}acted_at'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $TimelineMilestoneRecordsTable createAlias(String alias) {
+    return $TimelineMilestoneRecordsTable(attachedDatabase, alias);
+  }
+}
+
+class TimelineMilestoneRecordRow extends DataClass
+    implements Insertable<TimelineMilestoneRecordRow> {
+  final int id;
+  final int timelineId;
+  final int ruleId;
+  final int occurrenceIndex;
+  final int targetDate;
+  final String status;
+  final int? notifiedAt;
+  final int? actedAt;
+  final int createdAt;
+  final int updatedAt;
+  const TimelineMilestoneRecordRow({
+    required this.id,
+    required this.timelineId,
+    required this.ruleId,
+    required this.occurrenceIndex,
+    required this.targetDate,
+    required this.status,
+    this.notifiedAt,
+    this.actedAt,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['timeline_id'] = Variable<int>(timelineId);
+    map['rule_id'] = Variable<int>(ruleId);
+    map['occurrence_index'] = Variable<int>(occurrenceIndex);
+    map['target_date'] = Variable<int>(targetDate);
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || notifiedAt != null) {
+      map['notified_at'] = Variable<int>(notifiedAt);
+    }
+    if (!nullToAbsent || actedAt != null) {
+      map['acted_at'] = Variable<int>(actedAt);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  TimelineMilestoneRecordsCompanion toCompanion(bool nullToAbsent) {
+    return TimelineMilestoneRecordsCompanion(
+      id: Value(id),
+      timelineId: Value(timelineId),
+      ruleId: Value(ruleId),
+      occurrenceIndex: Value(occurrenceIndex),
+      targetDate: Value(targetDate),
+      status: Value(status),
+      notifiedAt: notifiedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notifiedAt),
+      actedAt: actedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(actedAt),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory TimelineMilestoneRecordRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TimelineMilestoneRecordRow(
+      id: serializer.fromJson<int>(json['id']),
+      timelineId: serializer.fromJson<int>(json['timelineId']),
+      ruleId: serializer.fromJson<int>(json['ruleId']),
+      occurrenceIndex: serializer.fromJson<int>(json['occurrenceIndex']),
+      targetDate: serializer.fromJson<int>(json['targetDate']),
+      status: serializer.fromJson<String>(json['status']),
+      notifiedAt: serializer.fromJson<int?>(json['notifiedAt']),
+      actedAt: serializer.fromJson<int?>(json['actedAt']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'timelineId': serializer.toJson<int>(timelineId),
+      'ruleId': serializer.toJson<int>(ruleId),
+      'occurrenceIndex': serializer.toJson<int>(occurrenceIndex),
+      'targetDate': serializer.toJson<int>(targetDate),
+      'status': serializer.toJson<String>(status),
+      'notifiedAt': serializer.toJson<int?>(notifiedAt),
+      'actedAt': serializer.toJson<int?>(actedAt),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  TimelineMilestoneRecordRow copyWith({
+    int? id,
+    int? timelineId,
+    int? ruleId,
+    int? occurrenceIndex,
+    int? targetDate,
+    String? status,
+    Value<int?> notifiedAt = const Value.absent(),
+    Value<int?> actedAt = const Value.absent(),
+    int? createdAt,
+    int? updatedAt,
+  }) => TimelineMilestoneRecordRow(
+    id: id ?? this.id,
+    timelineId: timelineId ?? this.timelineId,
+    ruleId: ruleId ?? this.ruleId,
+    occurrenceIndex: occurrenceIndex ?? this.occurrenceIndex,
+    targetDate: targetDate ?? this.targetDate,
+    status: status ?? this.status,
+    notifiedAt: notifiedAt.present ? notifiedAt.value : this.notifiedAt,
+    actedAt: actedAt.present ? actedAt.value : this.actedAt,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  TimelineMilestoneRecordRow copyWithCompanion(
+    TimelineMilestoneRecordsCompanion data,
+  ) {
+    return TimelineMilestoneRecordRow(
+      id: data.id.present ? data.id.value : this.id,
+      timelineId: data.timelineId.present
+          ? data.timelineId.value
+          : this.timelineId,
+      ruleId: data.ruleId.present ? data.ruleId.value : this.ruleId,
+      occurrenceIndex: data.occurrenceIndex.present
+          ? data.occurrenceIndex.value
+          : this.occurrenceIndex,
+      targetDate: data.targetDate.present
+          ? data.targetDate.value
+          : this.targetDate,
+      status: data.status.present ? data.status.value : this.status,
+      notifiedAt: data.notifiedAt.present
+          ? data.notifiedAt.value
+          : this.notifiedAt,
+      actedAt: data.actedAt.present ? data.actedAt.value : this.actedAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TimelineMilestoneRecordRow(')
+          ..write('id: $id, ')
+          ..write('timelineId: $timelineId, ')
+          ..write('ruleId: $ruleId, ')
+          ..write('occurrenceIndex: $occurrenceIndex, ')
           ..write('targetDate: $targetDate, ')
-          ..write('description: $description, ')
-          ..write('source: $source, ')
           ..write('status: $status, ')
+          ..write('notifiedAt: $notifiedAt, ')
+          ..write('actedAt: $actedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    timelineId,
+    ruleId,
+    occurrenceIndex,
+    targetDate,
+    status,
+    notifiedAt,
+    actedAt,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TimelineMilestoneRecordRow &&
+          other.id == this.id &&
+          other.timelineId == this.timelineId &&
+          other.ruleId == this.ruleId &&
+          other.occurrenceIndex == this.occurrenceIndex &&
+          other.targetDate == this.targetDate &&
+          other.status == this.status &&
+          other.notifiedAt == this.notifiedAt &&
+          other.actedAt == this.actedAt &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class TimelineMilestoneRecordsCompanion
+    extends UpdateCompanion<TimelineMilestoneRecordRow> {
+  final Value<int> id;
+  final Value<int> timelineId;
+  final Value<int> ruleId;
+  final Value<int> occurrenceIndex;
+  final Value<int> targetDate;
+  final Value<String> status;
+  final Value<int?> notifiedAt;
+  final Value<int?> actedAt;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  const TimelineMilestoneRecordsCompanion({
+    this.id = const Value.absent(),
+    this.timelineId = const Value.absent(),
+    this.ruleId = const Value.absent(),
+    this.occurrenceIndex = const Value.absent(),
+    this.targetDate = const Value.absent(),
+    this.status = const Value.absent(),
+    this.notifiedAt = const Value.absent(),
+    this.actedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  TimelineMilestoneRecordsCompanion.insert({
+    this.id = const Value.absent(),
+    required int timelineId,
+    required int ruleId,
+    required int occurrenceIndex,
+    required int targetDate,
+    required String status,
+    this.notifiedAt = const Value.absent(),
+    this.actedAt = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+  }) : timelineId = Value(timelineId),
+       ruleId = Value(ruleId),
+       occurrenceIndex = Value(occurrenceIndex),
+       targetDate = Value(targetDate),
+       status = Value(status),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<TimelineMilestoneRecordRow> custom({
+    Expression<int>? id,
+    Expression<int>? timelineId,
+    Expression<int>? ruleId,
+    Expression<int>? occurrenceIndex,
+    Expression<int>? targetDate,
+    Expression<String>? status,
+    Expression<int>? notifiedAt,
+    Expression<int>? actedAt,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (timelineId != null) 'timeline_id': timelineId,
+      if (ruleId != null) 'rule_id': ruleId,
+      if (occurrenceIndex != null) 'occurrence_index': occurrenceIndex,
+      if (targetDate != null) 'target_date': targetDate,
+      if (status != null) 'status': status,
+      if (notifiedAt != null) 'notified_at': notifiedAt,
+      if (actedAt != null) 'acted_at': actedAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  TimelineMilestoneRecordsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? timelineId,
+    Value<int>? ruleId,
+    Value<int>? occurrenceIndex,
+    Value<int>? targetDate,
+    Value<String>? status,
+    Value<int?>? notifiedAt,
+    Value<int?>? actedAt,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+  }) {
+    return TimelineMilestoneRecordsCompanion(
+      id: id ?? this.id,
+      timelineId: timelineId ?? this.timelineId,
+      ruleId: ruleId ?? this.ruleId,
+      occurrenceIndex: occurrenceIndex ?? this.occurrenceIndex,
+      targetDate: targetDate ?? this.targetDate,
+      status: status ?? this.status,
+      notifiedAt: notifiedAt ?? this.notifiedAt,
+      actedAt: actedAt ?? this.actedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (timelineId.present) {
+      map['timeline_id'] = Variable<int>(timelineId.value);
+    }
+    if (ruleId.present) {
+      map['rule_id'] = Variable<int>(ruleId.value);
+    }
+    if (occurrenceIndex.present) {
+      map['occurrence_index'] = Variable<int>(occurrenceIndex.value);
+    }
+    if (targetDate.present) {
+      map['target_date'] = Variable<int>(targetDate.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (notifiedAt.present) {
+      map['notified_at'] = Variable<int>(notifiedAt.value);
+    }
+    if (actedAt.present) {
+      map['acted_at'] = Variable<int>(actedAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TimelineMilestoneRecordsCompanion(')
+          ..write('id: $id, ')
+          ..write('timelineId: $timelineId, ')
+          ..write('ruleId: $ruleId, ')
+          ..write('occurrenceIndex: $occurrenceIndex, ')
+          ..write('targetDate: $targetDate, ')
+          ..write('status: $status, ')
+          ..write('notifiedAt: $notifiedAt, ')
+          ..write('actedAt: $actedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -2505,7 +3183,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $TaskTemplatesTable taskTemplates = $TaskTemplatesTable(this);
   late final $TasksTable tasks = $TasksTable(this);
   late final $TimelinesTable timelines = $TimelinesTable(this);
-  late final $MilestonesTable milestones = $MilestonesTable(this);
+  late final $TimelineMilestoneRulesTable timelineMilestoneRules =
+      $TimelineMilestoneRulesTable(this);
+  late final $TimelineMilestoneRecordsTable timelineMilestoneRecords =
+      $TimelineMilestoneRecordsTable(this);
   late final TaskTimelineDao taskTimelineDao = TaskTimelineDao(
     this as AppDatabase,
   );
@@ -2517,7 +3198,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     taskTemplates,
     tasks,
     timelines,
-    milestones,
+    timelineMilestoneRules,
+    timelineMilestoneRecords,
   ];
 }
 
@@ -3218,7 +3900,6 @@ typedef $$TimelinesTableCreateCompanionBuilder =
       required int startDate,
       required String displayUnit,
       required String status,
-      required String milestoneReminderRule,
       required int createdAt,
       required int updatedAt,
     });
@@ -3229,7 +3910,6 @@ typedef $$TimelinesTableUpdateCompanionBuilder =
       Value<int> startDate,
       Value<String> displayUnit,
       Value<String> status,
-      Value<String> milestoneReminderRule,
       Value<int> createdAt,
       Value<int> updatedAt,
     });
@@ -3265,11 +3945,6 @@ class $$TimelinesTableFilterComposer
 
   ColumnFilters<String> get status => $composableBuilder(
     column: $table.status,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get milestoneReminderRule => $composableBuilder(
-    column: $table.milestoneReminderRule,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3318,11 +3993,6 @@ class $$TimelinesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get milestoneReminderRule => $composableBuilder(
-    column: $table.milestoneReminderRule,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -3359,11 +4029,6 @@ class $$TimelinesTableAnnotationComposer
 
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
-
-  GeneratedColumn<String> get milestoneReminderRule => $composableBuilder(
-    column: $table.milestoneReminderRule,
-    builder: (column) => column,
-  );
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -3408,7 +4073,6 @@ class $$TimelinesTableTableManager
                 Value<int> startDate = const Value.absent(),
                 Value<String> displayUnit = const Value.absent(),
                 Value<String> status = const Value.absent(),
-                Value<String> milestoneReminderRule = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
               }) => TimelinesCompanion(
@@ -3417,7 +4081,6 @@ class $$TimelinesTableTableManager
                 startDate: startDate,
                 displayUnit: displayUnit,
                 status: status,
-                milestoneReminderRule: milestoneReminderRule,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -3428,7 +4091,6 @@ class $$TimelinesTableTableManager
                 required int startDate,
                 required String displayUnit,
                 required String status,
-                required String milestoneReminderRule,
                 required int createdAt,
                 required int updatedAt,
               }) => TimelinesCompanion.insert(
@@ -3437,7 +4099,6 @@ class $$TimelinesTableTableManager
                 startDate: startDate,
                 displayUnit: displayUnit,
                 status: status,
-                milestoneReminderRule: milestoneReminderRule,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -3466,32 +4127,36 @@ typedef $$TimelinesTableProcessedTableManager =
       TimelineRow,
       PrefetchHooks Function()
     >;
-typedef $$MilestonesTableCreateCompanionBuilder =
-    MilestonesCompanion Function({
+typedef $$TimelineMilestoneRulesTableCreateCompanionBuilder =
+    TimelineMilestoneRulesCompanion Function({
       Value<int> id,
       required int timelineId,
-      required int targetDate,
-      Value<String?> description,
-      required String source,
-      required String status,
+      required String type,
+      required int intervalValue,
+      required String intervalUnit,
+      Value<String?> labelTemplate,
+      Value<int> reminderOffsetDays,
+      Value<bool> isActive,
       required int createdAt,
       required int updatedAt,
     });
-typedef $$MilestonesTableUpdateCompanionBuilder =
-    MilestonesCompanion Function({
+typedef $$TimelineMilestoneRulesTableUpdateCompanionBuilder =
+    TimelineMilestoneRulesCompanion Function({
       Value<int> id,
       Value<int> timelineId,
-      Value<int> targetDate,
-      Value<String?> description,
-      Value<String> source,
-      Value<String> status,
+      Value<String> type,
+      Value<int> intervalValue,
+      Value<String> intervalUnit,
+      Value<String?> labelTemplate,
+      Value<int> reminderOffsetDays,
+      Value<bool> isActive,
       Value<int> createdAt,
       Value<int> updatedAt,
     });
 
-class $$MilestonesTableFilterComposer
-    extends Composer<_$AppDatabase, $MilestonesTable> {
-  $$MilestonesTableFilterComposer({
+class $$TimelineMilestoneRulesTableFilterComposer
+    extends Composer<_$AppDatabase, $TimelineMilestoneRulesTable> {
+  $$TimelineMilestoneRulesTableFilterComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -3508,23 +4173,33 @@ class $$MilestonesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get targetDate => $composableBuilder(
-    column: $table.targetDate,
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get description => $composableBuilder(
-    column: $table.description,
+  ColumnFilters<int> get intervalValue => $composableBuilder(
+    column: $table.intervalValue,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get source => $composableBuilder(
-    column: $table.source,
+  ColumnFilters<String> get intervalUnit => $composableBuilder(
+    column: $table.intervalUnit,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get status => $composableBuilder(
-    column: $table.status,
+  ColumnFilters<String> get labelTemplate => $composableBuilder(
+    column: $table.labelTemplate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get reminderOffsetDays => $composableBuilder(
+    column: $table.reminderOffsetDays,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3539,9 +4214,9 @@ class $$MilestonesTableFilterComposer
   );
 }
 
-class $$MilestonesTableOrderingComposer
-    extends Composer<_$AppDatabase, $MilestonesTable> {
-  $$MilestonesTableOrderingComposer({
+class $$TimelineMilestoneRulesTableOrderingComposer
+    extends Composer<_$AppDatabase, $TimelineMilestoneRulesTable> {
+  $$TimelineMilestoneRulesTableOrderingComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -3558,23 +4233,33 @@ class $$MilestonesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get targetDate => $composableBuilder(
-    column: $table.targetDate,
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get description => $composableBuilder(
-    column: $table.description,
+  ColumnOrderings<int> get intervalValue => $composableBuilder(
+    column: $table.intervalValue,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get source => $composableBuilder(
-    column: $table.source,
+  ColumnOrderings<String> get intervalUnit => $composableBuilder(
+    column: $table.intervalUnit,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get status => $composableBuilder(
-    column: $table.status,
+  ColumnOrderings<String> get labelTemplate => $composableBuilder(
+    column: $table.labelTemplate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get reminderOffsetDays => $composableBuilder(
+    column: $table.reminderOffsetDays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -3589,9 +4274,9 @@ class $$MilestonesTableOrderingComposer
   );
 }
 
-class $$MilestonesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $MilestonesTable> {
-  $$MilestonesTableAnnotationComposer({
+class $$TimelineMilestoneRulesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TimelineMilestoneRulesTable> {
+  $$TimelineMilestoneRulesTableAnnotationComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -3606,21 +4291,31 @@ class $$MilestonesTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get targetDate => $composableBuilder(
-    column: $table.targetDate,
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<int> get intervalValue => $composableBuilder(
+    column: $table.intervalValue,
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get description => $composableBuilder(
-    column: $table.description,
+  GeneratedColumn<String> get intervalUnit => $composableBuilder(
+    column: $table.intervalUnit,
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get source =>
-      $composableBuilder(column: $table.source, builder: (column) => column);
+  GeneratedColumn<String> get labelTemplate => $composableBuilder(
+    column: $table.labelTemplate,
+    builder: (column) => column,
+  );
 
-  GeneratedColumn<String> get status =>
-      $composableBuilder(column: $table.status, builder: (column) => column);
+  GeneratedColumn<int> get reminderOffsetDays => $composableBuilder(
+    column: $table.reminderOffsetDays,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isActive =>
+      $composableBuilder(column: $table.isActive, builder: (column) => column);
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -3629,52 +4324,71 @@ class $$MilestonesTableAnnotationComposer
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 }
 
-class $$MilestonesTableTableManager
+class $$TimelineMilestoneRulesTableTableManager
     extends
         RootTableManager<
           _$AppDatabase,
-          $MilestonesTable,
-          MilestoneRow,
-          $$MilestonesTableFilterComposer,
-          $$MilestonesTableOrderingComposer,
-          $$MilestonesTableAnnotationComposer,
-          $$MilestonesTableCreateCompanionBuilder,
-          $$MilestonesTableUpdateCompanionBuilder,
+          $TimelineMilestoneRulesTable,
+          TimelineMilestoneRuleRow,
+          $$TimelineMilestoneRulesTableFilterComposer,
+          $$TimelineMilestoneRulesTableOrderingComposer,
+          $$TimelineMilestoneRulesTableAnnotationComposer,
+          $$TimelineMilestoneRulesTableCreateCompanionBuilder,
+          $$TimelineMilestoneRulesTableUpdateCompanionBuilder,
           (
-            MilestoneRow,
-            BaseReferences<_$AppDatabase, $MilestonesTable, MilestoneRow>,
+            TimelineMilestoneRuleRow,
+            BaseReferences<
+              _$AppDatabase,
+              $TimelineMilestoneRulesTable,
+              TimelineMilestoneRuleRow
+            >,
           ),
-          MilestoneRow,
+          TimelineMilestoneRuleRow,
           PrefetchHooks Function()
         > {
-  $$MilestonesTableTableManager(_$AppDatabase db, $MilestonesTable table)
-    : super(
+  $$TimelineMilestoneRulesTableTableManager(
+    _$AppDatabase db,
+    $TimelineMilestoneRulesTable table,
+  ) : super(
         TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
-              $$MilestonesTableFilterComposer($db: db, $table: table),
+              $$TimelineMilestoneRulesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
           createOrderingComposer: () =>
-              $$MilestonesTableOrderingComposer($db: db, $table: table),
+              $$TimelineMilestoneRulesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
           createComputedFieldComposer: () =>
-              $$MilestonesTableAnnotationComposer($db: db, $table: table),
+              $$TimelineMilestoneRulesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
                 Value<int> timelineId = const Value.absent(),
-                Value<int> targetDate = const Value.absent(),
-                Value<String?> description = const Value.absent(),
-                Value<String> source = const Value.absent(),
-                Value<String> status = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<int> intervalValue = const Value.absent(),
+                Value<String> intervalUnit = const Value.absent(),
+                Value<String?> labelTemplate = const Value.absent(),
+                Value<int> reminderOffsetDays = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
-              }) => MilestonesCompanion(
+              }) => TimelineMilestoneRulesCompanion(
                 id: id,
                 timelineId: timelineId,
-                targetDate: targetDate,
-                description: description,
-                source: source,
-                status: status,
+                type: type,
+                intervalValue: intervalValue,
+                intervalUnit: intervalUnit,
+                labelTemplate: labelTemplate,
+                reminderOffsetDays: reminderOffsetDays,
+                isActive: isActive,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -3682,19 +4396,23 @@ class $$MilestonesTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 required int timelineId,
-                required int targetDate,
-                Value<String?> description = const Value.absent(),
-                required String source,
-                required String status,
+                required String type,
+                required int intervalValue,
+                required String intervalUnit,
+                Value<String?> labelTemplate = const Value.absent(),
+                Value<int> reminderOffsetDays = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
-              }) => MilestonesCompanion.insert(
+              }) => TimelineMilestoneRulesCompanion.insert(
                 id: id,
                 timelineId: timelineId,
-                targetDate: targetDate,
-                description: description,
-                source: source,
-                status: status,
+                type: type,
+                intervalValue: intervalValue,
+                intervalUnit: intervalUnit,
+                labelTemplate: labelTemplate,
+                reminderOffsetDays: reminderOffsetDays,
+                isActive: isActive,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -3706,21 +4424,341 @@ class $$MilestonesTableTableManager
       );
 }
 
-typedef $$MilestonesTableProcessedTableManager =
+typedef $$TimelineMilestoneRulesTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
-      $MilestonesTable,
-      MilestoneRow,
-      $$MilestonesTableFilterComposer,
-      $$MilestonesTableOrderingComposer,
-      $$MilestonesTableAnnotationComposer,
-      $$MilestonesTableCreateCompanionBuilder,
-      $$MilestonesTableUpdateCompanionBuilder,
+      $TimelineMilestoneRulesTable,
+      TimelineMilestoneRuleRow,
+      $$TimelineMilestoneRulesTableFilterComposer,
+      $$TimelineMilestoneRulesTableOrderingComposer,
+      $$TimelineMilestoneRulesTableAnnotationComposer,
+      $$TimelineMilestoneRulesTableCreateCompanionBuilder,
+      $$TimelineMilestoneRulesTableUpdateCompanionBuilder,
       (
-        MilestoneRow,
-        BaseReferences<_$AppDatabase, $MilestonesTable, MilestoneRow>,
+        TimelineMilestoneRuleRow,
+        BaseReferences<
+          _$AppDatabase,
+          $TimelineMilestoneRulesTable,
+          TimelineMilestoneRuleRow
+        >,
       ),
-      MilestoneRow,
+      TimelineMilestoneRuleRow,
+      PrefetchHooks Function()
+    >;
+typedef $$TimelineMilestoneRecordsTableCreateCompanionBuilder =
+    TimelineMilestoneRecordsCompanion Function({
+      Value<int> id,
+      required int timelineId,
+      required int ruleId,
+      required int occurrenceIndex,
+      required int targetDate,
+      required String status,
+      Value<int?> notifiedAt,
+      Value<int?> actedAt,
+      required int createdAt,
+      required int updatedAt,
+    });
+typedef $$TimelineMilestoneRecordsTableUpdateCompanionBuilder =
+    TimelineMilestoneRecordsCompanion Function({
+      Value<int> id,
+      Value<int> timelineId,
+      Value<int> ruleId,
+      Value<int> occurrenceIndex,
+      Value<int> targetDate,
+      Value<String> status,
+      Value<int?> notifiedAt,
+      Value<int?> actedAt,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+    });
+
+class $$TimelineMilestoneRecordsTableFilterComposer
+    extends Composer<_$AppDatabase, $TimelineMilestoneRecordsTable> {
+  $$TimelineMilestoneRecordsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get timelineId => $composableBuilder(
+    column: $table.timelineId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get ruleId => $composableBuilder(
+    column: $table.ruleId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get occurrenceIndex => $composableBuilder(
+    column: $table.occurrenceIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get targetDate => $composableBuilder(
+    column: $table.targetDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get notifiedAt => $composableBuilder(
+    column: $table.notifiedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get actedAt => $composableBuilder(
+    column: $table.actedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$TimelineMilestoneRecordsTableOrderingComposer
+    extends Composer<_$AppDatabase, $TimelineMilestoneRecordsTable> {
+  $$TimelineMilestoneRecordsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get timelineId => $composableBuilder(
+    column: $table.timelineId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get ruleId => $composableBuilder(
+    column: $table.ruleId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get occurrenceIndex => $composableBuilder(
+    column: $table.occurrenceIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get targetDate => $composableBuilder(
+    column: $table.targetDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get notifiedAt => $composableBuilder(
+    column: $table.notifiedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get actedAt => $composableBuilder(
+    column: $table.actedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$TimelineMilestoneRecordsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TimelineMilestoneRecordsTable> {
+  $$TimelineMilestoneRecordsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get timelineId => $composableBuilder(
+    column: $table.timelineId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get ruleId =>
+      $composableBuilder(column: $table.ruleId, builder: (column) => column);
+
+  GeneratedColumn<int> get occurrenceIndex => $composableBuilder(
+    column: $table.occurrenceIndex,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get targetDate => $composableBuilder(
+    column: $table.targetDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get notifiedAt => $composableBuilder(
+    column: $table.notifiedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get actedAt =>
+      $composableBuilder(column: $table.actedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$TimelineMilestoneRecordsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $TimelineMilestoneRecordsTable,
+          TimelineMilestoneRecordRow,
+          $$TimelineMilestoneRecordsTableFilterComposer,
+          $$TimelineMilestoneRecordsTableOrderingComposer,
+          $$TimelineMilestoneRecordsTableAnnotationComposer,
+          $$TimelineMilestoneRecordsTableCreateCompanionBuilder,
+          $$TimelineMilestoneRecordsTableUpdateCompanionBuilder,
+          (
+            TimelineMilestoneRecordRow,
+            BaseReferences<
+              _$AppDatabase,
+              $TimelineMilestoneRecordsTable,
+              TimelineMilestoneRecordRow
+            >,
+          ),
+          TimelineMilestoneRecordRow,
+          PrefetchHooks Function()
+        > {
+  $$TimelineMilestoneRecordsTableTableManager(
+    _$AppDatabase db,
+    $TimelineMilestoneRecordsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TimelineMilestoneRecordsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$TimelineMilestoneRecordsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$TimelineMilestoneRecordsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> timelineId = const Value.absent(),
+                Value<int> ruleId = const Value.absent(),
+                Value<int> occurrenceIndex = const Value.absent(),
+                Value<int> targetDate = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int?> notifiedAt = const Value.absent(),
+                Value<int?> actedAt = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+              }) => TimelineMilestoneRecordsCompanion(
+                id: id,
+                timelineId: timelineId,
+                ruleId: ruleId,
+                occurrenceIndex: occurrenceIndex,
+                targetDate: targetDate,
+                status: status,
+                notifiedAt: notifiedAt,
+                actedAt: actedAt,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int timelineId,
+                required int ruleId,
+                required int occurrenceIndex,
+                required int targetDate,
+                required String status,
+                Value<int?> notifiedAt = const Value.absent(),
+                Value<int?> actedAt = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+              }) => TimelineMilestoneRecordsCompanion.insert(
+                id: id,
+                timelineId: timelineId,
+                ruleId: ruleId,
+                occurrenceIndex: occurrenceIndex,
+                targetDate: targetDate,
+                status: status,
+                notifiedAt: notifiedAt,
+                actedAt: actedAt,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$TimelineMilestoneRecordsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $TimelineMilestoneRecordsTable,
+      TimelineMilestoneRecordRow,
+      $$TimelineMilestoneRecordsTableFilterComposer,
+      $$TimelineMilestoneRecordsTableOrderingComposer,
+      $$TimelineMilestoneRecordsTableAnnotationComposer,
+      $$TimelineMilestoneRecordsTableCreateCompanionBuilder,
+      $$TimelineMilestoneRecordsTableUpdateCompanionBuilder,
+      (
+        TimelineMilestoneRecordRow,
+        BaseReferences<
+          _$AppDatabase,
+          $TimelineMilestoneRecordsTable,
+          TimelineMilestoneRecordRow
+        >,
+      ),
+      TimelineMilestoneRecordRow,
       PrefetchHooks Function()
     >;
 
@@ -3733,6 +4771,14 @@ class $AppDatabaseManager {
       $$TasksTableTableManager(_db, _db.tasks);
   $$TimelinesTableTableManager get timelines =>
       $$TimelinesTableTableManager(_db, _db.timelines);
-  $$MilestonesTableTableManager get milestones =>
-      $$MilestonesTableTableManager(_db, _db.milestones);
+  $$TimelineMilestoneRulesTableTableManager get timelineMilestoneRules =>
+      $$TimelineMilestoneRulesTableTableManager(
+        _db,
+        _db.timelineMilestoneRules,
+      );
+  $$TimelineMilestoneRecordsTableTableManager get timelineMilestoneRecords =>
+      $$TimelineMilestoneRecordsTableTableManager(
+        _db,
+        _db.timelineMilestoneRecords,
+      );
 }

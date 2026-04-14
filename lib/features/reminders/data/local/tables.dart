@@ -49,22 +49,46 @@ class Timelines extends Table {
   IntColumn get startDate => integer()();
   TextColumn get displayUnit => text()();
   TextColumn get status => text()();
-  TextColumn get milestoneReminderRule => text()();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 }
 
-@DataClassName('MilestoneRow')
-class Milestones extends Table {
+@DataClassName('TimelineMilestoneRuleRow')
+class TimelineMilestoneRules extends Table {
   @override
-  String get tableName => 'milestones';
+  String get tableName => 'timeline_milestone_rules';
 
   IntColumn get id => integer().autoIncrement()();
   IntColumn get timelineId => integer()();
+  TextColumn get type => text()();
+  IntColumn get intervalValue => integer()();
+  TextColumn get intervalUnit => text()();
+  TextColumn get labelTemplate => text().nullable()();
+  IntColumn get reminderOffsetDays =>
+      integer().withDefault(const Constant(0))();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+}
+
+@DataClassName('TimelineMilestoneRecordRow')
+class TimelineMilestoneRecords extends Table {
+  @override
+  String get tableName => 'timeline_milestone_records';
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+    {timelineId, ruleId, occurrenceIndex},
+  ];
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get timelineId => integer()();
+  IntColumn get ruleId => integer()();
+  IntColumn get occurrenceIndex => integer()();
   IntColumn get targetDate => integer()();
-  TextColumn get description => text().nullable()();
-  TextColumn get source => text()();
   TextColumn get status => text()();
+  IntColumn get notifiedAt => integer().nullable()();
+  IntColumn get actedAt => integer().nullable()();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 }

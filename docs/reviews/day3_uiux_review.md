@@ -21,4 +21,4 @@
 - TaskTemplate / Timeline 管理卡使用明確動作按鈕
 - 共用 editor page 以 task / task template / timeline mode 區分
 - `advance` 才顯示 offset 欄位
-- Timeline 編輯頁可預覽 custom 與 rule-based milestone
+- Timeline 編輯頁改為編輯 `Milestone Rule`，並預覽動態計算的 upcoming milestone occurrence

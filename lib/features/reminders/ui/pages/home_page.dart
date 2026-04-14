@@ -181,8 +181,8 @@ class _HomeItemList extends ConsumerWidget {
           );
         }
 
-        final milestone = (item as MilestoneHomeItem).bundle;
-        final viewModel = MilestoneCardViewModel.fromBundle(milestone);
+        final occurrence = (item as MilestoneHomeItem).occurrence;
+        final viewModel = MilestoneCardViewModel.fromOccurrence(occurrence);
         return Card(
           child: Column(
             children: [
@@ -198,7 +198,7 @@ class _HomeItemList extends ConsumerWidget {
                     onPressed: () async {
                       await ref
                           .read(timelineRepositoryProvider)
-                          .noticeMilestone(viewModel.id);
+                          .noticeOccurrence(occurrence);
                     },
                     child: const Text(ReminderUiText.noticedAction),
                   ),
@@ -206,7 +206,7 @@ class _HomeItemList extends ConsumerWidget {
                     onPressed: () async {
                       await ref
                           .read(timelineRepositoryProvider)
-                          .skipMilestone(viewModel.id);
+                          .skipOccurrence(occurrence);
                     },
                     child: const Text(ReminderUiText.skipAction),
                   ),

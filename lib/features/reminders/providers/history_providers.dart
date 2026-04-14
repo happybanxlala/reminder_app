@@ -8,6 +8,7 @@ final taskHistoryProvider = StreamProvider<List<TaskBundle>>((ref) {
   return ref.watch(taskRepositoryProvider).watchTaskHistory();
 });
 
-final milestoneHistoryProvider = StreamProvider<List<MilestoneBundle>>((ref) {
-  return ref.watch(timelineRepositoryProvider).watchMilestoneHistory();
-});
+final milestoneHistoryProvider =
+    StreamProvider<List<TimelineMilestoneRecordBundle>>((ref) {
+      return ref.watch(timelineRepositoryProvider).watchMilestoneHistory();
+    });

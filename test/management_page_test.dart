@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:reminder_app/features/reminders/domain/milestone_reminder_rule.dart';
 import 'package:reminder_app/features/reminders/domain/reminder_rule.dart';
 import 'package:reminder_app/features/reminders/domain/task_template.dart';
 import 'package:reminder_app/features/reminders/domain/timeline.dart';
@@ -31,7 +30,6 @@ void main() {
                 startDate: DateTime(2026, 4, 10),
                 displayUnit: TimelineDisplayUnit.day,
                 status: TimelineStatus.active,
-                milestoneReminderRule: const MilestoneReminderRule.onDay(),
                 createdAt: DateTime(2026, 4, 1),
                 updatedAt: DateTime(2026, 4, 1),
               ),

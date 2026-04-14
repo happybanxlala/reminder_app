@@ -1,4 +1,5 @@
 import '../../data/local/task_timeline_dao.dart';
+import '../../domain/timeline_milestone_occurrence.dart';
 import '../formatters/reminder_formatters.dart';
 
 class TaskCardViewModel {
@@ -32,12 +33,20 @@ class MilestoneCardViewModel {
     required this.status,
   });
 
-  factory MilestoneCardViewModel.fromBundle(MilestoneBundle bundle) {
+  factory MilestoneCardViewModel.fromOccurrence(
+    TimelineMilestoneOccurrence occurrence,
+  ) {
     return MilestoneCardViewModel(
-      id: bundle.milestone.id,
-      title: bundle.timeline.title,
-      subtitle: ReminderFormatters.milestoneSummary(bundle),
-      status: bundle.milestone.status.name,
+      id:
+          occurrence.recordId ??
+          Object.hash(
+            occurrence.timelineId,
+            occurrence.ruleId,
+            occurrence.occurrenceIndex,
+          ),
+      title: occurrence.timelineTitle,
+      subtitle: ReminderFormatters.milestoneSummary(occurrence),
+      status: occurrence.status.name,
     );
   }
 

@@ -3,12 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/home_query_service.dart';
 import 'package:reminder_app/features/reminders/data/local/task_timeline_dao.dart';
-import 'package:reminder_app/features/reminders/domain/milestone.dart';
-import 'package:reminder_app/features/reminders/domain/milestone_reminder_rule.dart';
 import 'package:reminder_app/features/reminders/domain/reminder_rule.dart';
 import 'package:reminder_app/features/reminders/domain/task.dart';
 import 'package:reminder_app/features/reminders/domain/task_template.dart';
 import 'package:reminder_app/features/reminders/domain/timeline.dart';
+import 'package:reminder_app/features/reminders/domain/timeline_milestone_occurrence.dart';
+import 'package:reminder_app/features/reminders/domain/timeline_milestone_record.dart';
+import 'package:reminder_app/features/reminders/domain/timeline_milestone_rule.dart';
 import 'package:reminder_app/features/reminders/providers/history_providers.dart';
 import 'package:reminder_app/features/reminders/providers/home_providers.dart';
 import 'package:reminder_app/features/reminders/providers/task_providers.dart';
@@ -23,7 +24,7 @@ void main() {
           todayHomeItemsProvider.overrideWith(
             (ref) => Stream.value([
               TaskHomeItem(_taskBundle(title: 'Laundry')),
-              MilestoneHomeItem(_milestoneBundle(title: 'No sugar')),
+              MilestoneHomeItem(_occurrence(title: 'No sugar')),
             ]),
           ),
           upcomingHomeItemsProvider.overrideWith(
@@ -91,7 +92,7 @@ void main() {
             (ref) => Stream.value(
               List.generate(
                 11,
-                (index) => _milestoneBundle(title: 'Timeline $index'),
+                (index) => _milestoneRecordBundle(title: 'Timeline $index'),
               ),
             ),
           ),
@@ -155,16 +156,45 @@ TaskBundle _taskBundle({required String title}) {
   );
 }
 
-MilestoneBundle _milestoneBundle({required String title}) {
+TimelineMilestoneOccurrence _occurrence({required String title}) {
   final id = title.hashCode;
-  return MilestoneBundle(
-    milestone: Milestone(
+  return TimelineMilestoneOccurrence(
+    recordId: id,
+    timelineId: id,
+    timelineTitle: title,
+    ruleId: id,
+    occurrenceIndex: 1,
+    targetDate: DateTime(2026, 4, 10),
+    label: '第 1 天',
+    status: MilestoneStatus.noticed,
+    reminderOffsetDays: 0,
+    actedAt: DateTime(2026, 4, 10),
+  );
+}
+
+TimelineMilestoneRecordBundle _milestoneRecordBundle({required String title}) {
+  final id = title.hashCode;
+  return TimelineMilestoneRecordBundle(
+    record: TimelineMilestoneRecord(
       id: id,
       timelineId: id,
+      ruleId: id,
+      occurrenceIndex: 1,
       targetDate: DateTime(2026, 4, 10),
-      description: '30 days',
-      source: MilestoneSource.custom,
       status: MilestoneStatus.noticed,
+      actedAt: DateTime(2026, 4, 10),
+      createdAt: DateTime(2026, 4, 1),
+      updatedAt: DateTime(2026, 4, 1),
+    ),
+    rule: TimelineMilestoneRule(
+      id: id,
+      timelineId: id,
+      type: TimelineMilestoneRuleType.everyNDays,
+      intervalValue: 30,
+      intervalUnit: TimelineMilestoneIntervalUnit.days,
+      labelTemplate: '第 {n} 個 30 天',
+      reminderOffsetDays: 0,
+      isActive: true,
       createdAt: DateTime(2026, 4, 1),
       updatedAt: DateTime(2026, 4, 1),
     ),
@@ -174,7 +204,6 @@ MilestoneBundle _milestoneBundle({required String title}) {
       startDate: DateTime(2026, 4, 1),
       displayUnit: TimelineDisplayUnit.day,
       status: TimelineStatus.active,
-      milestoneReminderRule: const MilestoneReminderRule.onDay(),
       createdAt: DateTime(2026, 4, 1),
       updatedAt: DateTime(2026, 4, 1),
     ),

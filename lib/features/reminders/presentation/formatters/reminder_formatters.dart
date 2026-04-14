@@ -1,12 +1,13 @@
 import 'package:intl/intl.dart';
 
 import '../../data/local/task_timeline_dao.dart';
-import '../../domain/milestone.dart';
 import '../../domain/reminder_rule.dart';
 import '../../domain/repeat_rule.dart';
 import '../../domain/task_template.dart';
 import '../../domain/timeline.dart';
-import '../../domain/timeline_calculator.dart';
+import '../../domain/timeline_milestone_occurrence.dart';
+import '../../domain/timeline_milestone_record.dart';
+import '../../domain/timeline_milestone_service.dart';
 import '../text/reminder_ui_text.dart';
 
 class ReminderFormatters {
@@ -35,25 +36,25 @@ class ReminderFormatters {
     return '${ReminderUiText.updatedAtLabel}：${dateTime(bundle.task.updatedAt)}';
   }
 
-  static String milestoneSummary(
-    MilestoneBundle bundle, {
-    TimelineCalculator calculator = const TimelineCalculator(),
-    DateTime? now,
+  static String milestoneSummary(TimelineMilestoneOccurrence occurrence) {
+    return '${occurrence.label} • ${date(occurrence.targetDate)}';
+  }
+
+  static String milestoneHistory(
+    TimelineMilestoneRecordBundle bundle, {
+    TimelineMilestoneService service = const TimelineMilestoneService(),
   }) {
-    final description =
-        bundle.milestone.description ??
-        '${displayUnitLabel(bundle.timeline.displayUnit)} milestone';
-    final current = now ?? DateTime.now();
-    final counter = calculator.displayValue(bundle.timeline, current);
-    return '$description • ${date(bundle.milestone.targetDate)} • 第 $counter ${displayUnitLabel(bundle.timeline.displayUnit)}';
+    final label = service.formatLabel(
+      bundle.rule,
+      bundle.record.occurrenceIndex,
+    );
+    return '${bundle.record.status.name} • $label • ${date(bundle.record.targetDate)}';
   }
 
-  static String milestoneHistory(MilestoneBundle bundle) {
-    return '${bundle.milestone.status.name} • ${date(bundle.milestone.targetDate)}';
-  }
-
-  static String milestoneHistoryUpdatedAt(MilestoneBundle bundle) {
-    return '${ReminderUiText.updatedAtLabel}：${dateTime(bundle.milestone.updatedAt)}';
+  static String milestoneHistoryUpdatedAt(
+    TimelineMilestoneRecordBundle bundle,
+  ) {
+    return '${ReminderUiText.updatedAtLabel}：${dateTime(bundle.record.updatedAt)}';
   }
 
   static String templateSummary(

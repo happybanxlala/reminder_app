@@ -7,7 +7,10 @@ mixin _$TaskTimelineDaoMixin on DatabaseAccessor<AppDatabase> {
   $TaskTemplatesTable get taskTemplates => attachedDatabase.taskTemplates;
   $TasksTable get tasks => attachedDatabase.tasks;
   $TimelinesTable get timelines => attachedDatabase.timelines;
-  $MilestonesTable get milestones => attachedDatabase.milestones;
+  $TimelineMilestoneRulesTable get timelineMilestoneRules =>
+      attachedDatabase.timelineMilestoneRules;
+  $TimelineMilestoneRecordsTable get timelineMilestoneRecords =>
+      attachedDatabase.timelineMilestoneRecords;
   TaskTimelineDaoManager get managers => TaskTimelineDaoManager(this);
 }
 
@@ -20,6 +23,14 @@ class TaskTimelineDaoManager {
       $$TasksTableTableManager(_db.attachedDatabase, _db.tasks);
   $$TimelinesTableTableManager get timelines =>
       $$TimelinesTableTableManager(_db.attachedDatabase, _db.timelines);
-  $$MilestonesTableTableManager get milestones =>
-      $$MilestonesTableTableManager(_db.attachedDatabase, _db.milestones);
+  $$TimelineMilestoneRulesTableTableManager get timelineMilestoneRules =>
+      $$TimelineMilestoneRulesTableTableManager(
+        _db.attachedDatabase,
+        _db.timelineMilestoneRules,
+      );
+  $$TimelineMilestoneRecordsTableTableManager get timelineMilestoneRecords =>
+      $$TimelineMilestoneRecordsTableTableManager(
+        _db.attachedDatabase,
+        _db.timelineMilestoneRecords,
+      );
 }
