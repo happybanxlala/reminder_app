@@ -70,3 +70,18 @@ lib/
           management_page.dart
           task_timeline_editor_page.dart
 ```
+
+## Documentation Rules
+
+### Source of truth
+Use only documents under `/docs/core/` for implementation decisions.
+
+### Product thinking
+Documents under `/docs/concept/` explain why the product is designed this way.
+
+### Personal notes
+Documents under `/docs/notes/` are exploratory notes only.
+They are not implementation references.
+
+### Archived docs
+Documents under `/docs/archive/` are historical only and should not guide current decisions.

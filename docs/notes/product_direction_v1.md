@@ -8,6 +8,7 @@ DO NOT use this file as:
 - product specification
 
 Use only documents under `/docs/core/` for implementation decisions.
+
 ---
 
 # Reminder App 設計方向文

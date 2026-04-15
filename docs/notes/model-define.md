@@ -1,3 +1,16 @@
+# ⚠️ AI IGNORE
+
+This document is for personal notes and exploration only.
+
+DO NOT use this file as:
+- source of truth
+- implementation reference
+- product specification
+
+Use only documents under `/docs/core/` for implementation decisions.
+
+---
+
 首先處理真正需求的部份。但整理文案是出現一些語意不完整的困難。
 
 ＝＝＝＝＝

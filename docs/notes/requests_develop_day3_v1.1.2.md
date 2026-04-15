@@ -1,3 +1,16 @@
+# ⚠️ AI IGNORE
+
+This document is for personal notes and exploration only.
+
+DO NOT use this file as:
+- source of truth
+- implementation reference
+- product specification
+
+Use only documents under `/docs/core/` for implementation decisions.
+
+---
+
 在新增 Task頁面:
 - 針對一次性任務(`Task.kind = "one-time"`)，不需要建立TaskTemplate，直接建立Task即可。所以template_id欄位可以為null。(可評估目資料流是否允許)
 - [UI]針對重複性任務(`Task.kind = "recurring"`)。若使用者選擇advance，才顯示offset欄位，其他選項則隱藏。

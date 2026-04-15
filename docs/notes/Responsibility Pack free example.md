@@ -1,3 +1,16 @@
+# ⚠️ AI IGNORE
+
+This document is for personal notes and exploration only.
+
+DO NOT use this file as:
+- source of truth
+- implementation reference
+- product specification
+
+Use only documents under `/docs/core/` for implementation decisions.
+
+---
+
 👉 定義「第一個 Responsibility Pack」
 
 就用：
