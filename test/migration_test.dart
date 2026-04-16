@@ -9,12 +9,45 @@ import 'package:sqlite3/sqlite3.dart';
 
 void main() {
   test(
-    'database uses schema version 9 and new milestone tables are writable',
+    'database uses schema version 10 and responsibility plus timeline tables are writable',
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
 
-      expect(db.schemaVersion, 9);
+      expect(db.schemaVersion, 10);
+
+      final packId = await db
+          .into(db.responsibilityPacks)
+          .insert(
+            ResponsibilityPacksCompanion.insert(
+              title: 'Cats',
+              description: const Value('Cat care'),
+              createdAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+              updatedAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+            ),
+          );
+
+      final itemId = await db
+          .into(db.responsibilityItems)
+          .insert(
+            ResponsibilityItemsCompanion.insert(
+              packId: packId,
+              title: 'Clean litter box',
+              description: const Value('State based'),
+              type: 'stateBased',
+              fixedScheduleType: const Value.absent(),
+              fixedAnchorDate: const Value.absent(),
+              fixedTimeOfDay: const Value.absent(),
+              stateExpectedIntervalMinutes: const Value(2880),
+              stateWarningAfterMinutes: const Value(2880),
+              stateDangerAfterMinutes: const Value(5760),
+              resourceEstimatedDurationMinutes: const Value.absent(),
+              resourceWarningBeforeDepletionMinutes: const Value.absent(),
+              lastDoneAt: const Value.absent(),
+              createdAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+              updatedAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+            ),
+          );
 
       final timelineId = await db
           .into(db.timelines)
@@ -60,105 +93,63 @@ void main() {
             ),
           );
 
+      expect(packId, greaterThan(0));
+      expect(itemId, greaterThan(0));
       expect(timelineId, greaterThan(0));
       expect(ruleId, greaterThan(0));
       expect(recordId, greaterThan(0));
     },
   );
 
-  test('v7 migration preserves timelines and seeds milestone rules', () async {
-    final tempDir = await Directory.systemTemp.createTemp(
-      'milestone-migration',
-    );
-    addTearDown(() async {
-      if (await tempDir.exists()) {
-        await tempDir.delete(recursive: true);
-      }
-    });
-    final file = File('${tempDir.path}/migration.sqlite');
+  test(
+    'v9 migration preserves timeline data and drops legacy task tables',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'responsibility-migration',
+      );
+      addTearDown(() async {
+        if (await tempDir.exists()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final file = File('${tempDir.path}/migration.sqlite');
 
-    final sqlite = sqlite3.open(file.path);
-    sqlite.execute('PRAGMA user_version = 7');
-    sqlite.execute('''
-      CREATE TABLE timelines (
-        id INTEGER NOT NULL PRIMARY KEY,
+      final sqlite = sqlite3.open(file.path);
+      sqlite.execute('PRAGMA user_version = 9');
+      sqlite.execute('''
+      CREATE TABLE task_templates (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
-        start_date INTEGER NOT NULL,
-        display_unit TEXT NOT NULL,
+        category_id INTEGER,
+        note TEXT,
+        kind TEXT NOT NULL,
         status TEXT NOT NULL,
-        milestone_reminder_rule TEXT NOT NULL,
+        first_due_date INTEGER NOT NULL,
+        repeat_rule TEXT,
+        reminder_rule TEXT NOT NULL,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       )
     ''');
-    sqlite.execute('''
-      CREATE TABLE milestones (
-        id INTEGER NOT NULL PRIMARY KEY,
-        timeline_id INTEGER NOT NULL,
-        target_date INTEGER NOT NULL,
-        description TEXT,
-        source TEXT NOT NULL,
+      sqlite.execute('''
+      CREATE TABLE tasks (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        template_id INTEGER,
+        kind TEXT NOT NULL,
+        title_snapshot TEXT NOT NULL,
+        note_snapshot TEXT,
+        category_id INTEGER,
+        due_date INTEGER NOT NULL,
+        repeat_rule TEXT,
+        reminder_rule TEXT NOT NULL,
+        deferred_due_date INTEGER,
         status TEXT NOT NULL,
         created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
+        updated_at INTEGER NOT NULL,
+        resolved_at INTEGER
       )
     ''');
-    sqlite.execute('''
-      INSERT INTO timelines (
-        id, title, start_date, display_unit, status, milestone_reminder_rule, created_at, updated_at
-      ) VALUES (
-        1, 'No sugar', 1775779200000, 'week', 'active', 'advance:3', 1775001600000, 1775001600000
-      )
-    ''');
-    sqlite.execute('''
-      INSERT INTO milestones (
-        id, timeline_id, target_date, description, source, status, created_at, updated_at
-      ) VALUES (
-        1, 1, 1776384000000, 'legacy', 'ruleBased', 'upcoming', 1775001600000, 1775001600000
-      )
-    ''');
-    sqlite.close();
-
-    final db = AppDatabase.forTesting(NativeDatabase(file));
-    addTearDown(db.close);
-
-    final timelines = await db.select(db.timelines).get();
-    final rules = await db.select(db.timelineMilestoneRules).get();
-    final records = await db.select(db.timelineMilestoneRecords).get();
-    final tables = await db
-        .customSelect(
-          "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('milestones', 'timelines_v7', 'milestones_v7')",
-        )
-        .get();
-
-    expect(db.schemaVersion, 9);
-    expect(timelines, hasLength(1));
-    expect(timelines.single.title, 'No sugar');
-    expect(rules, hasLength(1));
-    expect(rules.single.type, 'every_n_weeks');
-    expect(rules.single.intervalValue, 1);
-    expect(rules.single.intervalUnit, 'weeks');
-    expect(rules.single.labelTemplate, '第 {value}{unit}');
-    expect(rules.single.reminderOffsetDays, 3);
-    expect(rules.single.status, 'active');
-    expect(records, isEmpty);
-    expect(tables, isEmpty);
-  });
-
-  test('v8 migration converts is_active to status', () async {
-    final tempDir = await Directory.systemTemp.createTemp(
-      'milestone-status-migration',
-    );
-    addTearDown(() async {
-      if (await tempDir.exists()) {
-        await tempDir.delete(recursive: true);
-      }
-    });
-    final file = File('${tempDir.path}/migration_v8.sqlite');
-
-    final sqlite = sqlite3.open(file.path);
-    sqlite.execute('PRAGMA user_version = 8');
-    sqlite.execute('''
+      sqlite.execute('''
       CREATE TABLE timelines (
         id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
@@ -169,7 +160,7 @@ void main() {
         updated_at INTEGER NOT NULL
       )
     ''');
-    sqlite.execute('''
+      sqlite.execute('''
       CREATE TABLE timeline_milestone_rules (
         id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
         timeline_id INTEGER NOT NULL,
@@ -178,12 +169,12 @@ void main() {
         interval_unit TEXT NOT NULL,
         label_template TEXT,
         reminder_offset_days INTEGER NOT NULL DEFAULT 0,
-        is_active INTEGER NOT NULL DEFAULT 1,
+        status TEXT NOT NULL DEFAULT 'active',
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       )
     ''');
-    sqlite.execute('''
+      sqlite.execute('''
       CREATE TABLE timeline_milestone_records (
         id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
         timeline_id INTEGER NOT NULL,
@@ -198,23 +189,57 @@ void main() {
         UNIQUE(timeline_id, rule_id, occurrence_index)
       )
     ''');
-    sqlite.execute('''
-      INSERT INTO timeline_milestone_rules (
-        id, timeline_id, type, interval_value, interval_unit, label_template, reminder_offset_days, is_active, created_at, updated_at
-      ) VALUES
-        (1, 1, 'every_n_days', 10, 'days', '第 {value}{unit}', 0, 1, 1775001600000, 1775001600000),
-        (2, 1, 'every_n_months', 1, 'months', '第 {value}{unit}', 0, 0, 1775001600000, 1775001600000)
+      sqlite.execute('''
+      INSERT INTO tasks (
+        id, template_id, kind, title_snapshot, due_date, reminder_rule, status, created_at, updated_at
+      ) VALUES (
+        1, NULL, 'oneTime', 'Legacy task', 1775779200000, 'onDue', 'pending', 1775001600000, 1775001600000
+      )
     ''');
-    sqlite.close();
+      sqlite.execute('''
+      INSERT INTO timelines (
+        id, title, start_date, display_unit, status, created_at, updated_at
+      ) VALUES (
+        1, 'No sugar', 1775779200000, 'day', 'active', 1775001600000, 1775001600000
+      )
+    ''');
+      sqlite.execute('''
+      INSERT INTO timeline_milestone_rules (
+        id, timeline_id, type, interval_value, interval_unit, label_template, reminder_offset_days, status, created_at, updated_at
+      ) VALUES (
+        1, 1, 'every_n_days', 10, 'days', '第 {value}{unit}', 0, 'active', 1775001600000, 1775001600000
+      )
+    ''');
+      sqlite.execute('''
+      INSERT INTO timeline_milestone_records (
+        id, timeline_id, rule_id, occurrence_index, target_date, status, acted_at, created_at, updated_at
+      ) VALUES (
+        1, 1, 1, 1, 1776556800000, 'noticed', 1776556800000, 1775001600000, 1775001600000
+      )
+    ''');
+      sqlite.close();
 
-    final db = AppDatabase.forTesting(NativeDatabase(file));
-    addTearDown(db.close);
+      final db = AppDatabase.forTesting(NativeDatabase(file));
+      addTearDown(db.close);
 
-    final rules = await db.select(db.timelineMilestoneRules).get();
+      final packs = await db.select(db.responsibilityPacks).get();
+      final items = await db.select(db.responsibilityItems).get();
+      final timelines = await db.select(db.timelines).get();
+      final rules = await db.select(db.timelineMilestoneRules).get();
+      final records = await db.select(db.timelineMilestoneRecords).get();
+      final legacyTables = await db
+          .customSelect(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('task_templates', 'tasks')",
+          )
+          .get();
 
-    expect(db.schemaVersion, 9);
-    expect(rules, hasLength(2));
-    expect(rules.first.status, 'active');
-    expect(rules.last.status, 'paused');
-  });
+      expect(db.schemaVersion, 10);
+      expect(packs, isEmpty);
+      expect(items, isEmpty);
+      expect(timelines, hasLength(1));
+      expect(rules, hasLength(1));
+      expect(records, hasLength(1));
+      expect(legacyTables, isEmpty);
+    },
+  );
 }

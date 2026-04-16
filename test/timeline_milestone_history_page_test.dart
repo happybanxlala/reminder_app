@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:reminder_app/features/reminders/data/local/task_timeline_dao.dart';
+import 'package:reminder_app/features/reminders/data/local/responsibility_timeline_dao.dart';
 import 'package:reminder_app/features/reminders/data/timeline_models.dart';
 import 'package:reminder_app/features/reminders/domain/timeline.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_record.dart';
@@ -93,7 +93,7 @@ TimelineMilestoneRecordBundle _historyBundle(int id) {
       ruleId: id,
       occurrenceIndex: 1,
       targetDate: DateTime(2026, 5, 10),
-      status: MilestoneStatus.noticed,
+      status: TimelineMilestoneRecordStatus.noticed,
       actedAt: DateTime(2026, 5, 10),
       createdAt: DateTime(2026, 4, 1),
       updatedAt: DateTime(2026, 5, 10),

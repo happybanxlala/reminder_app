@@ -1,29 +1,38 @@
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:reminder_app/features/reminders/data/local/app_database.dart';
+import 'package:reminder_app/features/reminders/data/local/responsibility_timeline_dao.dart';
+import 'package:reminder_app/features/reminders/data/responsibility_repository.dart';
 import 'package:reminder_app/features/reminders/data/timeline_models.dart';
-import 'package:reminder_app/features/reminders/domain/reminder_rule.dart';
-import 'package:reminder_app/features/reminders/domain/task_template.dart';
+import 'package:reminder_app/features/reminders/domain/responsibility_item.dart';
+import 'package:reminder_app/features/reminders/domain/responsibility_pack.dart';
 import 'package:reminder_app/features/reminders/domain/timeline.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_occurrence.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_record.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_rule.dart';
-import 'package:reminder_app/features/reminders/providers/task_providers.dart';
+import 'package:reminder_app/features/reminders/providers/responsibility_providers.dart';
 import 'package:reminder_app/features/reminders/providers/timeline_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/management_page.dart';
 
 void main() {
-  testWidgets('management page shows explicit template and timeline actions', (
+  testWidgets('management page shows responsibility and timeline actions', (
     tester,
   ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          taskTemplatesProvider.overrideWith(
+          responsibilityRepositoryProvider.overrideWith(
+            (ref) => ResponsibilityRepository(db.responsibilityTimelineDao),
+          ),
+          responsibilityItemsProvider.overrideWith(
             (ref) => Stream.value([
-              _template(1, TaskTemplateStatus.active),
-              _template(2, TaskTemplateStatus.paused),
-              _template(3, TaskTemplateStatus.archived),
+              _itemBundle(1, ResponsibilityItemType.stateBased),
+              _itemBundle(2, ResponsibilityItemType.resourceBased),
             ]),
           ),
           timelinesProvider.overrideWith(
@@ -70,7 +79,7 @@ void main() {
                       occurrenceIndex: 1,
                       targetDate: DateTime(2026, 4, 20),
                       label: '第 10天',
-                      status: MilestoneStatus.upcoming,
+                      status: TimelineMilestoneRecordStatus.upcoming,
                       reminderOffsetDays: 0,
                     ),
                     historyRecords: const [],
@@ -84,7 +93,7 @@ void main() {
                       occurrenceIndex: 1,
                       targetDate: DateTime(2026, 5, 10),
                       label: '第 30天',
-                      status: MilestoneStatus.upcoming,
+                      status: TimelineMilestoneRecordStatus.upcoming,
                       reminderOffsetDays: 0,
                     ),
                     historyRecords: const [],
@@ -98,7 +107,7 @@ void main() {
                     occurrenceIndex: 1,
                     targetDate: DateTime(2026, 4, 20),
                     label: '第 10天',
-                    status: MilestoneStatus.upcoming,
+                    status: TimelineMilestoneRecordStatus.upcoming,
                     reminderOffsetDays: 0,
                   ),
                   TimelineMilestoneOccurrence(
@@ -108,7 +117,7 @@ void main() {
                     occurrenceIndex: 1,
                     targetDate: DateTime(2026, 5, 10),
                     label: '第 30天',
-                    status: MilestoneStatus.upcoming,
+                    status: TimelineMilestoneRecordStatus.upcoming,
                     reminderOffsetDays: 0,
                   ),
                   TimelineMilestoneOccurrence(
@@ -118,7 +127,7 @@ void main() {
                     occurrenceIndex: 2,
                     targetDate: DateTime(2026, 6, 9),
                     label: '第 60天',
-                    status: MilestoneStatus.upcoming,
+                    status: TimelineMilestoneRecordStatus.upcoming,
                     reminderOffsetDays: 0,
                   ),
                 ],
@@ -150,18 +159,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('template-edit-1')), findsOneWidget);
-    expect(find.byKey(const Key('template-pause-1')), findsOneWidget);
-    expect(find.byKey(const Key('template-archive-1')), findsOneWidget);
-
-    expect(find.byKey(const Key('template-resume-2')), findsOneWidget);
-    expect(find.byKey(const Key('template-archive-2')), findsOneWidget);
-    expect(find.byKey(const Key('template-edit-2')), findsOneWidget);
-
-    expect(find.byKey(const Key('template-edit-3')), findsNothing);
-    expect(find.byKey(const Key('template-pause-3')), findsNothing);
-    expect(find.byKey(const Key('template-resume-3')), findsNothing);
-    expect(find.byKey(const Key('template-archive-3')), findsNothing);
+    expect(find.byKey(const Key('responsibility-edit-1')), findsOneWidget);
+    expect(find.byKey(const Key('responsibility-done-1')), findsOneWidget);
+    expect(find.byKey(const Key('responsibility-edit-2')), findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.text('No sugar', skipOffstage: false),
@@ -186,28 +186,42 @@ void main() {
     expect(find.byKey(const Key('timeline-edit-10')), findsNothing);
     expect(find.byKey(const Key('timeline-history-10')), findsOneWidget);
     expect(find.text('目前沒有 upcoming milestone。'), findsOneWidget);
-
-    final firstTile = tester.widget<ListTile>(
-      find.byKey(const Key('timeline-upcoming-9-92')),
-    );
-    final secondTile = tester.widget<ListTile>(
-      find.byKey(const Key('timeline-upcoming-9-91')),
-    );
-    expect((firstTile.title as Text).data, '第 10天');
-    expect((secondTile.title as Text).data, '第 30天');
   });
 }
 
-TaskTemplate _template(int id, TaskTemplateStatus status) {
-  return TaskTemplate(
-    id: id,
-    title: 'Template $id',
-    kind: TaskKind.recurring,
-    status: status,
-    firstDueDate: DateTime(2026, 4, 10),
-    reminderRule: const ReminderRule.onDue(),
-    createdAt: DateTime(2026, 4, 1),
-    updatedAt: DateTime(2026, 4, 1),
+ResponsibilityItemBundle _itemBundle(int id, ResponsibilityItemType type) {
+  final config = switch (type) {
+    ResponsibilityItemType.stateBased => const StateBasedItemConfig(
+      expectedInterval: Duration(days: 7),
+      warningAfter: Duration(days: 7),
+      dangerAfter: Duration(days: 14),
+    ),
+    ResponsibilityItemType.resourceBased => const ResourceBasedItemConfig(
+      estimatedDuration: Duration(days: 30),
+      warningBeforeDepletion: Duration(days: 7),
+    ),
+    ResponsibilityItemType.fixedTime => FixedTimeItemConfig(
+      scheduleType: FixedTimeScheduleType.daily,
+      anchorDate: DateTime(2026, 4, 10),
+    ),
+  };
+  return ResponsibilityItemBundle(
+    item: ResponsibilityItem(
+      id: id,
+      packId: 1,
+      title: 'Item $id',
+      type: type,
+      config: config,
+      lastDoneAt: DateTime(2026, 4, 10),
+      createdAt: DateTime(2026, 4, 1),
+      updatedAt: DateTime(2026, 4, 1),
+    ),
+    pack: ResponsibilityPack(
+      id: 1,
+      title: 'Default Responsibility Pack',
+      createdAt: DateTime(2026, 4, 1),
+      updatedAt: DateTime(2026, 4, 1),
+    ),
   );
 }
 

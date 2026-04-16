@@ -1,12 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../data/local/task_timeline_dao.dart';
-import 'task_providers.dart';
+import '../data/local/responsibility_timeline_dao.dart';
 import 'timeline_providers.dart';
 
-final taskHistoryProvider = StreamProvider<List<TaskBundle>>((ref) {
-  return ref.watch(taskRepositoryProvider).watchTaskHistory();
-});
+final responsibilityHistoryProvider =
+    StreamProvider<List<ResponsibilityItemBundle>>((ref) {
+      return Stream<List<ResponsibilityItemBundle>>.value(const []);
+    });
 
 final milestoneHistoryProvider =
     StreamProvider<List<TimelineMilestoneRecordBundle>>((ref) {

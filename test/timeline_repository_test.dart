@@ -1,12 +1,12 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:reminder_app/features/reminders/data/home_models.dart';
 import 'package:reminder_app/features/reminders/data/home_repository.dart';
 import 'package:reminder_app/features/reminders/data/timeline_models.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
-import 'package:reminder_app/features/reminders/data/task_repository.dart';
+import 'package:reminder_app/features/reminders/data/responsibility_repository.dart';
 import 'package:reminder_app/features/reminders/data/timeline_repository.dart';
 import 'package:reminder_app/features/reminders/domain/timeline.dart';
+import 'package:reminder_app/features/reminders/domain/timeline_milestone_record.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_rule.dart';
 
 void main() {
@@ -15,7 +15,7 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = TimelineRepository(db.taskTimelineDao);
+      final repository = TimelineRepository(db.responsibilityTimelineDao);
 
       final timelineId = await repository.createTimeline(
         TimelineInput(
@@ -59,7 +59,7 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = TimelineRepository(db.taskTimelineDao);
+      final repository = TimelineRepository(db.responsibilityTimelineDao);
 
       final timelineId = await repository.createTimeline(
         TimelineInput(
@@ -97,13 +97,17 @@ void main() {
   );
 
   test(
-    'paused rules do not produce occurrences and milestones never go overdue',
+    'paused rules do not produce occurrences and milestones never become responsibility items',
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final timelineRepository = TimelineRepository(db.taskTimelineDao);
+      final timelineRepository = TimelineRepository(
+        db.responsibilityTimelineDao,
+      );
       final homeRepository = HomeRepository(
-        taskRepository: TaskRepository(db.taskTimelineDao),
+        responsibilityRepository: ResponsibilityRepository(
+          db.responsibilityTimelineDao,
+        ),
         timelineRepository: timelineRepository,
       );
 
@@ -133,29 +137,18 @@ void main() {
       );
 
       final homeItems = await homeRepository
-          .watchUpcomingEntries(now: DateTime(2026, 5, 7))
-          .first;
-      final overdueTasks = await homeRepository
-          .watchOverdueTasks(now: DateTime(2026, 5, 7))
+          .watchUpcomingTimelineMilestones(now: DateTime(2026, 5, 7))
           .first;
 
-      expect(homeItems.whereType<TimelineMilestoneHomeEntry>(), hasLength(1));
-      expect(
-        homeItems
-            .whereType<TimelineMilestoneHomeEntry>()
-            .single
-            .occurrence
-            .label,
-        '第 30天',
-      );
-      expect(overdueTasks, isEmpty);
+      expect(homeItems, hasLength(1));
+      expect(homeItems.single.label, '第 30天');
     },
   );
 
   test('weeks rules round-trip through repository mappings', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = TimelineRepository(db.taskTimelineDao);
+    final repository = TimelineRepository(db.responsibilityTimelineDao);
 
     final timelineId = await repository.createTimeline(
       TimelineInput(
@@ -196,7 +189,7 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = TimelineRepository(db.taskTimelineDao);
+      final repository = TimelineRepository(db.responsibilityTimelineDao);
 
       final timelineId = await repository.createTimeline(
         TimelineInput(
@@ -246,6 +239,10 @@ void main() {
       final history = await repository.watchMilestoneHistory().first;
       expect(history, hasLength(1));
       expect(history.single.rule.status, TimelineMilestoneRuleStatus.archived);
+      expect(
+        history.single.record.status,
+        TimelineMilestoneRecordStatus.noticed,
+      );
     },
   );
 }

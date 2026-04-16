@@ -1,10 +1,7 @@
 import 'package:drift/drift.dart';
 
-import '../../domain/reminder_rule.dart';
-import '../../domain/repeat_rule.dart';
-import '../../domain/task.dart';
-import '../../domain/task_scheduler.dart';
-import '../../domain/task_template.dart';
+import '../../domain/responsibility_item.dart';
+import '../../domain/responsibility_pack.dart';
 import '../../domain/timeline.dart';
 import '../../domain/timeline_milestone_occurrence.dart';
 import '../../domain/timeline_milestone_record.dart';
@@ -12,13 +9,13 @@ import '../../domain/timeline_milestone_rule.dart';
 import 'app_database.dart';
 import 'tables.dart';
 
-part 'task_timeline_dao.g.dart';
+part 'responsibility_timeline_dao.g.dart';
 
-class TaskBundle {
-  const TaskBundle({required this.task, required this.template});
+class ResponsibilityItemBundle {
+  const ResponsibilityItemBundle({required this.item, required this.pack});
 
-  final Task task;
-  final TaskTemplate? template;
+  final ResponsibilityItem item;
+  final ResponsibilityPack pack;
 }
 
 class TimelineMilestoneRecordBundle {
@@ -47,31 +44,92 @@ class TimelineDetailRecord {
 
 @DriftAccessor(
   tables: [
-    TaskTemplates,
-    Tasks,
+    ResponsibilityPacks,
+    ResponsibilityItems,
     Timelines,
     TimelineMilestoneRules,
     TimelineMilestoneRecords,
   ],
 )
-class TaskTimelineDao extends DatabaseAccessor<AppDatabase>
-    with _$TaskTimelineDaoMixin {
-  TaskTimelineDao(super.attachedDatabase);
+class ResponsibilityTimelineDao extends DatabaseAccessor<AppDatabase>
+    with _$ResponsibilityTimelineDaoMixin {
+  ResponsibilityTimelineDao(super.attachedDatabase);
 
-  Future<int> insertTaskTemplate(TaskTemplatesCompanion entry) {
-    return into(taskTemplates).insert(entry);
+  Future<int> insertResponsibilityPack(ResponsibilityPacksCompanion entry) {
+    return into(responsibilityPacks).insert(entry);
   }
 
-  Future<int> insertTask(TasksCompanion entry) {
-    return into(tasks).insert(entry);
+  Future<int> insertResponsibilityItem(ResponsibilityItemsCompanion entry) {
+    return into(responsibilityItems).insert(entry);
   }
 
-  Future<bool> updateTaskTemplateRecord(TaskTemplateRow entry) {
-    return update(taskTemplates).replace(entry);
+  Future<bool> updateResponsibilityPackRecord(ResponsibilityPackRow entry) {
+    return update(responsibilityPacks).replace(entry);
   }
 
-  Future<bool> updateTaskRecord(TaskRow entry) {
-    return update(tasks).replace(entry);
+  Future<bool> updateResponsibilityItemRecord(ResponsibilityItemRow entry) {
+    return update(responsibilityItems).replace(entry);
+  }
+
+  Stream<List<ResponsibilityPack>> watchResponsibilityPacks() {
+    final query = select(responsibilityPacks)
+      ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]);
+    return query.watch().map(
+      (rows) => rows.map(_toResponsibilityPack).toList(growable: false),
+    );
+  }
+
+  Future<List<ResponsibilityPack>> listResponsibilityPacks() async {
+    final rows = await (select(
+      responsibilityPacks,
+    )..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])).get();
+    return rows.map(_toResponsibilityPack).toList(growable: false);
+  }
+
+  Future<ResponsibilityPack?> getResponsibilityPackById(int id) async {
+    final row = await (select(
+      responsibilityPacks,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _toResponsibilityPack(row);
+  }
+
+  Stream<List<ResponsibilityItemBundle>> watchResponsibilityItemBundles() {
+    return _responsibilityItemBundleQuery().watch().map(
+      (rows) => rows.map(_mapResponsibilityItemBundle).toList(growable: false),
+    );
+  }
+
+  Future<List<ResponsibilityItemBundle>> listResponsibilityItemBundles() {
+    return _responsibilityItemBundleQuery().get().then(
+      (rows) => rows.map(_mapResponsibilityItemBundle).toList(growable: false),
+    );
+  }
+
+  Future<ResponsibilityItemBundle?> getResponsibilityItemBundleById(
+    int id,
+  ) async {
+    final rows = await _responsibilityItemBundleQuery(
+      where: (t) => t.id.equals(id),
+      limit: 1,
+    ).get();
+    if (rows.isEmpty) {
+      return null;
+    }
+    return _mapResponsibilityItemBundle(rows.single);
+  }
+
+  Future<bool> markResponsibilityItemDone(int id, {DateTime? doneAt}) async {
+    final now = doneAt ?? DateTime.now();
+    final updatedRows =
+        await (update(
+          responsibilityItems,
+        )..where((t) => t.id.equals(id))).write(
+          ResponsibilityItemsCompanion(
+            lastDoneAt: Value(now.millisecondsSinceEpoch),
+            updatedAt: Value(now.millisecondsSinceEpoch),
+          ),
+        );
+    return updatedRows > 0;
   }
 
   Future<int> insertTimeline(TimelinesCompanion entry) {
@@ -106,52 +164,15 @@ class TaskTimelineDao extends DatabaseAccessor<AppDatabase>
     return update(timelineMilestoneRecords).replace(entry);
   }
 
-  Stream<List<TaskTemplate>> watchTaskTemplates() {
-    final query = select(taskTemplates)
-      ..orderBy([
-        (t) => OrderingTerm.asc(t.status),
-        (t) => OrderingTerm.desc(t.updatedAt),
-      ]);
-    return query.watch().map((rows) => rows.map(_toTaskTemplate).toList());
-  }
-
-  Future<TaskTemplate?> getTaskTemplateById(int id) async {
-    final row = await (select(
-      taskTemplates,
-    )..where((t) => t.id.equals(id))).getSingleOrNull();
-    return row == null ? null : _toTaskTemplate(row);
-  }
-
-  Stream<List<TaskBundle>> watchTaskBundles() {
-    return _taskBundleQuery().watch().map(
-      (rows) => rows.map(_mapTaskBundle).toList(),
-    );
-  }
-
-  Future<TaskBundle?> getTaskBundleById(int id) async {
-    final rows = await _taskBundleQuery(
-      where: (t) => t.id.equals(id),
-      limit: 1,
-    ).get();
-    if (rows.isEmpty) {
-      return null;
-    }
-    return _mapTaskBundle(rows.single);
-  }
-
-  Future<List<TaskBundle>> listTaskBundles() {
-    return _taskBundleQuery().get().then(
-      (rows) => rows.map(_mapTaskBundle).toList(),
-    );
-  }
-
   Stream<List<Timeline>> watchTimelines() {
     final query = select(timelines)
       ..orderBy([
         (t) => OrderingTerm.asc(t.status),
         (t) => OrderingTerm.desc(t.updatedAt),
       ]);
-    return query.watch().map((rows) => rows.map(_toTimeline).toList());
+    return query.watch().map(
+      (rows) => rows.map(_toTimeline).toList(growable: false),
+    );
   }
 
   Future<Timeline?> getTimelineById(int id) async {
@@ -168,7 +189,18 @@ class TaskTimelineDao extends DatabaseAccessor<AppDatabase>
         (t) => OrderingTerm.asc(t.id),
       ]);
     return query.watch().map(
-      (rows) => rows.map(_toTimelineMilestoneRule).toList(),
+      (rows) => rows.map(_toTimelineMilestoneRule).toList(growable: false),
+    );
+  }
+
+  Stream<List<TimelineMilestoneRecord>> watchTimelineMilestoneRecords() {
+    final query = select(timelineMilestoneRecords)
+      ..orderBy([
+        (t) => OrderingTerm.asc(t.targetDate),
+        (t) => OrderingTerm.asc(t.id),
+      ]);
+    return query.watch().map(
+      (rows) => rows.map(_toTimelineMilestoneRecord).toList(growable: false),
     );
   }
 
@@ -206,32 +238,11 @@ class TaskTimelineDao extends DatabaseAccessor<AppDatabase>
     return row == null ? null : _toTimelineMilestoneRule(row);
   }
 
-  Stream<List<TimelineMilestoneRecord>> watchTimelineMilestoneRecords() {
-    final query = select(timelineMilestoneRecords)
-      ..orderBy([
-        (t) => OrderingTerm.asc(t.targetDate),
-        (t) => OrderingTerm.asc(t.id),
-      ]);
-    return query.watch().map(
-      (rows) => rows.map(_toTimelineMilestoneRecord).toList(),
-    );
-  }
-
-  Future<List<TimelineMilestoneRecord>> listTimelineMilestoneRecordsForTimeline(
-    int timelineId,
-  ) async {
-    final rows =
-        await (select(timelineMilestoneRecords)
-              ..where((t) => t.timelineId.equals(timelineId))
-              ..orderBy([(t) => OrderingTerm.desc(t.targetDate)]))
-            .get();
-    return rows.map(_toTimelineMilestoneRecord).toList(growable: false);
-  }
-
   Stream<List<TimelineMilestoneRecordBundle>>
   watchTimelineMilestoneRecordBundles() {
     return _timelineMilestoneRecordBundleQuery().watch().map(
-      (rows) => rows.map(_mapTimelineMilestoneRecordBundle).toList(),
+      (rows) =>
+          rows.map(_mapTimelineMilestoneRecordBundle).toList(growable: false),
     );
   }
 
@@ -240,7 +251,8 @@ class TaskTimelineDao extends DatabaseAccessor<AppDatabase>
     return _timelineMilestoneRecordBundleQuery(
       where: (r) => r.timelineId.equals(timelineId),
     ).get().then(
-      (rows) => rows.map(_mapTimelineMilestoneRecordBundle).toList(),
+      (rows) =>
+          rows.map(_mapTimelineMilestoneRecordBundle).toList(growable: false),
     );
   }
 
@@ -269,14 +281,17 @@ class TaskTimelineDao extends DatabaseAccessor<AppDatabase>
       timeline: timeline,
       milestoneRules: rules,
       milestoneHistory: records
-          .where((item) => item.record.status != MilestoneStatus.upcoming)
+          .where(
+            (item) =>
+                item.record.status != TimelineMilestoneRecordStatus.upcoming,
+          )
           .toList(growable: false),
     );
   }
 
   Future<void> upsertTimelineMilestoneRecordForOccurrence({
     required TimelineMilestoneOccurrence occurrence,
-    required MilestoneStatus status,
+    required TimelineMilestoneRecordStatus status,
     DateTime? notifiedAt,
     DateTime? actedAt,
   }) async {
@@ -324,7 +339,7 @@ class TaskTimelineDao extends DatabaseAccessor<AppDatabase>
     final now = DateTime.now();
     return upsertTimelineMilestoneRecordForOccurrence(
       occurrence: occurrence,
-      status: MilestoneStatus.noticed,
+      status: TimelineMilestoneRecordStatus.noticed,
       actedAt: now,
     );
   }
@@ -335,7 +350,7 @@ class TaskTimelineDao extends DatabaseAccessor<AppDatabase>
     final now = DateTime.now();
     return upsertTimelineMilestoneRecordForOccurrence(
       occurrence: occurrence,
-      status: MilestoneStatus.skipped,
+      status: TimelineMilestoneRecordStatus.skipped,
       actedAt: now,
     );
   }
@@ -346,104 +361,27 @@ class TaskTimelineDao extends DatabaseAccessor<AppDatabase>
     final now = DateTime.now();
     return upsertTimelineMilestoneRecordForOccurrence(
       occurrence: occurrence,
-      status: MilestoneStatus.upcoming,
+      status: TimelineMilestoneRecordStatus.upcoming,
       notifiedAt: now,
     );
   }
 
-  Future<void> transitionTask(
-    int taskId,
-    TaskStatus nextStatus, {
-    required TaskScheduler scheduler,
-  }) async {
-    await transaction(() async {
-      final bundle = await getTaskBundleById(taskId);
-      if (bundle == null || !bundle.task.isPending) {
-        return;
-      }
-
-      final now = DateTime.now();
-      await (update(tasks)..where((t) => t.id.equals(taskId))).write(
-        TasksCompanion(
-          status: Value(nextStatus.name),
-          updatedAt: Value(now.millisecondsSinceEpoch),
-          resolvedAt: Value(now.millisecondsSinceEpoch),
-        ),
-      );
-
-      final template = bundle.template;
-      if ((nextStatus == TaskStatus.done || nextStatus == TaskStatus.skipped) &&
-          bundle.task.isRecurring &&
-          template != null &&
-          template.status == TaskTemplateStatus.active) {
-        final nextDueDate = scheduler.nextDueDate(
-          bundle.task,
-          template.repeatRule,
-        );
-        await insertTask(
-          TasksCompanion.insert(
-            templateId: Value(template.id),
-            kind: template.kind.name,
-            titleSnapshot: template.title,
-            noteSnapshot: Value(template.note),
-            categoryId: Value(template.categoryId),
-            dueDate: nextDueDate.millisecondsSinceEpoch,
-            repeatRule: Value(template.repeatRule?.encode()),
-            reminderRule: template.reminderRule.encode(),
-            deferredDueDate: const Value.absent(),
-            status: TaskStatus.pending.name,
-            createdAt: now.millisecondsSinceEpoch,
-            updatedAt: now.millisecondsSinceEpoch,
-            resolvedAt: const Value.absent(),
-          ),
-        );
-      }
-
-      if (nextStatus == TaskStatus.canceled &&
-          bundle.task.isRecurring &&
-          template != null) {
-        await _pauseTemplateAndCancelPendingTasks(template.id, now);
-      }
-    });
-  }
-
-  Future<bool> deferTask(int taskId, int days) async {
-    if (days < 1) {
-      return false;
-    }
-    final bundle = await getTaskBundleById(taskId);
-    if (bundle == null || !bundle.task.isPending) {
-      return false;
-    }
-    final nextDate = bundle.task.effectiveDueDate
-        .add(Duration(days: days))
-        .millisecondsSinceEpoch;
-    final updatedRows = await (update(tasks)..where((t) => t.id.equals(taskId)))
-        .write(
-          TasksCompanion(
-            deferredDueDate: Value(nextDate),
-            updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
-          ),
-        );
-    return updatedRows > 0;
-  }
-
-  JoinedSelectStatement<HasResultSet, dynamic> _taskBundleQuery({
-    Expression<bool> Function($TasksTable t)? where,
+  JoinedSelectStatement<HasResultSet, dynamic> _responsibilityItemBundleQuery({
+    Expression<bool> Function($ResponsibilityItemsTable t)? where,
     int? limit,
   }) {
-    final query = select(tasks).join([
-      leftOuterJoin(
-        taskTemplates,
-        taskTemplates.id.equalsExp(tasks.templateId),
+    final query = select(responsibilityItems).join([
+      innerJoin(
+        responsibilityPacks,
+        responsibilityPacks.id.equalsExp(responsibilityItems.packId),
       ),
     ]);
     if (where != null) {
-      query.where(where(tasks));
+      query.where(where(responsibilityItems));
     }
     query.orderBy([
-      OrderingTerm.asc(tasks.dueDate),
-      OrderingTerm.asc(tasks.id),
+      OrderingTerm.desc(responsibilityItems.updatedAt),
+      OrderingTerm.asc(responsibilityItems.id),
     ]);
     if (limit != null) {
       query.limit(limit);
@@ -479,12 +417,10 @@ class TaskTimelineDao extends DatabaseAccessor<AppDatabase>
     return query;
   }
 
-  TaskBundle _mapTaskBundle(TypedResult row) {
-    return TaskBundle(
-      task: _toTask(row.readTable(tasks)),
-      template: row.readTableOrNull(taskTemplates) == null
-          ? null
-          : _toTaskTemplate(row.readTable(taskTemplates)),
+  ResponsibilityItemBundle _mapResponsibilityItemBundle(TypedResult row) {
+    return ResponsibilityItemBundle(
+      item: _toResponsibilityItem(row.readTable(responsibilityItems)),
+      pack: _toResponsibilityPack(row.readTable(responsibilityPacks)),
     );
   }
 
@@ -500,68 +436,63 @@ class TaskTimelineDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
-  TaskTemplate _toTaskTemplate(TaskTemplateRow row) {
-    return TaskTemplate(
+  ResponsibilityPack _toResponsibilityPack(ResponsibilityPackRow row) {
+    return ResponsibilityPack(
       id: row.id,
       title: row.title,
-      categoryId: row.categoryId,
-      note: row.note,
-      kind: TaskKind.values.byName(row.kind),
-      status: TaskTemplateStatus.values.byName(row.status),
-      firstDueDate: DateTime.fromMillisecondsSinceEpoch(row.firstDueDate),
-      repeatRule: RepeatRule.parse(row.repeatRule),
-      reminderRule: ReminderRule.decode(row.reminderRule),
+      description: row.description,
       createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
     );
   }
 
-  Task _toTask(TaskRow row) {
-    return Task(
+  ResponsibilityItem _toResponsibilityItem(ResponsibilityItemRow row) {
+    final itemType = ResponsibilityItemType.values.byName(row.type);
+    return ResponsibilityItem(
       id: row.id,
-      templateId: row.templateId,
-      kind: TaskKind.values.byName(row.kind),
-      titleSnapshot: row.titleSnapshot,
-      noteSnapshot: row.noteSnapshot,
-      categoryId: row.categoryId,
-      dueDate: DateTime.fromMillisecondsSinceEpoch(row.dueDate),
-      repeatRule: RepeatRule.parse(row.repeatRule),
-      reminderRule: ReminderRule.decode(row.reminderRule),
-      deferredDueDate: row.deferredDueDate == null
+      packId: row.packId,
+      title: row.title,
+      description: row.description,
+      type: itemType,
+      config: _toResponsibilityItemConfig(row, itemType),
+      lastDoneAt: row.lastDoneAt == null
           ? null
-          : DateTime.fromMillisecondsSinceEpoch(row.deferredDueDate!),
-      status: TaskStatus.values.byName(row.status),
+          : DateTime.fromMillisecondsSinceEpoch(row.lastDoneAt!),
       createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
-      resolvedAt: row.resolvedAt == null
-          ? null
-          : DateTime.fromMillisecondsSinceEpoch(row.resolvedAt!),
     );
   }
 
-  Future<void> _pauseTemplateAndCancelPendingTasks(
-    int templateId,
-    DateTime now,
-  ) async {
-    await (update(taskTemplates)..where((t) => t.id.equals(templateId))).write(
-      TaskTemplatesCompanion(
-        status: Value(TaskTemplateStatus.paused.name),
-        updatedAt: Value(now.millisecondsSinceEpoch),
+  ResponsibilityItemConfig _toResponsibilityItemConfig(
+    ResponsibilityItemRow row,
+    ResponsibilityItemType type,
+  ) {
+    return switch (type) {
+      ResponsibilityItemType.fixedTime => FixedTimeItemConfig(
+        scheduleType: FixedTimeScheduleType.values.byName(
+          row.fixedScheduleType ?? FixedTimeScheduleType.custom.name,
+        ),
+        anchorDate: row.fixedAnchorDate == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch(row.fixedAnchorDate!),
+        timeOfDay: row.fixedTimeOfDay,
       ),
-    );
-    await (update(tasks)..where(
-          (t) =>
-              t.templateId.equals(templateId) &
-              t.status.equals(TaskStatus.pending.name),
-        ))
-        .write(
-          TasksCompanion(
-            status: Value(TaskStatus.canceled.name),
-            deferredDueDate: const Value(null),
-            updatedAt: Value(now.millisecondsSinceEpoch),
-            resolvedAt: Value(now.millisecondsSinceEpoch),
-          ),
-        );
+      ResponsibilityItemType.stateBased => StateBasedItemConfig(
+        expectedInterval: Duration(
+          minutes: row.stateExpectedIntervalMinutes ?? 0,
+        ),
+        warningAfter: Duration(minutes: row.stateWarningAfterMinutes ?? 0),
+        dangerAfter: Duration(minutes: row.stateDangerAfterMinutes ?? 0),
+      ),
+      ResponsibilityItemType.resourceBased => ResourceBasedItemConfig(
+        estimatedDuration: Duration(
+          minutes: row.resourceEstimatedDurationMinutes ?? 0,
+        ),
+        warningBeforeDepletion: Duration(
+          minutes: row.resourceWarningBeforeDepletionMinutes ?? 0,
+        ),
+      ),
+    };
   }
 
   Timeline _toTimeline(TimelineRow row) {
@@ -602,7 +533,7 @@ class TaskTimelineDao extends DatabaseAccessor<AppDatabase>
       ruleId: row.ruleId,
       occurrenceIndex: row.occurrenceIndex,
       targetDate: DateTime.fromMillisecondsSinceEpoch(row.targetDate),
-      status: MilestoneStatus.values.byName(row.status),
+      status: TimelineMilestoneRecordStatus.values.byName(row.status),
       notifiedAt: row.notifiedAt == null
           ? null
           : DateTime.fromMillisecondsSinceEpoch(row.notifiedAt!),

@@ -6,14 +6,14 @@ import '../domain/timeline_milestone_record.dart';
 import '../domain/timeline_milestone_rule.dart';
 import '../domain/timeline_milestone_service.dart';
 import 'local/app_database.dart';
-import 'local/task_timeline_dao.dart';
+import 'local/responsibility_timeline_dao.dart';
 import 'timeline_models.dart';
 
 class TimelineRepository {
   TimelineRepository(this._dao, {TimelineMilestoneService? milestoneService})
     : _milestoneService = milestoneService ?? const TimelineMilestoneService();
 
-  final TaskTimelineDao _dao;
+  final ResponsibilityTimelineDao _dao;
   final TimelineMilestoneService _milestoneService;
 
   Stream<List<Timeline>> watchTimelines() => _dao.watchTimelines();
@@ -30,7 +30,11 @@ class TimelineRepository {
     return _dao.watchTimelineMilestoneRecordBundles().map(
       (items) =>
           items
-              .where((item) => item.record.status != MilestoneStatus.upcoming)
+              .where(
+                (item) =>
+                    item.record.status !=
+                    TimelineMilestoneRecordStatus.upcoming,
+              )
               .toList(growable: false)
             ..sort((a, b) => b.record.updatedAt.compareTo(a.record.updatedAt)),
     );

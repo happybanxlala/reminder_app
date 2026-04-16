@@ -22,7 +22,7 @@ class TimelineMilestoneOccurrence {
   final int occurrenceIndex;
   final DateTime targetDate;
   final String label;
-  final MilestoneStatus status;
+  final TimelineMilestoneRecordStatus status;
   final int reminderOffsetDays;
   final DateTime? notifiedAt;
   final DateTime? actedAt;

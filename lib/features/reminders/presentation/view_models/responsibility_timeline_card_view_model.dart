@@ -1,21 +1,23 @@
-import '../../data/local/task_timeline_dao.dart';
+import '../../data/home_models.dart';
 import '../../domain/timeline_milestone_occurrence.dart';
 import '../formatters/reminder_formatters.dart';
 
-class TaskCardViewModel {
-  const TaskCardViewModel({
+class ResponsibilityCardViewModel {
+  const ResponsibilityCardViewModel({
     required this.id,
     required this.title,
     required this.subtitle,
     required this.status,
   });
 
-  factory TaskCardViewModel.fromBundle(TaskBundle bundle) {
-    return TaskCardViewModel(
-      id: bundle.task.id,
-      title: bundle.task.titleSnapshot,
-      subtitle: ReminderFormatters.taskSummary(bundle),
-      status: bundle.task.status.name,
+  factory ResponsibilityCardViewModel.fromEntry(
+    ResponsibilityItemHomeEntry entry,
+  ) {
+    return ResponsibilityCardViewModel(
+      id: entry.bundle.item.id,
+      title: entry.bundle.item.title,
+      subtitle: ReminderFormatters.responsibilityHomeSummary(entry),
+      status: entry.status.name,
     );
   }
 

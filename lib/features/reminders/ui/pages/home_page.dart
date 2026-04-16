@@ -3,16 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/home_models.dart';
-import '../../data/local/task_timeline_dao.dart';
-import '../../presentation/formatters/reminder_formatters.dart';
+import '../../domain/timeline_milestone_occurrence.dart';
 import '../../presentation/text/reminder_ui_text.dart';
-import '../../presentation/view_models/task_milestone_card_view_model.dart';
+import '../../presentation/view_models/responsibility_timeline_card_view_model.dart';
 import '../../providers/home_providers.dart';
-import '../../providers/task_providers.dart';
+import '../../providers/responsibility_providers.dart';
 import '../../providers/timeline_providers.dart';
 import 'history_page.dart';
 import 'management_page.dart';
-import 'task_edit_page.dart';
+import 'responsibility_item_edit_page.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -47,9 +46,9 @@ class _HomePageState extends ConsumerState<HomePage>
 
   @override
   Widget build(BuildContext context) {
-    final todayAsync = ref.watch(todayHomeEntriesProvider);
-    final upcomingAsync = ref.watch(upcomingHomeEntriesProvider);
-    final overdueAsync = ref.watch(overdueTasksProvider);
+    final dangerAsync = ref.watch(dangerHomeEntriesProvider);
+    final warningAsync = ref.watch(warningHomeEntriesProvider);
+    final timelineAsync = ref.watch(upcomingTimelineMilestonesProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -68,42 +67,46 @@ class _HomePageState extends ConsumerState<HomePage>
             tooltip: ReminderUiText.manageAction,
           ),
           IconButton(
-            key: const Key('quick-add-task-button'),
-            onPressed: () => context.pushNamed(TaskEditPage.taskNewRouteName),
+            key: const Key('quick-add-responsibility-button'),
+            onPressed: () =>
+                context.pushNamed(ResponsibilityItemEditPage.createRouteName),
             icon: const Icon(Icons.add_task),
-            tooltip: ReminderUiText.addTask,
+            tooltip: ReminderUiText.addResponsibilityItem,
           ),
         ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: ReminderUiText.todayTab),
-            Tab(text: ReminderUiText.upcomingTab),
-            Tab(text: ReminderUiText.overdueTab),
+            Tab(text: ReminderUiText.dangerTab),
+            Tab(text: ReminderUiText.warningTab),
+            Tab(text: ReminderUiText.timelineTab),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
-          todayAsync.when(
-            data: (items) => _HomeEntryList(
+          dangerAsync.when(
+            data: (items) => _ResponsibilityItemList(
               items: items,
-              emptyMessage: ReminderUiText.noTodayItems,
+              emptyMessage: ReminderUiText.noDangerItems,
             ),
             error: (error, stack) => Text('讀取失敗: $error'),
             loading: () => const Center(child: CircularProgressIndicator()),
           ),
-          upcomingAsync.when(
-            data: (items) => _HomeEntryList(
+          warningAsync.when(
+            data: (items) => _ResponsibilityItemList(
               items: items,
-              emptyMessage: ReminderUiText.noUpcomingItems,
+              emptyMessage: ReminderUiText.noWarningItems,
             ),
             error: (error, stack) => Text('讀取失敗: $error'),
             loading: () => const Center(child: CircularProgressIndicator()),
           ),
-          overdueAsync.when(
-            data: (items) => _OverdueList(items: items),
+          timelineAsync.when(
+            data: (items) => _TimelineMilestoneList(
+              items: items,
+              emptyMessage: ReminderUiText.noUpcomingTimelineItems,
+            ),
             error: (error, stack) => Text('讀取失敗: $error'),
             loading: () => const Center(child: CircularProgressIndicator()),
           ),
@@ -113,10 +116,13 @@ class _HomePageState extends ConsumerState<HomePage>
   }
 }
 
-class _HomeEntryList extends ConsumerWidget {
-  const _HomeEntryList({required this.items, required this.emptyMessage});
+class _ResponsibilityItemList extends ConsumerWidget {
+  const _ResponsibilityItemList({
+    required this.items,
+    required this.emptyMessage,
+  });
 
-  final List<HomeEntry> items;
+  final List<ResponsibilityItemHomeEntry> items;
   final String emptyMessage;
 
   @override
@@ -128,59 +134,54 @@ class _HomeEntryList extends ConsumerWidget {
       itemCount: items.length,
       itemBuilder: (context, index) {
         final item = items[index];
-        if (item is TaskHomeEntry) {
-          final viewModel = TaskCardViewModel.fromBundle(item.bundle);
-          return Card(
-            child: Column(
-              children: [
-                ListTile(
-                  key: Key('task-item-${viewModel.id}'),
-                  title: Text(viewModel.title),
-                  subtitle: Text(viewModel.subtitle),
-                  trailing: const Text('Task'),
-                ),
-                OverflowBar(
-                  children: [
-                    TextButton(
-                      onPressed: () async {
-                        await ref
-                            .read(taskRepositoryProvider)
-                            .completeTask(viewModel.id);
-                      },
-                      child: const Text(ReminderUiText.completeAction),
-                    ),
-                    TextButton(
-                      onPressed: () async {
-                        await ref
-                            .read(taskRepositoryProvider)
-                            .skipTask(viewModel.id);
-                      },
-                      child: const Text(ReminderUiText.skipAction),
-                    ),
-                    TextButton(
-                      onPressed: () async {
-                        await ref
-                            .read(taskRepositoryProvider)
-                            .deferTask(viewModel.id, 1);
-                      },
-                      child: const Text(ReminderUiText.deferAction),
-                    ),
-                    TextButton(
-                      onPressed: () async {
-                        await ref
-                            .read(taskRepositoryProvider)
-                            .cancelTask(viewModel.id);
-                      },
-                      child: const Text(ReminderUiText.cancelAction),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        }
+        final viewModel = ResponsibilityCardViewModel.fromEntry(item);
+        return Card(
+          child: Column(
+            children: [
+              ListTile(
+                key: Key('responsibility-item-${viewModel.id}'),
+                title: Text(viewModel.title),
+                subtitle: Text(viewModel.subtitle),
+                trailing: Text(viewModel.status),
+              ),
+              OverflowBar(
+                children: [
+                  TextButton(
+                    onPressed: () async {
+                      await ref
+                          .read(responsibilityRepositoryProvider)
+                          .markDone(viewModel.id);
+                    },
+                    child: const Text(ReminderUiText.completeAction),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
 
-        final occurrence = (item as TimelineMilestoneHomeEntry).occurrence;
+class _TimelineMilestoneList extends ConsumerWidget {
+  const _TimelineMilestoneList({
+    required this.items,
+    required this.emptyMessage,
+  });
+
+  final List<TimelineMilestoneOccurrence> items;
+  final String emptyMessage;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (items.isEmpty) {
+      return Center(child: Text(emptyMessage));
+    }
+    return ListView.builder(
+      itemCount: items.length,
+      itemBuilder: (context, index) {
+        final occurrence = items[index];
         final viewModel = MilestoneCardViewModel.fromOccurrence(occurrence);
         return Card(
           child: Column(
@@ -215,73 +216,6 @@ class _HomeEntryList extends ConsumerWidget {
           ),
         );
       },
-    );
-  }
-}
-
-class _OverdueList extends ConsumerWidget {
-  const _OverdueList({required this.items});
-
-  final List<TaskBundle> items;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (items.isEmpty) {
-      return const Center(child: Text(ReminderUiText.noOverdueItems));
-    }
-    return ListView(
-      children: items
-          .map(
-            (item) => Card(
-              child: Column(
-                children: [
-                  ListTile(
-                    key: Key('overdue-task-${item.task.id}'),
-                    title: Text(item.task.titleSnapshot),
-                    subtitle: Text(ReminderFormatters.taskSummary(item)),
-                    trailing: const Text('Task'),
-                  ),
-                  OverflowBar(
-                    children: [
-                      TextButton(
-                        onPressed: () async {
-                          await ref
-                              .read(taskRepositoryProvider)
-                              .completeTask(item.task.id);
-                        },
-                        child: const Text(ReminderUiText.completeAction),
-                      ),
-                      TextButton(
-                        onPressed: () async {
-                          await ref
-                              .read(taskRepositoryProvider)
-                              .skipTask(item.task.id);
-                        },
-                        child: const Text(ReminderUiText.skipAction),
-                      ),
-                      TextButton(
-                        onPressed: () async {
-                          await ref
-                              .read(taskRepositoryProvider)
-                              .deferTask(item.task.id, 1);
-                        },
-                        child: const Text(ReminderUiText.deferAction),
-                      ),
-                      TextButton(
-                        onPressed: () async {
-                          await ref
-                              .read(taskRepositoryProvider)
-                              .cancelTask(item.task.id);
-                        },
-                        child: const Text(ReminderUiText.cancelAction),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          )
-          .toList(growable: false),
     );
   }
 }

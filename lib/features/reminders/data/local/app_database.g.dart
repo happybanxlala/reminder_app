@@ -3,12 +3,12 @@
 part of 'app_database.dart';
 
 // ignore_for_file: type=lint
-class $TaskTemplatesTable extends TaskTemplates
-    with TableInfo<$TaskTemplatesTable, TaskTemplateRow> {
+class $ResponsibilityPacksTable extends ResponsibilityPacks
+    with TableInfo<$ResponsibilityPacksTable, ResponsibilityPackRow> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
-  $TaskTemplatesTable(this.attachedDatabase, [this._alias]);
+  $ResponsibilityPacksTable(this.attachedDatabase, [this._alias]);
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -31,76 +31,16 @@ class $TaskTemplatesTable extends TaskTemplates
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
-    'categoryId',
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
   );
   @override
-  late final GeneratedColumn<int> categoryId = GeneratedColumn<int>(
-    'category_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _noteMeta = const VerificationMeta('note');
-  @override
-  late final GeneratedColumn<String> note = GeneratedColumn<String>(
-    'note',
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
     aliasedName,
     true,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-  );
-  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
-  @override
-  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
-    'kind',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _statusMeta = const VerificationMeta('status');
-  @override
-  late final GeneratedColumn<String> status = GeneratedColumn<String>(
-    'status',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _firstDueDateMeta = const VerificationMeta(
-    'firstDueDate',
-  );
-  @override
-  late final GeneratedColumn<int> firstDueDate = GeneratedColumn<int>(
-    'first_due_date',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _repeatRuleMeta = const VerificationMeta(
-    'repeatRule',
-  );
-  @override
-  late final GeneratedColumn<String> repeatRule = GeneratedColumn<String>(
-    'repeat_rule',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _reminderRuleMeta = const VerificationMeta(
-    'reminderRule',
-  );
-  @override
-  late final GeneratedColumn<String> reminderRule = GeneratedColumn<String>(
-    'reminder_rule',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
   );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
@@ -128,13 +68,7 @@ class $TaskTemplatesTable extends TaskTemplates
   List<GeneratedColumn> get $columns => [
     id,
     title,
-    categoryId,
-    note,
-    kind,
-    status,
-    firstDueDate,
-    repeatRule,
-    reminderRule,
+    description,
     createdAt,
     updatedAt,
   ];
@@ -142,10 +76,10 @@ class $TaskTemplatesTable extends TaskTemplates
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
-  static const String $name = 'task_templates';
+  static const String $name = 'responsibility_packs';
   @override
   VerificationContext validateIntegrity(
-    Insertable<TaskTemplateRow> instance, {
+    Insertable<ResponsibilityPackRow> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -161,61 +95,14 @@ class $TaskTemplatesTable extends TaskTemplates
     } else if (isInserting) {
       context.missing(_titleMeta);
     }
-    if (data.containsKey('category_id')) {
+    if (data.containsKey('description')) {
       context.handle(
-        _categoryIdMeta,
-        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
-      );
-    }
-    if (data.containsKey('note')) {
-      context.handle(
-        _noteMeta,
-        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
-      );
-    }
-    if (data.containsKey('kind')) {
-      context.handle(
-        _kindMeta,
-        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_kindMeta);
-    }
-    if (data.containsKey('status')) {
-      context.handle(
-        _statusMeta,
-        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_statusMeta);
-    }
-    if (data.containsKey('first_due_date')) {
-      context.handle(
-        _firstDueDateMeta,
-        firstDueDate.isAcceptableOrUnknown(
-          data['first_due_date']!,
-          _firstDueDateMeta,
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
         ),
       );
-    } else if (isInserting) {
-      context.missing(_firstDueDateMeta);
-    }
-    if (data.containsKey('repeat_rule')) {
-      context.handle(
-        _repeatRuleMeta,
-        repeatRule.isAcceptableOrUnknown(data['repeat_rule']!, _repeatRuleMeta),
-      );
-    }
-    if (data.containsKey('reminder_rule')) {
-      context.handle(
-        _reminderRuleMeta,
-        reminderRule.isAcceptableOrUnknown(
-          data['reminder_rule']!,
-          _reminderRuleMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_reminderRuleMeta);
     }
     if (data.containsKey('created_at')) {
       context.handle(
@@ -239,9 +126,9 @@ class $TaskTemplatesTable extends TaskTemplates
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  TaskTemplateRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+  ResponsibilityPackRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return TaskTemplateRow(
+    return ResponsibilityPackRow(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -250,34 +137,10 @@ class $TaskTemplatesTable extends TaskTemplates
         DriftSqlType.string,
         data['${effectivePrefix}title'],
       )!,
-      categoryId: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}category_id'],
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
       ),
-      note: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}note'],
-      ),
-      kind: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}kind'],
-      )!,
-      status: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}status'],
-      )!,
-      firstDueDate: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}first_due_date'],
-      )!,
-      repeatRule: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}repeat_rule'],
-      ),
-      reminderRule: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}reminder_rule'],
-      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
@@ -290,33 +153,22 @@ class $TaskTemplatesTable extends TaskTemplates
   }
 
   @override
-  $TaskTemplatesTable createAlias(String alias) {
-    return $TaskTemplatesTable(attachedDatabase, alias);
+  $ResponsibilityPacksTable createAlias(String alias) {
+    return $ResponsibilityPacksTable(attachedDatabase, alias);
   }
 }
 
-class TaskTemplateRow extends DataClass implements Insertable<TaskTemplateRow> {
+class ResponsibilityPackRow extends DataClass
+    implements Insertable<ResponsibilityPackRow> {
   final int id;
   final String title;
-  final int? categoryId;
-  final String? note;
-  final String kind;
-  final String status;
-  final int firstDueDate;
-  final String? repeatRule;
-  final String reminderRule;
+  final String? description;
   final int createdAt;
   final int updatedAt;
-  const TaskTemplateRow({
+  const ResponsibilityPackRow({
     required this.id,
     required this.title,
-    this.categoryId,
-    this.note,
-    required this.kind,
-    required this.status,
-    required this.firstDueDate,
-    this.repeatRule,
-    required this.reminderRule,
+    this.description,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -325,59 +177,35 @@ class TaskTemplateRow extends DataClass implements Insertable<TaskTemplateRow> {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['title'] = Variable<String>(title);
-    if (!nullToAbsent || categoryId != null) {
-      map['category_id'] = Variable<int>(categoryId);
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
     }
-    if (!nullToAbsent || note != null) {
-      map['note'] = Variable<String>(note);
-    }
-    map['kind'] = Variable<String>(kind);
-    map['status'] = Variable<String>(status);
-    map['first_due_date'] = Variable<int>(firstDueDate);
-    if (!nullToAbsent || repeatRule != null) {
-      map['repeat_rule'] = Variable<String>(repeatRule);
-    }
-    map['reminder_rule'] = Variable<String>(reminderRule);
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     return map;
   }
 
-  TaskTemplatesCompanion toCompanion(bool nullToAbsent) {
-    return TaskTemplatesCompanion(
+  ResponsibilityPacksCompanion toCompanion(bool nullToAbsent) {
+    return ResponsibilityPacksCompanion(
       id: Value(id),
       title: Value(title),
-      categoryId: categoryId == null && nullToAbsent
+      description: description == null && nullToAbsent
           ? const Value.absent()
-          : Value(categoryId),
-      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
-      kind: Value(kind),
-      status: Value(status),
-      firstDueDate: Value(firstDueDate),
-      repeatRule: repeatRule == null && nullToAbsent
-          ? const Value.absent()
-          : Value(repeatRule),
-      reminderRule: Value(reminderRule),
+          : Value(description),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
   }
 
-  factory TaskTemplateRow.fromJson(
+  factory ResponsibilityPackRow.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return TaskTemplateRow(
+    return ResponsibilityPackRow(
       id: serializer.fromJson<int>(json['id']),
       title: serializer.fromJson<String>(json['title']),
-      categoryId: serializer.fromJson<int?>(json['categoryId']),
-      note: serializer.fromJson<String?>(json['note']),
-      kind: serializer.fromJson<String>(json['kind']),
-      status: serializer.fromJson<String>(json['status']),
-      firstDueDate: serializer.fromJson<int>(json['firstDueDate']),
-      repeatRule: serializer.fromJson<String?>(json['repeatRule']),
-      reminderRule: serializer.fromJson<String>(json['reminderRule']),
+      description: serializer.fromJson<String?>(json['description']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -388,62 +216,32 @@ class TaskTemplateRow extends DataClass implements Insertable<TaskTemplateRow> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'title': serializer.toJson<String>(title),
-      'categoryId': serializer.toJson<int?>(categoryId),
-      'note': serializer.toJson<String?>(note),
-      'kind': serializer.toJson<String>(kind),
-      'status': serializer.toJson<String>(status),
-      'firstDueDate': serializer.toJson<int>(firstDueDate),
-      'repeatRule': serializer.toJson<String?>(repeatRule),
-      'reminderRule': serializer.toJson<String>(reminderRule),
+      'description': serializer.toJson<String?>(description),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
   }
 
-  TaskTemplateRow copyWith({
+  ResponsibilityPackRow copyWith({
     int? id,
     String? title,
-    Value<int?> categoryId = const Value.absent(),
-    Value<String?> note = const Value.absent(),
-    String? kind,
-    String? status,
-    int? firstDueDate,
-    Value<String?> repeatRule = const Value.absent(),
-    String? reminderRule,
+    Value<String?> description = const Value.absent(),
     int? createdAt,
     int? updatedAt,
-  }) => TaskTemplateRow(
+  }) => ResponsibilityPackRow(
     id: id ?? this.id,
     title: title ?? this.title,
-    categoryId: categoryId.present ? categoryId.value : this.categoryId,
-    note: note.present ? note.value : this.note,
-    kind: kind ?? this.kind,
-    status: status ?? this.status,
-    firstDueDate: firstDueDate ?? this.firstDueDate,
-    repeatRule: repeatRule.present ? repeatRule.value : this.repeatRule,
-    reminderRule: reminderRule ?? this.reminderRule,
+    description: description.present ? description.value : this.description,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
-  TaskTemplateRow copyWithCompanion(TaskTemplatesCompanion data) {
-    return TaskTemplateRow(
+  ResponsibilityPackRow copyWithCompanion(ResponsibilityPacksCompanion data) {
+    return ResponsibilityPackRow(
       id: data.id.present ? data.id.value : this.id,
       title: data.title.present ? data.title.value : this.title,
-      categoryId: data.categoryId.present
-          ? data.categoryId.value
-          : this.categoryId,
-      note: data.note.present ? data.note.value : this.note,
-      kind: data.kind.present ? data.kind.value : this.kind,
-      status: data.status.present ? data.status.value : this.status,
-      firstDueDate: data.firstDueDate.present
-          ? data.firstDueDate.value
-          : this.firstDueDate,
-      repeatRule: data.repeatRule.present
-          ? data.repeatRule.value
-          : this.repeatRule,
-      reminderRule: data.reminderRule.present
-          ? data.reminderRule.value
-          : this.reminderRule,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -451,16 +249,10 @@ class TaskTemplateRow extends DataClass implements Insertable<TaskTemplateRow> {
 
   @override
   String toString() {
-    return (StringBuffer('TaskTemplateRow(')
+    return (StringBuffer('ResponsibilityPackRow(')
           ..write('id: $id, ')
           ..write('title: $title, ')
-          ..write('categoryId: $categoryId, ')
-          ..write('note: $note, ')
-          ..write('kind: $kind, ')
-          ..write('status: $status, ')
-          ..write('firstDueDate: $firstDueDate, ')
-          ..write('repeatRule: $repeatRule, ')
-          ..write('reminderRule: $reminderRule, ')
+          ..write('description: $description, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -468,131 +260,68 @@ class TaskTemplateRow extends DataClass implements Insertable<TaskTemplateRow> {
   }
 
   @override
-  int get hashCode => Object.hash(
-    id,
-    title,
-    categoryId,
-    note,
-    kind,
-    status,
-    firstDueDate,
-    repeatRule,
-    reminderRule,
-    createdAt,
-    updatedAt,
-  );
+  int get hashCode => Object.hash(id, title, description, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is TaskTemplateRow &&
+      (other is ResponsibilityPackRow &&
           other.id == this.id &&
           other.title == this.title &&
-          other.categoryId == this.categoryId &&
-          other.note == this.note &&
-          other.kind == this.kind &&
-          other.status == this.status &&
-          other.firstDueDate == this.firstDueDate &&
-          other.repeatRule == this.repeatRule &&
-          other.reminderRule == this.reminderRule &&
+          other.description == this.description &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
 
-class TaskTemplatesCompanion extends UpdateCompanion<TaskTemplateRow> {
+class ResponsibilityPacksCompanion
+    extends UpdateCompanion<ResponsibilityPackRow> {
   final Value<int> id;
   final Value<String> title;
-  final Value<int?> categoryId;
-  final Value<String?> note;
-  final Value<String> kind;
-  final Value<String> status;
-  final Value<int> firstDueDate;
-  final Value<String?> repeatRule;
-  final Value<String> reminderRule;
+  final Value<String?> description;
   final Value<int> createdAt;
   final Value<int> updatedAt;
-  const TaskTemplatesCompanion({
+  const ResponsibilityPacksCompanion({
     this.id = const Value.absent(),
     this.title = const Value.absent(),
-    this.categoryId = const Value.absent(),
-    this.note = const Value.absent(),
-    this.kind = const Value.absent(),
-    this.status = const Value.absent(),
-    this.firstDueDate = const Value.absent(),
-    this.repeatRule = const Value.absent(),
-    this.reminderRule = const Value.absent(),
+    this.description = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
-  TaskTemplatesCompanion.insert({
+  ResponsibilityPacksCompanion.insert({
     this.id = const Value.absent(),
     required String title,
-    this.categoryId = const Value.absent(),
-    this.note = const Value.absent(),
-    required String kind,
-    required String status,
-    required int firstDueDate,
-    this.repeatRule = const Value.absent(),
-    required String reminderRule,
+    this.description = const Value.absent(),
     required int createdAt,
     required int updatedAt,
   }) : title = Value(title),
-       kind = Value(kind),
-       status = Value(status),
-       firstDueDate = Value(firstDueDate),
-       reminderRule = Value(reminderRule),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
-  static Insertable<TaskTemplateRow> custom({
+  static Insertable<ResponsibilityPackRow> custom({
     Expression<int>? id,
     Expression<String>? title,
-    Expression<int>? categoryId,
-    Expression<String>? note,
-    Expression<String>? kind,
-    Expression<String>? status,
-    Expression<int>? firstDueDate,
-    Expression<String>? repeatRule,
-    Expression<String>? reminderRule,
+    Expression<String>? description,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (title != null) 'title': title,
-      if (categoryId != null) 'category_id': categoryId,
-      if (note != null) 'note': note,
-      if (kind != null) 'kind': kind,
-      if (status != null) 'status': status,
-      if (firstDueDate != null) 'first_due_date': firstDueDate,
-      if (repeatRule != null) 'repeat_rule': repeatRule,
-      if (reminderRule != null) 'reminder_rule': reminderRule,
+      if (description != null) 'description': description,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
   }
 
-  TaskTemplatesCompanion copyWith({
+  ResponsibilityPacksCompanion copyWith({
     Value<int>? id,
     Value<String>? title,
-    Value<int?>? categoryId,
-    Value<String?>? note,
-    Value<String>? kind,
-    Value<String>? status,
-    Value<int>? firstDueDate,
-    Value<String?>? repeatRule,
-    Value<String>? reminderRule,
+    Value<String?>? description,
     Value<int>? createdAt,
     Value<int>? updatedAt,
   }) {
-    return TaskTemplatesCompanion(
+    return ResponsibilityPacksCompanion(
       id: id ?? this.id,
       title: title ?? this.title,
-      categoryId: categoryId ?? this.categoryId,
-      note: note ?? this.note,
-      kind: kind ?? this.kind,
-      status: status ?? this.status,
-      firstDueDate: firstDueDate ?? this.firstDueDate,
-      repeatRule: repeatRule ?? this.repeatRule,
-      reminderRule: reminderRule ?? this.reminderRule,
+      description: description ?? this.description,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -607,26 +336,8 @@ class TaskTemplatesCompanion extends UpdateCompanion<TaskTemplateRow> {
     if (title.present) {
       map['title'] = Variable<String>(title.value);
     }
-    if (categoryId.present) {
-      map['category_id'] = Variable<int>(categoryId.value);
-    }
-    if (note.present) {
-      map['note'] = Variable<String>(note.value);
-    }
-    if (kind.present) {
-      map['kind'] = Variable<String>(kind.value);
-    }
-    if (status.present) {
-      map['status'] = Variable<String>(status.value);
-    }
-    if (firstDueDate.present) {
-      map['first_due_date'] = Variable<int>(firstDueDate.value);
-    }
-    if (repeatRule.present) {
-      map['repeat_rule'] = Variable<String>(repeatRule.value);
-    }
-    if (reminderRule.present) {
-      map['reminder_rule'] = Variable<String>(reminderRule.value);
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
@@ -639,16 +350,10 @@ class TaskTemplatesCompanion extends UpdateCompanion<TaskTemplateRow> {
 
   @override
   String toString() {
-    return (StringBuffer('TaskTemplatesCompanion(')
+    return (StringBuffer('ResponsibilityPacksCompanion(')
           ..write('id: $id, ')
           ..write('title: $title, ')
-          ..write('categoryId: $categoryId, ')
-          ..write('note: $note, ')
-          ..write('kind: $kind, ')
-          ..write('status: $status, ')
-          ..write('firstDueDate: $firstDueDate, ')
-          ..write('repeatRule: $repeatRule, ')
-          ..write('reminderRule: $reminderRule, ')
+          ..write('description: $description, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -656,11 +361,12 @@ class TaskTemplatesCompanion extends UpdateCompanion<TaskTemplateRow> {
   }
 }
 
-class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
+class $ResponsibilityItemsTable extends ResponsibilityItems
+    with TableInfo<$ResponsibilityItemsTable, ResponsibilityItemRow> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
-  $TasksTable(this.attachedDatabase, [this._alias]);
+  $ResponsibilityItemsTable(this.attachedDatabase, [this._alias]);
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -674,111 +380,146 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
       'PRIMARY KEY AUTOINCREMENT',
     ),
   );
-  static const VerificationMeta _templateIdMeta = const VerificationMeta(
-    'templateId',
+  static const VerificationMeta _packIdMeta = const VerificationMeta('packId');
+  @override
+  late final GeneratedColumn<int> packId = GeneratedColumn<int>(
+    'pack_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES responsibility_packs (id)',
+    ),
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
   );
   @override
-  late final GeneratedColumn<int> templateId = GeneratedColumn<int>(
-    'template_id',
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fixedScheduleTypeMeta = const VerificationMeta(
+    'fixedScheduleType',
+  );
+  @override
+  late final GeneratedColumn<String> fixedScheduleType =
+      GeneratedColumn<String>(
+        'fixed_schedule_type',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _fixedAnchorDateMeta = const VerificationMeta(
+    'fixedAnchorDate',
+  );
+  @override
+  late final GeneratedColumn<int> fixedAnchorDate = GeneratedColumn<int>(
+    'fixed_anchor_date',
     aliasedName,
     true,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
-  @override
-  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
-    'kind',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _titleSnapshotMeta = const VerificationMeta(
-    'titleSnapshot',
+  static const VerificationMeta _fixedTimeOfDayMeta = const VerificationMeta(
+    'fixedTimeOfDay',
   );
   @override
-  late final GeneratedColumn<String> titleSnapshot = GeneratedColumn<String>(
-    'title_snapshot',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _noteSnapshotMeta = const VerificationMeta(
-    'noteSnapshot',
-  );
-  @override
-  late final GeneratedColumn<String> noteSnapshot = GeneratedColumn<String>(
-    'note_snapshot',
+  late final GeneratedColumn<String> fixedTimeOfDay = GeneratedColumn<String>(
+    'fixed_time_of_day',
     aliasedName,
     true,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
-    'categoryId',
+  static const VerificationMeta _stateExpectedIntervalMinutesMeta =
+      const VerificationMeta('stateExpectedIntervalMinutes');
+  @override
+  late final GeneratedColumn<int> stateExpectedIntervalMinutes =
+      GeneratedColumn<int>(
+        'state_expected_interval_minutes',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _stateWarningAfterMinutesMeta =
+      const VerificationMeta('stateWarningAfterMinutes');
+  @override
+  late final GeneratedColumn<int> stateWarningAfterMinutes =
+      GeneratedColumn<int>(
+        'state_warning_after_minutes',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _stateDangerAfterMinutesMeta =
+      const VerificationMeta('stateDangerAfterMinutes');
+  @override
+  late final GeneratedColumn<int> stateDangerAfterMinutes =
+      GeneratedColumn<int>(
+        'state_danger_after_minutes',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _resourceEstimatedDurationMinutesMeta =
+      const VerificationMeta('resourceEstimatedDurationMinutes');
+  @override
+  late final GeneratedColumn<int> resourceEstimatedDurationMinutes =
+      GeneratedColumn<int>(
+        'resource_estimated_duration_minutes',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _resourceWarningBeforeDepletionMinutesMeta =
+      const VerificationMeta('resourceWarningBeforeDepletionMinutes');
+  @override
+  late final GeneratedColumn<int> resourceWarningBeforeDepletionMinutes =
+      GeneratedColumn<int>(
+        'resource_warning_before_depletion_minutes',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _lastDoneAtMeta = const VerificationMeta(
+    'lastDoneAt',
   );
   @override
-  late final GeneratedColumn<int> categoryId = GeneratedColumn<int>(
-    'category_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _dueDateMeta = const VerificationMeta(
-    'dueDate',
-  );
-  @override
-  late final GeneratedColumn<int> dueDate = GeneratedColumn<int>(
-    'due_date',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _repeatRuleMeta = const VerificationMeta(
-    'repeatRule',
-  );
-  @override
-  late final GeneratedColumn<String> repeatRule = GeneratedColumn<String>(
-    'repeat_rule',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _reminderRuleMeta = const VerificationMeta(
-    'reminderRule',
-  );
-  @override
-  late final GeneratedColumn<String> reminderRule = GeneratedColumn<String>(
-    'reminder_rule',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _deferredDueDateMeta = const VerificationMeta(
-    'deferredDueDate',
-  );
-  @override
-  late final GeneratedColumn<int> deferredDueDate = GeneratedColumn<int>(
-    'deferred_due_date',
+  late final GeneratedColumn<int> lastDoneAt = GeneratedColumn<int>(
+    'last_done_at',
     aliasedName,
     true,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
-  );
-  static const VerificationMeta _statusMeta = const VerificationMeta('status');
-  @override
-  late final GeneratedColumn<String> status = GeneratedColumn<String>(
-    'status',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
   );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
@@ -802,42 +543,33 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _resolvedAtMeta = const VerificationMeta(
-    'resolvedAt',
-  );
-  @override
-  late final GeneratedColumn<int> resolvedAt = GeneratedColumn<int>(
-    'resolved_at',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
-    templateId,
-    kind,
-    titleSnapshot,
-    noteSnapshot,
-    categoryId,
-    dueDate,
-    repeatRule,
-    reminderRule,
-    deferredDueDate,
-    status,
+    packId,
+    title,
+    description,
+    type,
+    fixedScheduleType,
+    fixedAnchorDate,
+    fixedTimeOfDay,
+    stateExpectedIntervalMinutes,
+    stateWarningAfterMinutes,
+    stateDangerAfterMinutes,
+    resourceEstimatedDurationMinutes,
+    resourceWarningBeforeDepletionMinutes,
+    lastDoneAt,
     createdAt,
     updatedAt,
-    resolvedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
-  static const String $name = 'tasks';
+  static const String $name = 'responsibility_items';
   @override
   VerificationContext validateIntegrity(
-    Insertable<TaskRow> instance, {
+    Insertable<ResponsibilityItemRow> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -845,87 +577,119 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     }
-    if (data.containsKey('template_id')) {
+    if (data.containsKey('pack_id')) {
       context.handle(
-        _templateIdMeta,
-        templateId.isAcceptableOrUnknown(data['template_id']!, _templateIdMeta),
-      );
-    }
-    if (data.containsKey('kind')) {
-      context.handle(
-        _kindMeta,
-        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+        _packIdMeta,
+        packId.isAcceptableOrUnknown(data['pack_id']!, _packIdMeta),
       );
     } else if (isInserting) {
-      context.missing(_kindMeta);
+      context.missing(_packIdMeta);
     }
-    if (data.containsKey('title_snapshot')) {
+    if (data.containsKey('title')) {
       context.handle(
-        _titleSnapshotMeta,
-        titleSnapshot.isAcceptableOrUnknown(
-          data['title_snapshot']!,
-          _titleSnapshotMeta,
-        ),
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
       );
     } else if (isInserting) {
-      context.missing(_titleSnapshotMeta);
+      context.missing(_titleMeta);
     }
-    if (data.containsKey('note_snapshot')) {
+    if (data.containsKey('description')) {
       context.handle(
-        _noteSnapshotMeta,
-        noteSnapshot.isAcceptableOrUnknown(
-          data['note_snapshot']!,
-          _noteSnapshotMeta,
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
         ),
       );
     }
-    if (data.containsKey('category_id')) {
+    if (data.containsKey('type')) {
       context.handle(
-        _categoryIdMeta,
-        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
-      );
-    }
-    if (data.containsKey('due_date')) {
-      context.handle(
-        _dueDateMeta,
-        dueDate.isAcceptableOrUnknown(data['due_date']!, _dueDateMeta),
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
       );
     } else if (isInserting) {
-      context.missing(_dueDateMeta);
+      context.missing(_typeMeta);
     }
-    if (data.containsKey('repeat_rule')) {
+    if (data.containsKey('fixed_schedule_type')) {
       context.handle(
-        _repeatRuleMeta,
-        repeatRule.isAcceptableOrUnknown(data['repeat_rule']!, _repeatRuleMeta),
-      );
-    }
-    if (data.containsKey('reminder_rule')) {
-      context.handle(
-        _reminderRuleMeta,
-        reminderRule.isAcceptableOrUnknown(
-          data['reminder_rule']!,
-          _reminderRuleMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_reminderRuleMeta);
-    }
-    if (data.containsKey('deferred_due_date')) {
-      context.handle(
-        _deferredDueDateMeta,
-        deferredDueDate.isAcceptableOrUnknown(
-          data['deferred_due_date']!,
-          _deferredDueDateMeta,
+        _fixedScheduleTypeMeta,
+        fixedScheduleType.isAcceptableOrUnknown(
+          data['fixed_schedule_type']!,
+          _fixedScheduleTypeMeta,
         ),
       );
     }
-    if (data.containsKey('status')) {
+    if (data.containsKey('fixed_anchor_date')) {
       context.handle(
-        _statusMeta,
-        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+        _fixedAnchorDateMeta,
+        fixedAnchorDate.isAcceptableOrUnknown(
+          data['fixed_anchor_date']!,
+          _fixedAnchorDateMeta,
+        ),
       );
-    } else if (isInserting) {
-      context.missing(_statusMeta);
+    }
+    if (data.containsKey('fixed_time_of_day')) {
+      context.handle(
+        _fixedTimeOfDayMeta,
+        fixedTimeOfDay.isAcceptableOrUnknown(
+          data['fixed_time_of_day']!,
+          _fixedTimeOfDayMeta,
+        ),
+      );
+    }
+    if (data.containsKey('state_expected_interval_minutes')) {
+      context.handle(
+        _stateExpectedIntervalMinutesMeta,
+        stateExpectedIntervalMinutes.isAcceptableOrUnknown(
+          data['state_expected_interval_minutes']!,
+          _stateExpectedIntervalMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('state_warning_after_minutes')) {
+      context.handle(
+        _stateWarningAfterMinutesMeta,
+        stateWarningAfterMinutes.isAcceptableOrUnknown(
+          data['state_warning_after_minutes']!,
+          _stateWarningAfterMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('state_danger_after_minutes')) {
+      context.handle(
+        _stateDangerAfterMinutesMeta,
+        stateDangerAfterMinutes.isAcceptableOrUnknown(
+          data['state_danger_after_minutes']!,
+          _stateDangerAfterMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('resource_estimated_duration_minutes')) {
+      context.handle(
+        _resourceEstimatedDurationMinutesMeta,
+        resourceEstimatedDurationMinutes.isAcceptableOrUnknown(
+          data['resource_estimated_duration_minutes']!,
+          _resourceEstimatedDurationMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('resource_warning_before_depletion_minutes')) {
+      context.handle(
+        _resourceWarningBeforeDepletionMinutesMeta,
+        resourceWarningBeforeDepletionMinutes.isAcceptableOrUnknown(
+          data['resource_warning_before_depletion_minutes']!,
+          _resourceWarningBeforeDepletionMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_done_at')) {
+      context.handle(
+        _lastDoneAtMeta,
+        lastDoneAt.isAcceptableOrUnknown(
+          data['last_done_at']!,
+          _lastDoneAtMeta,
+        ),
+      );
     }
     if (data.containsKey('created_at')) {
       context.handle(
@@ -943,65 +707,71 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
-    if (data.containsKey('resolved_at')) {
-      context.handle(
-        _resolvedAtMeta,
-        resolvedAt.isAcceptableOrUnknown(data['resolved_at']!, _resolvedAtMeta),
-      );
-    }
     return context;
   }
 
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  TaskRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+  ResponsibilityItemRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return TaskRow(
+    return ResponsibilityItemRow(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
       )!,
-      templateId: attachedDatabase.typeMapping.read(
+      packId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}template_id'],
-      ),
-      kind: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}kind'],
+        data['${effectivePrefix}pack_id'],
       )!,
-      titleSnapshot: attachedDatabase.typeMapping.read(
+      title: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}title_snapshot'],
+        data['${effectivePrefix}title'],
       )!,
-      noteSnapshot: attachedDatabase.typeMapping.read(
+      description: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}note_snapshot'],
+        data['${effectivePrefix}description'],
       ),
-      categoryId: attachedDatabase.typeMapping.read(
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      fixedScheduleType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}fixed_schedule_type'],
+      ),
+      fixedAnchorDate: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}category_id'],
+        data['${effectivePrefix}fixed_anchor_date'],
       ),
-      dueDate: attachedDatabase.typeMapping.read(
+      fixedTimeOfDay: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}fixed_time_of_day'],
+      ),
+      stateExpectedIntervalMinutes: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}due_date'],
-      )!,
-      repeatRule: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}repeat_rule'],
+        data['${effectivePrefix}state_expected_interval_minutes'],
       ),
-      reminderRule: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}reminder_rule'],
-      )!,
-      deferredDueDate: attachedDatabase.typeMapping.read(
+      stateWarningAfterMinutes: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}deferred_due_date'],
+        data['${effectivePrefix}state_warning_after_minutes'],
       ),
-      status: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}status'],
-      )!,
+      stateDangerAfterMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}state_danger_after_minutes'],
+      ),
+      resourceEstimatedDurationMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}resource_estimated_duration_minutes'],
+      ),
+      resourceWarningBeforeDepletionMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}resource_warning_before_depletion_minutes'],
+      ),
+      lastDoneAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_done_at'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
@@ -1010,133 +780,181 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
         DriftSqlType.int,
         data['${effectivePrefix}updated_at'],
       )!,
-      resolvedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}resolved_at'],
-      ),
     );
   }
 
   @override
-  $TasksTable createAlias(String alias) {
-    return $TasksTable(attachedDatabase, alias);
+  $ResponsibilityItemsTable createAlias(String alias) {
+    return $ResponsibilityItemsTable(attachedDatabase, alias);
   }
 }
 
-class TaskRow extends DataClass implements Insertable<TaskRow> {
+class ResponsibilityItemRow extends DataClass
+    implements Insertable<ResponsibilityItemRow> {
   final int id;
-  final int? templateId;
-  final String kind;
-  final String titleSnapshot;
-  final String? noteSnapshot;
-  final int? categoryId;
-  final int dueDate;
-  final String? repeatRule;
-  final String reminderRule;
-  final int? deferredDueDate;
-  final String status;
+  final int packId;
+  final String title;
+  final String? description;
+  final String type;
+  final String? fixedScheduleType;
+  final int? fixedAnchorDate;
+  final String? fixedTimeOfDay;
+  final int? stateExpectedIntervalMinutes;
+  final int? stateWarningAfterMinutes;
+  final int? stateDangerAfterMinutes;
+  final int? resourceEstimatedDurationMinutes;
+  final int? resourceWarningBeforeDepletionMinutes;
+  final int? lastDoneAt;
   final int createdAt;
   final int updatedAt;
-  final int? resolvedAt;
-  const TaskRow({
+  const ResponsibilityItemRow({
     required this.id,
-    this.templateId,
-    required this.kind,
-    required this.titleSnapshot,
-    this.noteSnapshot,
-    this.categoryId,
-    required this.dueDate,
-    this.repeatRule,
-    required this.reminderRule,
-    this.deferredDueDate,
-    required this.status,
+    required this.packId,
+    required this.title,
+    this.description,
+    required this.type,
+    this.fixedScheduleType,
+    this.fixedAnchorDate,
+    this.fixedTimeOfDay,
+    this.stateExpectedIntervalMinutes,
+    this.stateWarningAfterMinutes,
+    this.stateDangerAfterMinutes,
+    this.resourceEstimatedDurationMinutes,
+    this.resourceWarningBeforeDepletionMinutes,
+    this.lastDoneAt,
     required this.createdAt,
     required this.updatedAt,
-    this.resolvedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
-    if (!nullToAbsent || templateId != null) {
-      map['template_id'] = Variable<int>(templateId);
+    map['pack_id'] = Variable<int>(packId);
+    map['title'] = Variable<String>(title);
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
     }
-    map['kind'] = Variable<String>(kind);
-    map['title_snapshot'] = Variable<String>(titleSnapshot);
-    if (!nullToAbsent || noteSnapshot != null) {
-      map['note_snapshot'] = Variable<String>(noteSnapshot);
+    map['type'] = Variable<String>(type);
+    if (!nullToAbsent || fixedScheduleType != null) {
+      map['fixed_schedule_type'] = Variable<String>(fixedScheduleType);
     }
-    if (!nullToAbsent || categoryId != null) {
-      map['category_id'] = Variable<int>(categoryId);
+    if (!nullToAbsent || fixedAnchorDate != null) {
+      map['fixed_anchor_date'] = Variable<int>(fixedAnchorDate);
     }
-    map['due_date'] = Variable<int>(dueDate);
-    if (!nullToAbsent || repeatRule != null) {
-      map['repeat_rule'] = Variable<String>(repeatRule);
+    if (!nullToAbsent || fixedTimeOfDay != null) {
+      map['fixed_time_of_day'] = Variable<String>(fixedTimeOfDay);
     }
-    map['reminder_rule'] = Variable<String>(reminderRule);
-    if (!nullToAbsent || deferredDueDate != null) {
-      map['deferred_due_date'] = Variable<int>(deferredDueDate);
+    if (!nullToAbsent || stateExpectedIntervalMinutes != null) {
+      map['state_expected_interval_minutes'] = Variable<int>(
+        stateExpectedIntervalMinutes,
+      );
     }
-    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || stateWarningAfterMinutes != null) {
+      map['state_warning_after_minutes'] = Variable<int>(
+        stateWarningAfterMinutes,
+      );
+    }
+    if (!nullToAbsent || stateDangerAfterMinutes != null) {
+      map['state_danger_after_minutes'] = Variable<int>(
+        stateDangerAfterMinutes,
+      );
+    }
+    if (!nullToAbsent || resourceEstimatedDurationMinutes != null) {
+      map['resource_estimated_duration_minutes'] = Variable<int>(
+        resourceEstimatedDurationMinutes,
+      );
+    }
+    if (!nullToAbsent || resourceWarningBeforeDepletionMinutes != null) {
+      map['resource_warning_before_depletion_minutes'] = Variable<int>(
+        resourceWarningBeforeDepletionMinutes,
+      );
+    }
+    if (!nullToAbsent || lastDoneAt != null) {
+      map['last_done_at'] = Variable<int>(lastDoneAt);
+    }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
-    if (!nullToAbsent || resolvedAt != null) {
-      map['resolved_at'] = Variable<int>(resolvedAt);
-    }
     return map;
   }
 
-  TasksCompanion toCompanion(bool nullToAbsent) {
-    return TasksCompanion(
+  ResponsibilityItemsCompanion toCompanion(bool nullToAbsent) {
+    return ResponsibilityItemsCompanion(
       id: Value(id),
-      templateId: templateId == null && nullToAbsent
+      packId: Value(packId),
+      title: Value(title),
+      description: description == null && nullToAbsent
           ? const Value.absent()
-          : Value(templateId),
-      kind: Value(kind),
-      titleSnapshot: Value(titleSnapshot),
-      noteSnapshot: noteSnapshot == null && nullToAbsent
+          : Value(description),
+      type: Value(type),
+      fixedScheduleType: fixedScheduleType == null && nullToAbsent
           ? const Value.absent()
-          : Value(noteSnapshot),
-      categoryId: categoryId == null && nullToAbsent
+          : Value(fixedScheduleType),
+      fixedAnchorDate: fixedAnchorDate == null && nullToAbsent
           ? const Value.absent()
-          : Value(categoryId),
-      dueDate: Value(dueDate),
-      repeatRule: repeatRule == null && nullToAbsent
+          : Value(fixedAnchorDate),
+      fixedTimeOfDay: fixedTimeOfDay == null && nullToAbsent
           ? const Value.absent()
-          : Value(repeatRule),
-      reminderRule: Value(reminderRule),
-      deferredDueDate: deferredDueDate == null && nullToAbsent
+          : Value(fixedTimeOfDay),
+      stateExpectedIntervalMinutes:
+          stateExpectedIntervalMinutes == null && nullToAbsent
           ? const Value.absent()
-          : Value(deferredDueDate),
-      status: Value(status),
+          : Value(stateExpectedIntervalMinutes),
+      stateWarningAfterMinutes: stateWarningAfterMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stateWarningAfterMinutes),
+      stateDangerAfterMinutes: stateDangerAfterMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stateDangerAfterMinutes),
+      resourceEstimatedDurationMinutes:
+          resourceEstimatedDurationMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resourceEstimatedDurationMinutes),
+      resourceWarningBeforeDepletionMinutes:
+          resourceWarningBeforeDepletionMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resourceWarningBeforeDepletionMinutes),
+      lastDoneAt: lastDoneAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastDoneAt),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
-      resolvedAt: resolvedAt == null && nullToAbsent
-          ? const Value.absent()
-          : Value(resolvedAt),
     );
   }
 
-  factory TaskRow.fromJson(
+  factory ResponsibilityItemRow.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return TaskRow(
+    return ResponsibilityItemRow(
       id: serializer.fromJson<int>(json['id']),
-      templateId: serializer.fromJson<int?>(json['templateId']),
-      kind: serializer.fromJson<String>(json['kind']),
-      titleSnapshot: serializer.fromJson<String>(json['titleSnapshot']),
-      noteSnapshot: serializer.fromJson<String?>(json['noteSnapshot']),
-      categoryId: serializer.fromJson<int?>(json['categoryId']),
-      dueDate: serializer.fromJson<int>(json['dueDate']),
-      repeatRule: serializer.fromJson<String?>(json['repeatRule']),
-      reminderRule: serializer.fromJson<String>(json['reminderRule']),
-      deferredDueDate: serializer.fromJson<int?>(json['deferredDueDate']),
-      status: serializer.fromJson<String>(json['status']),
+      packId: serializer.fromJson<int>(json['packId']),
+      title: serializer.fromJson<String>(json['title']),
+      description: serializer.fromJson<String?>(json['description']),
+      type: serializer.fromJson<String>(json['type']),
+      fixedScheduleType: serializer.fromJson<String?>(
+        json['fixedScheduleType'],
+      ),
+      fixedAnchorDate: serializer.fromJson<int?>(json['fixedAnchorDate']),
+      fixedTimeOfDay: serializer.fromJson<String?>(json['fixedTimeOfDay']),
+      stateExpectedIntervalMinutes: serializer.fromJson<int?>(
+        json['stateExpectedIntervalMinutes'],
+      ),
+      stateWarningAfterMinutes: serializer.fromJson<int?>(
+        json['stateWarningAfterMinutes'],
+      ),
+      stateDangerAfterMinutes: serializer.fromJson<int?>(
+        json['stateDangerAfterMinutes'],
+      ),
+      resourceEstimatedDurationMinutes: serializer.fromJson<int?>(
+        json['resourceEstimatedDurationMinutes'],
+      ),
+      resourceWarningBeforeDepletionMinutes: serializer.fromJson<int?>(
+        json['resourceWarningBeforeDepletionMinutes'],
+      ),
+      lastDoneAt: serializer.fromJson<int?>(json['lastDoneAt']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
-      resolvedAt: serializer.fromJson<int?>(json['resolvedAt']),
     );
   }
   @override
@@ -1144,107 +962,154 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
-      'templateId': serializer.toJson<int?>(templateId),
-      'kind': serializer.toJson<String>(kind),
-      'titleSnapshot': serializer.toJson<String>(titleSnapshot),
-      'noteSnapshot': serializer.toJson<String?>(noteSnapshot),
-      'categoryId': serializer.toJson<int?>(categoryId),
-      'dueDate': serializer.toJson<int>(dueDate),
-      'repeatRule': serializer.toJson<String?>(repeatRule),
-      'reminderRule': serializer.toJson<String>(reminderRule),
-      'deferredDueDate': serializer.toJson<int?>(deferredDueDate),
-      'status': serializer.toJson<String>(status),
+      'packId': serializer.toJson<int>(packId),
+      'title': serializer.toJson<String>(title),
+      'description': serializer.toJson<String?>(description),
+      'type': serializer.toJson<String>(type),
+      'fixedScheduleType': serializer.toJson<String?>(fixedScheduleType),
+      'fixedAnchorDate': serializer.toJson<int?>(fixedAnchorDate),
+      'fixedTimeOfDay': serializer.toJson<String?>(fixedTimeOfDay),
+      'stateExpectedIntervalMinutes': serializer.toJson<int?>(
+        stateExpectedIntervalMinutes,
+      ),
+      'stateWarningAfterMinutes': serializer.toJson<int?>(
+        stateWarningAfterMinutes,
+      ),
+      'stateDangerAfterMinutes': serializer.toJson<int?>(
+        stateDangerAfterMinutes,
+      ),
+      'resourceEstimatedDurationMinutes': serializer.toJson<int?>(
+        resourceEstimatedDurationMinutes,
+      ),
+      'resourceWarningBeforeDepletionMinutes': serializer.toJson<int?>(
+        resourceWarningBeforeDepletionMinutes,
+      ),
+      'lastDoneAt': serializer.toJson<int?>(lastDoneAt),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
-      'resolvedAt': serializer.toJson<int?>(resolvedAt),
     };
   }
 
-  TaskRow copyWith({
+  ResponsibilityItemRow copyWith({
     int? id,
-    Value<int?> templateId = const Value.absent(),
-    String? kind,
-    String? titleSnapshot,
-    Value<String?> noteSnapshot = const Value.absent(),
-    Value<int?> categoryId = const Value.absent(),
-    int? dueDate,
-    Value<String?> repeatRule = const Value.absent(),
-    String? reminderRule,
-    Value<int?> deferredDueDate = const Value.absent(),
-    String? status,
+    int? packId,
+    String? title,
+    Value<String?> description = const Value.absent(),
+    String? type,
+    Value<String?> fixedScheduleType = const Value.absent(),
+    Value<int?> fixedAnchorDate = const Value.absent(),
+    Value<String?> fixedTimeOfDay = const Value.absent(),
+    Value<int?> stateExpectedIntervalMinutes = const Value.absent(),
+    Value<int?> stateWarningAfterMinutes = const Value.absent(),
+    Value<int?> stateDangerAfterMinutes = const Value.absent(),
+    Value<int?> resourceEstimatedDurationMinutes = const Value.absent(),
+    Value<int?> resourceWarningBeforeDepletionMinutes = const Value.absent(),
+    Value<int?> lastDoneAt = const Value.absent(),
     int? createdAt,
     int? updatedAt,
-    Value<int?> resolvedAt = const Value.absent(),
-  }) => TaskRow(
+  }) => ResponsibilityItemRow(
     id: id ?? this.id,
-    templateId: templateId.present ? templateId.value : this.templateId,
-    kind: kind ?? this.kind,
-    titleSnapshot: titleSnapshot ?? this.titleSnapshot,
-    noteSnapshot: noteSnapshot.present ? noteSnapshot.value : this.noteSnapshot,
-    categoryId: categoryId.present ? categoryId.value : this.categoryId,
-    dueDate: dueDate ?? this.dueDate,
-    repeatRule: repeatRule.present ? repeatRule.value : this.repeatRule,
-    reminderRule: reminderRule ?? this.reminderRule,
-    deferredDueDate: deferredDueDate.present
-        ? deferredDueDate.value
-        : this.deferredDueDate,
-    status: status ?? this.status,
+    packId: packId ?? this.packId,
+    title: title ?? this.title,
+    description: description.present ? description.value : this.description,
+    type: type ?? this.type,
+    fixedScheduleType: fixedScheduleType.present
+        ? fixedScheduleType.value
+        : this.fixedScheduleType,
+    fixedAnchorDate: fixedAnchorDate.present
+        ? fixedAnchorDate.value
+        : this.fixedAnchorDate,
+    fixedTimeOfDay: fixedTimeOfDay.present
+        ? fixedTimeOfDay.value
+        : this.fixedTimeOfDay,
+    stateExpectedIntervalMinutes: stateExpectedIntervalMinutes.present
+        ? stateExpectedIntervalMinutes.value
+        : this.stateExpectedIntervalMinutes,
+    stateWarningAfterMinutes: stateWarningAfterMinutes.present
+        ? stateWarningAfterMinutes.value
+        : this.stateWarningAfterMinutes,
+    stateDangerAfterMinutes: stateDangerAfterMinutes.present
+        ? stateDangerAfterMinutes.value
+        : this.stateDangerAfterMinutes,
+    resourceEstimatedDurationMinutes: resourceEstimatedDurationMinutes.present
+        ? resourceEstimatedDurationMinutes.value
+        : this.resourceEstimatedDurationMinutes,
+    resourceWarningBeforeDepletionMinutes:
+        resourceWarningBeforeDepletionMinutes.present
+        ? resourceWarningBeforeDepletionMinutes.value
+        : this.resourceWarningBeforeDepletionMinutes,
+    lastDoneAt: lastDoneAt.present ? lastDoneAt.value : this.lastDoneAt,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
-    resolvedAt: resolvedAt.present ? resolvedAt.value : this.resolvedAt,
   );
-  TaskRow copyWithCompanion(TasksCompanion data) {
-    return TaskRow(
+  ResponsibilityItemRow copyWithCompanion(ResponsibilityItemsCompanion data) {
+    return ResponsibilityItemRow(
       id: data.id.present ? data.id.value : this.id,
-      templateId: data.templateId.present
-          ? data.templateId.value
-          : this.templateId,
-      kind: data.kind.present ? data.kind.value : this.kind,
-      titleSnapshot: data.titleSnapshot.present
-          ? data.titleSnapshot.value
-          : this.titleSnapshot,
-      noteSnapshot: data.noteSnapshot.present
-          ? data.noteSnapshot.value
-          : this.noteSnapshot,
-      categoryId: data.categoryId.present
-          ? data.categoryId.value
-          : this.categoryId,
-      dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
-      repeatRule: data.repeatRule.present
-          ? data.repeatRule.value
-          : this.repeatRule,
-      reminderRule: data.reminderRule.present
-          ? data.reminderRule.value
-          : this.reminderRule,
-      deferredDueDate: data.deferredDueDate.present
-          ? data.deferredDueDate.value
-          : this.deferredDueDate,
-      status: data.status.present ? data.status.value : this.status,
+      packId: data.packId.present ? data.packId.value : this.packId,
+      title: data.title.present ? data.title.value : this.title,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      type: data.type.present ? data.type.value : this.type,
+      fixedScheduleType: data.fixedScheduleType.present
+          ? data.fixedScheduleType.value
+          : this.fixedScheduleType,
+      fixedAnchorDate: data.fixedAnchorDate.present
+          ? data.fixedAnchorDate.value
+          : this.fixedAnchorDate,
+      fixedTimeOfDay: data.fixedTimeOfDay.present
+          ? data.fixedTimeOfDay.value
+          : this.fixedTimeOfDay,
+      stateExpectedIntervalMinutes: data.stateExpectedIntervalMinutes.present
+          ? data.stateExpectedIntervalMinutes.value
+          : this.stateExpectedIntervalMinutes,
+      stateWarningAfterMinutes: data.stateWarningAfterMinutes.present
+          ? data.stateWarningAfterMinutes.value
+          : this.stateWarningAfterMinutes,
+      stateDangerAfterMinutes: data.stateDangerAfterMinutes.present
+          ? data.stateDangerAfterMinutes.value
+          : this.stateDangerAfterMinutes,
+      resourceEstimatedDurationMinutes:
+          data.resourceEstimatedDurationMinutes.present
+          ? data.resourceEstimatedDurationMinutes.value
+          : this.resourceEstimatedDurationMinutes,
+      resourceWarningBeforeDepletionMinutes:
+          data.resourceWarningBeforeDepletionMinutes.present
+          ? data.resourceWarningBeforeDepletionMinutes.value
+          : this.resourceWarningBeforeDepletionMinutes,
+      lastDoneAt: data.lastDoneAt.present
+          ? data.lastDoneAt.value
+          : this.lastDoneAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
-      resolvedAt: data.resolvedAt.present
-          ? data.resolvedAt.value
-          : this.resolvedAt,
     );
   }
 
   @override
   String toString() {
-    return (StringBuffer('TaskRow(')
+    return (StringBuffer('ResponsibilityItemRow(')
           ..write('id: $id, ')
-          ..write('templateId: $templateId, ')
-          ..write('kind: $kind, ')
-          ..write('titleSnapshot: $titleSnapshot, ')
-          ..write('noteSnapshot: $noteSnapshot, ')
-          ..write('categoryId: $categoryId, ')
-          ..write('dueDate: $dueDate, ')
-          ..write('repeatRule: $repeatRule, ')
-          ..write('reminderRule: $reminderRule, ')
-          ..write('deferredDueDate: $deferredDueDate, ')
-          ..write('status: $status, ')
+          ..write('packId: $packId, ')
+          ..write('title: $title, ')
+          ..write('description: $description, ')
+          ..write('type: $type, ')
+          ..write('fixedScheduleType: $fixedScheduleType, ')
+          ..write('fixedAnchorDate: $fixedAnchorDate, ')
+          ..write('fixedTimeOfDay: $fixedTimeOfDay, ')
+          ..write(
+            'stateExpectedIntervalMinutes: $stateExpectedIntervalMinutes, ',
+          )
+          ..write('stateWarningAfterMinutes: $stateWarningAfterMinutes, ')
+          ..write('stateDangerAfterMinutes: $stateDangerAfterMinutes, ')
+          ..write(
+            'resourceEstimatedDurationMinutes: $resourceEstimatedDurationMinutes, ',
+          )
+          ..write(
+            'resourceWarningBeforeDepletionMinutes: $resourceWarningBeforeDepletionMinutes, ',
+          )
+          ..write('lastDoneAt: $lastDoneAt, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt, ')
-          ..write('resolvedAt: $resolvedAt')
+          ..write('updatedAt: $updatedAt')
           ..write(')'))
         .toString();
   }
@@ -1252,158 +1117,191 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
   @override
   int get hashCode => Object.hash(
     id,
-    templateId,
-    kind,
-    titleSnapshot,
-    noteSnapshot,
-    categoryId,
-    dueDate,
-    repeatRule,
-    reminderRule,
-    deferredDueDate,
-    status,
+    packId,
+    title,
+    description,
+    type,
+    fixedScheduleType,
+    fixedAnchorDate,
+    fixedTimeOfDay,
+    stateExpectedIntervalMinutes,
+    stateWarningAfterMinutes,
+    stateDangerAfterMinutes,
+    resourceEstimatedDurationMinutes,
+    resourceWarningBeforeDepletionMinutes,
+    lastDoneAt,
     createdAt,
     updatedAt,
-    resolvedAt,
   );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is TaskRow &&
+      (other is ResponsibilityItemRow &&
           other.id == this.id &&
-          other.templateId == this.templateId &&
-          other.kind == this.kind &&
-          other.titleSnapshot == this.titleSnapshot &&
-          other.noteSnapshot == this.noteSnapshot &&
-          other.categoryId == this.categoryId &&
-          other.dueDate == this.dueDate &&
-          other.repeatRule == this.repeatRule &&
-          other.reminderRule == this.reminderRule &&
-          other.deferredDueDate == this.deferredDueDate &&
-          other.status == this.status &&
+          other.packId == this.packId &&
+          other.title == this.title &&
+          other.description == this.description &&
+          other.type == this.type &&
+          other.fixedScheduleType == this.fixedScheduleType &&
+          other.fixedAnchorDate == this.fixedAnchorDate &&
+          other.fixedTimeOfDay == this.fixedTimeOfDay &&
+          other.stateExpectedIntervalMinutes ==
+              this.stateExpectedIntervalMinutes &&
+          other.stateWarningAfterMinutes == this.stateWarningAfterMinutes &&
+          other.stateDangerAfterMinutes == this.stateDangerAfterMinutes &&
+          other.resourceEstimatedDurationMinutes ==
+              this.resourceEstimatedDurationMinutes &&
+          other.resourceWarningBeforeDepletionMinutes ==
+              this.resourceWarningBeforeDepletionMinutes &&
+          other.lastDoneAt == this.lastDoneAt &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt &&
-          other.resolvedAt == this.resolvedAt);
+          other.updatedAt == this.updatedAt);
 }
 
-class TasksCompanion extends UpdateCompanion<TaskRow> {
+class ResponsibilityItemsCompanion
+    extends UpdateCompanion<ResponsibilityItemRow> {
   final Value<int> id;
-  final Value<int?> templateId;
-  final Value<String> kind;
-  final Value<String> titleSnapshot;
-  final Value<String?> noteSnapshot;
-  final Value<int?> categoryId;
-  final Value<int> dueDate;
-  final Value<String?> repeatRule;
-  final Value<String> reminderRule;
-  final Value<int?> deferredDueDate;
-  final Value<String> status;
+  final Value<int> packId;
+  final Value<String> title;
+  final Value<String?> description;
+  final Value<String> type;
+  final Value<String?> fixedScheduleType;
+  final Value<int?> fixedAnchorDate;
+  final Value<String?> fixedTimeOfDay;
+  final Value<int?> stateExpectedIntervalMinutes;
+  final Value<int?> stateWarningAfterMinutes;
+  final Value<int?> stateDangerAfterMinutes;
+  final Value<int?> resourceEstimatedDurationMinutes;
+  final Value<int?> resourceWarningBeforeDepletionMinutes;
+  final Value<int?> lastDoneAt;
   final Value<int> createdAt;
   final Value<int> updatedAt;
-  final Value<int?> resolvedAt;
-  const TasksCompanion({
+  const ResponsibilityItemsCompanion({
     this.id = const Value.absent(),
-    this.templateId = const Value.absent(),
-    this.kind = const Value.absent(),
-    this.titleSnapshot = const Value.absent(),
-    this.noteSnapshot = const Value.absent(),
-    this.categoryId = const Value.absent(),
-    this.dueDate = const Value.absent(),
-    this.repeatRule = const Value.absent(),
-    this.reminderRule = const Value.absent(),
-    this.deferredDueDate = const Value.absent(),
-    this.status = const Value.absent(),
+    this.packId = const Value.absent(),
+    this.title = const Value.absent(),
+    this.description = const Value.absent(),
+    this.type = const Value.absent(),
+    this.fixedScheduleType = const Value.absent(),
+    this.fixedAnchorDate = const Value.absent(),
+    this.fixedTimeOfDay = const Value.absent(),
+    this.stateExpectedIntervalMinutes = const Value.absent(),
+    this.stateWarningAfterMinutes = const Value.absent(),
+    this.stateDangerAfterMinutes = const Value.absent(),
+    this.resourceEstimatedDurationMinutes = const Value.absent(),
+    this.resourceWarningBeforeDepletionMinutes = const Value.absent(),
+    this.lastDoneAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
-    this.resolvedAt = const Value.absent(),
   });
-  TasksCompanion.insert({
+  ResponsibilityItemsCompanion.insert({
     this.id = const Value.absent(),
-    this.templateId = const Value.absent(),
-    required String kind,
-    required String titleSnapshot,
-    this.noteSnapshot = const Value.absent(),
-    this.categoryId = const Value.absent(),
-    required int dueDate,
-    this.repeatRule = const Value.absent(),
-    required String reminderRule,
-    this.deferredDueDate = const Value.absent(),
-    required String status,
+    required int packId,
+    required String title,
+    this.description = const Value.absent(),
+    required String type,
+    this.fixedScheduleType = const Value.absent(),
+    this.fixedAnchorDate = const Value.absent(),
+    this.fixedTimeOfDay = const Value.absent(),
+    this.stateExpectedIntervalMinutes = const Value.absent(),
+    this.stateWarningAfterMinutes = const Value.absent(),
+    this.stateDangerAfterMinutes = const Value.absent(),
+    this.resourceEstimatedDurationMinutes = const Value.absent(),
+    this.resourceWarningBeforeDepletionMinutes = const Value.absent(),
+    this.lastDoneAt = const Value.absent(),
     required int createdAt,
     required int updatedAt,
-    this.resolvedAt = const Value.absent(),
-  }) : kind = Value(kind),
-       titleSnapshot = Value(titleSnapshot),
-       dueDate = Value(dueDate),
-       reminderRule = Value(reminderRule),
-       status = Value(status),
+  }) : packId = Value(packId),
+       title = Value(title),
+       type = Value(type),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
-  static Insertable<TaskRow> custom({
+  static Insertable<ResponsibilityItemRow> custom({
     Expression<int>? id,
-    Expression<int>? templateId,
-    Expression<String>? kind,
-    Expression<String>? titleSnapshot,
-    Expression<String>? noteSnapshot,
-    Expression<int>? categoryId,
-    Expression<int>? dueDate,
-    Expression<String>? repeatRule,
-    Expression<String>? reminderRule,
-    Expression<int>? deferredDueDate,
-    Expression<String>? status,
+    Expression<int>? packId,
+    Expression<String>? title,
+    Expression<String>? description,
+    Expression<String>? type,
+    Expression<String>? fixedScheduleType,
+    Expression<int>? fixedAnchorDate,
+    Expression<String>? fixedTimeOfDay,
+    Expression<int>? stateExpectedIntervalMinutes,
+    Expression<int>? stateWarningAfterMinutes,
+    Expression<int>? stateDangerAfterMinutes,
+    Expression<int>? resourceEstimatedDurationMinutes,
+    Expression<int>? resourceWarningBeforeDepletionMinutes,
+    Expression<int>? lastDoneAt,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
-    Expression<int>? resolvedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
-      if (templateId != null) 'template_id': templateId,
-      if (kind != null) 'kind': kind,
-      if (titleSnapshot != null) 'title_snapshot': titleSnapshot,
-      if (noteSnapshot != null) 'note_snapshot': noteSnapshot,
-      if (categoryId != null) 'category_id': categoryId,
-      if (dueDate != null) 'due_date': dueDate,
-      if (repeatRule != null) 'repeat_rule': repeatRule,
-      if (reminderRule != null) 'reminder_rule': reminderRule,
-      if (deferredDueDate != null) 'deferred_due_date': deferredDueDate,
-      if (status != null) 'status': status,
+      if (packId != null) 'pack_id': packId,
+      if (title != null) 'title': title,
+      if (description != null) 'description': description,
+      if (type != null) 'type': type,
+      if (fixedScheduleType != null) 'fixed_schedule_type': fixedScheduleType,
+      if (fixedAnchorDate != null) 'fixed_anchor_date': fixedAnchorDate,
+      if (fixedTimeOfDay != null) 'fixed_time_of_day': fixedTimeOfDay,
+      if (stateExpectedIntervalMinutes != null)
+        'state_expected_interval_minutes': stateExpectedIntervalMinutes,
+      if (stateWarningAfterMinutes != null)
+        'state_warning_after_minutes': stateWarningAfterMinutes,
+      if (stateDangerAfterMinutes != null)
+        'state_danger_after_minutes': stateDangerAfterMinutes,
+      if (resourceEstimatedDurationMinutes != null)
+        'resource_estimated_duration_minutes': resourceEstimatedDurationMinutes,
+      if (resourceWarningBeforeDepletionMinutes != null)
+        'resource_warning_before_depletion_minutes':
+            resourceWarningBeforeDepletionMinutes,
+      if (lastDoneAt != null) 'last_done_at': lastDoneAt,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
-      if (resolvedAt != null) 'resolved_at': resolvedAt,
     });
   }
 
-  TasksCompanion copyWith({
+  ResponsibilityItemsCompanion copyWith({
     Value<int>? id,
-    Value<int?>? templateId,
-    Value<String>? kind,
-    Value<String>? titleSnapshot,
-    Value<String?>? noteSnapshot,
-    Value<int?>? categoryId,
-    Value<int>? dueDate,
-    Value<String?>? repeatRule,
-    Value<String>? reminderRule,
-    Value<int?>? deferredDueDate,
-    Value<String>? status,
+    Value<int>? packId,
+    Value<String>? title,
+    Value<String?>? description,
+    Value<String>? type,
+    Value<String?>? fixedScheduleType,
+    Value<int?>? fixedAnchorDate,
+    Value<String?>? fixedTimeOfDay,
+    Value<int?>? stateExpectedIntervalMinutes,
+    Value<int?>? stateWarningAfterMinutes,
+    Value<int?>? stateDangerAfterMinutes,
+    Value<int?>? resourceEstimatedDurationMinutes,
+    Value<int?>? resourceWarningBeforeDepletionMinutes,
+    Value<int?>? lastDoneAt,
     Value<int>? createdAt,
     Value<int>? updatedAt,
-    Value<int?>? resolvedAt,
   }) {
-    return TasksCompanion(
+    return ResponsibilityItemsCompanion(
       id: id ?? this.id,
-      templateId: templateId ?? this.templateId,
-      kind: kind ?? this.kind,
-      titleSnapshot: titleSnapshot ?? this.titleSnapshot,
-      noteSnapshot: noteSnapshot ?? this.noteSnapshot,
-      categoryId: categoryId ?? this.categoryId,
-      dueDate: dueDate ?? this.dueDate,
-      repeatRule: repeatRule ?? this.repeatRule,
-      reminderRule: reminderRule ?? this.reminderRule,
-      deferredDueDate: deferredDueDate ?? this.deferredDueDate,
-      status: status ?? this.status,
+      packId: packId ?? this.packId,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      type: type ?? this.type,
+      fixedScheduleType: fixedScheduleType ?? this.fixedScheduleType,
+      fixedAnchorDate: fixedAnchorDate ?? this.fixedAnchorDate,
+      fixedTimeOfDay: fixedTimeOfDay ?? this.fixedTimeOfDay,
+      stateExpectedIntervalMinutes:
+          stateExpectedIntervalMinutes ?? this.stateExpectedIntervalMinutes,
+      stateWarningAfterMinutes:
+          stateWarningAfterMinutes ?? this.stateWarningAfterMinutes,
+      stateDangerAfterMinutes:
+          stateDangerAfterMinutes ?? this.stateDangerAfterMinutes,
+      resourceEstimatedDurationMinutes:
+          resourceEstimatedDurationMinutes ??
+          this.resourceEstimatedDurationMinutes,
+      resourceWarningBeforeDepletionMinutes:
+          resourceWarningBeforeDepletionMinutes ??
+          this.resourceWarningBeforeDepletionMinutes,
+      lastDoneAt: lastDoneAt ?? this.lastDoneAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      resolvedAt: resolvedAt ?? this.resolvedAt,
     );
   }
 
@@ -1413,35 +1311,54 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
-    if (templateId.present) {
-      map['template_id'] = Variable<int>(templateId.value);
+    if (packId.present) {
+      map['pack_id'] = Variable<int>(packId.value);
     }
-    if (kind.present) {
-      map['kind'] = Variable<String>(kind.value);
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
     }
-    if (titleSnapshot.present) {
-      map['title_snapshot'] = Variable<String>(titleSnapshot.value);
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
     }
-    if (noteSnapshot.present) {
-      map['note_snapshot'] = Variable<String>(noteSnapshot.value);
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
     }
-    if (categoryId.present) {
-      map['category_id'] = Variable<int>(categoryId.value);
+    if (fixedScheduleType.present) {
+      map['fixed_schedule_type'] = Variable<String>(fixedScheduleType.value);
     }
-    if (dueDate.present) {
-      map['due_date'] = Variable<int>(dueDate.value);
+    if (fixedAnchorDate.present) {
+      map['fixed_anchor_date'] = Variable<int>(fixedAnchorDate.value);
     }
-    if (repeatRule.present) {
-      map['repeat_rule'] = Variable<String>(repeatRule.value);
+    if (fixedTimeOfDay.present) {
+      map['fixed_time_of_day'] = Variable<String>(fixedTimeOfDay.value);
     }
-    if (reminderRule.present) {
-      map['reminder_rule'] = Variable<String>(reminderRule.value);
+    if (stateExpectedIntervalMinutes.present) {
+      map['state_expected_interval_minutes'] = Variable<int>(
+        stateExpectedIntervalMinutes.value,
+      );
     }
-    if (deferredDueDate.present) {
-      map['deferred_due_date'] = Variable<int>(deferredDueDate.value);
+    if (stateWarningAfterMinutes.present) {
+      map['state_warning_after_minutes'] = Variable<int>(
+        stateWarningAfterMinutes.value,
+      );
     }
-    if (status.present) {
-      map['status'] = Variable<String>(status.value);
+    if (stateDangerAfterMinutes.present) {
+      map['state_danger_after_minutes'] = Variable<int>(
+        stateDangerAfterMinutes.value,
+      );
+    }
+    if (resourceEstimatedDurationMinutes.present) {
+      map['resource_estimated_duration_minutes'] = Variable<int>(
+        resourceEstimatedDurationMinutes.value,
+      );
+    }
+    if (resourceWarningBeforeDepletionMinutes.present) {
+      map['resource_warning_before_depletion_minutes'] = Variable<int>(
+        resourceWarningBeforeDepletionMinutes.value,
+      );
+    }
+    if (lastDoneAt.present) {
+      map['last_done_at'] = Variable<int>(lastDoneAt.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
@@ -1449,29 +1366,34 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<int>(updatedAt.value);
     }
-    if (resolvedAt.present) {
-      map['resolved_at'] = Variable<int>(resolvedAt.value);
-    }
     return map;
   }
 
   @override
   String toString() {
-    return (StringBuffer('TasksCompanion(')
+    return (StringBuffer('ResponsibilityItemsCompanion(')
           ..write('id: $id, ')
-          ..write('templateId: $templateId, ')
-          ..write('kind: $kind, ')
-          ..write('titleSnapshot: $titleSnapshot, ')
-          ..write('noteSnapshot: $noteSnapshot, ')
-          ..write('categoryId: $categoryId, ')
-          ..write('dueDate: $dueDate, ')
-          ..write('repeatRule: $repeatRule, ')
-          ..write('reminderRule: $reminderRule, ')
-          ..write('deferredDueDate: $deferredDueDate, ')
-          ..write('status: $status, ')
+          ..write('packId: $packId, ')
+          ..write('title: $title, ')
+          ..write('description: $description, ')
+          ..write('type: $type, ')
+          ..write('fixedScheduleType: $fixedScheduleType, ')
+          ..write('fixedAnchorDate: $fixedAnchorDate, ')
+          ..write('fixedTimeOfDay: $fixedTimeOfDay, ')
+          ..write(
+            'stateExpectedIntervalMinutes: $stateExpectedIntervalMinutes, ',
+          )
+          ..write('stateWarningAfterMinutes: $stateWarningAfterMinutes, ')
+          ..write('stateDangerAfterMinutes: $stateDangerAfterMinutes, ')
+          ..write(
+            'resourceEstimatedDurationMinutes: $resourceEstimatedDurationMinutes, ',
+          )
+          ..write(
+            'resourceWarningBeforeDepletionMinutes: $resourceWarningBeforeDepletionMinutes, ',
+          )
+          ..write('lastDoneAt: $lastDoneAt, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt, ')
-          ..write('resolvedAt: $resolvedAt')
+          ..write('updatedAt: $updatedAt')
           ..write(')'))
         .toString();
   }
@@ -1961,6 +1883,9 @@ class $TimelineMilestoneRulesTable extends TimelineMilestoneRules
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES timelines (id)',
+    ),
   );
   static const VerificationMeta _typeMeta = const VerificationMeta('type');
   @override
@@ -2583,6 +2508,9 @@ class $TimelineMilestoneRecordsTable extends TimelineMilestoneRecords
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES timelines (id)',
+    ),
   );
   static const VerificationMeta _ruleIdMeta = const VerificationMeta('ruleId');
   @override
@@ -2592,6 +2520,9 @@ class $TimelineMilestoneRecordsTable extends TimelineMilestoneRecords
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES timeline_milestone_rules (id)',
+    ),
   );
   static const VerificationMeta _occurrenceIndexMeta = const VerificationMeta(
     'occurrenceIndex',
@@ -3175,61 +3106,91 @@ class TimelineMilestoneRecordsCompanion
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
-  late final $TaskTemplatesTable taskTemplates = $TaskTemplatesTable(this);
-  late final $TasksTable tasks = $TasksTable(this);
+  late final $ResponsibilityPacksTable responsibilityPacks =
+      $ResponsibilityPacksTable(this);
+  late final $ResponsibilityItemsTable responsibilityItems =
+      $ResponsibilityItemsTable(this);
   late final $TimelinesTable timelines = $TimelinesTable(this);
   late final $TimelineMilestoneRulesTable timelineMilestoneRules =
       $TimelineMilestoneRulesTable(this);
   late final $TimelineMilestoneRecordsTable timelineMilestoneRecords =
       $TimelineMilestoneRecordsTable(this);
-  late final TaskTimelineDao taskTimelineDao = TaskTimelineDao(
-    this as AppDatabase,
-  );
+  late final ResponsibilityTimelineDao responsibilityTimelineDao =
+      ResponsibilityTimelineDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
-    taskTemplates,
-    tasks,
+    responsibilityPacks,
+    responsibilityItems,
     timelines,
     timelineMilestoneRules,
     timelineMilestoneRecords,
   ];
 }
 
-typedef $$TaskTemplatesTableCreateCompanionBuilder =
-    TaskTemplatesCompanion Function({
+typedef $$ResponsibilityPacksTableCreateCompanionBuilder =
+    ResponsibilityPacksCompanion Function({
       Value<int> id,
       required String title,
-      Value<int?> categoryId,
-      Value<String?> note,
-      required String kind,
-      required String status,
-      required int firstDueDate,
-      Value<String?> repeatRule,
-      required String reminderRule,
+      Value<String?> description,
       required int createdAt,
       required int updatedAt,
     });
-typedef $$TaskTemplatesTableUpdateCompanionBuilder =
-    TaskTemplatesCompanion Function({
+typedef $$ResponsibilityPacksTableUpdateCompanionBuilder =
+    ResponsibilityPacksCompanion Function({
       Value<int> id,
       Value<String> title,
-      Value<int?> categoryId,
-      Value<String?> note,
-      Value<String> kind,
-      Value<String> status,
-      Value<int> firstDueDate,
-      Value<String?> repeatRule,
-      Value<String> reminderRule,
+      Value<String?> description,
       Value<int> createdAt,
       Value<int> updatedAt,
     });
 
-class $$TaskTemplatesTableFilterComposer
-    extends Composer<_$AppDatabase, $TaskTemplatesTable> {
-  $$TaskTemplatesTableFilterComposer({
+final class $$ResponsibilityPacksTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $ResponsibilityPacksTable,
+          ResponsibilityPackRow
+        > {
+  $$ResponsibilityPacksTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<
+    $ResponsibilityItemsTable,
+    List<ResponsibilityItemRow>
+  >
+  _responsibilityItemsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.responsibilityItems,
+        aliasName: $_aliasNameGenerator(
+          db.responsibilityPacks.id,
+          db.responsibilityItems.packId,
+        ),
+      );
+
+  $$ResponsibilityItemsTableProcessedTableManager get responsibilityItemsRefs {
+    final manager = $$ResponsibilityItemsTableTableManager(
+      $_db,
+      $_db.responsibilityItems,
+    ).filter((f) => f.packId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _responsibilityItemsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$ResponsibilityPacksTableFilterComposer
+    extends Composer<_$AppDatabase, $ResponsibilityPacksTable> {
+  $$ResponsibilityPacksTableFilterComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -3246,38 +3207,8 @@ class $$TaskTemplatesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get categoryId => $composableBuilder(
-    column: $table.categoryId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get note => $composableBuilder(
-    column: $table.note,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get kind => $composableBuilder(
-    column: $table.kind,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get status => $composableBuilder(
-    column: $table.status,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get firstDueDate => $composableBuilder(
-    column: $table.firstDueDate,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get repeatRule => $composableBuilder(
-    column: $table.repeatRule,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get reminderRule => $composableBuilder(
-    column: $table.reminderRule,
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3290,11 +3221,36 @@ class $$TaskTemplatesTableFilterComposer
     column: $table.updatedAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  Expression<bool> responsibilityItemsRefs(
+    Expression<bool> Function($$ResponsibilityItemsTableFilterComposer f) f,
+  ) {
+    final $$ResponsibilityItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.responsibilityItems,
+      getReferencedColumn: (t) => t.packId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ResponsibilityItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.responsibilityItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
-class $$TaskTemplatesTableOrderingComposer
-    extends Composer<_$AppDatabase, $TaskTemplatesTable> {
-  $$TaskTemplatesTableOrderingComposer({
+class $$ResponsibilityPacksTableOrderingComposer
+    extends Composer<_$AppDatabase, $ResponsibilityPacksTable> {
+  $$ResponsibilityPacksTableOrderingComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -3311,38 +3267,8 @@ class $$TaskTemplatesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get categoryId => $composableBuilder(
-    column: $table.categoryId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get note => $composableBuilder(
-    column: $table.note,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get kind => $composableBuilder(
-    column: $table.kind,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get status => $composableBuilder(
-    column: $table.status,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get firstDueDate => $composableBuilder(
-    column: $table.firstDueDate,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get repeatRule => $composableBuilder(
-    column: $table.repeatRule,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get reminderRule => $composableBuilder(
-    column: $table.reminderRule,
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -3357,9 +3283,9 @@ class $$TaskTemplatesTableOrderingComposer
   );
 }
 
-class $$TaskTemplatesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $TaskTemplatesTable> {
-  $$TaskTemplatesTableAnnotationComposer({
+class $$ResponsibilityPacksTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ResponsibilityPacksTable> {
+  $$ResponsibilityPacksTableAnnotationComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -3372,32 +3298,8 @@ class $$TaskTemplatesTableAnnotationComposer
   GeneratedColumn<String> get title =>
       $composableBuilder(column: $table.title, builder: (column) => column);
 
-  GeneratedColumn<int> get categoryId => $composableBuilder(
-    column: $table.categoryId,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get note =>
-      $composableBuilder(column: $table.note, builder: (column) => column);
-
-  GeneratedColumn<String> get kind =>
-      $composableBuilder(column: $table.kind, builder: (column) => column);
-
-  GeneratedColumn<String> get status =>
-      $composableBuilder(column: $table.status, builder: (column) => column);
-
-  GeneratedColumn<int> get firstDueDate => $composableBuilder(
-    column: $table.firstDueDate,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get repeatRule => $composableBuilder(
-    column: $table.repeatRule,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get reminderRule => $composableBuilder(
-    column: $table.reminderRule,
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
     builder: (column) => column,
   );
 
@@ -3406,60 +3308,79 @@ class $$TaskTemplatesTableAnnotationComposer
 
   GeneratedColumn<int> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  Expression<T> responsibilityItemsRefs<T extends Object>(
+    Expression<T> Function($$ResponsibilityItemsTableAnnotationComposer a) f,
+  ) {
+    final $$ResponsibilityItemsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.responsibilityItems,
+          getReferencedColumn: (t) => t.packId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ResponsibilityItemsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.responsibilityItems,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
-class $$TaskTemplatesTableTableManager
+class $$ResponsibilityPacksTableTableManager
     extends
         RootTableManager<
           _$AppDatabase,
-          $TaskTemplatesTable,
-          TaskTemplateRow,
-          $$TaskTemplatesTableFilterComposer,
-          $$TaskTemplatesTableOrderingComposer,
-          $$TaskTemplatesTableAnnotationComposer,
-          $$TaskTemplatesTableCreateCompanionBuilder,
-          $$TaskTemplatesTableUpdateCompanionBuilder,
-          (
-            TaskTemplateRow,
-            BaseReferences<_$AppDatabase, $TaskTemplatesTable, TaskTemplateRow>,
-          ),
-          TaskTemplateRow,
-          PrefetchHooks Function()
+          $ResponsibilityPacksTable,
+          ResponsibilityPackRow,
+          $$ResponsibilityPacksTableFilterComposer,
+          $$ResponsibilityPacksTableOrderingComposer,
+          $$ResponsibilityPacksTableAnnotationComposer,
+          $$ResponsibilityPacksTableCreateCompanionBuilder,
+          $$ResponsibilityPacksTableUpdateCompanionBuilder,
+          (ResponsibilityPackRow, $$ResponsibilityPacksTableReferences),
+          ResponsibilityPackRow,
+          PrefetchHooks Function({bool responsibilityItemsRefs})
         > {
-  $$TaskTemplatesTableTableManager(_$AppDatabase db, $TaskTemplatesTable table)
-    : super(
+  $$ResponsibilityPacksTableTableManager(
+    _$AppDatabase db,
+    $ResponsibilityPacksTable table,
+  ) : super(
         TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
-              $$TaskTemplatesTableFilterComposer($db: db, $table: table),
+              $$ResponsibilityPacksTableFilterComposer($db: db, $table: table),
           createOrderingComposer: () =>
-              $$TaskTemplatesTableOrderingComposer($db: db, $table: table),
+              $$ResponsibilityPacksTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
           createComputedFieldComposer: () =>
-              $$TaskTemplatesTableAnnotationComposer($db: db, $table: table),
+              $$ResponsibilityPacksTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
                 Value<String> title = const Value.absent(),
-                Value<int?> categoryId = const Value.absent(),
-                Value<String?> note = const Value.absent(),
-                Value<String> kind = const Value.absent(),
-                Value<String> status = const Value.absent(),
-                Value<int> firstDueDate = const Value.absent(),
-                Value<String?> repeatRule = const Value.absent(),
-                Value<String> reminderRule = const Value.absent(),
+                Value<String?> description = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
-              }) => TaskTemplatesCompanion(
+              }) => ResponsibilityPacksCompanion(
                 id: id,
                 title: title,
-                categoryId: categoryId,
-                note: note,
-                kind: kind,
-                status: status,
-                firstDueDate: firstDueDate,
-                repeatRule: repeatRule,
-                reminderRule: reminderRule,
+                description: description,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -3467,90 +3388,152 @@ class $$TaskTemplatesTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 required String title,
-                Value<int?> categoryId = const Value.absent(),
-                Value<String?> note = const Value.absent(),
-                required String kind,
-                required String status,
-                required int firstDueDate,
-                Value<String?> repeatRule = const Value.absent(),
-                required String reminderRule,
+                Value<String?> description = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
-              }) => TaskTemplatesCompanion.insert(
+              }) => ResponsibilityPacksCompanion.insert(
                 id: id,
                 title: title,
-                categoryId: categoryId,
-                note: note,
-                kind: kind,
-                status: status,
-                firstDueDate: firstDueDate,
-                repeatRule: repeatRule,
-                reminderRule: reminderRule,
+                description: description,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ResponsibilityPacksTableReferences(db, table, e),
+                ),
+              )
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback: ({responsibilityItemsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (responsibilityItemsRefs) db.responsibilityItems,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (responsibilityItemsRefs)
+                    await $_getPrefetchedData<
+                      ResponsibilityPackRow,
+                      $ResponsibilityPacksTable,
+                      ResponsibilityItemRow
+                    >(
+                      currentTable: table,
+                      referencedTable: $$ResponsibilityPacksTableReferences
+                          ._responsibilityItemsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$ResponsibilityPacksTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).responsibilityItemsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.packId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
         ),
       );
 }
 
-typedef $$TaskTemplatesTableProcessedTableManager =
+typedef $$ResponsibilityPacksTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
-      $TaskTemplatesTable,
-      TaskTemplateRow,
-      $$TaskTemplatesTableFilterComposer,
-      $$TaskTemplatesTableOrderingComposer,
-      $$TaskTemplatesTableAnnotationComposer,
-      $$TaskTemplatesTableCreateCompanionBuilder,
-      $$TaskTemplatesTableUpdateCompanionBuilder,
-      (
-        TaskTemplateRow,
-        BaseReferences<_$AppDatabase, $TaskTemplatesTable, TaskTemplateRow>,
-      ),
-      TaskTemplateRow,
-      PrefetchHooks Function()
+      $ResponsibilityPacksTable,
+      ResponsibilityPackRow,
+      $$ResponsibilityPacksTableFilterComposer,
+      $$ResponsibilityPacksTableOrderingComposer,
+      $$ResponsibilityPacksTableAnnotationComposer,
+      $$ResponsibilityPacksTableCreateCompanionBuilder,
+      $$ResponsibilityPacksTableUpdateCompanionBuilder,
+      (ResponsibilityPackRow, $$ResponsibilityPacksTableReferences),
+      ResponsibilityPackRow,
+      PrefetchHooks Function({bool responsibilityItemsRefs})
     >;
-typedef $$TasksTableCreateCompanionBuilder =
-    TasksCompanion Function({
+typedef $$ResponsibilityItemsTableCreateCompanionBuilder =
+    ResponsibilityItemsCompanion Function({
       Value<int> id,
-      Value<int?> templateId,
-      required String kind,
-      required String titleSnapshot,
-      Value<String?> noteSnapshot,
-      Value<int?> categoryId,
-      required int dueDate,
-      Value<String?> repeatRule,
-      required String reminderRule,
-      Value<int?> deferredDueDate,
-      required String status,
+      required int packId,
+      required String title,
+      Value<String?> description,
+      required String type,
+      Value<String?> fixedScheduleType,
+      Value<int?> fixedAnchorDate,
+      Value<String?> fixedTimeOfDay,
+      Value<int?> stateExpectedIntervalMinutes,
+      Value<int?> stateWarningAfterMinutes,
+      Value<int?> stateDangerAfterMinutes,
+      Value<int?> resourceEstimatedDurationMinutes,
+      Value<int?> resourceWarningBeforeDepletionMinutes,
+      Value<int?> lastDoneAt,
       required int createdAt,
       required int updatedAt,
-      Value<int?> resolvedAt,
     });
-typedef $$TasksTableUpdateCompanionBuilder =
-    TasksCompanion Function({
+typedef $$ResponsibilityItemsTableUpdateCompanionBuilder =
+    ResponsibilityItemsCompanion Function({
       Value<int> id,
-      Value<int?> templateId,
-      Value<String> kind,
-      Value<String> titleSnapshot,
-      Value<String?> noteSnapshot,
-      Value<int?> categoryId,
-      Value<int> dueDate,
-      Value<String?> repeatRule,
-      Value<String> reminderRule,
-      Value<int?> deferredDueDate,
-      Value<String> status,
+      Value<int> packId,
+      Value<String> title,
+      Value<String?> description,
+      Value<String> type,
+      Value<String?> fixedScheduleType,
+      Value<int?> fixedAnchorDate,
+      Value<String?> fixedTimeOfDay,
+      Value<int?> stateExpectedIntervalMinutes,
+      Value<int?> stateWarningAfterMinutes,
+      Value<int?> stateDangerAfterMinutes,
+      Value<int?> resourceEstimatedDurationMinutes,
+      Value<int?> resourceWarningBeforeDepletionMinutes,
+      Value<int?> lastDoneAt,
       Value<int> createdAt,
       Value<int> updatedAt,
-      Value<int?> resolvedAt,
     });
 
-class $$TasksTableFilterComposer extends Composer<_$AppDatabase, $TasksTable> {
-  $$TasksTableFilterComposer({
+final class $$ResponsibilityItemsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $ResponsibilityItemsTable,
+          ResponsibilityItemRow
+        > {
+  $$ResponsibilityItemsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $ResponsibilityPacksTable _packIdTable(_$AppDatabase db) =>
+      db.responsibilityPacks.createAlias(
+        $_aliasNameGenerator(
+          db.responsibilityItems.packId,
+          db.responsibilityPacks.id,
+        ),
+      );
+
+  $$ResponsibilityPacksTableProcessedTableManager get packId {
+    final $_column = $_itemColumn<int>('pack_id')!;
+
+    final manager = $$ResponsibilityPacksTableTableManager(
+      $_db,
+      $_db.responsibilityPacks,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_packIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ResponsibilityItemsTableFilterComposer
+    extends Composer<_$AppDatabase, $ResponsibilityItemsTable> {
+  $$ResponsibilityItemsTableFilterComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -3562,53 +3545,64 @@ class $$TasksTableFilterComposer extends Composer<_$AppDatabase, $TasksTable> {
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get templateId => $composableBuilder(
-    column: $table.templateId,
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get kind => $composableBuilder(
-    column: $table.kind,
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get titleSnapshot => $composableBuilder(
-    column: $table.titleSnapshot,
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get noteSnapshot => $composableBuilder(
-    column: $table.noteSnapshot,
+  ColumnFilters<String> get fixedScheduleType => $composableBuilder(
+    column: $table.fixedScheduleType,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get categoryId => $composableBuilder(
-    column: $table.categoryId,
+  ColumnFilters<int> get fixedAnchorDate => $composableBuilder(
+    column: $table.fixedAnchorDate,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get dueDate => $composableBuilder(
-    column: $table.dueDate,
+  ColumnFilters<String> get fixedTimeOfDay => $composableBuilder(
+    column: $table.fixedTimeOfDay,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get repeatRule => $composableBuilder(
-    column: $table.repeatRule,
+  ColumnFilters<int> get stateExpectedIntervalMinutes => $composableBuilder(
+    column: $table.stateExpectedIntervalMinutes,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get reminderRule => $composableBuilder(
-    column: $table.reminderRule,
+  ColumnFilters<int> get stateWarningAfterMinutes => $composableBuilder(
+    column: $table.stateWarningAfterMinutes,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get deferredDueDate => $composableBuilder(
-    column: $table.deferredDueDate,
+  ColumnFilters<int> get stateDangerAfterMinutes => $composableBuilder(
+    column: $table.stateDangerAfterMinutes,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get status => $composableBuilder(
-    column: $table.status,
+  ColumnFilters<int> get resourceEstimatedDurationMinutes => $composableBuilder(
+    column: $table.resourceEstimatedDurationMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get resourceWarningBeforeDepletionMinutes =>
+      $composableBuilder(
+        column: $table.resourceWarningBeforeDepletionMinutes,
+        builder: (column) => ColumnFilters(column),
+      );
+
+  ColumnFilters<int> get lastDoneAt => $composableBuilder(
+    column: $table.lastDoneAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3622,15 +3616,33 @@ class $$TasksTableFilterComposer extends Composer<_$AppDatabase, $TasksTable> {
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get resolvedAt => $composableBuilder(
-    column: $table.resolvedAt,
-    builder: (column) => ColumnFilters(column),
-  );
+  $$ResponsibilityPacksTableFilterComposer get packId {
+    final $$ResponsibilityPacksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.packId,
+      referencedTable: $db.responsibilityPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ResponsibilityPacksTableFilterComposer(
+            $db: $db,
+            $table: $db.responsibilityPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
-class $$TasksTableOrderingComposer
-    extends Composer<_$AppDatabase, $TasksTable> {
-  $$TasksTableOrderingComposer({
+class $$ResponsibilityItemsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ResponsibilityItemsTable> {
+  $$ResponsibilityItemsTableOrderingComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -3642,53 +3654,65 @@ class $$TasksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get templateId => $composableBuilder(
-    column: $table.templateId,
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get kind => $composableBuilder(
-    column: $table.kind,
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get titleSnapshot => $composableBuilder(
-    column: $table.titleSnapshot,
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get noteSnapshot => $composableBuilder(
-    column: $table.noteSnapshot,
+  ColumnOrderings<String> get fixedScheduleType => $composableBuilder(
+    column: $table.fixedScheduleType,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get categoryId => $composableBuilder(
-    column: $table.categoryId,
+  ColumnOrderings<int> get fixedAnchorDate => $composableBuilder(
+    column: $table.fixedAnchorDate,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get dueDate => $composableBuilder(
-    column: $table.dueDate,
+  ColumnOrderings<String> get fixedTimeOfDay => $composableBuilder(
+    column: $table.fixedTimeOfDay,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get repeatRule => $composableBuilder(
-    column: $table.repeatRule,
+  ColumnOrderings<int> get stateExpectedIntervalMinutes => $composableBuilder(
+    column: $table.stateExpectedIntervalMinutes,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get reminderRule => $composableBuilder(
-    column: $table.reminderRule,
+  ColumnOrderings<int> get stateWarningAfterMinutes => $composableBuilder(
+    column: $table.stateWarningAfterMinutes,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get deferredDueDate => $composableBuilder(
-    column: $table.deferredDueDate,
+  ColumnOrderings<int> get stateDangerAfterMinutes => $composableBuilder(
+    column: $table.stateDangerAfterMinutes,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get status => $composableBuilder(
-    column: $table.status,
+  ColumnOrderings<int> get resourceEstimatedDurationMinutes =>
+      $composableBuilder(
+        column: $table.resourceEstimatedDurationMinutes,
+        builder: (column) => ColumnOrderings(column),
+      );
+
+  ColumnOrderings<int> get resourceWarningBeforeDepletionMinutes =>
+      $composableBuilder(
+        column: $table.resourceWarningBeforeDepletionMinutes,
+        builder: (column) => ColumnOrderings(column),
+      );
+
+  ColumnOrderings<int> get lastDoneAt => $composableBuilder(
+    column: $table.lastDoneAt,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -3702,15 +3726,34 @@ class $$TasksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get resolvedAt => $composableBuilder(
-    column: $table.resolvedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
+  $$ResponsibilityPacksTableOrderingComposer get packId {
+    final $$ResponsibilityPacksTableOrderingComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.packId,
+          referencedTable: $db.responsibilityPacks,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ResponsibilityPacksTableOrderingComposer(
+                $db: $db,
+                $table: $db.responsibilityPacks,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
 }
 
-class $$TasksTableAnnotationComposer
-    extends Composer<_$AppDatabase, $TasksTable> {
-  $$TasksTableAnnotationComposer({
+class $$ResponsibilityItemsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ResponsibilityItemsTable> {
+  $$ResponsibilityItemsTableAnnotationComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -3720,49 +3763,63 @@ class $$TasksTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<int> get templateId => $composableBuilder(
-    column: $table.templateId,
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get kind =>
-      $composableBuilder(column: $table.kind, builder: (column) => column);
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
 
-  GeneratedColumn<String> get titleSnapshot => $composableBuilder(
-    column: $table.titleSnapshot,
+  GeneratedColumn<String> get fixedScheduleType => $composableBuilder(
+    column: $table.fixedScheduleType,
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get noteSnapshot => $composableBuilder(
-    column: $table.noteSnapshot,
+  GeneratedColumn<int> get fixedAnchorDate => $composableBuilder(
+    column: $table.fixedAnchorDate,
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get categoryId => $composableBuilder(
-    column: $table.categoryId,
+  GeneratedColumn<String> get fixedTimeOfDay => $composableBuilder(
+    column: $table.fixedTimeOfDay,
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get dueDate =>
-      $composableBuilder(column: $table.dueDate, builder: (column) => column);
-
-  GeneratedColumn<String> get repeatRule => $composableBuilder(
-    column: $table.repeatRule,
+  GeneratedColumn<int> get stateExpectedIntervalMinutes => $composableBuilder(
+    column: $table.stateExpectedIntervalMinutes,
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get reminderRule => $composableBuilder(
-    column: $table.reminderRule,
+  GeneratedColumn<int> get stateWarningAfterMinutes => $composableBuilder(
+    column: $table.stateWarningAfterMinutes,
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get deferredDueDate => $composableBuilder(
-    column: $table.deferredDueDate,
+  GeneratedColumn<int> get stateDangerAfterMinutes => $composableBuilder(
+    column: $table.stateDangerAfterMinutes,
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get status =>
-      $composableBuilder(column: $table.status, builder: (column) => column);
+  GeneratedColumn<int> get resourceEstimatedDurationMinutes =>
+      $composableBuilder(
+        column: $table.resourceEstimatedDurationMinutes,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<int> get resourceWarningBeforeDepletionMinutes =>
+      $composableBuilder(
+        column: $table.resourceWarningBeforeDepletionMinutes,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<int> get lastDoneAt => $composableBuilder(
+    column: $table.lastDoneAt,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -3770,123 +3827,213 @@ class $$TasksTableAnnotationComposer
   GeneratedColumn<int> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 
-  GeneratedColumn<int> get resolvedAt => $composableBuilder(
-    column: $table.resolvedAt,
-    builder: (column) => column,
-  );
+  $$ResponsibilityPacksTableAnnotationComposer get packId {
+    final $$ResponsibilityPacksTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.packId,
+          referencedTable: $db.responsibilityPacks,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ResponsibilityPacksTableAnnotationComposer(
+                $db: $db,
+                $table: $db.responsibilityPacks,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
 }
 
-class $$TasksTableTableManager
+class $$ResponsibilityItemsTableTableManager
     extends
         RootTableManager<
           _$AppDatabase,
-          $TasksTable,
-          TaskRow,
-          $$TasksTableFilterComposer,
-          $$TasksTableOrderingComposer,
-          $$TasksTableAnnotationComposer,
-          $$TasksTableCreateCompanionBuilder,
-          $$TasksTableUpdateCompanionBuilder,
-          (TaskRow, BaseReferences<_$AppDatabase, $TasksTable, TaskRow>),
-          TaskRow,
-          PrefetchHooks Function()
+          $ResponsibilityItemsTable,
+          ResponsibilityItemRow,
+          $$ResponsibilityItemsTableFilterComposer,
+          $$ResponsibilityItemsTableOrderingComposer,
+          $$ResponsibilityItemsTableAnnotationComposer,
+          $$ResponsibilityItemsTableCreateCompanionBuilder,
+          $$ResponsibilityItemsTableUpdateCompanionBuilder,
+          (ResponsibilityItemRow, $$ResponsibilityItemsTableReferences),
+          ResponsibilityItemRow,
+          PrefetchHooks Function({bool packId})
         > {
-  $$TasksTableTableManager(_$AppDatabase db, $TasksTable table)
-    : super(
+  $$ResponsibilityItemsTableTableManager(
+    _$AppDatabase db,
+    $ResponsibilityItemsTable table,
+  ) : super(
         TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
-              $$TasksTableFilterComposer($db: db, $table: table),
+              $$ResponsibilityItemsTableFilterComposer($db: db, $table: table),
           createOrderingComposer: () =>
-              $$TasksTableOrderingComposer($db: db, $table: table),
+              $$ResponsibilityItemsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
           createComputedFieldComposer: () =>
-              $$TasksTableAnnotationComposer($db: db, $table: table),
+              $$ResponsibilityItemsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                Value<int?> templateId = const Value.absent(),
-                Value<String> kind = const Value.absent(),
-                Value<String> titleSnapshot = const Value.absent(),
-                Value<String?> noteSnapshot = const Value.absent(),
-                Value<int?> categoryId = const Value.absent(),
-                Value<int> dueDate = const Value.absent(),
-                Value<String?> repeatRule = const Value.absent(),
-                Value<String> reminderRule = const Value.absent(),
-                Value<int?> deferredDueDate = const Value.absent(),
-                Value<String> status = const Value.absent(),
+                Value<int> packId = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<String?> fixedScheduleType = const Value.absent(),
+                Value<int?> fixedAnchorDate = const Value.absent(),
+                Value<String?> fixedTimeOfDay = const Value.absent(),
+                Value<int?> stateExpectedIntervalMinutes = const Value.absent(),
+                Value<int?> stateWarningAfterMinutes = const Value.absent(),
+                Value<int?> stateDangerAfterMinutes = const Value.absent(),
+                Value<int?> resourceEstimatedDurationMinutes =
+                    const Value.absent(),
+                Value<int?> resourceWarningBeforeDepletionMinutes =
+                    const Value.absent(),
+                Value<int?> lastDoneAt = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
-                Value<int?> resolvedAt = const Value.absent(),
-              }) => TasksCompanion(
+              }) => ResponsibilityItemsCompanion(
                 id: id,
-                templateId: templateId,
-                kind: kind,
-                titleSnapshot: titleSnapshot,
-                noteSnapshot: noteSnapshot,
-                categoryId: categoryId,
-                dueDate: dueDate,
-                repeatRule: repeatRule,
-                reminderRule: reminderRule,
-                deferredDueDate: deferredDueDate,
-                status: status,
+                packId: packId,
+                title: title,
+                description: description,
+                type: type,
+                fixedScheduleType: fixedScheduleType,
+                fixedAnchorDate: fixedAnchorDate,
+                fixedTimeOfDay: fixedTimeOfDay,
+                stateExpectedIntervalMinutes: stateExpectedIntervalMinutes,
+                stateWarningAfterMinutes: stateWarningAfterMinutes,
+                stateDangerAfterMinutes: stateDangerAfterMinutes,
+                resourceEstimatedDurationMinutes:
+                    resourceEstimatedDurationMinutes,
+                resourceWarningBeforeDepletionMinutes:
+                    resourceWarningBeforeDepletionMinutes,
+                lastDoneAt: lastDoneAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
-                resolvedAt: resolvedAt,
               ),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                Value<int?> templateId = const Value.absent(),
-                required String kind,
-                required String titleSnapshot,
-                Value<String?> noteSnapshot = const Value.absent(),
-                Value<int?> categoryId = const Value.absent(),
-                required int dueDate,
-                Value<String?> repeatRule = const Value.absent(),
-                required String reminderRule,
-                Value<int?> deferredDueDate = const Value.absent(),
-                required String status,
+                required int packId,
+                required String title,
+                Value<String?> description = const Value.absent(),
+                required String type,
+                Value<String?> fixedScheduleType = const Value.absent(),
+                Value<int?> fixedAnchorDate = const Value.absent(),
+                Value<String?> fixedTimeOfDay = const Value.absent(),
+                Value<int?> stateExpectedIntervalMinutes = const Value.absent(),
+                Value<int?> stateWarningAfterMinutes = const Value.absent(),
+                Value<int?> stateDangerAfterMinutes = const Value.absent(),
+                Value<int?> resourceEstimatedDurationMinutes =
+                    const Value.absent(),
+                Value<int?> resourceWarningBeforeDepletionMinutes =
+                    const Value.absent(),
+                Value<int?> lastDoneAt = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
-                Value<int?> resolvedAt = const Value.absent(),
-              }) => TasksCompanion.insert(
+              }) => ResponsibilityItemsCompanion.insert(
                 id: id,
-                templateId: templateId,
-                kind: kind,
-                titleSnapshot: titleSnapshot,
-                noteSnapshot: noteSnapshot,
-                categoryId: categoryId,
-                dueDate: dueDate,
-                repeatRule: repeatRule,
-                reminderRule: reminderRule,
-                deferredDueDate: deferredDueDate,
-                status: status,
+                packId: packId,
+                title: title,
+                description: description,
+                type: type,
+                fixedScheduleType: fixedScheduleType,
+                fixedAnchorDate: fixedAnchorDate,
+                fixedTimeOfDay: fixedTimeOfDay,
+                stateExpectedIntervalMinutes: stateExpectedIntervalMinutes,
+                stateWarningAfterMinutes: stateWarningAfterMinutes,
+                stateDangerAfterMinutes: stateDangerAfterMinutes,
+                resourceEstimatedDurationMinutes:
+                    resourceEstimatedDurationMinutes,
+                resourceWarningBeforeDepletionMinutes:
+                    resourceWarningBeforeDepletionMinutes,
+                lastDoneAt: lastDoneAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
-                resolvedAt: resolvedAt,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ResponsibilityItemsTableReferences(db, table, e),
+                ),
+              )
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback: ({packId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (packId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.packId,
+                                referencedTable:
+                                    $$ResponsibilityItemsTableReferences
+                                        ._packIdTable(db),
+                                referencedColumn:
+                                    $$ResponsibilityItemsTableReferences
+                                        ._packIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
         ),
       );
 }
 
-typedef $$TasksTableProcessedTableManager =
+typedef $$ResponsibilityItemsTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
-      $TasksTable,
-      TaskRow,
-      $$TasksTableFilterComposer,
-      $$TasksTableOrderingComposer,
-      $$TasksTableAnnotationComposer,
-      $$TasksTableCreateCompanionBuilder,
-      $$TasksTableUpdateCompanionBuilder,
-      (TaskRow, BaseReferences<_$AppDatabase, $TasksTable, TaskRow>),
-      TaskRow,
-      PrefetchHooks Function()
+      $ResponsibilityItemsTable,
+      ResponsibilityItemRow,
+      $$ResponsibilityItemsTableFilterComposer,
+      $$ResponsibilityItemsTableOrderingComposer,
+      $$ResponsibilityItemsTableAnnotationComposer,
+      $$ResponsibilityItemsTableCreateCompanionBuilder,
+      $$ResponsibilityItemsTableUpdateCompanionBuilder,
+      (ResponsibilityItemRow, $$ResponsibilityItemsTableReferences),
+      ResponsibilityItemRow,
+      PrefetchHooks Function({bool packId})
     >;
 typedef $$TimelinesTableCreateCompanionBuilder =
     TimelinesCompanion Function({
@@ -3908,6 +4055,67 @@ typedef $$TimelinesTableUpdateCompanionBuilder =
       Value<int> createdAt,
       Value<int> updatedAt,
     });
+
+final class $$TimelinesTableReferences
+    extends BaseReferences<_$AppDatabase, $TimelinesTable, TimelineRow> {
+  $$TimelinesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<
+    $TimelineMilestoneRulesTable,
+    List<TimelineMilestoneRuleRow>
+  >
+  _timelineMilestoneRulesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.timelineMilestoneRules,
+        aliasName: $_aliasNameGenerator(
+          db.timelines.id,
+          db.timelineMilestoneRules.timelineId,
+        ),
+      );
+
+  $$TimelineMilestoneRulesTableProcessedTableManager
+  get timelineMilestoneRulesRefs {
+    final manager = $$TimelineMilestoneRulesTableTableManager(
+      $_db,
+      $_db.timelineMilestoneRules,
+    ).filter((f) => f.timelineId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _timelineMilestoneRulesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $TimelineMilestoneRecordsTable,
+    List<TimelineMilestoneRecordRow>
+  >
+  _timelineMilestoneRecordsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.timelineMilestoneRecords,
+        aliasName: $_aliasNameGenerator(
+          db.timelines.id,
+          db.timelineMilestoneRecords.timelineId,
+        ),
+      );
+
+  $$TimelineMilestoneRecordsTableProcessedTableManager
+  get timelineMilestoneRecordsRefs {
+    final manager = $$TimelineMilestoneRecordsTableTableManager(
+      $_db,
+      $_db.timelineMilestoneRecords,
+    ).filter((f) => f.timelineId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _timelineMilestoneRecordsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
 
 class $$TimelinesTableFilterComposer
     extends Composer<_$AppDatabase, $TimelinesTable> {
@@ -3952,6 +4160,59 @@ class $$TimelinesTableFilterComposer
     column: $table.updatedAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  Expression<bool> timelineMilestoneRulesRefs(
+    Expression<bool> Function($$TimelineMilestoneRulesTableFilterComposer f) f,
+  ) {
+    final $$TimelineMilestoneRulesTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.timelineMilestoneRules,
+          getReferencedColumn: (t) => t.timelineId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$TimelineMilestoneRulesTableFilterComposer(
+                $db: $db,
+                $table: $db.timelineMilestoneRules,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<bool> timelineMilestoneRecordsRefs(
+    Expression<bool> Function($$TimelineMilestoneRecordsTableFilterComposer f)
+    f,
+  ) {
+    final $$TimelineMilestoneRecordsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.timelineMilestoneRecords,
+          getReferencedColumn: (t) => t.timelineId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$TimelineMilestoneRecordsTableFilterComposer(
+                $db: $db,
+                $table: $db.timelineMilestoneRecords,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$TimelinesTableOrderingComposer
@@ -4030,6 +4291,59 @@ class $$TimelinesTableAnnotationComposer
 
   GeneratedColumn<int> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  Expression<T> timelineMilestoneRulesRefs<T extends Object>(
+    Expression<T> Function($$TimelineMilestoneRulesTableAnnotationComposer a) f,
+  ) {
+    final $$TimelineMilestoneRulesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.timelineMilestoneRules,
+          getReferencedColumn: (t) => t.timelineId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$TimelineMilestoneRulesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.timelineMilestoneRules,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> timelineMilestoneRecordsRefs<T extends Object>(
+    Expression<T> Function($$TimelineMilestoneRecordsTableAnnotationComposer a)
+    f,
+  ) {
+    final $$TimelineMilestoneRecordsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.timelineMilestoneRecords,
+          getReferencedColumn: (t) => t.timelineId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$TimelineMilestoneRecordsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.timelineMilestoneRecords,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$TimelinesTableTableManager
@@ -4043,12 +4357,12 @@ class $$TimelinesTableTableManager
           $$TimelinesTableAnnotationComposer,
           $$TimelinesTableCreateCompanionBuilder,
           $$TimelinesTableUpdateCompanionBuilder,
-          (
-            TimelineRow,
-            BaseReferences<_$AppDatabase, $TimelinesTable, TimelineRow>,
-          ),
+          (TimelineRow, $$TimelinesTableReferences),
           TimelineRow,
-          PrefetchHooks Function()
+          PrefetchHooks Function({
+            bool timelineMilestoneRulesRefs,
+            bool timelineMilestoneRecordsRefs,
+          })
         > {
   $$TimelinesTableTableManager(_$AppDatabase db, $TimelinesTable table)
     : super(
@@ -4098,9 +4412,74 @@ class $$TimelinesTableTableManager
                 updatedAt: updatedAt,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$TimelinesTableReferences(db, table, e),
+                ),
+              )
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback:
+              ({
+                timelineMilestoneRulesRefs = false,
+                timelineMilestoneRecordsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (timelineMilestoneRulesRefs) db.timelineMilestoneRules,
+                    if (timelineMilestoneRecordsRefs)
+                      db.timelineMilestoneRecords,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (timelineMilestoneRulesRefs)
+                        await $_getPrefetchedData<
+                          TimelineRow,
+                          $TimelinesTable,
+                          TimelineMilestoneRuleRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$TimelinesTableReferences
+                              ._timelineMilestoneRulesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$TimelinesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).timelineMilestoneRulesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.timelineId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (timelineMilestoneRecordsRefs)
+                        await $_getPrefetchedData<
+                          TimelineRow,
+                          $TimelinesTable,
+                          TimelineMilestoneRecordRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$TimelinesTableReferences
+                              ._timelineMilestoneRecordsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$TimelinesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).timelineMilestoneRecordsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.timelineId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
         ),
       );
 }
@@ -4115,12 +4494,12 @@ typedef $$TimelinesTableProcessedTableManager =
       $$TimelinesTableAnnotationComposer,
       $$TimelinesTableCreateCompanionBuilder,
       $$TimelinesTableUpdateCompanionBuilder,
-      (
-        TimelineRow,
-        BaseReferences<_$AppDatabase, $TimelinesTable, TimelineRow>,
-      ),
+      (TimelineRow, $$TimelinesTableReferences),
       TimelineRow,
-      PrefetchHooks Function()
+      PrefetchHooks Function({
+        bool timelineMilestoneRulesRefs,
+        bool timelineMilestoneRecordsRefs,
+      })
     >;
 typedef $$TimelineMilestoneRulesTableCreateCompanionBuilder =
     TimelineMilestoneRulesCompanion Function({
@@ -4149,6 +4528,70 @@ typedef $$TimelineMilestoneRulesTableUpdateCompanionBuilder =
       Value<int> updatedAt,
     });
 
+final class $$TimelineMilestoneRulesTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $TimelineMilestoneRulesTable,
+          TimelineMilestoneRuleRow
+        > {
+  $$TimelineMilestoneRulesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $TimelinesTable _timelineIdTable(_$AppDatabase db) =>
+      db.timelines.createAlias(
+        $_aliasNameGenerator(
+          db.timelineMilestoneRules.timelineId,
+          db.timelines.id,
+        ),
+      );
+
+  $$TimelinesTableProcessedTableManager get timelineId {
+    final $_column = $_itemColumn<int>('timeline_id')!;
+
+    final manager = $$TimelinesTableTableManager(
+      $_db,
+      $_db.timelines,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_timelineIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $TimelineMilestoneRecordsTable,
+    List<TimelineMilestoneRecordRow>
+  >
+  _timelineMilestoneRecordsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.timelineMilestoneRecords,
+        aliasName: $_aliasNameGenerator(
+          db.timelineMilestoneRules.id,
+          db.timelineMilestoneRecords.ruleId,
+        ),
+      );
+
+  $$TimelineMilestoneRecordsTableProcessedTableManager
+  get timelineMilestoneRecordsRefs {
+    final manager = $$TimelineMilestoneRecordsTableTableManager(
+      $_db,
+      $_db.timelineMilestoneRecords,
+    ).filter((f) => f.ruleId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _timelineMilestoneRecordsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
 class $$TimelineMilestoneRulesTableFilterComposer
     extends Composer<_$AppDatabase, $TimelineMilestoneRulesTable> {
   $$TimelineMilestoneRulesTableFilterComposer({
@@ -4160,11 +4603,6 @@ class $$TimelineMilestoneRulesTableFilterComposer
   });
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get timelineId => $composableBuilder(
-    column: $table.timelineId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4207,6 +4645,56 @@ class $$TimelineMilestoneRulesTableFilterComposer
     column: $table.updatedAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  $$TimelinesTableFilterComposer get timelineId {
+    final $$TimelinesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.timelineId,
+      referencedTable: $db.timelines,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TimelinesTableFilterComposer(
+            $db: $db,
+            $table: $db.timelines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> timelineMilestoneRecordsRefs(
+    Expression<bool> Function($$TimelineMilestoneRecordsTableFilterComposer f)
+    f,
+  ) {
+    final $$TimelineMilestoneRecordsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.timelineMilestoneRecords,
+          getReferencedColumn: (t) => t.ruleId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$TimelineMilestoneRecordsTableFilterComposer(
+                $db: $db,
+                $table: $db.timelineMilestoneRecords,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$TimelineMilestoneRulesTableOrderingComposer
@@ -4220,11 +4708,6 @@ class $$TimelineMilestoneRulesTableOrderingComposer
   });
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get timelineId => $composableBuilder(
-    column: $table.timelineId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -4267,6 +4750,29 @@ class $$TimelineMilestoneRulesTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  $$TimelinesTableOrderingComposer get timelineId {
+    final $$TimelinesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.timelineId,
+      referencedTable: $db.timelines,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TimelinesTableOrderingComposer(
+            $db: $db,
+            $table: $db.timelines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$TimelineMilestoneRulesTableAnnotationComposer
@@ -4280,11 +4786,6 @@ class $$TimelineMilestoneRulesTableAnnotationComposer
   });
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
-
-  GeneratedColumn<int> get timelineId => $composableBuilder(
-    column: $table.timelineId,
-    builder: (column) => column,
-  );
 
   GeneratedColumn<String> get type =>
       $composableBuilder(column: $table.type, builder: (column) => column);
@@ -4317,6 +4818,56 @@ class $$TimelineMilestoneRulesTableAnnotationComposer
 
   GeneratedColumn<int> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$TimelinesTableAnnotationComposer get timelineId {
+    final $$TimelinesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.timelineId,
+      referencedTable: $db.timelines,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TimelinesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.timelines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> timelineMilestoneRecordsRefs<T extends Object>(
+    Expression<T> Function($$TimelineMilestoneRecordsTableAnnotationComposer a)
+    f,
+  ) {
+    final $$TimelineMilestoneRecordsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.timelineMilestoneRecords,
+          getReferencedColumn: (t) => t.ruleId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$TimelineMilestoneRecordsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.timelineMilestoneRecords,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$TimelineMilestoneRulesTableTableManager
@@ -4330,16 +4881,12 @@ class $$TimelineMilestoneRulesTableTableManager
           $$TimelineMilestoneRulesTableAnnotationComposer,
           $$TimelineMilestoneRulesTableCreateCompanionBuilder,
           $$TimelineMilestoneRulesTableUpdateCompanionBuilder,
-          (
-            TimelineMilestoneRuleRow,
-            BaseReferences<
-              _$AppDatabase,
-              $TimelineMilestoneRulesTable,
-              TimelineMilestoneRuleRow
-            >,
-          ),
+          (TimelineMilestoneRuleRow, $$TimelineMilestoneRulesTableReferences),
           TimelineMilestoneRuleRow,
-          PrefetchHooks Function()
+          PrefetchHooks Function({
+            bool timelineId,
+            bool timelineMilestoneRecordsRefs,
+          })
         > {
   $$TimelineMilestoneRulesTableTableManager(
     _$AppDatabase db,
@@ -4412,9 +4959,83 @@ class $$TimelineMilestoneRulesTableTableManager
                 updatedAt: updatedAt,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$TimelineMilestoneRulesTableReferences(db, table, e),
+                ),
+              )
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback:
+              ({timelineId = false, timelineMilestoneRecordsRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (timelineMilestoneRecordsRefs)
+                      db.timelineMilestoneRecords,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (timelineId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.timelineId,
+                                    referencedTable:
+                                        $$TimelineMilestoneRulesTableReferences
+                                            ._timelineIdTable(db),
+                                    referencedColumn:
+                                        $$TimelineMilestoneRulesTableReferences
+                                            ._timelineIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (timelineMilestoneRecordsRefs)
+                        await $_getPrefetchedData<
+                          TimelineMilestoneRuleRow,
+                          $TimelineMilestoneRulesTable,
+                          TimelineMilestoneRecordRow
+                        >(
+                          currentTable: table,
+                          referencedTable:
+                              $$TimelineMilestoneRulesTableReferences
+                                  ._timelineMilestoneRecordsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$TimelineMilestoneRulesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).timelineMilestoneRecordsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.ruleId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
         ),
       );
 }
@@ -4429,16 +5050,12 @@ typedef $$TimelineMilestoneRulesTableProcessedTableManager =
       $$TimelineMilestoneRulesTableAnnotationComposer,
       $$TimelineMilestoneRulesTableCreateCompanionBuilder,
       $$TimelineMilestoneRulesTableUpdateCompanionBuilder,
-      (
-        TimelineMilestoneRuleRow,
-        BaseReferences<
-          _$AppDatabase,
-          $TimelineMilestoneRulesTable,
-          TimelineMilestoneRuleRow
-        >,
-      ),
+      (TimelineMilestoneRuleRow, $$TimelineMilestoneRulesTableReferences),
       TimelineMilestoneRuleRow,
-      PrefetchHooks Function()
+      PrefetchHooks Function({
+        bool timelineId,
+        bool timelineMilestoneRecordsRefs,
+      })
     >;
 typedef $$TimelineMilestoneRecordsTableCreateCompanionBuilder =
     TimelineMilestoneRecordsCompanion Function({
@@ -4467,6 +5084,64 @@ typedef $$TimelineMilestoneRecordsTableUpdateCompanionBuilder =
       Value<int> updatedAt,
     });
 
+final class $$TimelineMilestoneRecordsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $TimelineMilestoneRecordsTable,
+          TimelineMilestoneRecordRow
+        > {
+  $$TimelineMilestoneRecordsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $TimelinesTable _timelineIdTable(_$AppDatabase db) =>
+      db.timelines.createAlias(
+        $_aliasNameGenerator(
+          db.timelineMilestoneRecords.timelineId,
+          db.timelines.id,
+        ),
+      );
+
+  $$TimelinesTableProcessedTableManager get timelineId {
+    final $_column = $_itemColumn<int>('timeline_id')!;
+
+    final manager = $$TimelinesTableTableManager(
+      $_db,
+      $_db.timelines,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_timelineIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $TimelineMilestoneRulesTable _ruleIdTable(_$AppDatabase db) =>
+      db.timelineMilestoneRules.createAlias(
+        $_aliasNameGenerator(
+          db.timelineMilestoneRecords.ruleId,
+          db.timelineMilestoneRules.id,
+        ),
+      );
+
+  $$TimelineMilestoneRulesTableProcessedTableManager get ruleId {
+    final $_column = $_itemColumn<int>('rule_id')!;
+
+    final manager = $$TimelineMilestoneRulesTableTableManager(
+      $_db,
+      $_db.timelineMilestoneRules,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_ruleIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
 class $$TimelineMilestoneRecordsTableFilterComposer
     extends Composer<_$AppDatabase, $TimelineMilestoneRecordsTable> {
   $$TimelineMilestoneRecordsTableFilterComposer({
@@ -4478,16 +5153,6 @@ class $$TimelineMilestoneRecordsTableFilterComposer
   });
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get timelineId => $composableBuilder(
-    column: $table.timelineId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get ruleId => $composableBuilder(
-    column: $table.ruleId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4525,6 +5190,53 @@ class $$TimelineMilestoneRecordsTableFilterComposer
     column: $table.updatedAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  $$TimelinesTableFilterComposer get timelineId {
+    final $$TimelinesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.timelineId,
+      referencedTable: $db.timelines,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TimelinesTableFilterComposer(
+            $db: $db,
+            $table: $db.timelines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$TimelineMilestoneRulesTableFilterComposer get ruleId {
+    final $$TimelineMilestoneRulesTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.ruleId,
+          referencedTable: $db.timelineMilestoneRules,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$TimelineMilestoneRulesTableFilterComposer(
+                $db: $db,
+                $table: $db.timelineMilestoneRules,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
 }
 
 class $$TimelineMilestoneRecordsTableOrderingComposer
@@ -4538,16 +5250,6 @@ class $$TimelineMilestoneRecordsTableOrderingComposer
   });
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get timelineId => $composableBuilder(
-    column: $table.timelineId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get ruleId => $composableBuilder(
-    column: $table.ruleId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -4585,6 +5287,53 @@ class $$TimelineMilestoneRecordsTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  $$TimelinesTableOrderingComposer get timelineId {
+    final $$TimelinesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.timelineId,
+      referencedTable: $db.timelines,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TimelinesTableOrderingComposer(
+            $db: $db,
+            $table: $db.timelines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$TimelineMilestoneRulesTableOrderingComposer get ruleId {
+    final $$TimelineMilestoneRulesTableOrderingComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.ruleId,
+          referencedTable: $db.timelineMilestoneRules,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$TimelineMilestoneRulesTableOrderingComposer(
+                $db: $db,
+                $table: $db.timelineMilestoneRules,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
 }
 
 class $$TimelineMilestoneRecordsTableAnnotationComposer
@@ -4598,14 +5347,6 @@ class $$TimelineMilestoneRecordsTableAnnotationComposer
   });
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
-
-  GeneratedColumn<int> get timelineId => $composableBuilder(
-    column: $table.timelineId,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get ruleId =>
-      $composableBuilder(column: $table.ruleId, builder: (column) => column);
 
   GeneratedColumn<int> get occurrenceIndex => $composableBuilder(
     column: $table.occurrenceIndex,
@@ -4633,6 +5374,53 @@ class $$TimelineMilestoneRecordsTableAnnotationComposer
 
   GeneratedColumn<int> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$TimelinesTableAnnotationComposer get timelineId {
+    final $$TimelinesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.timelineId,
+      referencedTable: $db.timelines,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TimelinesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.timelines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$TimelineMilestoneRulesTableAnnotationComposer get ruleId {
+    final $$TimelineMilestoneRulesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.ruleId,
+          referencedTable: $db.timelineMilestoneRules,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$TimelineMilestoneRulesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.timelineMilestoneRules,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
 }
 
 class $$TimelineMilestoneRecordsTableTableManager
@@ -4648,14 +5436,10 @@ class $$TimelineMilestoneRecordsTableTableManager
           $$TimelineMilestoneRecordsTableUpdateCompanionBuilder,
           (
             TimelineMilestoneRecordRow,
-            BaseReferences<
-              _$AppDatabase,
-              $TimelineMilestoneRecordsTable,
-              TimelineMilestoneRecordRow
-            >,
+            $$TimelineMilestoneRecordsTableReferences,
           ),
           TimelineMilestoneRecordRow,
-          PrefetchHooks Function()
+          PrefetchHooks Function({bool timelineId, bool ruleId})
         > {
   $$TimelineMilestoneRecordsTableTableManager(
     _$AppDatabase db,
@@ -4728,9 +5512,71 @@ class $$TimelineMilestoneRecordsTableTableManager
                 updatedAt: updatedAt,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$TimelineMilestoneRecordsTableReferences(db, table, e),
+                ),
+              )
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback: ({timelineId = false, ruleId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (timelineId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.timelineId,
+                                referencedTable:
+                                    $$TimelineMilestoneRecordsTableReferences
+                                        ._timelineIdTable(db),
+                                referencedColumn:
+                                    $$TimelineMilestoneRecordsTableReferences
+                                        ._timelineIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+                    if (ruleId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.ruleId,
+                                referencedTable:
+                                    $$TimelineMilestoneRecordsTableReferences
+                                        ._ruleIdTable(db),
+                                referencedColumn:
+                                    $$TimelineMilestoneRecordsTableReferences
+                                        ._ruleIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
         ),
       );
 }
@@ -4745,25 +5591,18 @@ typedef $$TimelineMilestoneRecordsTableProcessedTableManager =
       $$TimelineMilestoneRecordsTableAnnotationComposer,
       $$TimelineMilestoneRecordsTableCreateCompanionBuilder,
       $$TimelineMilestoneRecordsTableUpdateCompanionBuilder,
-      (
-        TimelineMilestoneRecordRow,
-        BaseReferences<
-          _$AppDatabase,
-          $TimelineMilestoneRecordsTable,
-          TimelineMilestoneRecordRow
-        >,
-      ),
+      (TimelineMilestoneRecordRow, $$TimelineMilestoneRecordsTableReferences),
       TimelineMilestoneRecordRow,
-      PrefetchHooks Function()
+      PrefetchHooks Function({bool timelineId, bool ruleId})
     >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
-  $$TaskTemplatesTableTableManager get taskTemplates =>
-      $$TaskTemplatesTableTableManager(_db, _db.taskTemplates);
-  $$TasksTableTableManager get tasks =>
-      $$TasksTableTableManager(_db, _db.tasks);
+  $$ResponsibilityPacksTableTableManager get responsibilityPacks =>
+      $$ResponsibilityPacksTableTableManager(_db, _db.responsibilityPacks);
+  $$ResponsibilityItemsTableTableManager get responsibilityItems =>
+      $$ResponsibilityItemsTableTableManager(_db, _db.responsibilityItems);
   $$TimelinesTableTableManager get timelines =>
       $$TimelinesTableTableManager(_db, _db.timelines);
   $$TimelineMilestoneRulesTableTableManager get timelineMilestoneRules =>

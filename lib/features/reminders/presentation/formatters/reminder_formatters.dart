@@ -1,9 +1,8 @@
 import 'package:intl/intl.dart';
 
-import '../../data/local/task_timeline_dao.dart';
-import '../../domain/reminder_rule.dart';
-import '../../domain/repeat_rule.dart';
-import '../../domain/task_template.dart';
+import '../../data/home_models.dart';
+import '../../data/local/responsibility_timeline_dao.dart';
+import '../../domain/responsibility_item.dart';
 import '../../domain/timeline.dart';
 import '../../domain/timeline_milestone_occurrence.dart';
 import '../../domain/timeline_milestone_record.dart';
@@ -22,19 +21,19 @@ class ReminderFormatters {
     return DateFormat('yyyy/MM/dd HH:mm').format(value.toLocal());
   }
 
-  static String taskSummary(TaskBundle bundle) {
-    final task = bundle.task;
-    final rule = task.repeatRule;
-    final repeatText = rule == null ? '單次' : repeatRule(rule);
-    return '${date(task.effectiveDueDate)} • $repeatText • ${reminderRule(task.reminderRule)}';
+  static String responsibilitySummary(ResponsibilityItemBundle bundle) {
+    return switch (bundle.item.config) {
+      FixedTimeItemConfig config => _fixedTimeSummary(config),
+      StateBasedItemConfig config => _stateBasedSummary(config),
+      ResourceBasedItemConfig config => _resourceBasedSummary(config),
+      _ => bundle.item.type.name,
+    };
   }
 
-  static String taskHistory(TaskBundle bundle) {
-    return '${bundle.task.status.name} • ${date(bundle.task.effectiveDueDate)}';
-  }
-
-  static String taskHistoryUpdatedAt(TaskBundle bundle) {
-    return '${ReminderUiText.updatedAtLabel}：${dateTime(bundle.task.updatedAt)}';
+  static String responsibilityHomeSummary(ResponsibilityItemHomeEntry entry) {
+    final elapsed = entry.elapsed;
+    final elapsedText = elapsed == null ? '尚未完成過' : elapsedLabel(elapsed);
+    return '${responsibilityStatus(entry.status)} • $elapsedText';
   }
 
   static String milestoneSummary(TimelineMilestoneOccurrence occurrence) {
@@ -78,53 +77,14 @@ class ReminderFormatters {
     };
   }
 
-  static String templateSummary(
-    RepeatRule? repeatRuleValue,
-    ReminderRule reminder,
-  ) {
-    final repeatText = repeatRuleValue == null
-        ? 'one-time'
-        : repeatRule(repeatRuleValue);
-    return '$repeatText • ${reminderRule(reminder)}';
-  }
-
   static String timelineSummary(Timeline timeline) {
     return '${date(timeline.startDate)} • ${displayUnitLabel(timeline.displayUnit)}';
-  }
-
-  static String taskTemplateStatus(TaskTemplateStatus status) {
-    return switch (status) {
-      TaskTemplateStatus.active => 'active',
-      TaskTemplateStatus.paused => 'paused',
-      TaskTemplateStatus.archived => 'archived',
-    };
   }
 
   static String timelineStatus(TimelineStatus status) {
     return switch (status) {
       TimelineStatus.active => 'active',
       TimelineStatus.archived => 'archived',
-    };
-  }
-
-  static String repeatRule(RepeatRule rule) {
-    final unit = switch (rule.unit) {
-      RepeatUnit.day => 'day',
-      RepeatUnit.week => 'week',
-      RepeatUnit.month => 'month',
-      RepeatUnit.year => 'year',
-    };
-    if (rule.interval == 1) {
-      return 'every $unit';
-    }
-    return 'every ${rule.interval} ${unit}s';
-  }
-
-  static String reminderRule(ReminderRule rule) {
-    return switch (rule.type) {
-      ReminderRuleType.advance => '提前 ${rule.offsetDays ?? 0} 天',
-      ReminderRuleType.onDue => '到期當天',
-      ReminderRuleType.immediate => '建立後立即',
     };
   }
 
@@ -137,11 +97,57 @@ class ReminderFormatters {
     };
   }
 
-  static String milestoneStatus(MilestoneStatus value) {
+  static String milestoneStatus(TimelineMilestoneRecordStatus value) {
     return switch (value) {
-      MilestoneStatus.upcoming => 'upcoming',
-      MilestoneStatus.noticed => 'noticed',
-      MilestoneStatus.skipped => 'skipped',
+      TimelineMilestoneRecordStatus.upcoming => 'upcoming',
+      TimelineMilestoneRecordStatus.noticed => 'noticed',
+      TimelineMilestoneRecordStatus.skipped => 'skipped',
     };
+  }
+
+  static String responsibilityStatus(ResponsibilityItemStatus status) {
+    return switch (status) {
+      ResponsibilityItemStatus.normal => 'normal',
+      ResponsibilityItemStatus.warning => 'warning',
+      ResponsibilityItemStatus.danger => 'danger',
+      ResponsibilityItemStatus.unknown => 'unknown',
+    };
+  }
+
+  static String elapsedLabel(Duration value) {
+    if (value.inDays >= 1) {
+      return '${value.inDays} 天未完成';
+    }
+    if (value.inHours >= 1) {
+      return '${value.inHours} 小時未完成';
+    }
+    return '${value.inMinutes} 分鐘未完成';
+  }
+
+  static String _fixedTimeSummary(FixedTimeItemConfig config) {
+    final scheduleLabel = switch (config.scheduleType) {
+      FixedTimeScheduleType.daily => 'daily',
+      FixedTimeScheduleType.weekly => 'weekly',
+      FixedTimeScheduleType.custom => 'custom',
+    };
+    final anchorLabel = config.anchorDate == null
+        ? null
+        : date(config.anchorDate!);
+    final parts = <String>[scheduleLabel];
+    if (anchorLabel != null) {
+      parts.add(anchorLabel);
+    }
+    if (config.timeOfDay != null && config.timeOfDay!.isNotEmpty) {
+      parts.add(config.timeOfDay!);
+    }
+    return parts.join(' • ');
+  }
+
+  static String _stateBasedSummary(StateBasedItemConfig config) {
+    return 'expected ${config.expectedInterval.inDays}d • warning ${config.warningAfter.inDays}d • danger ${config.dangerAfter.inDays}d';
+  }
+
+  static String _resourceBasedSummary(ResourceBasedItemConfig config) {
+    return 'estimate ${config.estimatedDuration.inDays}d • warn before ${config.warningBeforeDepletion.inDays}d';
   }
 }

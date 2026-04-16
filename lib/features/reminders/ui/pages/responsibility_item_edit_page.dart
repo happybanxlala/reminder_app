@@ -1,0 +1,343 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../data/local/responsibility_timeline_dao.dart';
+import '../../data/responsibility_repository.dart';
+import '../../domain/responsibility_item.dart';
+import '../../presentation/formatters/reminder_formatters.dart';
+import '../../presentation/text/reminder_ui_text.dart';
+import '../../providers/responsibility_providers.dart';
+import '../widgets/editor_common_fields.dart';
+
+enum ResponsibilityItemEditMode { create, edit }
+
+class ResponsibilityItemEditPage extends ConsumerStatefulWidget {
+  const ResponsibilityItemEditPage({super.key, required this.mode, this.id});
+
+  static const createRouteName = 'responsibility-item-new';
+  static const createRoutePath = '/responsibility-item/new';
+  static const editRouteName = 'responsibility-item-edit';
+  static const editRoutePath = '/responsibility-item/:id';
+
+  final ResponsibilityItemEditMode mode;
+  final int? id;
+
+  @override
+  ConsumerState<ResponsibilityItemEditPage> createState() =>
+      _ResponsibilityItemEditPageState();
+}
+
+class _ResponsibilityItemEditPageState
+    extends ConsumerState<ResponsibilityItemEditPage> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _titleController;
+  late final TextEditingController _descriptionController;
+  late final TextEditingController _anchorDateController;
+  late final TextEditingController _expectedIntervalController;
+  late final TextEditingController _warningAfterController;
+  late final TextEditingController _dangerAfterController;
+  late final TextEditingController _estimatedDurationController;
+  late final TextEditingController _warningBeforeDepletionController;
+
+  ResponsibilityItemType _type = ResponsibilityItemType.stateBased;
+  FixedTimeScheduleType _scheduleType = FixedTimeScheduleType.daily;
+  DateTime _selectedAnchorDate = DateTime.now();
+  bool _initialized = false;
+
+  bool get _isEdit => widget.mode == ResponsibilityItemEditMode.edit;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController();
+    _descriptionController = TextEditingController();
+    _anchorDateController = TextEditingController();
+    _expectedIntervalController = TextEditingController(text: '7');
+    _warningAfterController = TextEditingController(text: '7');
+    _dangerAfterController = TextEditingController(text: '14');
+    _estimatedDurationController = TextEditingController(text: '30');
+    _warningBeforeDepletionController = TextEditingController(text: '7');
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _anchorDateController.dispose();
+    _expectedIntervalController.dispose();
+    _warningAfterController.dispose();
+    _dangerAfterController.dispose();
+    _estimatedDurationController.dispose();
+    _warningBeforeDepletionController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final itemAsync = _isEdit && widget.id != null
+        ? ref.watch(responsibilityItemProvider(widget.id!))
+        : const AsyncData<ResponsibilityItemBundle?>(null);
+
+    if (itemAsync.isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: Text(_pageTitle)),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    _initializeIfNeeded(itemAsync.valueOrNull);
+
+    return Scaffold(
+      appBar: AppBar(title: Text(_pageTitle)),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            EditorTitleField(controller: _titleController),
+            const SizedBox(height: 12),
+            EditorNoteField(controller: _descriptionController),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<ResponsibilityItemType>(
+              initialValue: _type,
+              decoration: const InputDecoration(labelText: 'Item Type'),
+              items: ResponsibilityItemType.values
+                  .map(
+                    (value) =>
+                        DropdownMenuItem(value: value, child: Text(value.name)),
+                  )
+                  .toList(growable: false),
+              onChanged: (value) {
+                if (value == null) {
+                  return;
+                }
+                setState(() {
+                  _type = value;
+                });
+              },
+            ),
+            const SizedBox(height: 12),
+            ...switch (_type) {
+              ResponsibilityItemType.fixedTime => _buildFixedTimeFields(
+                context,
+              ),
+              ResponsibilityItemType.stateBased => _buildStateBasedFields(
+                context,
+              ),
+              ResponsibilityItemType.resourceBased => _buildResourceBasedFields(
+                context,
+              ),
+            },
+            const SizedBox(height: 24),
+            FilledButton(
+              key: const Key('save-button'),
+              onPressed: _save,
+              child: const Text(ReminderUiText.saveAction),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String get _pageTitle => switch (widget.mode) {
+    ResponsibilityItemEditMode.create => ReminderUiText.addResponsibilityItem,
+    ResponsibilityItemEditMode.edit => ReminderUiText.editResponsibilityItem,
+  };
+
+  void _initializeIfNeeded(ResponsibilityItemBundle? bundle) {
+    if (_initialized) {
+      return;
+    }
+    if (bundle != null) {
+      final item = bundle.item;
+      _titleController.text = item.title;
+      _descriptionController.text = item.description ?? '';
+      _type = item.type;
+      switch (item.config) {
+        case FixedTimeItemConfig config:
+          _scheduleType = config.scheduleType;
+          _selectedAnchorDate = config.anchorDate ?? _selectedAnchorDate;
+          _anchorDateController.text = ReminderFormatters.date(
+            _selectedAnchorDate,
+          );
+        case StateBasedItemConfig config:
+          _expectedIntervalController.text =
+              '${config.expectedInterval.inDays}';
+          _warningAfterController.text = '${config.warningAfter.inDays}';
+          _dangerAfterController.text = '${config.dangerAfter.inDays}';
+        case ResourceBasedItemConfig config:
+          _estimatedDurationController.text =
+              '${config.estimatedDuration.inDays}';
+          _warningBeforeDepletionController.text =
+              '${config.warningBeforeDepletion.inDays}';
+      }
+    } else {
+      _anchorDateController.text = ReminderFormatters.date(_selectedAnchorDate);
+    }
+    _initialized = true;
+  }
+
+  List<Widget> _buildFixedTimeFields(BuildContext context) {
+    return [
+      DropdownButtonFormField<FixedTimeScheduleType>(
+        initialValue: _scheduleType,
+        decoration: const InputDecoration(labelText: 'Schedule Type'),
+        items: FixedTimeScheduleType.values
+            .map(
+              (value) =>
+                  DropdownMenuItem(value: value, child: Text(value.name)),
+            )
+            .toList(growable: false),
+        onChanged: (value) {
+          if (value == null) {
+            return;
+          }
+          setState(() {
+            _scheduleType = value;
+          });
+        },
+      ),
+      const SizedBox(height: 12),
+      EditorDateField(
+        controller: _anchorDateController,
+        label: 'Anchor Date',
+        onPickDate: () => _pickDate(context),
+      ),
+    ];
+  }
+
+  List<Widget> _buildStateBasedFields(BuildContext context) {
+    return [
+      _DaysField(
+        key: const Key('expected-interval-field'),
+        controller: _expectedIntervalController,
+        label: 'Expected Interval (days)',
+      ),
+      const SizedBox(height: 12),
+      _DaysField(
+        key: const Key('warning-after-field'),
+        controller: _warningAfterController,
+        label: 'Warning After (days)',
+      ),
+      const SizedBox(height: 12),
+      _DaysField(
+        key: const Key('danger-after-field'),
+        controller: _dangerAfterController,
+        label: 'Danger After (days)',
+      ),
+    ];
+  }
+
+  List<Widget> _buildResourceBasedFields(BuildContext context) {
+    return [
+      _DaysField(
+        key: const Key('estimated-duration-field'),
+        controller: _estimatedDurationController,
+        label: 'Estimated Duration (days)',
+      ),
+      const SizedBox(height: 12),
+      _DaysField(
+        key: const Key('warning-before-depletion-field'),
+        controller: _warningBeforeDepletionController,
+        label: 'Warning Before Depletion (days)',
+      ),
+    ];
+  }
+
+  Future<void> _pickDate(BuildContext context) async {
+    final result = await showDatePicker(
+      context: context,
+      initialDate: _selectedAnchorDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2035),
+    );
+    if (result == null) {
+      return;
+    }
+    setState(() {
+      _selectedAnchorDate = DateTime(result.year, result.month, result.day);
+      _anchorDateController.text = ReminderFormatters.date(_selectedAnchorDate);
+    });
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    final repository = ref.read(responsibilityRepositoryProvider);
+    final input = ResponsibilityItemInput(
+      title: _titleController.text.trim(),
+      description: _normalizeOptionalText(_descriptionController.text),
+      type: _type,
+      config: _buildConfig(),
+    );
+
+    if (_isEdit) {
+      await repository.updateItem(widget.id!, input);
+    } else {
+      await repository.createItem(input);
+    }
+
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  ResponsibilityItemConfig _buildConfig() {
+    return switch (_type) {
+      ResponsibilityItemType.fixedTime => FixedTimeItemConfig(
+        scheduleType: _scheduleType,
+        anchorDate: _selectedAnchorDate,
+      ),
+      ResponsibilityItemType.stateBased => StateBasedItemConfig(
+        expectedInterval: Duration(
+          days: _parseDays(_expectedIntervalController),
+        ),
+        warningAfter: Duration(days: _parseDays(_warningAfterController)),
+        dangerAfter: Duration(days: _parseDays(_dangerAfterController)),
+      ),
+      ResponsibilityItemType.resourceBased => ResourceBasedItemConfig(
+        estimatedDuration: Duration(
+          days: _parseDays(_estimatedDurationController),
+        ),
+        warningBeforeDepletion: Duration(
+          days: _parseDays(_warningBeforeDepletionController),
+        ),
+      ),
+    };
+  }
+
+  int _parseDays(TextEditingController controller) {
+    return int.tryParse(controller.text.trim()) ?? 1;
+  }
+
+  String? _normalizeOptionalText(String value) {
+    final normalized = value.trim();
+    return normalized.isEmpty ? null : normalized;
+  }
+}
+
+class _DaysField extends StatelessWidget {
+  const _DaysField({super.key, required this.controller, required this.label});
+
+  final TextEditingController controller;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: TextInputType.number,
+      decoration: InputDecoration(labelText: label),
+      validator: (value) {
+        final parsed = int.tryParse(value ?? '');
+        if (parsed == null || parsed <= 0) {
+          return '請輸入大於 0 的整數';
+        }
+        return null;
+      },
+    );
+  }
+}

@@ -2,63 +2,41 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/home_models.dart';
-import 'package:reminder_app/features/reminders/data/local/task_timeline_dao.dart';
-import 'package:reminder_app/features/reminders/domain/reminder_rule.dart';
-import 'package:reminder_app/features/reminders/domain/task.dart';
-import 'package:reminder_app/features/reminders/domain/task_template.dart';
-import 'package:reminder_app/features/reminders/domain/timeline.dart';
+import 'package:reminder_app/features/reminders/data/local/responsibility_timeline_dao.dart';
+import 'package:reminder_app/features/reminders/domain/responsibility_item.dart';
+import 'package:reminder_app/features/reminders/domain/responsibility_pack.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_occurrence.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_record.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_rule.dart';
+import 'package:reminder_app/features/reminders/domain/timeline.dart';
 import 'package:reminder_app/features/reminders/providers/history_providers.dart';
 import 'package:reminder_app/features/reminders/providers/home_providers.dart';
-import 'package:reminder_app/features/reminders/providers/task_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/history_page.dart';
 import 'package:reminder_app/features/reminders/ui/pages/home_page.dart';
 
 void main() {
-  testWidgets('home shows only today upcoming overdue tabs', (tester) async {
+  testWidgets('home shows danger warning and timeline tabs', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          todayHomeEntriesProvider.overrideWith(
+          dangerHomeEntriesProvider.overrideWith(
             (ref) => Stream.value([
-              TaskHomeEntry(_taskBundle(title: 'Laundry')),
-              TimelineMilestoneHomeEntry(_occurrence(title: 'No sugar')),
+              _responsibilityEntry(
+                title: 'Clean litter box',
+                status: ResponsibilityItemStatus.danger,
+              ),
             ]),
           ),
-          upcomingHomeEntriesProvider.overrideWith(
-            (ref) => Stream.value(<HomeEntry>[]),
+          warningHomeEntriesProvider.overrideWith(
+            (ref) => Stream.value([
+              _responsibilityEntry(
+                title: 'Refill water fountain',
+                status: ResponsibilityItemStatus.warning,
+              ),
+            ]),
           ),
-          overdueTasksProvider.overrideWith(
-            (ref) => Stream.value(<TaskBundle>[]),
-          ),
-        ],
-        child: const MaterialApp(home: HomePage()),
-      ),
-    );
-    await tester.pump();
-
-    expect(find.text('Today'), findsOneWidget);
-    expect(find.text('Upcoming'), findsOneWidget);
-    expect(find.text('Overdue'), findsOneWidget);
-    expect(find.text('History'), findsNothing);
-    expect(find.text('Laundry'), findsOneWidget);
-    expect(find.text('No sugar'), findsOneWidget);
-  });
-
-  testWidgets('overdue tab only renders task items', (tester) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          todayHomeEntriesProvider.overrideWith(
-            (ref) => Stream.value(<HomeEntry>[]),
-          ),
-          upcomingHomeEntriesProvider.overrideWith(
-            (ref) => Stream.value(<HomeEntry>[]),
-          ),
-          overdueTasksProvider.overrideWith(
-            (ref) => Stream.value([_taskBundle(title: 'Old task')]),
+          upcomingTimelineMilestonesProvider.overrideWith(
+            (ref) => Stream.value([_occurrence(title: 'No sugar')]),
           ),
         ],
         child: const MaterialApp(home: HomePage()),
@@ -66,93 +44,113 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.text('Overdue', skipOffstage: false).last);
-    await tester.pumpAndSettle();
-
-    expect(find.text('Old task'), findsOneWidget);
-    expect(find.text('Milestone'), findsNothing);
-    expect(find.text('完成'), findsOneWidget);
-    expect(find.text('跳過'), findsOneWidget);
-    expect(find.text('延期 1 天'), findsOneWidget);
-    expect(find.text('取消'), findsOneWidget);
+    expect(find.text('Danger'), findsOneWidget);
+    expect(find.text('Warning'), findsOneWidget);
+    expect(find.text('Timeline'), findsOneWidget);
+    expect(find.text('Clean litter box'), findsOneWidget);
   });
 
-  testWidgets('history page paginates task and milestone sections', (
+  testWidgets('timeline tab only renders timeline milestone items', (
     tester,
   ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          taskHistoryProvider.overrideWith(
-            (ref) => Stream.value(
-              List.generate(11, (index) => _taskBundle(title: 'Task $index')),
-            ),
+          dangerHomeEntriesProvider.overrideWith(
+            (ref) => Stream.value(<ResponsibilityItemHomeEntry>[]),
           ),
-          milestoneHistoryProvider.overrideWith(
-            (ref) => Stream.value(
-              List.generate(
-                11,
-                (index) => _milestoneRecordBundle(title: 'Timeline $index'),
-              ),
-            ),
+          warningHomeEntriesProvider.overrideWith(
+            (ref) => Stream.value(<ResponsibilityItemHomeEntry>[]),
+          ),
+          upcomingTimelineMilestonesProvider.overrideWith(
+            (ref) => Stream.value([_occurrence(title: 'No sugar')]),
           ),
         ],
-        child: const MaterialApp(home: HistoryPage()),
+        child: const MaterialApp(home: HomePage()),
       ),
     );
     await tester.pump();
 
-    expect(find.text('Task History'), findsOneWidget);
-    expect(find.text('Task 0'), findsOneWidget);
-    expect(find.text('Task 9'), findsOneWidget);
-    expect(find.text('Task 10'), findsNothing);
-    expect(find.textContaining('最後更新'), findsWidgets);
-
-    await tester.ensureVisible(find.byKey(const Key('task-history-next')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('task-history-next')));
-    await tester.pumpAndSettle();
-    await tester.drag(find.byType(ListView), const Offset(0, 600));
+    await tester.tap(find.text('Timeline', skipOffstage: false).last);
     await tester.pumpAndSettle();
 
-    expect(find.text('2 / 2'), findsWidgets);
-    expect(find.text('Task 10'), findsOneWidget);
-
-    await tester.scrollUntilVisible(
-      find.text('Milestone History', skipOffstage: false),
-      400,
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('Milestone History'), findsOneWidget);
+    expect(find.text('No sugar'), findsOneWidget);
+    expect(find.text('Milestone'), findsOneWidget);
+    expect(find.text('已看過'), findsOneWidget);
+    expect(find.text('跳過'), findsOneWidget);
   });
+
+  testWidgets(
+    'history page shows responsibility note and paginated milestone section',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            milestoneHistoryProvider.overrideWith(
+              (ref) => Stream.value(
+                List.generate(
+                  11,
+                  (index) => _milestoneRecordBundle(title: 'Timeline $index'),
+                ),
+              ),
+            ),
+          ],
+          child: const MaterialApp(home: HistoryPage()),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Responsibility History'), findsOneWidget);
+      expect(
+        find.textContaining('不保留 responsibility completion history'),
+        findsOneWidget,
+      );
+      expect(find.text('Milestone History'), findsOneWidget);
+      expect(find.text('Timeline 0'), findsOneWidget);
+      expect(find.text('Timeline 10'), findsNothing);
+
+      await tester.ensureVisible(
+        find.byKey(const Key('milestone-history-next')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('milestone-history-next')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Timeline 10'), findsOneWidget);
+    },
+  );
 }
 
-TaskBundle _taskBundle({required String title}) {
+ResponsibilityItemHomeEntry _responsibilityEntry({
+  required String title,
+  required ResponsibilityItemStatus status,
+}) {
   final id = title.hashCode;
-  return TaskBundle(
-    task: Task(
-      id: id,
-      templateId: 1,
-      kind: TaskKind.oneTime,
-      titleSnapshot: title,
-      dueDate: DateTime(2026, 4, 10),
-      reminderRule: const ReminderRule.onDue(),
-      status: TaskStatus.done,
-      createdAt: DateTime(2026, 4, 1),
-      updatedAt: DateTime(2026, 4, 1),
-      resolvedAt: DateTime(2026, 4, 10),
+  return ResponsibilityItemHomeEntry(
+    bundle: ResponsibilityItemBundle(
+      item: ResponsibilityItem(
+        id: id,
+        packId: 1,
+        title: title,
+        type: ResponsibilityItemType.stateBased,
+        config: const StateBasedItemConfig(
+          expectedInterval: Duration(days: 1),
+          warningAfter: Duration(days: 1),
+          dangerAfter: Duration(days: 2),
+        ),
+        lastDoneAt: DateTime(2026, 4, 10),
+        createdAt: DateTime(2026, 4, 1),
+        updatedAt: DateTime(2026, 4, 1),
+      ),
+      pack: ResponsibilityPack(
+        id: 1,
+        title: 'Default Responsibility Pack',
+        createdAt: DateTime(2026, 4, 1),
+        updatedAt: DateTime(2026, 4, 1),
+      ),
     ),
-    template: TaskTemplate(
-      id: id,
-      title: title,
-      kind: TaskKind.oneTime,
-      status: TaskTemplateStatus.active,
-      firstDueDate: DateTime(2026, 4, 10),
-      reminderRule: const ReminderRule.onDue(),
-      createdAt: DateTime(2026, 4, 1),
-      updatedAt: DateTime(2026, 4, 1),
-    ),
+    status: status,
+    elapsed: const Duration(days: 5),
   );
 }
 
@@ -166,7 +164,7 @@ TimelineMilestoneOccurrence _occurrence({required String title}) {
     occurrenceIndex: 1,
     targetDate: DateTime(2026, 4, 10),
     label: '第 1 天',
-    status: MilestoneStatus.noticed,
+    status: TimelineMilestoneRecordStatus.noticed,
     reminderOffsetDays: 0,
     actedAt: DateTime(2026, 4, 10),
   );
@@ -181,7 +179,7 @@ TimelineMilestoneRecordBundle _milestoneRecordBundle({required String title}) {
       ruleId: id,
       occurrenceIndex: 1,
       targetDate: DateTime(2026, 4, 10),
-      status: MilestoneStatus.noticed,
+      status: TimelineMilestoneRecordStatus.noticed,
       actedAt: DateTime(2026, 4, 10),
       createdAt: DateTime(2026, 4, 1),
       updatedAt: DateTime(2026, 4, 1),

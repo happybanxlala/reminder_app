@@ -20,12 +20,10 @@ class HistoryPage extends ConsumerStatefulWidget {
 class _HistoryPageState extends ConsumerState<HistoryPage> {
   static const _pageSize = 10;
 
-  int _taskPage = 0;
   int _milestonePage = 0;
 
   @override
   Widget build(BuildContext context) {
-    final taskHistoryAsync = ref.watch(taskHistoryProvider);
     final milestoneHistoryAsync = ref.watch(milestoneHistoryProvider);
 
     return Scaffold(
@@ -34,53 +32,11 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
         padding: const EdgeInsets.all(16),
         children: [
           const Text(
-            ReminderUiText.taskHistoryTitle,
+            ReminderUiText.responsibilityHistoryTitle,
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
-          taskHistoryAsync.when(
-            data: (items) {
-              if (items.isEmpty) {
-                return const Text(ReminderUiText.noTaskHistory);
-              }
-              final totalPages = _pageCount(items.length);
-              final page = min(_taskPage, totalPages - 1);
-              final pageItems = _pageSlice(items, page);
-              return Column(
-                children: [
-                  ...pageItems.map(
-                    (item) => ListTile(
-                      key: Key('task-history-${item.task.id}'),
-                      title: Text(item.task.titleSnapshot),
-                      subtitle: Text(
-                        '${ReminderFormatters.taskHistory(item)}\n'
-                        '${ReminderFormatters.taskHistoryUpdatedAt(item)}',
-                      ),
-                      isThreeLine: true,
-                      trailing: const Text('Task'),
-                    ),
-                  ),
-                  _PaginationControls(
-                    keyPrefix: 'task-history',
-                    currentPage: page,
-                    totalPages: totalPages,
-                    onPrevious: () {
-                      setState(() {
-                        _taskPage = max(0, page - 1);
-                      });
-                    },
-                    onNext: () {
-                      setState(() {
-                        _taskPage = min(totalPages - 1, page + 1);
-                      });
-                    },
-                  ),
-                ],
-              );
-            },
-            error: (error, stack) => Text('讀取失敗: $error'),
-            loading: () => const Center(child: CircularProgressIndicator()),
-          ),
+          const Text(ReminderUiText.noResponsibilityHistory),
           const Divider(height: 32),
           const Text(
             ReminderUiText.milestoneHistoryTitle,

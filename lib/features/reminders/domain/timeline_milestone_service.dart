@@ -36,7 +36,7 @@ class TimelineMilestoneService {
           occurrenceIndex: occurrenceIndex,
           targetDate: targetDate,
           label: formatLabel(rule, occurrenceIndex),
-          status: MilestoneStatus.upcoming,
+          status: TimelineMilestoneRecordStatus.upcoming,
           reminderOffsetDays: rule.reminderOffsetDays,
         );
       }
@@ -62,7 +62,7 @@ class TimelineMilestoneService {
           now: current,
         )
         .where((occurrence) {
-          if (occurrence.status != MilestoneStatus.upcoming) {
+          if (occurrence.status != TimelineMilestoneRecordStatus.upcoming) {
             return false;
           }
           if (!occurrence.targetDate.isAfter(current)) {
@@ -94,7 +94,7 @@ class TimelineMilestoneService {
           now: current,
         )
         .where((occurrence) {
-          return occurrence.status == MilestoneStatus.upcoming &&
+          return occurrence.status == TimelineMilestoneRecordStatus.upcoming &&
               !occurrence.targetDate.isBefore(current) &&
               occurrence.targetDate.isBefore(tomorrow);
         })
@@ -142,7 +142,7 @@ class TimelineMilestoneService {
               occurrenceIndex: occurrenceIndex,
               targetDate: targetDate,
               label: formatLabel(rule, occurrenceIndex),
-              status: record?.status ?? MilestoneStatus.upcoming,
+              status: record?.status ?? TimelineMilestoneRecordStatus.upcoming,
               reminderOffsetDays: rule.reminderOffsetDays,
               notifiedAt: record?.notifiedAt,
               actedAt: record?.actedAt,

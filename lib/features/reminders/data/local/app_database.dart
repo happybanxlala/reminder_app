@@ -5,27 +5,27 @@ import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import 'task_timeline_dao.dart';
+import 'responsibility_timeline_dao.dart';
 import 'tables.dart';
 
 part 'app_database.g.dart';
 
 @DriftDatabase(
   tables: [
-    TaskTemplates,
-    Tasks,
+    ResponsibilityPacks,
+    ResponsibilityItems,
     Timelines,
     TimelineMilestoneRules,
     TimelineMilestoneRecords,
   ],
-  daos: [TaskTimelineDao],
+  daos: [ResponsibilityTimelineDao],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -51,13 +51,20 @@ class AppDatabase extends _$AppDatabase {
         return;
       }
 
-      if (from == 7) {
+      var currentFrom = from;
+
+      if (currentFrom == 7) {
         await _migrateFromV7(m);
-        return;
+        currentFrom = 9;
       }
 
-      if (from == 8) {
+      if (currentFrom == 8) {
         await _migrateFromV8(m);
+        currentFrom = 9;
+      }
+
+      if (currentFrom == 9) {
+        await _migrateFromV9ToV10(m);
       }
     },
   );
@@ -163,6 +170,13 @@ class AppDatabase extends _$AppDatabase {
       FROM timeline_milestone_rules_v8
     ''');
     await customStatement('DROP TABLE IF EXISTS timeline_milestone_rules_v8');
+  }
+
+  Future<void> _migrateFromV9ToV10(Migrator m) async {
+    await m.createTable(responsibilityPacks);
+    await m.createTable(responsibilityItems);
+    await customStatement('DROP TABLE IF EXISTS task_templates');
+    await customStatement('DROP TABLE IF EXISTS tasks');
   }
 }
 

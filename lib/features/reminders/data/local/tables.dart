@@ -1,42 +1,38 @@
 import 'package:drift/drift.dart';
 
-@DataClassName('TaskTemplateRow')
-class TaskTemplates extends Table {
+@DataClassName('ResponsibilityPackRow')
+class ResponsibilityPacks extends Table {
   @override
-  String get tableName => 'task_templates';
+  String get tableName => 'responsibility_packs';
 
   IntColumn get id => integer().autoIncrement()();
   TextColumn get title => text()();
-  IntColumn get categoryId => integer().nullable()();
-  TextColumn get note => text().nullable()();
-  TextColumn get kind => text()();
-  TextColumn get status => text()();
-  IntColumn get firstDueDate => integer()();
-  TextColumn get repeatRule => text().nullable()();
-  TextColumn get reminderRule => text()();
+  TextColumn get description => text().nullable()();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 }
 
-@DataClassName('TaskRow')
-class Tasks extends Table {
+@DataClassName('ResponsibilityItemRow')
+class ResponsibilityItems extends Table {
   @override
-  String get tableName => 'tasks';
+  String get tableName => 'responsibility_items';
 
   IntColumn get id => integer().autoIncrement()();
-  IntColumn get templateId => integer().nullable()();
-  TextColumn get kind => text()();
-  TextColumn get titleSnapshot => text()();
-  TextColumn get noteSnapshot => text().nullable()();
-  IntColumn get categoryId => integer().nullable()();
-  IntColumn get dueDate => integer()();
-  TextColumn get repeatRule => text().nullable()();
-  TextColumn get reminderRule => text()();
-  IntColumn get deferredDueDate => integer().nullable()();
-  TextColumn get status => text()();
+  IntColumn get packId => integer().references(ResponsibilityPacks, #id)();
+  TextColumn get title => text()();
+  TextColumn get description => text().nullable()();
+  TextColumn get type => text()();
+  TextColumn get fixedScheduleType => text().nullable()();
+  IntColumn get fixedAnchorDate => integer().nullable()();
+  TextColumn get fixedTimeOfDay => text().nullable()();
+  IntColumn get stateExpectedIntervalMinutes => integer().nullable()();
+  IntColumn get stateWarningAfterMinutes => integer().nullable()();
+  IntColumn get stateDangerAfterMinutes => integer().nullable()();
+  IntColumn get resourceEstimatedDurationMinutes => integer().nullable()();
+  IntColumn get resourceWarningBeforeDepletionMinutes => integer().nullable()();
+  IntColumn get lastDoneAt => integer().nullable()();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
-  IntColumn get resolvedAt => integer().nullable()();
 }
 
 @DataClassName('TimelineRow')
@@ -59,7 +55,7 @@ class TimelineMilestoneRules extends Table {
   String get tableName => 'timeline_milestone_rules';
 
   IntColumn get id => integer().autoIncrement()();
-  IntColumn get timelineId => integer()();
+  IntColumn get timelineId => integer().references(Timelines, #id)();
   TextColumn get type => text()();
   IntColumn get intervalValue => integer()();
   TextColumn get intervalUnit => text()();
@@ -82,8 +78,8 @@ class TimelineMilestoneRecords extends Table {
   ];
 
   IntColumn get id => integer().autoIncrement()();
-  IntColumn get timelineId => integer()();
-  IntColumn get ruleId => integer()();
+  IntColumn get timelineId => integer().references(Timelines, #id)();
+  IntColumn get ruleId => integer().references(TimelineMilestoneRules, #id)();
   IntColumn get occurrenceIndex => integer()();
   IntColumn get targetDate => integer()();
   TextColumn get status => text()();

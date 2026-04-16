@@ -1,7 +1,7 @@
 import '../domain/timeline.dart';
 import '../domain/timeline_milestone_occurrence.dart';
 import '../domain/timeline_milestone_rule.dart';
-import 'local/task_timeline_dao.dart';
+import 'local/responsibility_timeline_dao.dart';
 
 class TimelineMilestoneRuleInput {
   const TimelineMilestoneRuleInput({

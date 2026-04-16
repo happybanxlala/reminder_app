@@ -1,4 +1,4 @@
-enum MilestoneStatus { upcoming, noticed, skipped }
+enum TimelineMilestoneRecordStatus { upcoming, noticed, skipped }
 
 class TimelineMilestoneRecord {
   const TimelineMilestoneRecord({
@@ -19,7 +19,7 @@ class TimelineMilestoneRecord {
   final int ruleId;
   final int occurrenceIndex;
   final DateTime targetDate;
-  final MilestoneStatus status;
+  final TimelineMilestoneRecordStatus status;
   final DateTime? notifiedAt;
   final DateTime? actedAt;
   final DateTime createdAt;

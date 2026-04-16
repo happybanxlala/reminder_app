@@ -3,13 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../domain/timeline_milestone_occurrence.dart';
-import '../../domain/task_template.dart';
 import '../../domain/timeline.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
-import '../../providers/task_providers.dart';
+import '../../providers/responsibility_providers.dart';
 import '../../providers/timeline_providers.dart';
-import 'task_edit_page.dart';
+import 'responsibility_item_edit_page.dart';
 import 'timeline_edit_page.dart';
 import 'timeline_milestone_history_page.dart';
 
@@ -21,7 +20,7 @@ class ManagementPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final templatesAsync = ref.watch(taskTemplatesProvider);
+    final responsibilityItemsAsync = ref.watch(responsibilityItemsProvider);
     final timelinesAsync = ref.watch(timelinesProvider);
 
     return Scaffold(
@@ -33,28 +32,106 @@ class ManagementPage extends ConsumerWidget {
             children: [
               const Expanded(
                 child: Text(
-                  ReminderUiText.taskTemplateTitle,
+                  ReminderUiText.responsibilityItemTitle,
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ),
               FilledButton(
-                key: const Key('add-task-template-button'),
+                key: const Key('add-responsibility-item-button'),
                 onPressed: () {
-                  context.pushNamed(TaskEditPage.taskTemplateNewRouteName);
+                  context.pushNamed(ResponsibilityItemEditPage.createRouteName);
                 },
-                child: const Text(ReminderUiText.addTaskTemplate),
+                child: const Text(ReminderUiText.addResponsibilityItem),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          templatesAsync.when(
+          responsibilityItemsAsync.when(
             data: (items) {
               if (items.isEmpty) {
-                return const Text(ReminderUiText.noTemplates);
+                return const Text(ReminderUiText.noResponsibilityItems);
               }
+              final repository = ref.read(responsibilityRepositoryProvider);
               return Column(
                 children: items
-                    .map((item) => _TaskTemplateCard(template: item))
+                    .map(
+                      (item) => Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item.item.title,
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.titleMedium,
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(item.pack.title),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          ReminderFormatters.responsibilitySummary(
+                                            item,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Text(
+                                    ReminderFormatters.responsibilityStatus(
+                                      repository.statusFor(item.item),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Wrap(
+                                spacing: 8,
+                                children: [
+                                  OutlinedButton(
+                                    key: Key(
+                                      'responsibility-edit-${item.item.id}',
+                                    ),
+                                    onPressed: () {
+                                      context.pushNamed(
+                                        ResponsibilityItemEditPage
+                                            .editRouteName,
+                                        pathParameters: {
+                                          'id': item.item.id.toString(),
+                                        },
+                                      );
+                                    },
+                                    child: const Text(
+                                      ReminderUiText.editAction,
+                                    ),
+                                  ),
+                                  OutlinedButton(
+                                    key: Key(
+                                      'responsibility-done-${item.item.id}',
+                                    ),
+                                    onPressed: () async {
+                                      await repository.markDone(item.item.id);
+                                    },
+                                    child: const Text(
+                                      ReminderUiText.completeAction,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    )
                     .toList(growable: false),
               );
             },
@@ -95,112 +172,6 @@ class ManagementPage extends ConsumerWidget {
             loading: () => const Center(child: CircularProgressIndicator()),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _TaskTemplateCard extends ConsumerWidget {
-  const _TaskTemplateCard({required this.template});
-
-  final TaskTemplate template;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final repository = ref.read(taskRepositoryProvider);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        template.title,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        ReminderFormatters.templateSummary(
-                          template.repeatRule,
-                          template.reminderRule,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(ReminderFormatters.taskTemplateStatus(template.status)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: switch (template.status) {
-                TaskTemplateStatus.active => [
-                  OutlinedButton(
-                    key: Key('template-edit-${template.id}'),
-                    onPressed: () {
-                      context.pushNamed(
-                        TaskEditPage.taskTemplateEditRouteName,
-                        pathParameters: {'id': template.id.toString()},
-                      );
-                    },
-                    child: const Text(ReminderUiText.editAction),
-                  ),
-                  OutlinedButton(
-                    key: Key('template-pause-${template.id}'),
-                    onPressed: () async {
-                      await repository.pauseTemplate(template.id);
-                    },
-                    child: const Text(ReminderUiText.pauseAction),
-                  ),
-                  OutlinedButton(
-                    key: Key('template-archive-${template.id}'),
-                    onPressed: () async {
-                      await repository.archiveTemplate(template.id);
-                    },
-                    child: const Text(ReminderUiText.archiveAction),
-                  ),
-                ],
-                TaskTemplateStatus.paused => [
-                  OutlinedButton(
-                    key: Key('template-resume-${template.id}'),
-                    onPressed: () async {
-                      await repository.resumeTemplate(template.id);
-                    },
-                    child: const Text(ReminderUiText.resumeAction),
-                  ),
-                  OutlinedButton(
-                    key: Key('template-archive-${template.id}'),
-                    onPressed: () async {
-                      await repository.archiveTemplate(template.id);
-                    },
-                    child: const Text(ReminderUiText.archiveAction),
-                  ),
-                  OutlinedButton(
-                    key: Key('template-edit-${template.id}'),
-                    onPressed: () {
-                      context.pushNamed(
-                        TaskEditPage.taskTemplateEditRouteName,
-                        pathParameters: {'id': template.id.toString()},
-                      );
-                    },
-                    child: const Text(ReminderUiText.editAction),
-                  ),
-                ],
-                TaskTemplateStatus.archived => <Widget>[],
-              },
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -340,7 +311,9 @@ class _TimelineCard extends ConsumerWidget {
                       pathParameters: {'id': timeline.id.toString()},
                     );
                   },
-                  child: const Text(ReminderUiText.historyEntryAction),
+                  child: const Text(
+                    ReminderUiText.timelineMilestoneHistoryTitle,
+                  ),
                 ),
                 if (timeline.status != TimelineStatus.archived)
                   OutlinedButton(
@@ -368,8 +341,7 @@ class _TimelineCard extends ConsumerWidget {
     for (final item in items) {
       byRule.putIfAbsent(item.ruleId, () => item);
     }
-    final values = byRule.values.toList(growable: false);
-    values.sort((a, b) => a.targetDate.compareTo(b.targetDate));
-    return values;
+    return byRule.values.toList(growable: false)
+      ..sort((a, b) => a.targetDate.compareTo(b.targetDate));
   }
 }

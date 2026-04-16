@@ -1,14 +1,21 @@
+import '../domain/responsibility_item.dart';
 import '../domain/timeline_milestone_occurrence.dart';
-import 'local/task_timeline_dao.dart';
+import 'local/responsibility_timeline_dao.dart';
 
 sealed class HomeEntry {
   const HomeEntry();
 }
 
-class TaskHomeEntry extends HomeEntry {
-  const TaskHomeEntry(this.bundle);
+class ResponsibilityItemHomeEntry extends HomeEntry {
+  const ResponsibilityItemHomeEntry({
+    required this.bundle,
+    required this.status,
+    this.elapsed,
+  });
 
-  final TaskBundle bundle;
+  final ResponsibilityItemBundle bundle;
+  final ResponsibilityItemStatus status;
+  final Duration? elapsed;
 }
 
 class TimelineMilestoneHomeEntry extends HomeEntry {

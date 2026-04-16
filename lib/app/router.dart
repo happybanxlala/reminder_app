@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../features/reminders/ui/pages/history_page.dart';
 import '../features/reminders/ui/pages/home_page.dart';
 import '../features/reminders/ui/pages/management_page.dart';
-import '../features/reminders/ui/pages/task_edit_page.dart';
+import '../features/reminders/ui/pages/responsibility_item_edit_page.dart';
 import '../features/reminders/ui/pages/timeline_edit_page.dart';
 import '../features/reminders/ui/pages/timeline_milestone_history_page.dart';
 
@@ -28,31 +28,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const HistoryPage(),
       ),
       GoRoute(
-        path: TaskEditPage.taskNewRoutePath,
-        name: TaskEditPage.taskNewRouteName,
-        builder: (context, state) =>
-            const TaskEditPage(mode: TaskEditMode.taskCreate),
+        path: ResponsibilityItemEditPage.createRoutePath,
+        name: ResponsibilityItemEditPage.createRouteName,
+        builder: (context, state) => const ResponsibilityItemEditPage(
+          mode: ResponsibilityItemEditMode.create,
+        ),
       ),
       GoRoute(
-        path: TaskEditPage.taskTemplateNewRoutePath,
-        name: TaskEditPage.taskTemplateNewRouteName,
-        builder: (context, state) =>
-            const TaskEditPage(mode: TaskEditMode.taskTemplateCreate),
-      ),
-      GoRoute(
-        path: TaskEditPage.taskTemplateEditRoutePath,
-        name: TaskEditPage.taskTemplateEditRouteName,
+        path: ResponsibilityItemEditPage.editRoutePath,
+        name: ResponsibilityItemEditPage.editRouteName,
         builder: (context, state) {
           final id = int.tryParse(state.pathParameters['id'] ?? '');
-          return TaskEditPage(mode: TaskEditMode.taskTemplateEdit, id: id);
-        },
-      ),
-      GoRoute(
-        path: TaskEditPage.taskEditRoutePath,
-        name: TaskEditPage.taskEditRouteName,
-        builder: (context, state) {
-          final id = int.tryParse(state.pathParameters['id'] ?? '');
-          return TaskEditPage(mode: TaskEditMode.taskEdit, id: id);
+          return ResponsibilityItemEditPage(
+            mode: ResponsibilityItemEditMode.edit,
+            id: id,
+          );
         },
       ),
       GoRoute(
