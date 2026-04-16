@@ -145,6 +145,8 @@ ResponsibilityItemHomeEntry _responsibilityEntry({
       pack: ResponsibilityPack(
         id: 1,
         title: 'Default Responsibility Pack',
+        status: ResponsibilityPackStatus.active,
+        isSystemDefault: true,
         createdAt: DateTime(2026, 4, 1),
         updatedAt: DateTime(2026, 4, 1),
       ),

@@ -28,13 +28,11 @@ class ResponsibilityRepository {
     ResponsibilityStatusService? statusService,
   }) : _statusService = statusService ?? const ResponsibilityStatusService();
 
-  static const _defaultPackTitle = 'Default Responsibility Pack';
-
   final ResponsibilityTimelineDao _dao;
   final ResponsibilityStatusService _statusService;
 
-  Stream<List<ResponsibilityPack>> watchPacks() =>
-      _dao.watchResponsibilityPacks();
+  Stream<List<ResponsibilityPack>> watchPacks({bool includeArchived = false}) =>
+      _dao.watchResponsibilityPacks(includeArchived: includeArchived);
 
   Stream<List<ResponsibilityItemBundle>> watchItems() =>
       _dao.watchResponsibilityItemBundles();
@@ -57,9 +55,13 @@ class ResponsibilityRepository {
   Future<ResponsibilityItemBundle?> getItemById(int id) =>
       _dao.getResponsibilityItemBundleById(id);
 
+  Future<ResponsibilityPack?> getPackById(int id) =>
+      _dao.getResponsibilityPackById(id);
+
   Future<int> createItem(ResponsibilityItemInput input) async {
     final now = DateTime.now();
     final packId = input.packId ?? await _ensureDefaultPackId(now);
+    await _assertPackCanAcceptItems(packId);
     return _dao.insertResponsibilityItem(
       ResponsibilityItemsCompanion.insert(
         packId: packId,
@@ -98,6 +100,7 @@ class ResponsibilityRepository {
     }
     final now = DateTime.now();
     final packId = input.packId ?? existing.item.packId;
+    await _assertPackCanAcceptItems(packId, existingItem: existing.item);
     return _dao.updateResponsibilityItemRecord(
       ResponsibilityItemRow(
         id: existing.item.id,
@@ -134,6 +137,71 @@ class ResponsibilityRepository {
     return _dao.markResponsibilityItemDone(id, doneAt: doneAt);
   }
 
+  Future<int> createPack(ResponsibilityPackInput input) async {
+    final now = DateTime.now();
+    return _dao.insertResponsibilityPack(
+      ResponsibilityPacksCompanion.insert(
+        title: input.title,
+        description: Value(input.description),
+        status: const Value('active'),
+        isSystemDefault: const Value(false),
+        createdAt: now.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
+      ),
+    );
+  }
+
+  Future<bool> updatePack(int id, ResponsibilityPackInput input) async {
+    final existing = await getPackById(id);
+    if (existing == null ||
+        existing.isSystemDefault ||
+        existing.status == ResponsibilityPackStatus.archived) {
+      return false;
+    }
+    final now = DateTime.now();
+    return _dao.updateResponsibilityPackRecord(
+      ResponsibilityPackRow(
+        id: existing.id,
+        title: input.title,
+        description: input.description,
+        status: existing.status.name,
+        isSystemDefault: existing.isSystemDefault,
+        createdAt: existing.createdAt.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
+      ),
+    );
+  }
+
+  Future<bool> canArchivePack(int id) async {
+    final pack = await getPackById(id);
+    if (pack == null ||
+        pack.isSystemDefault ||
+        pack.status == ResponsibilityPackStatus.archived) {
+      return false;
+    }
+    final itemCount = await _dao.countResponsibilityItemsForPack(id);
+    return itemCount == 0;
+  }
+
+  Future<bool> archivePack(int id) async {
+    final existing = await getPackById(id);
+    if (existing == null || !await canArchivePack(id)) {
+      return false;
+    }
+    final now = DateTime.now();
+    return _dao.updateResponsibilityPackRecord(
+      ResponsibilityPackRow(
+        id: existing.id,
+        title: existing.title,
+        description: existing.description,
+        status: ResponsibilityPackStatus.archived.name,
+        isSystemDefault: existing.isSystemDefault,
+        createdAt: existing.createdAt.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
+      ),
+    );
+  }
+
   ResponsibilityItemStatus statusFor(ResponsibilityItem item, {DateTime? now}) {
     return _statusService.classify(item, now: now);
   }
@@ -143,20 +211,39 @@ class ResponsibilityRepository {
   }
 
   Future<int> _ensureDefaultPackId(DateTime now) async {
-    final packs = await _dao.listResponsibilityPacks();
+    final packs = await _dao.listResponsibilityPacks(includeArchived: true);
     for (final pack in packs) {
-      if (pack.title == _defaultPackTitle) {
+      if (pack.isSystemDefault) {
         return pack.id;
       }
     }
     return _dao.insertResponsibilityPack(
       ResponsibilityPacksCompanion.insert(
-        title: _defaultPackTitle,
-        description: const Value('Repository-managed fallback pack'),
+        title: AppDatabase.systemDefaultPackTitle,
+        description: const Value(AppDatabase.systemDefaultPackDescription),
+        status: const Value('active'),
+        isSystemDefault: const Value(true),
         createdAt: now.millisecondsSinceEpoch,
         updatedAt: now.millisecondsSinceEpoch,
       ),
     );
+  }
+
+  Future<void> _assertPackCanAcceptItems(
+    int packId, {
+    ResponsibilityItem? existingItem,
+  }) async {
+    final pack = await getPackById(packId);
+    if (pack == null) {
+      throw StateError('Responsibility pack not found.');
+    }
+    if (pack.status == ResponsibilityPackStatus.active) {
+      return;
+    }
+    if (existingItem != null && existingItem.packId == pack.id) {
+      return;
+    }
+    throw StateError('Archived responsibility pack cannot accept items.');
   }
 
   String? _fixedScheduleType(ResponsibilityItemConfig config) {

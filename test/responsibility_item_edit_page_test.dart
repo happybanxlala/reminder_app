@@ -12,7 +12,29 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      const ProviderScope(
+      ProviderScope(
+        overrides: [
+          activeResponsibilityPacksProvider.overrideWith(
+            (ref) => Stream.value([
+              ResponsibilityPack(
+                id: 1,
+                title: 'Default Responsibility Pack',
+                status: ResponsibilityPackStatus.active,
+                isSystemDefault: true,
+                createdAt: DateTime(2026, 4, 1),
+                updatedAt: DateTime(2026, 4, 1),
+              ),
+              ResponsibilityPack(
+                id: 2,
+                title: 'Cat Care',
+                status: ResponsibilityPackStatus.active,
+                isSystemDefault: false,
+                createdAt: DateTime(2026, 4, 1),
+                updatedAt: DateTime(2026, 4, 2),
+              ),
+            ]),
+          ),
+        ],
         child: MaterialApp(
           home: ResponsibilityItemEditPage(
             mode: ResponsibilityItemEditMode.create,
@@ -24,6 +46,7 @@ void main() {
 
     expect(find.byKey(const Key('expected-interval-field')), findsOneWidget);
     expect(find.byKey(const Key('estimated-duration-field')), findsNothing);
+    expect(find.byKey(const Key('pack-field')), findsOneWidget);
 
     await tester.tap(find.text(ResponsibilityItemType.stateBased.name));
     await tester.pumpAndSettle();
@@ -40,6 +63,18 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          activeResponsibilityPacksProvider.overrideWith(
+            (ref) => Stream.value([
+              ResponsibilityPack(
+                id: 1,
+                title: 'Default Responsibility Pack',
+                status: ResponsibilityPackStatus.active,
+                isSystemDefault: true,
+                createdAt: DateTime(2026, 4, 1),
+                updatedAt: DateTime(2026, 4, 2),
+              ),
+            ]),
+          ),
           responsibilityItemProvider(7).overrideWith(
             (ref) => Future.value(
               ResponsibilityItemBundle(
@@ -60,6 +95,8 @@ void main() {
                 pack: ResponsibilityPack(
                   id: 1,
                   title: 'Default Responsibility Pack',
+                  status: ResponsibilityPackStatus.active,
+                  isSystemDefault: true,
                   createdAt: DateTime(2026, 4, 1),
                   updatedAt: DateTime(2026, 4, 2),
                 ),
@@ -81,5 +118,64 @@ void main() {
     expect(find.text('Brush and trim'), findsOneWidget);
     expect(find.text('7'), findsWidgets);
     expect(find.byKey(const Key('danger-after-field')), findsOneWidget);
+    expect(find.text('Default Responsibility Pack (系統預設)'), findsOneWidget);
+  });
+
+  testWidgets('editor keeps archived current pack visible while editing', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          activeResponsibilityPacksProvider.overrideWith(
+            (ref) => Stream.value([
+              ResponsibilityPack(
+                id: 1,
+                title: 'Active Pack',
+                status: ResponsibilityPackStatus.active,
+                isSystemDefault: false,
+                createdAt: DateTime(2026, 4, 1),
+                updatedAt: DateTime(2026, 4, 2),
+              ),
+            ]),
+          ),
+          responsibilityItemProvider(8).overrideWith(
+            (ref) => Future.value(
+              ResponsibilityItemBundle(
+                item: ResponsibilityItem(
+                  id: 8,
+                  packId: 2,
+                  title: 'Archived owner',
+                  type: ResponsibilityItemType.resourceBased,
+                  config: const ResourceBasedItemConfig(
+                    estimatedDuration: Duration(days: 30),
+                    warningBeforeDepletion: Duration(days: 7),
+                  ),
+                  createdAt: DateTime(2026, 4, 1),
+                  updatedAt: DateTime(2026, 4, 2),
+                ),
+                pack: ResponsibilityPack(
+                  id: 2,
+                  title: 'Archived Pack',
+                  status: ResponsibilityPackStatus.archived,
+                  isSystemDefault: false,
+                  createdAt: DateTime(2026, 4, 1),
+                  updatedAt: DateTime(2026, 4, 2),
+                ),
+              ),
+            ),
+          ),
+        ],
+        child: const MaterialApp(
+          home: ResponsibilityItemEditPage(
+            mode: ResponsibilityItemEditMode.edit,
+            id: 8,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Archived Pack (archived)'), findsOneWidget);
   });
 }

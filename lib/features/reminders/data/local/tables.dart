@@ -8,6 +8,9 @@ class ResponsibilityPacks extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get title => text()();
   TextColumn get description => text().nullable()();
+  TextColumn get status => text().withDefault(const Constant('active'))();
+  BoolColumn get isSystemDefault =>
+      boolean().withDefault(const Constant(false))();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 }

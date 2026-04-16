@@ -21,15 +21,21 @@ part 'app_database.g.dart';
   daos: [ResponsibilityTimelineDao],
 )
 class AppDatabase extends _$AppDatabase {
+  static const systemDefaultPackTitle = 'Default Responsibility Pack';
+  static const systemDefaultPackDescription = 'System default pack';
+
   AppDatabase() : super(_openConnection());
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
+    beforeOpen: (details) async {
+      await _ensureSystemDefaultPack();
+    },
     onUpgrade: (m, from, to) async {
       if (from < 7) {
         await customStatement('DROP TABLE IF EXISTS reminders');
@@ -65,6 +71,11 @@ class AppDatabase extends _$AppDatabase {
 
       if (currentFrom == 9) {
         await _migrateFromV9ToV10(m);
+        currentFrom = 11;
+      }
+
+      if (currentFrom == 10) {
+        await _migrateFromV10ToV11(m);
       }
     },
   );
@@ -177,6 +188,68 @@ class AppDatabase extends _$AppDatabase {
     await m.createTable(responsibilityItems);
     await customStatement('DROP TABLE IF EXISTS task_templates');
     await customStatement('DROP TABLE IF EXISTS tasks');
+  }
+
+  Future<void> _migrateFromV10ToV11(Migrator m) async {
+    await customStatement(
+      "ALTER TABLE responsibility_packs ADD COLUMN status TEXT NOT NULL DEFAULT 'active'",
+    );
+    await customStatement(
+      'ALTER TABLE responsibility_packs ADD COLUMN is_system_default INTEGER NOT NULL DEFAULT 0',
+    );
+    await customStatement(
+      "UPDATE responsibility_packs SET status = 'active' WHERE status IS NULL OR status = ''",
+    );
+    await customStatement('''
+      UPDATE responsibility_packs
+      SET is_system_default = 1
+      WHERE title = '$systemDefaultPackTitle'
+      ''');
+  }
+
+  Future<void> _ensureSystemDefaultPack() async {
+    final existingDefault = await customSelect('''
+      SELECT id
+      FROM responsibility_packs
+      WHERE is_system_default = 1
+      LIMIT 1
+      ''').getSingleOrNull();
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    if (existingDefault != null) {
+      await customStatement('''
+        UPDATE responsibility_packs
+        SET status = 'active'
+        WHERE is_system_default = 1
+        ''');
+      return;
+    }
+
+    final titledDefault = await customSelect('''
+      SELECT id
+      FROM responsibility_packs
+      WHERE title = '$systemDefaultPackTitle'
+      LIMIT 1
+      ''').getSingleOrNull();
+    if (titledDefault != null) {
+      await customStatement('''
+        UPDATE responsibility_packs
+        SET is_system_default = 1, status = 'active'
+        WHERE id = ${titledDefault.read<int>('id')}
+        ''');
+      return;
+    }
+
+    await into(responsibilityPacks).insert(
+      ResponsibilityPacksCompanion.insert(
+        title: systemDefaultPackTitle,
+        description: const Value(systemDefaultPackDescription),
+        status: const Value('active'),
+        isSystemDefault: const Value(true),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
   }
 }
 

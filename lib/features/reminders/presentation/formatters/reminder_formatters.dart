@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../../data/home_models.dart';
 import '../../data/local/responsibility_timeline_dao.dart';
 import '../../domain/responsibility_item.dart';
+import '../../domain/responsibility_pack.dart';
 import '../../domain/timeline.dart';
 import '../../domain/timeline_milestone_occurrence.dart';
 import '../../domain/timeline_milestone_record.dart';
@@ -33,7 +34,7 @@ class ReminderFormatters {
   static String responsibilityHomeSummary(ResponsibilityItemHomeEntry entry) {
     final elapsed = entry.elapsed;
     final elapsedText = elapsed == null ? '尚未完成過' : elapsedLabel(elapsed);
-    return '${responsibilityStatus(entry.status)} • $elapsedText';
+    return '${entry.bundle.pack.title} • ${responsibilityStatus(entry.status)} • $elapsedText';
   }
 
   static String milestoneSummary(TimelineMilestoneOccurrence occurrence) {
@@ -111,6 +112,13 @@ class ReminderFormatters {
       ResponsibilityItemStatus.warning => 'warning',
       ResponsibilityItemStatus.danger => 'danger',
       ResponsibilityItemStatus.unknown => 'unknown',
+    };
+  }
+
+  static String responsibilityPackStatus(ResponsibilityPackStatus status) {
+    return switch (status) {
+      ResponsibilityPackStatus.active => 'active',
+      ResponsibilityPackStatus.archived => 'archived',
     };
   }
 

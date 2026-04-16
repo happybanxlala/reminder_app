@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/local/responsibility_timeline_dao.dart';
 import '../../data/responsibility_repository.dart';
 import '../../domain/responsibility_item.dart';
+import '../../domain/responsibility_pack.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
 import '../../providers/responsibility_providers.dart';
@@ -42,6 +43,7 @@ class _ResponsibilityItemEditPageState
   ResponsibilityItemType _type = ResponsibilityItemType.stateBased;
   FixedTimeScheduleType _scheduleType = FixedTimeScheduleType.daily;
   DateTime _selectedAnchorDate = DateTime.now();
+  int? _selectedPackId;
   bool _initialized = false;
 
   bool get _isEdit => widget.mode == ResponsibilityItemEditMode.edit;
@@ -77,15 +79,20 @@ class _ResponsibilityItemEditPageState
     final itemAsync = _isEdit && widget.id != null
         ? ref.watch(responsibilityItemProvider(widget.id!))
         : const AsyncData<ResponsibilityItemBundle?>(null);
+    final activePacksAsync = ref.watch(activeResponsibilityPacksProvider);
 
-    if (itemAsync.isLoading) {
+    if (itemAsync.isLoading || activePacksAsync.isLoading) {
       return Scaffold(
         appBar: AppBar(title: Text(_pageTitle)),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
-    _initializeIfNeeded(itemAsync.valueOrNull);
+    final bundle = itemAsync.valueOrNull;
+    final activePacks =
+        activePacksAsync.valueOrNull ?? const <ResponsibilityPack>[];
+    _initializeIfNeeded(bundle);
+    final packOptions = _packOptions(activePacks, bundle?.pack);
 
     return Scaffold(
       appBar: AppBar(title: Text(_pageTitle)),
@@ -97,6 +104,28 @@ class _ResponsibilityItemEditPageState
             EditorTitleField(controller: _titleController),
             const SizedBox(height: 12),
             EditorNoteField(controller: _descriptionController),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<int?>(
+              key: const Key('pack-field'),
+              initialValue: _selectedPackId,
+              decoration: const InputDecoration(
+                labelText: ReminderUiText.packFieldLabel,
+              ),
+              items: packOptions
+                  .map(
+                    (option) => DropdownMenuItem<int?>(
+                      value: option.id,
+                      enabled: option.enabled,
+                      child: Text(option.label),
+                    ),
+                  )
+                  .toList(growable: false),
+              onChanged: (value) {
+                setState(() {
+                  _selectedPackId = value;
+                });
+              },
+            ),
             const SizedBox(height: 12),
             DropdownButtonFormField<ResponsibilityItemType>(
               initialValue: _type,
@@ -153,6 +182,7 @@ class _ResponsibilityItemEditPageState
       final item = bundle.item;
       _titleController.text = item.title;
       _descriptionController.text = item.description ?? '';
+      _selectedPackId = item.packId;
       _type = item.type;
       switch (item.config) {
         case FixedTimeItemConfig config:
@@ -272,6 +302,7 @@ class _ResponsibilityItemEditPageState
       description: _normalizeOptionalText(_descriptionController.text),
       type: _type,
       config: _buildConfig(),
+      packId: _selectedPackId,
     );
 
     if (_isEdit) {
@@ -313,10 +344,56 @@ class _ResponsibilityItemEditPageState
     return int.tryParse(controller.text.trim()) ?? 1;
   }
 
+  List<_PackOption> _packOptions(
+    List<ResponsibilityPack> activePacks,
+    ResponsibilityPack? currentPack,
+  ) {
+    final options = <_PackOption>[
+      const _PackOption(id: null, label: ReminderUiText.unassignedPackOption),
+      ...activePacks.map(
+        (pack) => _PackOption(id: pack.id, label: _packLabel(pack)),
+      ),
+    ];
+
+    final pack = currentPack;
+    if (pack != null &&
+        pack.status == ResponsibilityPackStatus.archived &&
+        activePacks.every((item) => item.id != pack.id)) {
+      options.add(
+        _PackOption(
+          id: pack.id,
+          label: '${_packLabel(pack)} (${ReminderUiText.archivedPackSuffix})',
+          enabled: false,
+        ),
+      );
+    }
+
+    return options;
+  }
+
+  String _packLabel(ResponsibilityPack pack) {
+    if (!pack.isSystemDefault) {
+      return pack.title;
+    }
+    return '${pack.title} (${ReminderUiText.systemDefaultPackLabel})';
+  }
+
   String? _normalizeOptionalText(String value) {
     final normalized = value.trim();
     return normalized.isEmpty ? null : normalized;
   }
+}
+
+class _PackOption {
+  const _PackOption({
+    required this.id,
+    required this.label,
+    this.enabled = true,
+  });
+
+  final int? id;
+  final String label;
+  final bool enabled;
 }
 
 class _DaysField extends StatelessWidget {

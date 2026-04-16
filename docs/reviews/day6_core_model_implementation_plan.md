@@ -3,7 +3,7 @@
 ## Scope and source boundary
 
 - Primary source: `docs/core/04_core_model_spec_v1.md`
-- Secondary source: `docs/core/01_mvp_spec.md`
+- Single canonical source: `docs/core/04_core_model_spec_v1.md`
 - `docs/core/03_timeline_milestone_rule.md` is not present in this repo; implementation will not use `docs/archive/03_timeline_milestone_rule.md` as a decision source.
 - Decision rule for conflicts: `04_core_model_spec_v1` overrides legacy `Task`-centric semantics.
 

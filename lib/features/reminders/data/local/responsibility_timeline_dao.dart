@@ -71,18 +71,28 @@ class ResponsibilityTimelineDao extends DatabaseAccessor<AppDatabase>
     return update(responsibilityItems).replace(entry);
   }
 
-  Stream<List<ResponsibilityPack>> watchResponsibilityPacks() {
-    final query = select(responsibilityPacks)
-      ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]);
+  Stream<List<ResponsibilityPack>> watchResponsibilityPacks({
+    bool includeArchived = false,
+  }) {
+    final query = select(responsibilityPacks);
+    if (!includeArchived) {
+      query.where((t) => t.status.equals(ResponsibilityPackStatus.active.name));
+    }
+    query.orderBy(_responsibilityPackOrdering);
     return query.watch().map(
       (rows) => rows.map(_toResponsibilityPack).toList(growable: false),
     );
   }
 
-  Future<List<ResponsibilityPack>> listResponsibilityPacks() async {
-    final rows = await (select(
-      responsibilityPacks,
-    )..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])).get();
+  Future<List<ResponsibilityPack>> listResponsibilityPacks({
+    bool includeArchived = false,
+  }) async {
+    final query = select(responsibilityPacks);
+    if (!includeArchived) {
+      query.where((t) => t.status.equals(ResponsibilityPackStatus.active.name));
+    }
+    query.orderBy(_responsibilityPackOrdering);
+    final rows = await query.get();
     return rows.map(_toResponsibilityPack).toList(growable: false);
   }
 
@@ -91,6 +101,15 @@ class ResponsibilityTimelineDao extends DatabaseAccessor<AppDatabase>
       responsibilityPacks,
     )..where((t) => t.id.equals(id))).getSingleOrNull();
     return row == null ? null : _toResponsibilityPack(row);
+  }
+
+  Future<int> countResponsibilityItemsForPack(int packId) async {
+    final countExpression = responsibilityItems.id.count();
+    final query = selectOnly(responsibilityItems)
+      ..addColumns([countExpression])
+      ..where(responsibilityItems.packId.equals(packId));
+    final row = await query.getSingle();
+    return row.read(countExpression) ?? 0;
   }
 
   Stream<List<ResponsibilityItemBundle>> watchResponsibilityItemBundles() {
@@ -441,6 +460,8 @@ class ResponsibilityTimelineDao extends DatabaseAccessor<AppDatabase>
       id: row.id,
       title: row.title,
       description: row.description,
+      status: ResponsibilityPackStatus.values.byName(row.status),
+      isSystemDefault: row.isSystemDefault,
       createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
     );
@@ -554,4 +575,11 @@ class ResponsibilityTimelineDao extends DatabaseAccessor<AppDatabase>
       _ => TimelineMilestoneRuleType.everyNDays,
     };
   }
+
+  List<OrderingTerm Function($ResponsibilityPacksTable)>
+  get _responsibilityPackOrdering => [
+    (t) => OrderingTerm.desc(t.isSystemDefault),
+    (t) => OrderingTerm.desc(t.updatedAt),
+    (t) => OrderingTerm.asc(t.id),
+  ];
 }

@@ -42,6 +42,31 @@ class $ResponsibilityPacksTable extends ResponsibilityPacks
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('active'),
+  );
+  static const VerificationMeta _isSystemDefaultMeta = const VerificationMeta(
+    'isSystemDefault',
+  );
+  @override
+  late final GeneratedColumn<bool> isSystemDefault = GeneratedColumn<bool>(
+    'is_system_default',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_system_default" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -69,6 +94,8 @@ class $ResponsibilityPacksTable extends ResponsibilityPacks
     id,
     title,
     description,
+    status,
+    isSystemDefault,
     createdAt,
     updatedAt,
   ];
@@ -101,6 +128,21 @@ class $ResponsibilityPacksTable extends ResponsibilityPacks
         description.isAcceptableOrUnknown(
           data['description']!,
           _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('is_system_default')) {
+      context.handle(
+        _isSystemDefaultMeta,
+        isSystemDefault.isAcceptableOrUnknown(
+          data['is_system_default']!,
+          _isSystemDefaultMeta,
         ),
       );
     }
@@ -141,6 +183,14 @@ class $ResponsibilityPacksTable extends ResponsibilityPacks
         DriftSqlType.string,
         data['${effectivePrefix}description'],
       ),
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      isSystemDefault: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_system_default'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
@@ -163,12 +213,16 @@ class ResponsibilityPackRow extends DataClass
   final int id;
   final String title;
   final String? description;
+  final String status;
+  final bool isSystemDefault;
   final int createdAt;
   final int updatedAt;
   const ResponsibilityPackRow({
     required this.id,
     required this.title,
     this.description,
+    required this.status,
+    required this.isSystemDefault,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -180,6 +234,8 @@ class ResponsibilityPackRow extends DataClass
     if (!nullToAbsent || description != null) {
       map['description'] = Variable<String>(description);
     }
+    map['status'] = Variable<String>(status);
+    map['is_system_default'] = Variable<bool>(isSystemDefault);
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     return map;
@@ -192,6 +248,8 @@ class ResponsibilityPackRow extends DataClass
       description: description == null && nullToAbsent
           ? const Value.absent()
           : Value(description),
+      status: Value(status),
+      isSystemDefault: Value(isSystemDefault),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -206,6 +264,8 @@ class ResponsibilityPackRow extends DataClass
       id: serializer.fromJson<int>(json['id']),
       title: serializer.fromJson<String>(json['title']),
       description: serializer.fromJson<String?>(json['description']),
+      status: serializer.fromJson<String>(json['status']),
+      isSystemDefault: serializer.fromJson<bool>(json['isSystemDefault']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -217,6 +277,8 @@ class ResponsibilityPackRow extends DataClass
       'id': serializer.toJson<int>(id),
       'title': serializer.toJson<String>(title),
       'description': serializer.toJson<String?>(description),
+      'status': serializer.toJson<String>(status),
+      'isSystemDefault': serializer.toJson<bool>(isSystemDefault),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -226,12 +288,16 @@ class ResponsibilityPackRow extends DataClass
     int? id,
     String? title,
     Value<String?> description = const Value.absent(),
+    String? status,
+    bool? isSystemDefault,
     int? createdAt,
     int? updatedAt,
   }) => ResponsibilityPackRow(
     id: id ?? this.id,
     title: title ?? this.title,
     description: description.present ? description.value : this.description,
+    status: status ?? this.status,
+    isSystemDefault: isSystemDefault ?? this.isSystemDefault,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -242,6 +308,10 @@ class ResponsibilityPackRow extends DataClass
       description: data.description.present
           ? data.description.value
           : this.description,
+      status: data.status.present ? data.status.value : this.status,
+      isSystemDefault: data.isSystemDefault.present
+          ? data.isSystemDefault.value
+          : this.isSystemDefault,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -253,6 +323,8 @@ class ResponsibilityPackRow extends DataClass
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('description: $description, ')
+          ..write('status: $status, ')
+          ..write('isSystemDefault: $isSystemDefault, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -260,7 +332,15 @@ class ResponsibilityPackRow extends DataClass
   }
 
   @override
-  int get hashCode => Object.hash(id, title, description, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+    id,
+    title,
+    description,
+    status,
+    isSystemDefault,
+    createdAt,
+    updatedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -268,6 +348,8 @@ class ResponsibilityPackRow extends DataClass
           other.id == this.id &&
           other.title == this.title &&
           other.description == this.description &&
+          other.status == this.status &&
+          other.isSystemDefault == this.isSystemDefault &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -277,12 +359,16 @@ class ResponsibilityPacksCompanion
   final Value<int> id;
   final Value<String> title;
   final Value<String?> description;
+  final Value<String> status;
+  final Value<bool> isSystemDefault;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   const ResponsibilityPacksCompanion({
     this.id = const Value.absent(),
     this.title = const Value.absent(),
     this.description = const Value.absent(),
+    this.status = const Value.absent(),
+    this.isSystemDefault = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -290,6 +376,8 @@ class ResponsibilityPacksCompanion
     this.id = const Value.absent(),
     required String title,
     this.description = const Value.absent(),
+    this.status = const Value.absent(),
+    this.isSystemDefault = const Value.absent(),
     required int createdAt,
     required int updatedAt,
   }) : title = Value(title),
@@ -299,6 +387,8 @@ class ResponsibilityPacksCompanion
     Expression<int>? id,
     Expression<String>? title,
     Expression<String>? description,
+    Expression<String>? status,
+    Expression<bool>? isSystemDefault,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
@@ -306,6 +396,8 @@ class ResponsibilityPacksCompanion
       if (id != null) 'id': id,
       if (title != null) 'title': title,
       if (description != null) 'description': description,
+      if (status != null) 'status': status,
+      if (isSystemDefault != null) 'is_system_default': isSystemDefault,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -315,6 +407,8 @@ class ResponsibilityPacksCompanion
     Value<int>? id,
     Value<String>? title,
     Value<String?>? description,
+    Value<String>? status,
+    Value<bool>? isSystemDefault,
     Value<int>? createdAt,
     Value<int>? updatedAt,
   }) {
@@ -322,6 +416,8 @@ class ResponsibilityPacksCompanion
       id: id ?? this.id,
       title: title ?? this.title,
       description: description ?? this.description,
+      status: status ?? this.status,
+      isSystemDefault: isSystemDefault ?? this.isSystemDefault,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -339,6 +435,12 @@ class ResponsibilityPacksCompanion
     if (description.present) {
       map['description'] = Variable<String>(description.value);
     }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (isSystemDefault.present) {
+      map['is_system_default'] = Variable<bool>(isSystemDefault.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -354,6 +456,8 @@ class ResponsibilityPacksCompanion
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('description: $description, ')
+          ..write('status: $status, ')
+          ..write('isSystemDefault: $isSystemDefault, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -3135,6 +3239,8 @@ typedef $$ResponsibilityPacksTableCreateCompanionBuilder =
       Value<int> id,
       required String title,
       Value<String?> description,
+      Value<String> status,
+      Value<bool> isSystemDefault,
       required int createdAt,
       required int updatedAt,
     });
@@ -3143,6 +3249,8 @@ typedef $$ResponsibilityPacksTableUpdateCompanionBuilder =
       Value<int> id,
       Value<String> title,
       Value<String?> description,
+      Value<String> status,
+      Value<bool> isSystemDefault,
       Value<int> createdAt,
       Value<int> updatedAt,
     });
@@ -3212,6 +3320,16 @@ class $$ResponsibilityPacksTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isSystemDefault => $composableBuilder(
+    column: $table.isSystemDefault,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnFilters(column),
@@ -3272,6 +3390,16 @@ class $$ResponsibilityPacksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isSystemDefault => $composableBuilder(
+    column: $table.isSystemDefault,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -3300,6 +3428,14 @@ class $$ResponsibilityPacksTableAnnotationComposer
 
   GeneratedColumn<String> get description => $composableBuilder(
     column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<bool> get isSystemDefault => $composableBuilder(
+    column: $table.isSystemDefault,
     builder: (column) => column,
   );
 
@@ -3375,12 +3511,16 @@ class $$ResponsibilityPacksTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String?> description = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<bool> isSystemDefault = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
               }) => ResponsibilityPacksCompanion(
                 id: id,
                 title: title,
                 description: description,
+                status: status,
+                isSystemDefault: isSystemDefault,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -3389,12 +3529,16 @@ class $$ResponsibilityPacksTableTableManager
                 Value<int> id = const Value.absent(),
                 required String title,
                 Value<String?> description = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<bool> isSystemDefault = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
               }) => ResponsibilityPacksCompanion.insert(
                 id: id,
                 title: title,
                 description: description,
+                status: status,
+                isSystemDefault: isSystemDefault,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
