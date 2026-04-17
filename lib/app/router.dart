@@ -3,8 +3,9 @@ import 'package:go_router/go_router.dart';
 
 import '../features/reminders/ui/pages/history_page.dart';
 import '../features/reminders/ui/pages/home_page.dart';
-import '../features/reminders/ui/pages/management_page.dart';
+import '../features/reminders/ui/pages/feature_page.dart';
 import '../features/reminders/ui/pages/item_edit_page.dart';
+import '../features/reminders/ui/pages/management_page.dart';
 import '../features/reminders/ui/pages/timeline_edit_page.dart';
 import '../features/reminders/ui/pages/timeline_milestone_history_page.dart';
 
@@ -16,6 +17,41 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: HomePage.routePath,
         name: HomePage.routeName,
         builder: (context, state) => const HomePage(),
+      ),
+      GoRoute(
+        path: FeaturePage.routePath,
+        name: FeaturePage.routeName,
+        builder: (context, state) => const FeaturePage(),
+      ),
+      GoRoute(
+        path: ItemActivityPage.routePath,
+        name: ItemActivityPage.routeName,
+        builder: (context, state) => const ItemActivityPage(),
+      ),
+      GoRoute(
+        path: ItemsManagementPage.routePath,
+        name: ItemsManagementPage.routeName,
+        builder: (context, state) => const ItemsManagementPage(),
+      ),
+      GoRoute(
+        path: ItemPacksManagementPage.routePath,
+        name: ItemPacksManagementPage.routeName,
+        builder: (context, state) => const ItemPacksManagementPage(),
+      ),
+      GoRoute(
+        path: TimelineManagementPage.routePath,
+        name: TimelineManagementPage.routeName,
+        builder: (context, state) => const TimelineManagementPage(),
+      ),
+      GoRoute(
+        path: SettingsPage.routePath,
+        name: SettingsPage.routeName,
+        builder: (context, state) => const SettingsPage(),
+      ),
+      GoRoute(
+        path: DeveloperSettingsPage.routePath,
+        name: DeveloperSettingsPage.routeName,
+        builder: (context, state) => const DeveloperSettingsPage(),
       ),
       GoRoute(
         path: ManagementPage.routePath,

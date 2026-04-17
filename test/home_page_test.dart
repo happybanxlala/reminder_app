@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:reminder_app/features/reminders/data/home_models.dart';
 import 'package:reminder_app/features/reminders/data/local/item_timeline_dao.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
@@ -9,8 +10,10 @@ import 'package:reminder_app/features/reminders/domain/timeline_milestone_occurr
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_record.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_rule.dart';
 import 'package:reminder_app/features/reminders/domain/timeline.dart';
+import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
 import 'package:reminder_app/features/reminders/providers/history_providers.dart';
 import 'package:reminder_app/features/reminders/providers/home_providers.dart';
+import 'package:reminder_app/features/reminders/ui/pages/feature_page.dart';
 import 'package:reminder_app/features/reminders/ui/pages/history_page.dart';
 import 'package:reminder_app/features/reminders/ui/pages/home_page.dart';
 
@@ -75,6 +78,49 @@ void main() {
     expect(find.text('Milestone'), findsOneWidget);
     expect(find.text('已看過'), findsOneWidget);
     expect(find.text('跳過'), findsOneWidget);
+  });
+
+  testWidgets('home feature button navigates to feature page', (tester) async {
+    final router = GoRouter(
+      initialLocation: HomePage.routePath,
+      routes: [
+        GoRoute(
+          path: HomePage.routePath,
+          name: HomePage.routeName,
+          builder: (context, state) => const HomePage(),
+        ),
+        GoRoute(
+          path: FeaturePage.routePath,
+          name: FeaturePage.routeName,
+          builder: (context, state) => const FeaturePage(),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          dangerHomeEntriesProvider.overrideWith(
+            (ref) => Stream.value(<ItemHomeEntry>[]),
+          ),
+          warningHomeEntriesProvider.overrideWith(
+            (ref) => Stream.value(<ItemHomeEntry>[]),
+          ),
+          upcomingTimelineMilestonesProvider.overrideWith(
+            (ref) => Stream.value(<TimelineMilestoneOccurrence>[]),
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('feature-button')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('feature-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text(ReminderUiText.featurePageTitle), findsOneWidget);
   });
 
   testWidgets('history page shows item note and paginated milestone section', (

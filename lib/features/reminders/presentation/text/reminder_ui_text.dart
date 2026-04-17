@@ -4,10 +4,18 @@ class ReminderUiText {
   static const appTitle = 'Reminder App';
   static const homeTitle = '首頁';
   static const manageTitle = '管理';
+  static const featureAction = '功能';
+  static const featurePageTitle = '功能頁';
   static const historyTitle = '歷史紀錄';
   static const itemPackTitle = 'Item Packs';
   static const itemTitle = 'Items';
   static const timelineTitle = 'Timelines';
+  static const itemActivityFeatureTitle = '動態（for item）';
+  static const itemsManagementFeatureTitle = 'Items 管理 (= Default Item Packs)';
+  static const itemPacksManagementFeatureTitle = 'Item Packs 管理';
+  static const timelineManagementFeatureTitle = 'Timeline 管理';
+  static const userSettingsFeatureTitle = '設定頁(for user）';
+  static const developerSettingsFeatureTitle = '開發者設定頁';
   static const dangerTab = 'Danger';
   static const warningTab = 'Warning';
   static const timelineTab = 'Timeline';
@@ -25,6 +33,7 @@ class ReminderUiText {
   static const noItems = '目前沒有 Item。';
   static const noItemPacks = '目前沒有 Item Pack。';
   static const noTimelines = '目前沒有 Timeline。';
+  static const noDefaultItemPack = '目前沒有 Default Item Pack。';
   static const manageAction = '管理';
   static const historyAction = '歷史紀錄';
   static const saveAction = '儲存';
@@ -37,6 +46,14 @@ class ReminderUiText {
   static const noTimelineUpcomingMilestone = '目前沒有 upcoming milestone。';
   static const noTimelineMilestoneHistory =
       '此 Timeline 目前沒有 milestone history。';
+  static const itemActivityPlaceholderMessage = '此頁為 UI 空殼，尚未接上 item 動態資料。';
+  static const itemsManagementPlaceholderMessage = '此頁為 UI 空殼，尚未接上 Items 管理資料。';
+  static const itemPacksManagementPlaceholderMessage =
+      '此頁為 UI 空殼，尚未接上 Item Packs 管理資料。';
+  static const timelineManagementPlaceholderMessage =
+      '此頁為 UI 空殼，尚未接上 Timeline 管理資料。';
+  static const userSettingsPlaceholderMessage = '此頁為 UI 空殼，尚未接上使用者設定資料。';
+  static const developerSettingsPlaceholderMessage = '此頁為 UI 空殼，尚未接上開發者設定資料。';
   static const nextMilestoneLabel = '下一筆';
   static const historyEntryAction = 'History';
   static const completeAction = '完成';

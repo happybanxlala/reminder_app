@@ -9,9 +9,9 @@ import '../../presentation/view_models/item_timeline_card_view_model.dart';
 import '../../providers/home_providers.dart';
 import '../../providers/item_providers.dart';
 import '../../providers/timeline_providers.dart';
+import 'feature_page.dart';
 import 'history_page.dart';
 import 'item_edit_page.dart';
-import 'management_page.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -61,10 +61,10 @@ class _HomePageState extends ConsumerState<HomePage>
             tooltip: ReminderUiText.historyAction,
           ),
           IconButton(
-            key: const Key('manage-button'),
-            onPressed: () => context.pushNamed(ManagementPage.routeName),
-            icon: const Icon(Icons.dashboard_customize_outlined),
-            tooltip: ReminderUiText.manageAction,
+            key: const Key('feature-button'),
+            onPressed: () => context.pushNamed(FeaturePage.routeName),
+            icon: const Icon(Icons.widgets_outlined),
+            tooltip: ReminderUiText.featureAction,
           ),
           IconButton(
             key: const Key('quick-add-item-button'),
