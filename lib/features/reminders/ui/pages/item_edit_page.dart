@@ -13,7 +13,12 @@ import '../widgets/editor_common_fields.dart';
 enum ItemEditMode { create, edit }
 
 class ItemEditPage extends ConsumerStatefulWidget {
-  const ItemEditPage({super.key, required this.mode, this.id});
+  const ItemEditPage({
+    super.key,
+    required this.mode,
+    this.id,
+    this.lockedPackId,
+  });
 
   static const createRouteName = 'item-new';
   static const createRoutePath = '/item/new';
@@ -22,6 +27,7 @@ class ItemEditPage extends ConsumerStatefulWidget {
 
   final ItemEditMode mode;
   final int? id;
+  final int? lockedPackId;
 
   @override
   ConsumerState<ItemEditPage> createState() => _ItemEditPageState();
@@ -45,6 +51,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
   bool _initialized = false;
 
   bool get _isEdit => widget.mode == ItemEditMode.edit;
+  bool get _isPackLocked => widget.lockedPackId != null;
 
   @override
   void initState() {
@@ -101,28 +108,30 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
             EditorTitleField(controller: _titleController),
             const SizedBox(height: 12),
             EditorNoteField(controller: _descriptionController),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<int?>(
-              key: const Key('pack-field'),
-              initialValue: _selectedPackId,
-              decoration: const InputDecoration(
-                labelText: ReminderUiText.packFieldLabel,
+            if (!_isPackLocked) ...[
+              const SizedBox(height: 12),
+              DropdownButtonFormField<int?>(
+                key: const Key('pack-field'),
+                initialValue: _selectedPackId,
+                decoration: const InputDecoration(
+                  labelText: ReminderUiText.packFieldLabel,
+                ),
+                items: packOptions
+                    .map(
+                      (option) => DropdownMenuItem<int?>(
+                        value: option.id,
+                        enabled: option.enabled,
+                        child: Text(option.label),
+                      ),
+                    )
+                    .toList(growable: false),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedPackId = value;
+                  });
+                },
               ),
-              items: packOptions
-                  .map(
-                    (option) => DropdownMenuItem<int?>(
-                      value: option.id,
-                      enabled: option.enabled,
-                      child: Text(option.label),
-                    ),
-                  )
-                  .toList(growable: false),
-              onChanged: (value) {
-                setState(() {
-                  _selectedPackId = value;
-                });
-              },
-            ),
+            ],
             const SizedBox(height: 12),
             DropdownButtonFormField<ItemType>(
               initialValue: _type,
@@ -169,11 +178,12 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     if (_initialized) {
       return;
     }
+    _selectedPackId = widget.lockedPackId;
     if (bundle != null) {
       final item = bundle.item;
       _titleController.text = item.title;
       _descriptionController.text = item.description ?? '';
-      _selectedPackId = item.packId;
+      _selectedPackId = widget.lockedPackId ?? item.packId;
       _type = item.type;
       switch (item.config) {
         case FixedTimeItemConfig config:
@@ -293,7 +303,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       description: _normalizeOptionalText(_descriptionController.text),
       type: _type,
       config: _buildConfig(),
-      packId: _selectedPackId,
+      packId: widget.lockedPackId ?? _selectedPackId,
     );
 
     if (_isEdit) {

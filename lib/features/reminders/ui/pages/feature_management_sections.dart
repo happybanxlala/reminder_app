@@ -57,7 +57,10 @@ class DefaultItemsManagementContent extends ConsumerWidget {
             FilledButton(
               key: const Key('add-item-button'),
               onPressed: () {
-                context.pushNamed(ItemEditPage.createRouteName);
+                context.pushNamed(
+                  ItemEditPage.createRouteName,
+                  extra: defaultPack.id,
+                );
               },
               child: const Text(ReminderUiText.addItem),
             ),
@@ -420,6 +423,7 @@ class _ItemCard extends ConsumerWidget {
                     context.pushNamed(
                       ItemEditPage.editRouteName,
                       pathParameters: {'id': bundle.item.id.toString()},
+                      extra: bundle.pack.id,
                     );
                   },
                   child: const Text(ReminderUiText.editAction),

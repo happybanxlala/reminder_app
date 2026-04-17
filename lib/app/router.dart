@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../features/reminders/ui/pages/home_page.dart';
 import '../features/reminders/ui/pages/feature_page.dart';
 import '../features/reminders/ui/pages/item_edit_page.dart';
-import '../features/reminders/ui/pages/management_page.dart';
 import '../features/reminders/ui/pages/timeline_edit_page.dart';
 import '../features/reminders/ui/pages/timeline_milestone_history_page.dart';
 
@@ -53,22 +52,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const DeveloperSettingsPage(),
       ),
       GoRoute(
-        path: ManagementPage.routePath,
-        name: ManagementPage.routeName,
-        builder: (context, state) => const ManagementPage(),
-      ),
-      GoRoute(
         path: ItemEditPage.createRoutePath,
         name: ItemEditPage.createRouteName,
-        builder: (context, state) =>
-            const ItemEditPage(mode: ItemEditMode.create),
+        builder: (context, state) => ItemEditPage(
+          mode: ItemEditMode.create,
+          lockedPackId: state.extra as int?,
+        ),
       ),
       GoRoute(
         path: ItemEditPage.editRoutePath,
         name: ItemEditPage.editRouteName,
         builder: (context, state) {
           final id = int.tryParse(state.pathParameters['id'] ?? '');
-          return ItemEditPage(mode: ItemEditMode.edit, id: id);
+          return ItemEditPage(
+            mode: ItemEditMode.edit,
+            id: id,
+            lockedPackId: state.extra as int?,
+          );
         },
       ),
       GoRoute(

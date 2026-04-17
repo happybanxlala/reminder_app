@@ -1,6 +1,10 @@
+import 'package:drift/native.dart';
+import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:reminder_app/features/reminders/data/item_repository.dart';
+import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/local/item_timeline_dao.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
@@ -163,5 +167,133 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Archived Pack (archived)'), findsOneWidget);
+  });
+
+  testWidgets('locked pack mode hides pack field and saves into locked pack', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = ItemRepository(db.itemTimelineDao);
+    final now = DateTime(2026, 4, 1).millisecondsSinceEpoch;
+
+    await db
+        .into(db.itemPacks)
+        .insert(
+          ItemPacksCompanion.insert(
+            title: 'Default Item Pack',
+            status: const Value('active'),
+            isSystemDefault: const Value(true),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+    await repository.createPack(
+      const ItemPackInput(title: 'Cat Care', description: 'Other pack'),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          itemRepositoryProvider.overrideWith((ref) => repository),
+          activeItemPacksProvider.overrideWith(
+            (ref) => Stream.value([
+              ItemPack(
+                id: 1,
+                title: 'Default Item Pack',
+                status: ItemPackStatus.active,
+                isSystemDefault: true,
+                createdAt: DateTime(2026, 4, 1),
+                updatedAt: DateTime(2026, 4, 1),
+              ),
+              ItemPack(
+                id: 2,
+                title: 'Cat Care',
+                status: ItemPackStatus.active,
+                isSystemDefault: false,
+                createdAt: DateTime(2026, 4, 1),
+                updatedAt: DateTime(2026, 4, 1),
+              ),
+            ]),
+          ),
+        ],
+        child: const MaterialApp(
+          home: ItemEditPage(mode: ItemEditMode.create, lockedPackId: 1),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('pack-field')), findsNothing);
+
+    await tester.enterText(find.byType(TextFormField).first, 'Locked item');
+    await tester.tap(find.byKey(const Key('save-button')));
+    await tester.pumpAndSettle();
+
+    final items = await db.select(db.items).get();
+    expect(items.single.title, 'Locked item');
+    expect(items.single.packId, 1);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
+  testWidgets('locked pack edit hides pack field and loads item data', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          activeItemPacksProvider.overrideWith(
+            (ref) => Stream.value([
+              ItemPack(
+                id: 1,
+                title: 'Default Item Pack',
+                status: ItemPackStatus.active,
+                isSystemDefault: true,
+                createdAt: DateTime(2026, 4, 1),
+                updatedAt: DateTime(2026, 4, 1),
+              ),
+            ]),
+          ),
+          itemProvider(9).overrideWith(
+            (ref) => Future.value(
+              ItemBundle(
+                item: Item(
+                  id: 9,
+                  packId: 1,
+                  title: 'Weekly grooming',
+                  description: 'Brush and trim',
+                  type: ItemType.stateBased,
+                  config: const StateBasedItemConfig(
+                    expectedInterval: Duration(days: 7),
+                    warningAfter: Duration(days: 7),
+                    dangerAfter: Duration(days: 14),
+                  ),
+                  createdAt: DateTime(2026, 4, 1),
+                  updatedAt: DateTime(2026, 4, 2),
+                ),
+                pack: ItemPack(
+                  id: 1,
+                  title: 'Default Item Pack',
+                  status: ItemPackStatus.active,
+                  isSystemDefault: true,
+                  createdAt: DateTime(2026, 4, 1),
+                  updatedAt: DateTime(2026, 4, 2),
+                ),
+              ),
+            ),
+          ),
+        ],
+        child: const MaterialApp(
+          home: ItemEditPage(mode: ItemEditMode.edit, id: 9, lockedPackId: 1),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('pack-field')), findsNothing);
+    expect(find.text('Weekly grooming'), findsOneWidget);
+    expect(find.text('Brush and trim'), findsOneWidget);
   });
 }

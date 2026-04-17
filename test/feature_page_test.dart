@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,6 +22,7 @@ import 'package:reminder_app/features/reminders/providers/developer_settings_pro
 import 'package:reminder_app/features/reminders/providers/item_providers.dart';
 import 'package:reminder_app/features/reminders/providers/timeline_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/feature_page.dart';
+import 'package:reminder_app/features/reminders/ui/pages/item_edit_page.dart';
 
 void main() {
   testWidgets('feature page shows all feature entries', (tester) async {
@@ -316,6 +319,33 @@ void main() {
     );
   });
 
+  testWidgets('developer settings page follows system preview date updates', (
+    tester,
+  ) async {
+    final controller = StreamController<DateTime>.broadcast();
+    addTearDown(controller.close);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          systemPreviewDateProvider.overrideWith((ref) => controller.stream),
+        ],
+        child: const MaterialApp(home: DeveloperSettingsPage()),
+      ),
+    );
+
+    controller.add(DateTime(2026, 4, 18));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2026/04/18'), findsOneWidget);
+
+    controller.add(DateTime(2026, 4, 19));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2026/04/18'), findsNothing);
+    expect(find.text('2026/04/19'), findsOneWidget);
+  });
+
   testWidgets('items management page only shows default pack items', (
     tester,
   ) async {
@@ -374,6 +404,70 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('danger'), findsOneWidget);
+  });
+
+  testWidgets('items management routes add and edit into locked pack editor', (
+    tester,
+  ) async {
+    final router = GoRouter(
+      initialLocation: ItemsManagementPage.routePath,
+      routes: [
+        GoRoute(
+          path: ItemsManagementPage.routePath,
+          name: ItemsManagementPage.routeName,
+          builder: (context, state) => const ItemsManagementPage(),
+        ),
+        GoRoute(
+          path: ItemEditPage.createRoutePath,
+          name: ItemEditPage.createRouteName,
+          builder: (context, state) => ItemEditPage(
+            mode: ItemEditMode.create,
+            lockedPackId: state.extra as int?,
+          ),
+        ),
+        GoRoute(
+          path: ItemEditPage.editRoutePath,
+          name: ItemEditPage.editRouteName,
+          builder: (context, state) => ItemEditPage(
+            mode: ItemEditMode.edit,
+            id: int.parse(state.pathParameters['id']!),
+            lockedPackId: state.extra as int?,
+          ),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          activeItemPacksProvider.overrideWith(
+            (ref) => Stream.value([
+              _pack(1, title: 'Default Item Pack', isSystemDefault: true),
+              _pack(2, title: 'Cat Care'),
+            ]),
+          ),
+          itemsProvider.overrideWith(
+            (ref) => Stream.value([_itemBundle(1, ItemType.stateBased)]),
+          ),
+          itemProvider(1).overrideWith(
+            (ref) => Future.value(_itemBundle(1, ItemType.stateBased)),
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('add-item-button')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('pack-field')), findsNothing);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('item-edit-1')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('pack-field')), findsNothing);
   });
 
   testWidgets('item packs management page lists packs without nested items', (

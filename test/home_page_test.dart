@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:reminder_app/app/router.dart';
 import 'package:reminder_app/features/reminders/data/home_models.dart';
 import 'package:reminder_app/features/reminders/data/home_repository.dart';
 import 'package:reminder_app/features/reminders/data/item_repository.dart';
@@ -217,6 +220,62 @@ void main() {
 
     expect(find.text('Danger 11'), findsNothing);
     expect(find.text('Danger 18'), findsOneWidget);
+  });
+
+  testWidgets(
+    'home preview follows system preview date when override is null',
+    (tester) async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final controller = StreamController<DateTime>.broadcast();
+      addTearDown(controller.close);
+      final container = ProviderContainer(
+        overrides: [
+          homeRepositoryProvider.overrideWith(
+            (ref) => _FakeHomeRepository(
+              itemRepository: ItemRepository(db.itemTimelineDao),
+              timelineRepository: TimelineRepository(db.itemTimelineDao),
+            ),
+          ),
+          systemPreviewDateProvider.overrideWith((ref) => controller.stream),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: HomePage()),
+        ),
+      );
+
+      controller.add(DateTime(2026, 4, 18));
+      await tester.pumpAndSettle();
+      expect(find.text('Danger 18'), findsOneWidget);
+
+      controller.add(DateTime(2026, 4, 19));
+      await tester.pumpAndSettle();
+      expect(find.text('Danger 18'), findsNothing);
+      expect(find.text('Danger 19'), findsOneWidget);
+    },
+  );
+
+  testWidgets('legacy manage route redirects to feature page', (tester) async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final router = container.read(appRouterProvider);
+
+    router.go('/manage');
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(ReminderUiText.featurePageTitle), findsOneWidget);
   });
 }
 
