@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:reminder_app/app/router.dart';
 import 'package:reminder_app/features/reminders/data/home_models.dart';
 import 'package:reminder_app/features/reminders/data/home_repository.dart';
 import 'package:reminder_app/features/reminders/data/item_repository.dart';
@@ -16,7 +15,6 @@ import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_occurrence.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_record.dart';
-import 'package:reminder_app/features/reminders/domain/timeline.dart';
 import 'package:reminder_app/features/reminders/providers/developer_settings_providers.dart';
 import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
 import 'package:reminder_app/features/reminders/providers/home_providers.dart';
@@ -259,24 +257,6 @@ void main() {
       expect(find.text('Danger 19'), findsOneWidget);
     },
   );
-
-  testWidgets('legacy manage route redirects to feature page', (tester) async {
-    final container = ProviderContainer();
-    addTearDown(container.dispose);
-    final router = container.read(appRouterProvider);
-
-    router.go('/manage');
-
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp.router(routerConfig: router),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text(ReminderUiText.featurePageTitle), findsOneWidget);
-  });
 }
 
 ItemHomeEntry _itemEntry({required String title, required ItemStatus status}) {
@@ -313,12 +293,9 @@ ItemHomeEntry _itemEntry({required String title, required ItemStatus status}) {
 
 class _FakeHomeRepository extends HomeRepository {
   _FakeHomeRepository({
-    required ItemRepository itemRepository,
-    required TimelineRepository timelineRepository,
-  }) : super(
-         itemRepository: itemRepository,
-         timelineRepository: timelineRepository,
-       );
+    required super.itemRepository,
+    required super.timelineRepository,
+  }) : super();
 
   @override
   Stream<List<ItemHomeEntry>> watchDangerItems({DateTime? now}) {

@@ -2,14 +2,12 @@
 
 Flutter MVP for a split reminder product model:
 
-- `TaskTemplate + Task`
+- `Item Pack + Item`
 - `Timeline + Milestone Rule + Milestone Record`
 
 正式規格與真相來源：
 
-- `docs/01_mvp_spec.md`
-- `docs/02_architecture_refactor.md`
-- `docs/03_timeline_milestone_rule.md`
+- `docs/core/04_core_model_spec_v1.md`
 - Drift schema in `lib/features/reminders/data/local/`
 
 Milestone 模型採 rule-first：
@@ -48,27 +46,30 @@ lib/
   features/
     reminders/
       data/
-        home_query_service.dart
-        task_repository.dart
+        home_repository.dart
+        item_repository.dart
         timeline_repository.dart
         local/
           app_database.dart
-          task_timeline_dao.dart
+          item_timeline_dao.dart
           tables.dart
       domain/
       presentation/
       providers/
         database_providers.dart
+        developer_settings_providers.dart
         home_providers.dart
-        history_providers.dart
-        task_providers.dart
+        item_providers.dart
         timeline_providers.dart
       ui/
         pages/
           home_page.dart
-          history_page.dart
-          management_page.dart
-          task_timeline_editor_page.dart
+          feature_page.dart
+          item_edit_page.dart
+          timeline_edit_page.dart
+          timeline_milestone_history_page.dart
+        widgets/
+          feature_management_sections.dart
 ```
 
 ## Documentation Rules

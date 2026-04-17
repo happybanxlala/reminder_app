@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:drift/native.dart';
+import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/timeline_models.dart';
+import 'package:reminder_app/features/reminders/data/timeline_repository.dart';
 import 'package:reminder_app/features/reminders/domain/timeline.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_rule.dart';
+import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
 import 'package:reminder_app/features/reminders/providers/timeline_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/timeline_edit_page.dart';
 
@@ -180,6 +184,37 @@ void main() {
     );
     expect(switchTile.value, isFalse);
     expect(find.text('預覽：目前無法產生下一筆 milestone'), findsOneWidget);
+  });
+
+  testWidgets('edit keeps page open when target timeline no longer exists', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = TimelineRepository(db.itemTimelineDao);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          timelineRepositoryProvider.overrideWith((ref) => repository),
+        ],
+        child: const MaterialApp(
+          home: TimelineEditPage(mode: TimelineEditMode.edit, id: 404),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('title-field')),
+      'Lost timeline',
+    );
+    await tester.tap(find.byKey(const Key('save-button')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text(ReminderUiText.editTimeline), findsOneWidget);
+    expect(find.text(ReminderUiText.timelineSaveFailedMessage), findsOneWidget);
   });
 }
 

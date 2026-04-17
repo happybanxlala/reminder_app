@@ -306,10 +306,20 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       packId: widget.lockedPackId ?? _selectedPackId,
     );
 
-    if (_isEdit) {
-      await repository.updateItem(widget.id!, input);
-    } else {
-      await repository.createItem(input);
+    try {
+      final saved = _isEdit
+          ? await repository.updateItem(widget.id!, input)
+          : (await repository.createItem(input), true).$2;
+      if (!saved) {
+        _showSaveError(ReminderUiText.itemSaveFailedMessage);
+        return;
+      }
+    } on StateError catch (error) {
+      _showSaveError(_saveErrorMessage(error));
+      return;
+    } catch (_) {
+      _showSaveError(ReminderUiText.saveFailedPrefix);
+      return;
     }
 
     if (mounted) {
@@ -382,6 +392,23 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
   String? _normalizeOptionalText(String value) {
     final normalized = value.trim();
     return normalized.isEmpty ? null : normalized;
+  }
+
+  String _saveErrorMessage(StateError error) {
+    final message = error.message.toString().trim();
+    if (message.isNotEmpty) {
+      return message;
+    }
+    return ReminderUiText.saveFailedPrefix;
+  }
+
+  void _showSaveError(String message) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 

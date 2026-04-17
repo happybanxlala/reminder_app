@@ -112,6 +112,8 @@ class HomeRepository {
     StreamSubscription<B>? subB;
     A? latestA;
     B? latestB;
+    var streamAClosed = false;
+    var streamBClosed = false;
 
     void emitIfReady() {
       final valueA = latestA;
@@ -121,16 +123,36 @@ class HomeRepository {
       }
     }
 
+    Future<void> closeIfDone() async {
+      if (streamAClosed && streamBClosed && !controller.isClosed) {
+        await controller.close();
+      }
+    }
+
     controller = StreamController<T>.broadcast(
       onListen: () {
-        subA = streamA.listen((value) {
-          latestA = value;
-          emitIfReady();
-        });
-        subB = streamB.listen((value) {
-          latestB = value;
-          emitIfReady();
-        });
+        subA = streamA.listen(
+          (value) {
+            latestA = value;
+            emitIfReady();
+          },
+          onError: controller.addError,
+          onDone: () async {
+            streamAClosed = true;
+            await closeIfDone();
+          },
+        );
+        subB = streamB.listen(
+          (value) {
+            latestB = value;
+            emitIfReady();
+          },
+          onError: controller.addError,
+          onDone: () async {
+            streamBClosed = true;
+            await closeIfDone();
+          },
+        );
       },
       onCancel: () async {
         await subA?.cancel();

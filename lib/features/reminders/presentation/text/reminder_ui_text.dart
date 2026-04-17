@@ -35,6 +35,9 @@ class ReminderUiText {
   static const noDefaultItemPack = '目前沒有 Default Item Pack。';
   static const manageAction = '管理';
   static const saveAction = '儲存';
+  static const saveFailedPrefix = '儲存失敗';
+  static const itemSaveFailedMessage = '此 Item 已不存在或目前不可儲存。';
+  static const timelineSaveFailedMessage = '此 Timeline 已不存在或目前不可儲存。';
   static const addRuleAction = '新增 Rule';
   static const milestoneRulesTitle = 'Milestone Rules';
   static const upcomingMilestonesTitle = 'Upcoming Milestones';

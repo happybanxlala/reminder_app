@@ -10,7 +10,7 @@ final itemRepositoryProvider = Provider<ItemRepository>((ref) {
 });
 
 final itemPacksProvider = StreamProvider<List<ItemPack>>((ref) {
-  return ref.watch(itemRepositoryProvider).watchPacks();
+  return ref.watch(itemRepositoryProvider).watchPacks(includeArchived: true);
 });
 
 final activeItemPacksProvider = StreamProvider<List<ItemPack>>((ref) {

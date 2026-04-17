@@ -232,12 +232,22 @@ class _TimelineEditPageState extends ConsumerState<TimelineEditPage> {
           .toList(growable: false),
     );
 
-    if (_isCreate) {
-      await ref.read(timelineRepositoryProvider).createTimeline(input);
-    } else {
-      await ref
-          .read(timelineRepositoryProvider)
-          .updateTimeline(widget.id!, input);
+    final repository = ref.read(timelineRepositoryProvider);
+
+    try {
+      final saved = _isCreate
+          ? (await repository.createTimeline(input), true).$2
+          : await repository.updateTimeline(widget.id!, input);
+      if (!saved) {
+        _showSaveError(ReminderUiText.timelineSaveFailedMessage);
+        return;
+      }
+    } catch (_) {
+      _showSaveError(ReminderUiText.saveFailedPrefix);
+      return;
+    }
+
+    if (!_isCreate) {
       ref.invalidate(timelineByIdProvider(widget.id!));
       ref.invalidate(timelineDetailProvider(widget.id!));
     }
@@ -301,5 +311,14 @@ class _TimelineEditPageState extends ConsumerState<TimelineEditPage> {
       ),
       after: normalizedNow.subtract(const Duration(days: 1)),
     );
+  }
+
+  void _showSaveError(String message) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }

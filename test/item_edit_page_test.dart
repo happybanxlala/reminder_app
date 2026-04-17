@@ -8,6 +8,7 @@ import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/local/item_timeline_dao.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
+import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
 import 'package:reminder_app/features/reminders/providers/item_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/item_edit_page.dart';
 
@@ -295,5 +296,47 @@ void main() {
     expect(find.byKey(const Key('pack-field')), findsNothing);
     expect(find.text('Weekly grooming'), findsOneWidget);
     expect(find.text('Brush and trim'), findsOneWidget);
+  });
+
+  testWidgets('edit keeps page open when target item no longer exists', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = ItemRepository(db.itemTimelineDao);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          itemRepositoryProvider.overrideWith((ref) => repository),
+          activeItemPacksProvider.overrideWith(
+            (ref) => Stream.value([
+              ItemPack(
+                id: 1,
+                title: 'Default Item Pack',
+                status: ItemPackStatus.active,
+                isSystemDefault: true,
+                createdAt: DateTime(2026, 4, 1),
+                updatedAt: DateTime(2026, 4, 1),
+              ),
+            ]),
+          ),
+        ],
+        child: const MaterialApp(
+          home: ItemEditPage(mode: ItemEditMode.edit, id: 404),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byKey(const Key('title-field')), 'Lost item');
+    await tester.ensureVisible(find.byKey(const Key('save-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('save-button')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text(ReminderUiText.editItem), findsOneWidget);
+    expect(find.text(ReminderUiText.itemSaveFailedMessage), findsOneWidget);
   });
 }
