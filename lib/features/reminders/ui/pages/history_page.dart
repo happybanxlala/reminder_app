@@ -32,11 +32,11 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
         padding: const EdgeInsets.all(16),
         children: [
           const Text(
-            ReminderUiText.responsibilityHistoryTitle,
+            ReminderUiText.itemHistoryTitle,
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
-          const Text(ReminderUiText.noResponsibilityHistory),
+          const Text(ReminderUiText.noItemHistory),
           const Divider(height: 32),
           const Text(
             ReminderUiText.milestoneHistoryTitle,

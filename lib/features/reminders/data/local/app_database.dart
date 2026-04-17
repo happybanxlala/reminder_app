@@ -5,30 +5,31 @@ import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import 'responsibility_timeline_dao.dart';
+import 'item_timeline_dao.dart';
 import 'tables.dart';
 
 part 'app_database.g.dart';
 
 @DriftDatabase(
   tables: [
-    ResponsibilityPacks,
-    ResponsibilityItems,
+    ItemPacks,
+    Items,
     Timelines,
     TimelineMilestoneRules,
     TimelineMilestoneRecords,
   ],
-  daos: [ResponsibilityTimelineDao],
+  daos: [ItemTimelineDao],
 )
 class AppDatabase extends _$AppDatabase {
-  static const systemDefaultPackTitle = 'Default Responsibility Pack';
+  static const legacySystemDefaultPackTitle = 'Default Responsibility Pack';
+  static const systemDefaultPackTitle = 'Default Item Pack';
   static const systemDefaultPackDescription = 'System default pack';
 
   AppDatabase() : super(_openConnection());
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -71,11 +72,16 @@ class AppDatabase extends _$AppDatabase {
 
       if (currentFrom == 9) {
         await _migrateFromV9ToV10(m);
-        currentFrom = 11;
+        currentFrom = 12;
       }
 
       if (currentFrom == 10) {
         await _migrateFromV10ToV11(m);
+        currentFrom = 11;
+      }
+
+      if (currentFrom == 11) {
+        await _migrateFromV11ToV12();
       }
     },
   );
@@ -184,8 +190,8 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> _migrateFromV9ToV10(Migrator m) async {
-    await m.createTable(responsibilityPacks);
-    await m.createTable(responsibilityItems);
+    await m.createTable(itemPacks);
+    await m.createTable(items);
     await customStatement('DROP TABLE IF EXISTS task_templates');
     await customStatement('DROP TABLE IF EXISTS tasks');
   }
@@ -203,14 +209,21 @@ class AppDatabase extends _$AppDatabase {
     await customStatement('''
       UPDATE responsibility_packs
       SET is_system_default = 1
-      WHERE title = '$systemDefaultPackTitle'
+      WHERE title IN ('$legacySystemDefaultPackTitle', '$systemDefaultPackTitle')
       ''');
+  }
+
+  Future<void> _migrateFromV11ToV12() async {
+    await customStatement(
+      'ALTER TABLE responsibility_packs RENAME TO item_packs',
+    );
+    await customStatement('ALTER TABLE responsibility_items RENAME TO items');
   }
 
   Future<void> _ensureSystemDefaultPack() async {
     final existingDefault = await customSelect('''
       SELECT id
-      FROM responsibility_packs
+      FROM item_packs
       WHERE is_system_default = 1
       LIMIT 1
       ''').getSingleOrNull();
@@ -218,8 +231,9 @@ class AppDatabase extends _$AppDatabase {
 
     if (existingDefault != null) {
       await customStatement('''
-        UPDATE responsibility_packs
-        SET status = 'active'
+        UPDATE item_packs
+        SET status = 'active',
+            title = '$systemDefaultPackTitle'
         WHERE is_system_default = 1
         ''');
       return;
@@ -227,21 +241,23 @@ class AppDatabase extends _$AppDatabase {
 
     final titledDefault = await customSelect('''
       SELECT id
-      FROM responsibility_packs
-      WHERE title = '$systemDefaultPackTitle'
+      FROM item_packs
+      WHERE title IN ('$legacySystemDefaultPackTitle', '$systemDefaultPackTitle')
       LIMIT 1
       ''').getSingleOrNull();
     if (titledDefault != null) {
       await customStatement('''
-        UPDATE responsibility_packs
-        SET is_system_default = 1, status = 'active'
+        UPDATE item_packs
+        SET is_system_default = 1,
+            status = 'active',
+            title = '$systemDefaultPackTitle'
         WHERE id = ${titledDefault.read<int>('id')}
         ''');
       return;
     }
 
-    await into(responsibilityPacks).insert(
-      ResponsibilityPacksCompanion.insert(
+    await into(itemPacks).insert(
+      ItemPacksCompanion.insert(
         title: systemDefaultPackTitle,
         description: const Value(systemDefaultPackDescription),
         status: const Value('active'),

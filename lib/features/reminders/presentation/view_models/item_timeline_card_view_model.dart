@@ -2,21 +2,19 @@ import '../../data/home_models.dart';
 import '../../domain/timeline_milestone_occurrence.dart';
 import '../formatters/reminder_formatters.dart';
 
-class ResponsibilityCardViewModel {
-  const ResponsibilityCardViewModel({
+class ItemCardViewModel {
+  const ItemCardViewModel({
     required this.id,
     required this.title,
     required this.subtitle,
     required this.status,
   });
 
-  factory ResponsibilityCardViewModel.fromEntry(
-    ResponsibilityItemHomeEntry entry,
-  ) {
-    return ResponsibilityCardViewModel(
+  factory ItemCardViewModel.fromEntry(ItemHomeEntry entry) {
+    return ItemCardViewModel(
       id: entry.bundle.item.id,
       title: entry.bundle.item.title,
-      subtitle: ReminderFormatters.responsibilityHomeSummary(entry),
+      subtitle: ReminderFormatters.itemHomeSummary(entry),
       status: entry.status.name,
     );
   }

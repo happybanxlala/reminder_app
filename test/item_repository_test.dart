@@ -1,9 +1,9 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
-import 'package:reminder_app/features/reminders/data/responsibility_repository.dart';
-import 'package:reminder_app/features/reminders/domain/responsibility_item.dart';
-import 'package:reminder_app/features/reminders/domain/responsibility_pack.dart';
+import 'package:reminder_app/features/reminders/data/item_repository.dart';
+import 'package:reminder_app/features/reminders/domain/item.dart';
+import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 
 void main() {
   test(
@@ -11,13 +11,13 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = ResponsibilityRepository(db.responsibilityTimelineDao);
+      final repository = ItemRepository(db.itemTimelineDao);
 
       final itemId = await repository.createItem(
-        ResponsibilityItemInput(
+        ItemInput(
           title: 'Clean litter box',
           description: 'Cat hygiene',
-          type: ResponsibilityItemType.stateBased,
+          type: ItemType.stateBased,
           config: const StateBasedItemConfig(
             expectedInterval: Duration(days: 2),
             warningAfter: Duration(days: 2),
@@ -31,12 +31,12 @@ void main() {
 
       expect(item, isNotNull);
       expect(packs, hasLength(1));
-      expect(packs.single.title, 'Default Responsibility Pack');
-      expect(packs.single.status, ResponsibilityPackStatus.active);
+      expect(packs.single.title, 'Default Item Pack');
+      expect(packs.single.status, ItemPackStatus.active);
       expect(packs.single.isSystemDefault, isTrue);
       expect(item!.pack.id, packs.single.id);
       expect(item.item.title, 'Clean litter box');
-      expect(item.item.type, ResponsibilityItemType.stateBased);
+      expect(item.item.type, ItemType.stateBased);
       expect(item.item.config, isA<StateBasedItemConfig>());
     },
   );
@@ -44,12 +44,12 @@ void main() {
   test('markDone updates lastDoneAt and clears danger state', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = ResponsibilityRepository(db.responsibilityTimelineDao);
+    final repository = ItemRepository(db.itemTimelineDao);
 
     final itemId = await repository.createItem(
-      ResponsibilityItemInput(
+      ItemInput(
         title: 'Refill water fountain',
-        type: ResponsibilityItemType.stateBased,
+        type: ItemType.stateBased,
         config: const StateBasedItemConfig(
           expectedInterval: Duration(days: 1),
           warningAfter: Duration(days: 1),
@@ -61,7 +61,7 @@ void main() {
     final before = (await repository.watchItems().first).single;
     expect(
       repository.statusFor(before.item, now: DateTime(2026, 4, 15)),
-      ResponsibilityItemStatus.unknown,
+      ItemStatus.unknown,
     );
 
     await repository.markDone(itemId, doneAt: DateTime(2026, 4, 14));
@@ -70,91 +70,79 @@ void main() {
     expect(after.item.lastDoneAt, DateTime(2026, 4, 14));
     expect(
       repository.statusFor(after.item, now: DateTime(2026, 4, 15)),
-      ResponsibilityItemStatus.warning,
+      ItemStatus.warning,
     );
   });
 
-  test(
-    'watchItemsByStatus filters responsibility items by computed status',
-    () async {
-      final db = AppDatabase.forTesting(NativeDatabase.memory());
-      addTearDown(db.close);
-      final repository = ResponsibilityRepository(db.responsibilityTimelineDao);
+  test('watchItemsByStatus filters items by computed status', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = ItemRepository(db.itemTimelineDao);
 
-      await repository.createItem(
-        ResponsibilityItemInput(
-          title: 'Change pee pad',
-          type: ResponsibilityItemType.stateBased,
-          config: const StateBasedItemConfig(
-            expectedInterval: Duration(days: 1),
-            warningAfter: Duration(days: 1),
-            dangerAfter: Duration(days: 2),
-          ),
+    await repository.createItem(
+      ItemInput(
+        title: 'Change pee pad',
+        type: ItemType.stateBased,
+        config: const StateBasedItemConfig(
+          expectedInterval: Duration(days: 1),
+          warningAfter: Duration(days: 1),
+          dangerAfter: Duration(days: 2),
         ),
-      );
-      await repository.createItem(
-        ResponsibilityItemInput(
-          title: 'Brush cat',
-          type: ResponsibilityItemType.stateBased,
-          config: const StateBasedItemConfig(
-            expectedInterval: Duration(days: 3),
-            warningAfter: Duration(days: 3),
-            dangerAfter: Duration(days: 6),
-          ),
+      ),
+    );
+    await repository.createItem(
+      ItemInput(
+        title: 'Brush cat',
+        type: ItemType.stateBased,
+        config: const StateBasedItemConfig(
+          expectedInterval: Duration(days: 3),
+          warningAfter: Duration(days: 3),
+          dangerAfter: Duration(days: 6),
         ),
-      );
+      ),
+    );
 
-      final items = await repository.watchItems().first;
-      final byTitle = {for (final item in items) item.item.title: item.item.id};
-      await repository.markDone(
-        byTitle['Change pee pad']!,
-        doneAt: DateTime(2026, 4, 10),
-      );
-      await repository.markDone(
-        byTitle['Brush cat']!,
-        doneAt: DateTime(2026, 4, 12),
-      );
+    final items = await repository.watchItems().first;
+    final byTitle = {for (final item in items) item.item.title: item.item.id};
+    await repository.markDone(
+      byTitle['Change pee pad']!,
+      doneAt: DateTime(2026, 4, 10),
+    );
+    await repository.markDone(
+      byTitle['Brush cat']!,
+      doneAt: DateTime(2026, 4, 12),
+    );
 
-      final danger = await repository
-          .watchItemsByStatus(
-            ResponsibilityItemStatus.danger,
-            now: DateTime(2026, 4, 15),
-          )
-          .first;
-      final warning = await repository
-          .watchItemsByStatus(
-            ResponsibilityItemStatus.warning,
-            now: DateTime(2026, 4, 15),
-          )
-          .first;
+    final danger = await repository
+        .watchItemsByStatus(ItemStatus.danger, now: DateTime(2026, 4, 15))
+        .first;
+    final warning = await repository
+        .watchItemsByStatus(ItemStatus.warning, now: DateTime(2026, 4, 15))
+        .first;
 
-      expect(danger.map((item) => item.item.title), ['Change pee pad']);
-      expect(warning.map((item) => item.item.title), ['Brush cat']);
-    },
-  );
+    expect(danger.map((item) => item.item.title), ['Change pee pad']);
+    expect(warning.map((item) => item.item.title), ['Brush cat']);
+  });
 
   test(
     'create, update, and archive pack round-trip with visibility rules',
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = ResponsibilityRepository(db.responsibilityTimelineDao);
+      final repository = ItemRepository(db.itemTimelineDao);
 
       final packId = await repository.createPack(
-        const ResponsibilityPackInput(
-          title: 'Cat Care',
-          description: 'Cleaning duties',
-        ),
+        const ItemPackInput(title: 'Cat Care', description: 'Cleaning duties'),
       );
 
       final created = await repository.getPackById(packId);
       expect(created, isNotNull);
-      expect(created!.status, ResponsibilityPackStatus.active);
+      expect(created!.status, ItemPackStatus.active);
       expect(created.isSystemDefault, isFalse);
 
       final updated = await repository.updatePack(
         packId,
-        const ResponsibilityPackInput(
+        const ItemPackInput(
           title: 'Cat Care Updated',
           description: 'Feeding and cleanup',
         ),
@@ -173,7 +161,7 @@ void main() {
       expect(activePacks.any((item) => item.id == packId), isFalse);
       expect(
         allPacks.firstWhere((item) => item.id == packId).status,
-        ResponsibilityPackStatus.archived,
+        ItemPackStatus.archived,
       );
     },
   );
@@ -181,7 +169,7 @@ void main() {
   test('system default pack cannot be edited or archived', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = ResponsibilityRepository(db.responsibilityTimelineDao);
+    final repository = ItemRepository(db.itemTimelineDao);
 
     final defaultPack =
         (await repository.watchPacks(includeArchived: true).first).singleWhere(
@@ -191,7 +179,7 @@ void main() {
     expect(
       await repository.updatePack(
         defaultPack.id,
-        const ResponsibilityPackInput(title: 'Renamed'),
+        const ItemPackInput(title: 'Renamed'),
       ),
       isFalse,
     );
@@ -202,15 +190,15 @@ void main() {
   test('non-empty pack cannot be archived', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = ResponsibilityRepository(db.responsibilityTimelineDao);
+    final repository = ItemRepository(db.itemTimelineDao);
 
     final packId = await repository.createPack(
-      const ResponsibilityPackInput(title: 'Food'),
+      const ItemPackInput(title: 'Food'),
     );
     await repository.createItem(
-      ResponsibilityItemInput(
+      ItemInput(
         title: 'Refill bowls',
-        type: ResponsibilityItemType.stateBased,
+        type: ItemType.stateBased,
         config: const StateBasedItemConfig(
           expectedInterval: Duration(days: 1),
           warningAfter: Duration(days: 1),

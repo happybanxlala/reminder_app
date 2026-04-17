@@ -9,17 +9,17 @@ import 'package:sqlite3/sqlite3.dart';
 
 void main() {
   test(
-    'database uses schema version 11 and responsibility plus timeline tables are writable',
+    'database uses schema version 12 and item pack/item plus timeline tables are writable',
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
 
-      expect(db.schemaVersion, 11);
+      expect(db.schemaVersion, 12);
 
       final packId = await db
-          .into(db.responsibilityPacks)
+          .into(db.itemPacks)
           .insert(
-            ResponsibilityPacksCompanion.insert(
+            ItemPacksCompanion.insert(
               title: 'Cats',
               description: const Value('Cat care'),
               status: const Value('active'),
@@ -30,9 +30,9 @@ void main() {
           );
 
       final itemId = await db
-          .into(db.responsibilityItems)
+          .into(db.items)
           .insert(
-            ResponsibilityItemsCompanion.insert(
+            ItemsCompanion.insert(
               packId: packId,
               title: 'Clean litter box',
               description: const Value('State based'),
@@ -102,7 +102,7 @@ void main() {
       expect(recordId, greaterThan(0));
 
       final defaultPacks = await (db.select(
-        db.responsibilityPacks,
+        db.itemPacks,
       )..where((t) => t.isSystemDefault.equals(true))).get();
       expect(defaultPacks, hasLength(1));
     },
@@ -111,9 +111,7 @@ void main() {
   test(
     'v9 migration preserves timeline data and drops legacy task tables',
     () async {
-      final tempDir = await Directory.systemTemp.createTemp(
-        'responsibility-migration',
-      );
+      final tempDir = await Directory.systemTemp.createTemp('item-migration');
       addTearDown(() async {
         if (await tempDir.exists()) {
           await tempDir.delete(recursive: true);
@@ -229,8 +227,8 @@ void main() {
       final db = AppDatabase.forTesting(NativeDatabase(file));
       addTearDown(db.close);
 
-      final packs = await db.select(db.responsibilityPacks).get();
-      final items = await db.select(db.responsibilityItems).get();
+      final packs = await db.select(db.itemPacks).get();
+      final items = await db.select(db.items).get();
       final timelines = await db.select(db.timelines).get();
       final rules = await db.select(db.timelineMilestoneRules).get();
       final records = await db.select(db.timelineMilestoneRecords).get();
@@ -240,7 +238,7 @@ void main() {
           )
           .get();
 
-      expect(db.schemaVersion, 11);
+      expect(db.schemaVersion, 12);
       expect(packs, hasLength(1));
       expect(packs.single.title, AppDatabase.systemDefaultPackTitle);
       expect(packs.single.status, 'active');
@@ -254,10 +252,10 @@ void main() {
   );
 
   test(
-    'v10 migration backfills pack lifecycle columns and preserves item pack ids',
+    'v10 migration backfills pack lifecycle columns, renames tables, and preserves item pack ids',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
-        'responsibility-pack-migration',
+        'item-pack-migration',
       );
       addTearDown(() async {
         if (await tempDir.exists()) {
@@ -350,7 +348,7 @@ void main() {
         state_warning_after_minutes, state_danger_after_minutes,
         created_at, updated_at
       ) VALUES (
-        1, 1, 'Legacy responsibility', 'stateBased', 1440, 1440, 2880, 1775001600000, 1775001600000
+        1, 1, 'Legacy item', 'stateBased', 1440, 1440, 2880, 1775001600000, 1775001600000
       )
     ''');
       sqlite.close();
@@ -358,10 +356,10 @@ void main() {
       final db = AppDatabase.forTesting(NativeDatabase(file));
       addTearDown(db.close);
 
-      final packs = await db.select(db.responsibilityPacks).get();
-      final items = await db.select(db.responsibilityItems).get();
+      final packs = await db.select(db.itemPacks).get();
+      final items = await db.select(db.items).get();
 
-      expect(db.schemaVersion, 11);
+      expect(db.schemaVersion, 12);
       expect(packs, hasLength(1));
       expect(packs.single.status, 'active');
       expect(packs.single.isSystemDefault, isTrue);

@@ -1,16 +1,16 @@
-enum ResponsibilityItemType { fixedTime, stateBased, resourceBased }
+enum ItemType { fixedTime, stateBased, resourceBased }
 
-enum ResponsibilityItemStatus { normal, warning, danger, unknown }
+enum ItemStatus { normal, warning, danger, unknown }
 
 enum FixedTimeScheduleType { daily, weekly, custom }
 
-abstract class ResponsibilityItemConfig {
-  const ResponsibilityItemConfig();
+abstract class ItemConfig {
+  const ItemConfig();
 
-  ResponsibilityItemType get type;
+  ItemType get type;
 }
 
-class FixedTimeItemConfig extends ResponsibilityItemConfig {
+class FixedTimeItemConfig extends ItemConfig {
   const FixedTimeItemConfig({
     required this.scheduleType,
     this.anchorDate,
@@ -22,10 +22,10 @@ class FixedTimeItemConfig extends ResponsibilityItemConfig {
   final String? timeOfDay;
 
   @override
-  ResponsibilityItemType get type => ResponsibilityItemType.fixedTime;
+  ItemType get type => ItemType.fixedTime;
 }
 
-class StateBasedItemConfig extends ResponsibilityItemConfig {
+class StateBasedItemConfig extends ItemConfig {
   const StateBasedItemConfig({
     required this.expectedInterval,
     required this.warningAfter,
@@ -37,10 +37,10 @@ class StateBasedItemConfig extends ResponsibilityItemConfig {
   final Duration dangerAfter;
 
   @override
-  ResponsibilityItemType get type => ResponsibilityItemType.stateBased;
+  ItemType get type => ItemType.stateBased;
 }
 
-class ResourceBasedItemConfig extends ResponsibilityItemConfig {
+class ResourceBasedItemConfig extends ItemConfig {
   const ResourceBasedItemConfig({
     required this.estimatedDuration,
     required this.warningBeforeDepletion,
@@ -50,11 +50,11 @@ class ResourceBasedItemConfig extends ResponsibilityItemConfig {
   final Duration warningBeforeDepletion;
 
   @override
-  ResponsibilityItemType get type => ResponsibilityItemType.resourceBased;
+  ItemType get type => ItemType.resourceBased;
 }
 
-class ResponsibilityItem {
-  const ResponsibilityItem({
+class Item {
+  const Item({
     required this.id,
     required this.packId,
     required this.title,
@@ -70,8 +70,8 @@ class ResponsibilityItem {
   final int packId;
   final String title;
   final String? description;
-  final ResponsibilityItemType type;
-  final ResponsibilityItemConfig config;
+  final ItemType type;
+  final ItemConfig config;
   final DateTime? lastDoneAt;
   final DateTime createdAt;
   final DateTime updatedAt;

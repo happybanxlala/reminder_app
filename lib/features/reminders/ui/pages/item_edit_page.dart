@@ -1,35 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/local/responsibility_timeline_dao.dart';
-import '../../data/responsibility_repository.dart';
-import '../../domain/responsibility_item.dart';
-import '../../domain/responsibility_pack.dart';
+import '../../data/item_repository.dart';
+import '../../data/local/item_timeline_dao.dart';
+import '../../domain/item.dart';
+import '../../domain/item_pack.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
-import '../../providers/responsibility_providers.dart';
+import '../../providers/item_providers.dart';
 import '../widgets/editor_common_fields.dart';
 
-enum ResponsibilityItemEditMode { create, edit }
+enum ItemEditMode { create, edit }
 
-class ResponsibilityItemEditPage extends ConsumerStatefulWidget {
-  const ResponsibilityItemEditPage({super.key, required this.mode, this.id});
+class ItemEditPage extends ConsumerStatefulWidget {
+  const ItemEditPage({super.key, required this.mode, this.id});
 
-  static const createRouteName = 'responsibility-item-new';
-  static const createRoutePath = '/responsibility-item/new';
-  static const editRouteName = 'responsibility-item-edit';
-  static const editRoutePath = '/responsibility-item/:id';
+  static const createRouteName = 'item-new';
+  static const createRoutePath = '/item/new';
+  static const editRouteName = 'item-edit';
+  static const editRoutePath = '/item/:id';
 
-  final ResponsibilityItemEditMode mode;
+  final ItemEditMode mode;
   final int? id;
 
   @override
-  ConsumerState<ResponsibilityItemEditPage> createState() =>
-      _ResponsibilityItemEditPageState();
+  ConsumerState<ItemEditPage> createState() => _ItemEditPageState();
 }
 
-class _ResponsibilityItemEditPageState
-    extends ConsumerState<ResponsibilityItemEditPage> {
+class _ItemEditPageState extends ConsumerState<ItemEditPage> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
@@ -40,13 +38,13 @@ class _ResponsibilityItemEditPageState
   late final TextEditingController _estimatedDurationController;
   late final TextEditingController _warningBeforeDepletionController;
 
-  ResponsibilityItemType _type = ResponsibilityItemType.stateBased;
+  ItemType _type = ItemType.stateBased;
   FixedTimeScheduleType _scheduleType = FixedTimeScheduleType.daily;
   DateTime _selectedAnchorDate = DateTime.now();
   int? _selectedPackId;
   bool _initialized = false;
 
-  bool get _isEdit => widget.mode == ResponsibilityItemEditMode.edit;
+  bool get _isEdit => widget.mode == ItemEditMode.edit;
 
   @override
   void initState() {
@@ -77,9 +75,9 @@ class _ResponsibilityItemEditPageState
   @override
   Widget build(BuildContext context) {
     final itemAsync = _isEdit && widget.id != null
-        ? ref.watch(responsibilityItemProvider(widget.id!))
-        : const AsyncData<ResponsibilityItemBundle?>(null);
-    final activePacksAsync = ref.watch(activeResponsibilityPacksProvider);
+        ? ref.watch(itemProvider(widget.id!))
+        : const AsyncData<ItemBundle?>(null);
+    final activePacksAsync = ref.watch(activeItemPacksProvider);
 
     if (itemAsync.isLoading || activePacksAsync.isLoading) {
       return Scaffold(
@@ -89,8 +87,7 @@ class _ResponsibilityItemEditPageState
     }
 
     final bundle = itemAsync.valueOrNull;
-    final activePacks =
-        activePacksAsync.valueOrNull ?? const <ResponsibilityPack>[];
+    final activePacks = activePacksAsync.valueOrNull ?? const <ItemPack>[];
     _initializeIfNeeded(bundle);
     final packOptions = _packOptions(activePacks, bundle?.pack);
 
@@ -127,10 +124,10 @@ class _ResponsibilityItemEditPageState
               },
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<ResponsibilityItemType>(
+            DropdownButtonFormField<ItemType>(
               initialValue: _type,
               decoration: const InputDecoration(labelText: 'Item Type'),
-              items: ResponsibilityItemType.values
+              items: ItemType.values
                   .map(
                     (value) =>
                         DropdownMenuItem(value: value, child: Text(value.name)),
@@ -147,15 +144,9 @@ class _ResponsibilityItemEditPageState
             ),
             const SizedBox(height: 12),
             ...switch (_type) {
-              ResponsibilityItemType.fixedTime => _buildFixedTimeFields(
-                context,
-              ),
-              ResponsibilityItemType.stateBased => _buildStateBasedFields(
-                context,
-              ),
-              ResponsibilityItemType.resourceBased => _buildResourceBasedFields(
-                context,
-              ),
+              ItemType.fixedTime => _buildFixedTimeFields(context),
+              ItemType.stateBased => _buildStateBasedFields(context),
+              ItemType.resourceBased => _buildResourceBasedFields(context),
             },
             const SizedBox(height: 24),
             FilledButton(
@@ -170,11 +161,11 @@ class _ResponsibilityItemEditPageState
   }
 
   String get _pageTitle => switch (widget.mode) {
-    ResponsibilityItemEditMode.create => ReminderUiText.addResponsibilityItem,
-    ResponsibilityItemEditMode.edit => ReminderUiText.editResponsibilityItem,
+    ItemEditMode.create => ReminderUiText.addItem,
+    ItemEditMode.edit => ReminderUiText.editItem,
   };
 
-  void _initializeIfNeeded(ResponsibilityItemBundle? bundle) {
+  void _initializeIfNeeded(ItemBundle? bundle) {
     if (_initialized) {
       return;
     }
@@ -296,8 +287,8 @@ class _ResponsibilityItemEditPageState
       return;
     }
 
-    final repository = ref.read(responsibilityRepositoryProvider);
-    final input = ResponsibilityItemInput(
+    final repository = ref.read(itemRepositoryProvider);
+    final input = ItemInput(
       title: _titleController.text.trim(),
       description: _normalizeOptionalText(_descriptionController.text),
       type: _type,
@@ -316,20 +307,20 @@ class _ResponsibilityItemEditPageState
     }
   }
 
-  ResponsibilityItemConfig _buildConfig() {
+  ItemConfig _buildConfig() {
     return switch (_type) {
-      ResponsibilityItemType.fixedTime => FixedTimeItemConfig(
+      ItemType.fixedTime => FixedTimeItemConfig(
         scheduleType: _scheduleType,
         anchorDate: _selectedAnchorDate,
       ),
-      ResponsibilityItemType.stateBased => StateBasedItemConfig(
+      ItemType.stateBased => StateBasedItemConfig(
         expectedInterval: Duration(
           days: _parseDays(_expectedIntervalController),
         ),
         warningAfter: Duration(days: _parseDays(_warningAfterController)),
         dangerAfter: Duration(days: _parseDays(_dangerAfterController)),
       ),
-      ResponsibilityItemType.resourceBased => ResourceBasedItemConfig(
+      ItemType.resourceBased => ResourceBasedItemConfig(
         estimatedDuration: Duration(
           days: _parseDays(_estimatedDurationController),
         ),
@@ -345,8 +336,8 @@ class _ResponsibilityItemEditPageState
   }
 
   List<_PackOption> _packOptions(
-    List<ResponsibilityPack> activePacks,
-    ResponsibilityPack? currentPack,
+    List<ItemPack> activePacks,
+    ItemPack? currentPack,
   ) {
     final options = <_PackOption>[
       const _PackOption(id: null, label: ReminderUiText.unassignedPackOption),
@@ -357,7 +348,7 @@ class _ResponsibilityItemEditPageState
 
     final pack = currentPack;
     if (pack != null &&
-        pack.status == ResponsibilityPackStatus.archived &&
+        pack.status == ItemPackStatus.archived &&
         activePacks.every((item) => item.id != pack.id)) {
       options.add(
         _PackOption(
@@ -371,7 +362,7 @@ class _ResponsibilityItemEditPageState
     return options;
   }
 
-  String _packLabel(ResponsibilityPack pack) {
+  String _packLabel(ItemPack pack) {
     if (!pack.isSystemDefault) {
       return pack.title;
     }

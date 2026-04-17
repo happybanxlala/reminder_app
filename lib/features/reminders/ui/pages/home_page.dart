@@ -5,13 +5,13 @@ import 'package:go_router/go_router.dart';
 import '../../data/home_models.dart';
 import '../../domain/timeline_milestone_occurrence.dart';
 import '../../presentation/text/reminder_ui_text.dart';
-import '../../presentation/view_models/responsibility_timeline_card_view_model.dart';
+import '../../presentation/view_models/item_timeline_card_view_model.dart';
 import '../../providers/home_providers.dart';
-import '../../providers/responsibility_providers.dart';
+import '../../providers/item_providers.dart';
 import '../../providers/timeline_providers.dart';
 import 'history_page.dart';
+import 'item_edit_page.dart';
 import 'management_page.dart';
-import 'responsibility_item_edit_page.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -67,11 +67,10 @@ class _HomePageState extends ConsumerState<HomePage>
             tooltip: ReminderUiText.manageAction,
           ),
           IconButton(
-            key: const Key('quick-add-responsibility-button'),
-            onPressed: () =>
-                context.pushNamed(ResponsibilityItemEditPage.createRouteName),
+            key: const Key('quick-add-item-button'),
+            onPressed: () => context.pushNamed(ItemEditPage.createRouteName),
             icon: const Icon(Icons.add_task),
-            tooltip: ReminderUiText.addResponsibilityItem,
+            tooltip: ReminderUiText.addItem,
           ),
         ],
         bottom: TabBar(
@@ -87,7 +86,7 @@ class _HomePageState extends ConsumerState<HomePage>
         controller: _tabController,
         children: [
           dangerAsync.when(
-            data: (items) => _ResponsibilityItemList(
+            data: (items) => _ItemList(
               items: items,
               emptyMessage: ReminderUiText.noDangerItems,
             ),
@@ -95,7 +94,7 @@ class _HomePageState extends ConsumerState<HomePage>
             loading: () => const Center(child: CircularProgressIndicator()),
           ),
           warningAsync.when(
-            data: (items) => _ResponsibilityItemList(
+            data: (items) => _ItemList(
               items: items,
               emptyMessage: ReminderUiText.noWarningItems,
             ),
@@ -116,13 +115,10 @@ class _HomePageState extends ConsumerState<HomePage>
   }
 }
 
-class _ResponsibilityItemList extends ConsumerWidget {
-  const _ResponsibilityItemList({
-    required this.items,
-    required this.emptyMessage,
-  });
+class _ItemList extends ConsumerWidget {
+  const _ItemList({required this.items, required this.emptyMessage});
 
-  final List<ResponsibilityItemHomeEntry> items;
+  final List<ItemHomeEntry> items;
   final String emptyMessage;
 
   @override
@@ -134,12 +130,12 @@ class _ResponsibilityItemList extends ConsumerWidget {
       itemCount: items.length,
       itemBuilder: (context, index) {
         final item = items[index];
-        final viewModel = ResponsibilityCardViewModel.fromEntry(item);
+        final viewModel = ItemCardViewModel.fromEntry(item);
         return Card(
           child: Column(
             children: [
               ListTile(
-                key: Key('responsibility-item-${viewModel.id}'),
+                key: Key('item-${viewModel.id}'),
                 title: Text(viewModel.title),
                 subtitle: Text(viewModel.subtitle),
                 trailing: Text(viewModel.status),
@@ -149,7 +145,7 @@ class _ResponsibilityItemList extends ConsumerWidget {
                   TextButton(
                     onPressed: () async {
                       await ref
-                          .read(responsibilityRepositoryProvider)
+                          .read(itemRepositoryProvider)
                           .markDone(viewModel.id);
                     },
                     child: const Text(ReminderUiText.completeAction),

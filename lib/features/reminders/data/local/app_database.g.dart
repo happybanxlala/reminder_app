@@ -3,12 +3,12 @@
 part of 'app_database.dart';
 
 // ignore_for_file: type=lint
-class $ResponsibilityPacksTable extends ResponsibilityPacks
-    with TableInfo<$ResponsibilityPacksTable, ResponsibilityPackRow> {
+class $ItemPacksTable extends ItemPacks
+    with TableInfo<$ItemPacksTable, ItemPackRow> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
-  $ResponsibilityPacksTable(this.attachedDatabase, [this._alias]);
+  $ItemPacksTable(this.attachedDatabase, [this._alias]);
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -103,10 +103,10 @@ class $ResponsibilityPacksTable extends ResponsibilityPacks
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
-  static const String $name = 'responsibility_packs';
+  static const String $name = 'item_packs';
   @override
   VerificationContext validateIntegrity(
-    Insertable<ResponsibilityPackRow> instance, {
+    Insertable<ItemPackRow> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -168,9 +168,9 @@ class $ResponsibilityPacksTable extends ResponsibilityPacks
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  ResponsibilityPackRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+  ItemPackRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return ResponsibilityPackRow(
+    return ItemPackRow(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -203,13 +203,12 @@ class $ResponsibilityPacksTable extends ResponsibilityPacks
   }
 
   @override
-  $ResponsibilityPacksTable createAlias(String alias) {
-    return $ResponsibilityPacksTable(attachedDatabase, alias);
+  $ItemPacksTable createAlias(String alias) {
+    return $ItemPacksTable(attachedDatabase, alias);
   }
 }
 
-class ResponsibilityPackRow extends DataClass
-    implements Insertable<ResponsibilityPackRow> {
+class ItemPackRow extends DataClass implements Insertable<ItemPackRow> {
   final int id;
   final String title;
   final String? description;
@@ -217,7 +216,7 @@ class ResponsibilityPackRow extends DataClass
   final bool isSystemDefault;
   final int createdAt;
   final int updatedAt;
-  const ResponsibilityPackRow({
+  const ItemPackRow({
     required this.id,
     required this.title,
     this.description,
@@ -241,8 +240,8 @@ class ResponsibilityPackRow extends DataClass
     return map;
   }
 
-  ResponsibilityPacksCompanion toCompanion(bool nullToAbsent) {
-    return ResponsibilityPacksCompanion(
+  ItemPacksCompanion toCompanion(bool nullToAbsent) {
+    return ItemPacksCompanion(
       id: Value(id),
       title: Value(title),
       description: description == null && nullToAbsent
@@ -255,12 +254,12 @@ class ResponsibilityPackRow extends DataClass
     );
   }
 
-  factory ResponsibilityPackRow.fromJson(
+  factory ItemPackRow.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return ResponsibilityPackRow(
+    return ItemPackRow(
       id: serializer.fromJson<int>(json['id']),
       title: serializer.fromJson<String>(json['title']),
       description: serializer.fromJson<String?>(json['description']),
@@ -284,7 +283,7 @@ class ResponsibilityPackRow extends DataClass
     };
   }
 
-  ResponsibilityPackRow copyWith({
+  ItemPackRow copyWith({
     int? id,
     String? title,
     Value<String?> description = const Value.absent(),
@@ -292,7 +291,7 @@ class ResponsibilityPackRow extends DataClass
     bool? isSystemDefault,
     int? createdAt,
     int? updatedAt,
-  }) => ResponsibilityPackRow(
+  }) => ItemPackRow(
     id: id ?? this.id,
     title: title ?? this.title,
     description: description.present ? description.value : this.description,
@@ -301,8 +300,8 @@ class ResponsibilityPackRow extends DataClass
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
-  ResponsibilityPackRow copyWithCompanion(ResponsibilityPacksCompanion data) {
-    return ResponsibilityPackRow(
+  ItemPackRow copyWithCompanion(ItemPacksCompanion data) {
+    return ItemPackRow(
       id: data.id.present ? data.id.value : this.id,
       title: data.title.present ? data.title.value : this.title,
       description: data.description.present
@@ -319,7 +318,7 @@ class ResponsibilityPackRow extends DataClass
 
   @override
   String toString() {
-    return (StringBuffer('ResponsibilityPackRow(')
+    return (StringBuffer('ItemPackRow(')
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('description: $description, ')
@@ -344,7 +343,7 @@ class ResponsibilityPackRow extends DataClass
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is ResponsibilityPackRow &&
+      (other is ItemPackRow &&
           other.id == this.id &&
           other.title == this.title &&
           other.description == this.description &&
@@ -354,8 +353,7 @@ class ResponsibilityPackRow extends DataClass
           other.updatedAt == this.updatedAt);
 }
 
-class ResponsibilityPacksCompanion
-    extends UpdateCompanion<ResponsibilityPackRow> {
+class ItemPacksCompanion extends UpdateCompanion<ItemPackRow> {
   final Value<int> id;
   final Value<String> title;
   final Value<String?> description;
@@ -363,7 +361,7 @@ class ResponsibilityPacksCompanion
   final Value<bool> isSystemDefault;
   final Value<int> createdAt;
   final Value<int> updatedAt;
-  const ResponsibilityPacksCompanion({
+  const ItemPacksCompanion({
     this.id = const Value.absent(),
     this.title = const Value.absent(),
     this.description = const Value.absent(),
@@ -372,7 +370,7 @@ class ResponsibilityPacksCompanion
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
-  ResponsibilityPacksCompanion.insert({
+  ItemPacksCompanion.insert({
     this.id = const Value.absent(),
     required String title,
     this.description = const Value.absent(),
@@ -383,7 +381,7 @@ class ResponsibilityPacksCompanion
   }) : title = Value(title),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
-  static Insertable<ResponsibilityPackRow> custom({
+  static Insertable<ItemPackRow> custom({
     Expression<int>? id,
     Expression<String>? title,
     Expression<String>? description,
@@ -403,7 +401,7 @@ class ResponsibilityPacksCompanion
     });
   }
 
-  ResponsibilityPacksCompanion copyWith({
+  ItemPacksCompanion copyWith({
     Value<int>? id,
     Value<String>? title,
     Value<String?>? description,
@@ -412,7 +410,7 @@ class ResponsibilityPacksCompanion
     Value<int>? createdAt,
     Value<int>? updatedAt,
   }) {
-    return ResponsibilityPacksCompanion(
+    return ItemPacksCompanion(
       id: id ?? this.id,
       title: title ?? this.title,
       description: description ?? this.description,
@@ -452,7 +450,7 @@ class ResponsibilityPacksCompanion
 
   @override
   String toString() {
-    return (StringBuffer('ResponsibilityPacksCompanion(')
+    return (StringBuffer('ItemPacksCompanion(')
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('description: $description, ')
@@ -465,12 +463,11 @@ class ResponsibilityPacksCompanion
   }
 }
 
-class $ResponsibilityItemsTable extends ResponsibilityItems
-    with TableInfo<$ResponsibilityItemsTable, ResponsibilityItemRow> {
+class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
-  $ResponsibilityItemsTable(this.attachedDatabase, [this._alias]);
+  $ItemsTable(this.attachedDatabase, [this._alias]);
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -493,7 +490,7 @@ class $ResponsibilityItemsTable extends ResponsibilityItems
     type: DriftSqlType.int,
     requiredDuringInsert: true,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES responsibility_packs (id)',
+      'REFERENCES item_packs (id)',
     ),
   );
   static const VerificationMeta _titleMeta = const VerificationMeta('title');
@@ -670,10 +667,10 @@ class $ResponsibilityItemsTable extends ResponsibilityItems
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
-  static const String $name = 'responsibility_items';
+  static const String $name = 'items';
   @override
   VerificationContext validateIntegrity(
-    Insertable<ResponsibilityItemRow> instance, {
+    Insertable<ItemRow> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -817,9 +814,9 @@ class $ResponsibilityItemsTable extends ResponsibilityItems
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  ResponsibilityItemRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+  ItemRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return ResponsibilityItemRow(
+    return ItemRow(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -888,13 +885,12 @@ class $ResponsibilityItemsTable extends ResponsibilityItems
   }
 
   @override
-  $ResponsibilityItemsTable createAlias(String alias) {
-    return $ResponsibilityItemsTable(attachedDatabase, alias);
+  $ItemsTable createAlias(String alias) {
+    return $ItemsTable(attachedDatabase, alias);
   }
 }
 
-class ResponsibilityItemRow extends DataClass
-    implements Insertable<ResponsibilityItemRow> {
+class ItemRow extends DataClass implements Insertable<ItemRow> {
   final int id;
   final int packId;
   final String title;
@@ -911,7 +907,7 @@ class ResponsibilityItemRow extends DataClass
   final int? lastDoneAt;
   final int createdAt;
   final int updatedAt;
-  const ResponsibilityItemRow({
+  const ItemRow({
     required this.id,
     required this.packId,
     required this.title,
@@ -981,8 +977,8 @@ class ResponsibilityItemRow extends DataClass
     return map;
   }
 
-  ResponsibilityItemsCompanion toCompanion(bool nullToAbsent) {
-    return ResponsibilityItemsCompanion(
+  ItemsCompanion toCompanion(bool nullToAbsent) {
+    return ItemsCompanion(
       id: Value(id),
       packId: Value(packId),
       title: Value(title),
@@ -1025,12 +1021,12 @@ class ResponsibilityItemRow extends DataClass
     );
   }
 
-  factory ResponsibilityItemRow.fromJson(
+  factory ItemRow.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return ResponsibilityItemRow(
+    return ItemRow(
       id: serializer.fromJson<int>(json['id']),
       packId: serializer.fromJson<int>(json['packId']),
       title: serializer.fromJson<String>(json['title']),
@@ -1094,7 +1090,7 @@ class ResponsibilityItemRow extends DataClass
     };
   }
 
-  ResponsibilityItemRow copyWith({
+  ItemRow copyWith({
     int? id,
     int? packId,
     String? title,
@@ -1111,7 +1107,7 @@ class ResponsibilityItemRow extends DataClass
     Value<int?> lastDoneAt = const Value.absent(),
     int? createdAt,
     int? updatedAt,
-  }) => ResponsibilityItemRow(
+  }) => ItemRow(
     id: id ?? this.id,
     packId: packId ?? this.packId,
     title: title ?? this.title,
@@ -1146,8 +1142,8 @@ class ResponsibilityItemRow extends DataClass
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
-  ResponsibilityItemRow copyWithCompanion(ResponsibilityItemsCompanion data) {
-    return ResponsibilityItemRow(
+  ItemRow copyWithCompanion(ItemsCompanion data) {
+    return ItemRow(
       id: data.id.present ? data.id.value : this.id,
       packId: data.packId.present ? data.packId.value : this.packId,
       title: data.title.present ? data.title.value : this.title,
@@ -1191,7 +1187,7 @@ class ResponsibilityItemRow extends DataClass
 
   @override
   String toString() {
-    return (StringBuffer('ResponsibilityItemRow(')
+    return (StringBuffer('ItemRow(')
           ..write('id: $id, ')
           ..write('packId: $packId, ')
           ..write('title: $title, ')
@@ -1240,7 +1236,7 @@ class ResponsibilityItemRow extends DataClass
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is ResponsibilityItemRow &&
+      (other is ItemRow &&
           other.id == this.id &&
           other.packId == this.packId &&
           other.title == this.title &&
@@ -1262,8 +1258,7 @@ class ResponsibilityItemRow extends DataClass
           other.updatedAt == this.updatedAt);
 }
 
-class ResponsibilityItemsCompanion
-    extends UpdateCompanion<ResponsibilityItemRow> {
+class ItemsCompanion extends UpdateCompanion<ItemRow> {
   final Value<int> id;
   final Value<int> packId;
   final Value<String> title;
@@ -1280,7 +1275,7 @@ class ResponsibilityItemsCompanion
   final Value<int?> lastDoneAt;
   final Value<int> createdAt;
   final Value<int> updatedAt;
-  const ResponsibilityItemsCompanion({
+  const ItemsCompanion({
     this.id = const Value.absent(),
     this.packId = const Value.absent(),
     this.title = const Value.absent(),
@@ -1298,7 +1293,7 @@ class ResponsibilityItemsCompanion
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
-  ResponsibilityItemsCompanion.insert({
+  ItemsCompanion.insert({
     this.id = const Value.absent(),
     required int packId,
     required String title,
@@ -1320,7 +1315,7 @@ class ResponsibilityItemsCompanion
        type = Value(type),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
-  static Insertable<ResponsibilityItemRow> custom({
+  static Insertable<ItemRow> custom({
     Expression<int>? id,
     Expression<int>? packId,
     Expression<String>? title,
@@ -1364,7 +1359,7 @@ class ResponsibilityItemsCompanion
     });
   }
 
-  ResponsibilityItemsCompanion copyWith({
+  ItemsCompanion copyWith({
     Value<int>? id,
     Value<int>? packId,
     Value<String>? title,
@@ -1382,7 +1377,7 @@ class ResponsibilityItemsCompanion
     Value<int>? createdAt,
     Value<int>? updatedAt,
   }) {
-    return ResponsibilityItemsCompanion(
+    return ItemsCompanion(
       id: id ?? this.id,
       packId: packId ?? this.packId,
       title: title ?? this.title,
@@ -1475,7 +1470,7 @@ class ResponsibilityItemsCompanion
 
   @override
   String toString() {
-    return (StringBuffer('ResponsibilityItemsCompanion(')
+    return (StringBuffer('ItemsCompanion(')
           ..write('id: $id, ')
           ..write('packId: $packId, ')
           ..write('title: $title, ')
@@ -3210,32 +3205,31 @@ class TimelineMilestoneRecordsCompanion
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
-  late final $ResponsibilityPacksTable responsibilityPacks =
-      $ResponsibilityPacksTable(this);
-  late final $ResponsibilityItemsTable responsibilityItems =
-      $ResponsibilityItemsTable(this);
+  late final $ItemPacksTable itemPacks = $ItemPacksTable(this);
+  late final $ItemsTable items = $ItemsTable(this);
   late final $TimelinesTable timelines = $TimelinesTable(this);
   late final $TimelineMilestoneRulesTable timelineMilestoneRules =
       $TimelineMilestoneRulesTable(this);
   late final $TimelineMilestoneRecordsTable timelineMilestoneRecords =
       $TimelineMilestoneRecordsTable(this);
-  late final ResponsibilityTimelineDao responsibilityTimelineDao =
-      ResponsibilityTimelineDao(this as AppDatabase);
+  late final ItemTimelineDao itemTimelineDao = ItemTimelineDao(
+    this as AppDatabase,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
-    responsibilityPacks,
-    responsibilityItems,
+    itemPacks,
+    items,
     timelines,
     timelineMilestoneRules,
     timelineMilestoneRecords,
   ];
 }
 
-typedef $$ResponsibilityPacksTableCreateCompanionBuilder =
-    ResponsibilityPacksCompanion Function({
+typedef $$ItemPacksTableCreateCompanionBuilder =
+    ItemPacksCompanion Function({
       Value<int> id,
       required String title,
       Value<String?> description,
@@ -3244,8 +3238,8 @@ typedef $$ResponsibilityPacksTableCreateCompanionBuilder =
       required int createdAt,
       required int updatedAt,
     });
-typedef $$ResponsibilityPacksTableUpdateCompanionBuilder =
-    ResponsibilityPacksCompanion Function({
+typedef $$ItemPacksTableUpdateCompanionBuilder =
+    ItemPacksCompanion Function({
       Value<int> id,
       Value<String> title,
       Value<String?> description,
@@ -3255,50 +3249,33 @@ typedef $$ResponsibilityPacksTableUpdateCompanionBuilder =
       Value<int> updatedAt,
     });
 
-final class $$ResponsibilityPacksTableReferences
-    extends
-        BaseReferences<
-          _$AppDatabase,
-          $ResponsibilityPacksTable,
-          ResponsibilityPackRow
-        > {
-  $$ResponsibilityPacksTableReferences(
-    super.$_db,
-    super.$_table,
-    super.$_typedResult,
+final class $$ItemPacksTableReferences
+    extends BaseReferences<_$AppDatabase, $ItemPacksTable, ItemPackRow> {
+  $$ItemPacksTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$ItemsTable, List<ItemRow>> _itemsRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.items,
+    aliasName: $_aliasNameGenerator(db.itemPacks.id, db.items.packId),
   );
 
-  static MultiTypedResultKey<
-    $ResponsibilityItemsTable,
-    List<ResponsibilityItemRow>
-  >
-  _responsibilityItemsRefsTable(_$AppDatabase db) =>
-      MultiTypedResultKey.fromTable(
-        db.responsibilityItems,
-        aliasName: $_aliasNameGenerator(
-          db.responsibilityPacks.id,
-          db.responsibilityItems.packId,
-        ),
-      );
-
-  $$ResponsibilityItemsTableProcessedTableManager get responsibilityItemsRefs {
-    final manager = $$ResponsibilityItemsTableTableManager(
+  $$ItemsTableProcessedTableManager get itemsRefs {
+    final manager = $$ItemsTableTableManager(
       $_db,
-      $_db.responsibilityItems,
+      $_db.items,
     ).filter((f) => f.packId.id.sqlEquals($_itemColumn<int>('id')!));
 
-    final cache = $_typedResult.readTableOrNull(
-      _responsibilityItemsRefsTable($_db),
-    );
+    final cache = $_typedResult.readTableOrNull(_itemsRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
 }
 
-class $$ResponsibilityPacksTableFilterComposer
-    extends Composer<_$AppDatabase, $ResponsibilityPacksTable> {
-  $$ResponsibilityPacksTableFilterComposer({
+class $$ItemPacksTableFilterComposer
+    extends Composer<_$AppDatabase, $ItemPacksTable> {
+  $$ItemPacksTableFilterComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -3340,22 +3317,22 @@ class $$ResponsibilityPacksTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  Expression<bool> responsibilityItemsRefs(
-    Expression<bool> Function($$ResponsibilityItemsTableFilterComposer f) f,
+  Expression<bool> itemsRefs(
+    Expression<bool> Function($$ItemsTableFilterComposer f) f,
   ) {
-    final $$ResponsibilityItemsTableFilterComposer composer = $composerBuilder(
+    final $$ItemsTableFilterComposer composer = $composerBuilder(
       composer: this,
       getCurrentColumn: (t) => t.id,
-      referencedTable: $db.responsibilityItems,
+      referencedTable: $db.items,
       getReferencedColumn: (t) => t.packId,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$ResponsibilityItemsTableFilterComposer(
+          }) => $$ItemsTableFilterComposer(
             $db: $db,
-            $table: $db.responsibilityItems,
+            $table: $db.items,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -3366,9 +3343,9 @@ class $$ResponsibilityPacksTableFilterComposer
   }
 }
 
-class $$ResponsibilityPacksTableOrderingComposer
-    extends Composer<_$AppDatabase, $ResponsibilityPacksTable> {
-  $$ResponsibilityPacksTableOrderingComposer({
+class $$ItemPacksTableOrderingComposer
+    extends Composer<_$AppDatabase, $ItemPacksTable> {
+  $$ItemPacksTableOrderingComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -3411,9 +3388,9 @@ class $$ResponsibilityPacksTableOrderingComposer
   );
 }
 
-class $$ResponsibilityPacksTableAnnotationComposer
-    extends Composer<_$AppDatabase, $ResponsibilityPacksTable> {
-  $$ResponsibilityPacksTableAnnotationComposer({
+class $$ItemPacksTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ItemPacksTable> {
+  $$ItemPacksTableAnnotationComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -3445,67 +3422,58 @@ class $$ResponsibilityPacksTableAnnotationComposer
   GeneratedColumn<int> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 
-  Expression<T> responsibilityItemsRefs<T extends Object>(
-    Expression<T> Function($$ResponsibilityItemsTableAnnotationComposer a) f,
+  Expression<T> itemsRefs<T extends Object>(
+    Expression<T> Function($$ItemsTableAnnotationComposer a) f,
   ) {
-    final $$ResponsibilityItemsTableAnnotationComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.responsibilityItems,
-          getReferencedColumn: (t) => t.packId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
+    final $$ItemsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.packId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
                 $removeJoinBuilderFromRootComposer,
-              }) => $$ResponsibilityItemsTableAnnotationComposer(
-                $db: $db,
-                $table: $db.responsibilityItems,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
+          ),
+    );
     return f(composer);
   }
 }
 
-class $$ResponsibilityPacksTableTableManager
+class $$ItemPacksTableTableManager
     extends
         RootTableManager<
           _$AppDatabase,
-          $ResponsibilityPacksTable,
-          ResponsibilityPackRow,
-          $$ResponsibilityPacksTableFilterComposer,
-          $$ResponsibilityPacksTableOrderingComposer,
-          $$ResponsibilityPacksTableAnnotationComposer,
-          $$ResponsibilityPacksTableCreateCompanionBuilder,
-          $$ResponsibilityPacksTableUpdateCompanionBuilder,
-          (ResponsibilityPackRow, $$ResponsibilityPacksTableReferences),
-          ResponsibilityPackRow,
-          PrefetchHooks Function({bool responsibilityItemsRefs})
+          $ItemPacksTable,
+          ItemPackRow,
+          $$ItemPacksTableFilterComposer,
+          $$ItemPacksTableOrderingComposer,
+          $$ItemPacksTableAnnotationComposer,
+          $$ItemPacksTableCreateCompanionBuilder,
+          $$ItemPacksTableUpdateCompanionBuilder,
+          (ItemPackRow, $$ItemPacksTableReferences),
+          ItemPackRow,
+          PrefetchHooks Function({bool itemsRefs})
         > {
-  $$ResponsibilityPacksTableTableManager(
-    _$AppDatabase db,
-    $ResponsibilityPacksTable table,
-  ) : super(
+  $$ItemPacksTableTableManager(_$AppDatabase db, $ItemPacksTable table)
+    : super(
         TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
-              $$ResponsibilityPacksTableFilterComposer($db: db, $table: table),
+              $$ItemPacksTableFilterComposer($db: db, $table: table),
           createOrderingComposer: () =>
-              $$ResponsibilityPacksTableOrderingComposer(
-                $db: db,
-                $table: table,
-              ),
+              $$ItemPacksTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
-              $$ResponsibilityPacksTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
+              $$ItemPacksTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
@@ -3515,7 +3483,7 @@ class $$ResponsibilityPacksTableTableManager
                 Value<bool> isSystemDefault = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
-              }) => ResponsibilityPacksCompanion(
+              }) => ItemPacksCompanion(
                 id: id,
                 title: title,
                 description: description,
@@ -3533,7 +3501,7 @@ class $$ResponsibilityPacksTableTableManager
                 Value<bool> isSystemDefault = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
-              }) => ResponsibilityPacksCompanion.insert(
+              }) => ItemPacksCompanion.insert(
                 id: id,
                 title: title,
                 description: description,
@@ -3546,34 +3514,28 @@ class $$ResponsibilityPacksTableTableManager
               .map(
                 (e) => (
                   e.readTable(table),
-                  $$ResponsibilityPacksTableReferences(db, table, e),
+                  $$ItemPacksTableReferences(db, table, e),
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({responsibilityItemsRefs = false}) {
+          prefetchHooksCallback: ({itemsRefs = false}) {
             return PrefetchHooks(
               db: db,
-              explicitlyWatchedTables: [
-                if (responsibilityItemsRefs) db.responsibilityItems,
-              ],
+              explicitlyWatchedTables: [if (itemsRefs) db.items],
               addJoins: null,
               getPrefetchedDataCallback: (items) async {
                 return [
-                  if (responsibilityItemsRefs)
+                  if (itemsRefs)
                     await $_getPrefetchedData<
-                      ResponsibilityPackRow,
-                      $ResponsibilityPacksTable,
-                      ResponsibilityItemRow
+                      ItemPackRow,
+                      $ItemPacksTable,
+                      ItemRow
                     >(
                       currentTable: table,
-                      referencedTable: $$ResponsibilityPacksTableReferences
-                          ._responsibilityItemsRefsTable(db),
+                      referencedTable: $$ItemPacksTableReferences
+                          ._itemsRefsTable(db),
                       managerFromTypedResult: (p0) =>
-                          $$ResponsibilityPacksTableReferences(
-                            db,
-                            table,
-                            p0,
-                          ).responsibilityItemsRefs,
+                          $$ItemPacksTableReferences(db, table, p0).itemsRefs,
                       referencedItemsForCurrentItem: (item, referencedItems) =>
                           referencedItems.where((e) => e.packId == item.id),
                       typedResults: items,
@@ -3586,22 +3548,22 @@ class $$ResponsibilityPacksTableTableManager
       );
 }
 
-typedef $$ResponsibilityPacksTableProcessedTableManager =
+typedef $$ItemPacksTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
-      $ResponsibilityPacksTable,
-      ResponsibilityPackRow,
-      $$ResponsibilityPacksTableFilterComposer,
-      $$ResponsibilityPacksTableOrderingComposer,
-      $$ResponsibilityPacksTableAnnotationComposer,
-      $$ResponsibilityPacksTableCreateCompanionBuilder,
-      $$ResponsibilityPacksTableUpdateCompanionBuilder,
-      (ResponsibilityPackRow, $$ResponsibilityPacksTableReferences),
-      ResponsibilityPackRow,
-      PrefetchHooks Function({bool responsibilityItemsRefs})
+      $ItemPacksTable,
+      ItemPackRow,
+      $$ItemPacksTableFilterComposer,
+      $$ItemPacksTableOrderingComposer,
+      $$ItemPacksTableAnnotationComposer,
+      $$ItemPacksTableCreateCompanionBuilder,
+      $$ItemPacksTableUpdateCompanionBuilder,
+      (ItemPackRow, $$ItemPacksTableReferences),
+      ItemPackRow,
+      PrefetchHooks Function({bool itemsRefs})
     >;
-typedef $$ResponsibilityItemsTableCreateCompanionBuilder =
-    ResponsibilityItemsCompanion Function({
+typedef $$ItemsTableCreateCompanionBuilder =
+    ItemsCompanion Function({
       Value<int> id,
       required int packId,
       required String title,
@@ -3619,8 +3581,8 @@ typedef $$ResponsibilityItemsTableCreateCompanionBuilder =
       required int createdAt,
       required int updatedAt,
     });
-typedef $$ResponsibilityItemsTableUpdateCompanionBuilder =
-    ResponsibilityItemsCompanion Function({
+typedef $$ItemsTableUpdateCompanionBuilder =
+    ItemsCompanion Function({
       Value<int> id,
       Value<int> packId,
       Value<String> title,
@@ -3639,33 +3601,19 @@ typedef $$ResponsibilityItemsTableUpdateCompanionBuilder =
       Value<int> updatedAt,
     });
 
-final class $$ResponsibilityItemsTableReferences
-    extends
-        BaseReferences<
-          _$AppDatabase,
-          $ResponsibilityItemsTable,
-          ResponsibilityItemRow
-        > {
-  $$ResponsibilityItemsTableReferences(
-    super.$_db,
-    super.$_table,
-    super.$_typedResult,
-  );
+final class $$ItemsTableReferences
+    extends BaseReferences<_$AppDatabase, $ItemsTable, ItemRow> {
+  $$ItemsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static $ResponsibilityPacksTable _packIdTable(_$AppDatabase db) =>
-      db.responsibilityPacks.createAlias(
-        $_aliasNameGenerator(
-          db.responsibilityItems.packId,
-          db.responsibilityPacks.id,
-        ),
-      );
+  static $ItemPacksTable _packIdTable(_$AppDatabase db) => db.itemPacks
+      .createAlias($_aliasNameGenerator(db.items.packId, db.itemPacks.id));
 
-  $$ResponsibilityPacksTableProcessedTableManager get packId {
+  $$ItemPacksTableProcessedTableManager get packId {
     final $_column = $_itemColumn<int>('pack_id')!;
 
-    final manager = $$ResponsibilityPacksTableTableManager(
+    final manager = $$ItemPacksTableTableManager(
       $_db,
-      $_db.responsibilityPacks,
+      $_db.itemPacks,
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_packIdTable($_db));
     if (item == null) return manager;
@@ -3675,9 +3623,8 @@ final class $$ResponsibilityItemsTableReferences
   }
 }
 
-class $$ResponsibilityItemsTableFilterComposer
-    extends Composer<_$AppDatabase, $ResponsibilityItemsTable> {
-  $$ResponsibilityItemsTableFilterComposer({
+class $$ItemsTableFilterComposer extends Composer<_$AppDatabase, $ItemsTable> {
+  $$ItemsTableFilterComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -3760,20 +3707,20 @@ class $$ResponsibilityItemsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  $$ResponsibilityPacksTableFilterComposer get packId {
-    final $$ResponsibilityPacksTableFilterComposer composer = $composerBuilder(
+  $$ItemPacksTableFilterComposer get packId {
+    final $$ItemPacksTableFilterComposer composer = $composerBuilder(
       composer: this,
       getCurrentColumn: (t) => t.packId,
-      referencedTable: $db.responsibilityPacks,
+      referencedTable: $db.itemPacks,
       getReferencedColumn: (t) => t.id,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$ResponsibilityPacksTableFilterComposer(
+          }) => $$ItemPacksTableFilterComposer(
             $db: $db,
-            $table: $db.responsibilityPacks,
+            $table: $db.itemPacks,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -3784,9 +3731,9 @@ class $$ResponsibilityItemsTableFilterComposer
   }
 }
 
-class $$ResponsibilityItemsTableOrderingComposer
-    extends Composer<_$AppDatabase, $ResponsibilityItemsTable> {
-  $$ResponsibilityItemsTableOrderingComposer({
+class $$ItemsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ItemsTable> {
+  $$ItemsTableOrderingComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -3870,34 +3817,33 @@ class $$ResponsibilityItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  $$ResponsibilityPacksTableOrderingComposer get packId {
-    final $$ResponsibilityPacksTableOrderingComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.packId,
-          referencedTable: $db.responsibilityPacks,
-          getReferencedColumn: (t) => t.id,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
+  $$ItemPacksTableOrderingComposer get packId {
+    final $$ItemPacksTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.packId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableOrderingComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
                 $removeJoinBuilderFromRootComposer,
-              }) => $$ResponsibilityPacksTableOrderingComposer(
-                $db: $db,
-                $table: $db.responsibilityPacks,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
+          ),
+    );
     return composer;
   }
 }
 
-class $$ResponsibilityItemsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $ResponsibilityItemsTable> {
-  $$ResponsibilityItemsTableAnnotationComposer({
+class $$ItemsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ItemsTable> {
+  $$ItemsTableAnnotationComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -3971,65 +3917,56 @@ class $$ResponsibilityItemsTableAnnotationComposer
   GeneratedColumn<int> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 
-  $$ResponsibilityPacksTableAnnotationComposer get packId {
-    final $$ResponsibilityPacksTableAnnotationComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.packId,
-          referencedTable: $db.responsibilityPacks,
-          getReferencedColumn: (t) => t.id,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
+  $$ItemPacksTableAnnotationComposer get packId {
+    final $$ItemPacksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.packId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
                 $removeJoinBuilderFromRootComposer,
-              }) => $$ResponsibilityPacksTableAnnotationComposer(
-                $db: $db,
-                $table: $db.responsibilityPacks,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
+          ),
+    );
     return composer;
   }
 }
 
-class $$ResponsibilityItemsTableTableManager
+class $$ItemsTableTableManager
     extends
         RootTableManager<
           _$AppDatabase,
-          $ResponsibilityItemsTable,
-          ResponsibilityItemRow,
-          $$ResponsibilityItemsTableFilterComposer,
-          $$ResponsibilityItemsTableOrderingComposer,
-          $$ResponsibilityItemsTableAnnotationComposer,
-          $$ResponsibilityItemsTableCreateCompanionBuilder,
-          $$ResponsibilityItemsTableUpdateCompanionBuilder,
-          (ResponsibilityItemRow, $$ResponsibilityItemsTableReferences),
-          ResponsibilityItemRow,
+          $ItemsTable,
+          ItemRow,
+          $$ItemsTableFilterComposer,
+          $$ItemsTableOrderingComposer,
+          $$ItemsTableAnnotationComposer,
+          $$ItemsTableCreateCompanionBuilder,
+          $$ItemsTableUpdateCompanionBuilder,
+          (ItemRow, $$ItemsTableReferences),
+          ItemRow,
           PrefetchHooks Function({bool packId})
         > {
-  $$ResponsibilityItemsTableTableManager(
-    _$AppDatabase db,
-    $ResponsibilityItemsTable table,
-  ) : super(
+  $$ItemsTableTableManager(_$AppDatabase db, $ItemsTable table)
+    : super(
         TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
-              $$ResponsibilityItemsTableFilterComposer($db: db, $table: table),
+              $$ItemsTableFilterComposer($db: db, $table: table),
           createOrderingComposer: () =>
-              $$ResponsibilityItemsTableOrderingComposer(
-                $db: db,
-                $table: table,
-              ),
+              $$ItemsTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
-              $$ResponsibilityItemsTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
+              $$ItemsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
@@ -4050,7 +3987,7 @@ class $$ResponsibilityItemsTableTableManager
                 Value<int?> lastDoneAt = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
-              }) => ResponsibilityItemsCompanion(
+              }) => ItemsCompanion(
                 id: id,
                 packId: packId,
                 title: title,
@@ -4090,7 +4027,7 @@ class $$ResponsibilityItemsTableTableManager
                 Value<int?> lastDoneAt = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
-              }) => ResponsibilityItemsCompanion.insert(
+              }) => ItemsCompanion.insert(
                 id: id,
                 packId: packId,
                 title: title,
@@ -4112,10 +4049,8 @@ class $$ResponsibilityItemsTableTableManager
               ),
           withReferenceMapper: (p0) => p0
               .map(
-                (e) => (
-                  e.readTable(table),
-                  $$ResponsibilityItemsTableReferences(db, table, e),
-                ),
+                (e) =>
+                    (e.readTable(table), $$ItemsTableReferences(db, table, e)),
               )
               .toList(),
           prefetchHooksCallback: ({packId = false}) {
@@ -4143,13 +4078,11 @@ class $$ResponsibilityItemsTableTableManager
                           state.withJoin(
                                 currentTable: table,
                                 currentColumn: table.packId,
-                                referencedTable:
-                                    $$ResponsibilityItemsTableReferences
-                                        ._packIdTable(db),
-                                referencedColumn:
-                                    $$ResponsibilityItemsTableReferences
-                                        ._packIdTable(db)
-                                        .id,
+                                referencedTable: $$ItemsTableReferences
+                                    ._packIdTable(db),
+                                referencedColumn: $$ItemsTableReferences
+                                    ._packIdTable(db)
+                                    .id,
                               )
                               as T;
                     }
@@ -4165,18 +4098,18 @@ class $$ResponsibilityItemsTableTableManager
       );
 }
 
-typedef $$ResponsibilityItemsTableProcessedTableManager =
+typedef $$ItemsTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
-      $ResponsibilityItemsTable,
-      ResponsibilityItemRow,
-      $$ResponsibilityItemsTableFilterComposer,
-      $$ResponsibilityItemsTableOrderingComposer,
-      $$ResponsibilityItemsTableAnnotationComposer,
-      $$ResponsibilityItemsTableCreateCompanionBuilder,
-      $$ResponsibilityItemsTableUpdateCompanionBuilder,
-      (ResponsibilityItemRow, $$ResponsibilityItemsTableReferences),
-      ResponsibilityItemRow,
+      $ItemsTable,
+      ItemRow,
+      $$ItemsTableFilterComposer,
+      $$ItemsTableOrderingComposer,
+      $$ItemsTableAnnotationComposer,
+      $$ItemsTableCreateCompanionBuilder,
+      $$ItemsTableUpdateCompanionBuilder,
+      (ItemRow, $$ItemsTableReferences),
+      ItemRow,
       PrefetchHooks Function({bool packId})
     >;
 typedef $$TimelinesTableCreateCompanionBuilder =
@@ -5743,10 +5676,10 @@ typedef $$TimelineMilestoneRecordsTableProcessedTableManager =
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
-  $$ResponsibilityPacksTableTableManager get responsibilityPacks =>
-      $$ResponsibilityPacksTableTableManager(_db, _db.responsibilityPacks);
-  $$ResponsibilityItemsTableTableManager get responsibilityItems =>
-      $$ResponsibilityItemsTableTableManager(_db, _db.responsibilityItems);
+  $$ItemPacksTableTableManager get itemPacks =>
+      $$ItemPacksTableTableManager(_db, _db.itemPacks);
+  $$ItemsTableTableManager get items =>
+      $$ItemsTableTableManager(_db, _db.items);
   $$TimelinesTableTableManager get timelines =>
       $$TimelinesTableTableManager(_db, _db.timelines);
   $$TimelineMilestoneRulesTableTableManager get timelineMilestoneRules =>

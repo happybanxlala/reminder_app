@@ -1,9 +1,9 @@
 import 'package:drift/drift.dart';
 
-@DataClassName('ResponsibilityPackRow')
-class ResponsibilityPacks extends Table {
+@DataClassName('ItemPackRow')
+class ItemPacks extends Table {
   @override
-  String get tableName => 'responsibility_packs';
+  String get tableName => 'item_packs';
 
   IntColumn get id => integer().autoIncrement()();
   TextColumn get title => text()();
@@ -15,13 +15,13 @@ class ResponsibilityPacks extends Table {
   IntColumn get updatedAt => integer()();
 }
 
-@DataClassName('ResponsibilityItemRow')
-class ResponsibilityItems extends Table {
+@DataClassName('ItemRow')
+class Items extends Table {
   @override
-  String get tableName => 'responsibility_items';
+  String get tableName => 'items';
 
   IntColumn get id => integer().autoIncrement()();
-  IntColumn get packId => integer().references(ResponsibilityPacks, #id)();
+  IntColumn get packId => integer().references(ItemPacks, #id)();
   TextColumn get title => text()();
   TextColumn get description => text().nullable()();
   TextColumn get type => text()();

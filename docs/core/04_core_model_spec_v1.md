@@ -18,10 +18,11 @@ This is the single source of truth for reminders core model, MVP scope, naming, 
 
 唯一核心模型定為：
 
-- `ResponsibilityPack`
-- `ResponsibilityItem`
-- `ResponsibilityItemType`
-- `ResponsibilityItemStatus`
+- `ItemPack`
+- `ItemPack`
+- `Item`
+- `ItemType`
+- `ItemStatus`
 - `Timeline`
 - `TimelineMilestoneRule`
 - `TimelineMilestoneOccurrence`
@@ -39,7 +40,7 @@ This is the single source of truth for reminders core model, MVP scope, naming, 
 
 一句話版本：
 
-> reminders feature 的核心，是 `ResponsibilityItem` 的狀態變化，加上 `Timeline` 的 rule-driven milestone records。
+> reminders feature 的核心，是 `Item` 的狀態變化，加上 `Timeline` 的 rule-driven milestone records。
 
 ---
 
@@ -58,10 +59,10 @@ This is the single source of truth for reminders core model, MVP scope, naming, 
 
 ## 3. 核心實體
 
-### 3.1 ResponsibilityPack
+### 3.1 ItemPack
 
 ```ts
-ResponsibilityPack {
+ItemPack {
   id: string
   title: string
   description?: string
@@ -89,16 +90,16 @@ ResponsibilityPack {
 - schedule container
 - instance generator
 
-### 3.2 ResponsibilityItem
+### 3.2 Item
 
 ```ts
-ResponsibilityItem {
+Item {
   id: string
   packId: string
   title: string
   description?: string
-  type: ResponsibilityItemType
-  config: ResponsibilityItemConfig
+  type: ItemType
+  config: ItemConfig
   lastDoneAt?: DateTime
   createdAt: DateTime
   updatedAt: DateTime
@@ -113,7 +114,7 @@ ResponsibilityItem {
 
 - item 屬於一個 pack
 - item 以 `type + config + lastDoneAt` 推導狀態
-- responsibility side 不再建立 `TaskTemplate + Task instance`
+- item side 不再建立 `TaskTemplate + Task instance`
 
 不是：
 
@@ -214,10 +215,10 @@ TimelineMilestoneRecord {
 
 ---
 
-## 4. ResponsibilityItemType
+## 4. ItemType
 
 ```ts
-enum ResponsibilityItemType {
+enum ItemType {
   FIXED_TIME
   STATE_BASED
   RESOURCE_BASED
@@ -265,12 +266,12 @@ MVP 可先以保守方式沿用 state-based 邏輯收斂，不要求完整 deple
 
 ---
 
-## 5. Responsibility 狀態模型
+## 5. Item 狀態模型
 
 ### 5.1 唯一狀態集合
 
 ```ts
-enum ResponsibilityItemStatus {
+enum ItemStatus {
   NORMAL
   WARNING
   DANGER
@@ -323,7 +324,7 @@ if missed:
 
 ---
 
-## 6. Responsibility 行為規則
+## 6. Item 行為規則
 
 ### 6.1 完成行為
 
@@ -339,13 +340,13 @@ onComplete(item):
 - legacy task instance
 - recurring task generation
 - defer / cancel / pause-template lifecycle
-- responsibility completion history（MVP 可省略）
+- item completion history（MVP 可省略）
 
 ### 6.3 核心原則
 
 - 系統關注「有沒有事情正在變糟」
-- 不再以 `dueDate` 作為 responsibility 核心欄位
-- 不再以 `Today / Upcoming / Overdue task queue` 作為 responsibility 主畫面語意
+- 不再以 `dueDate` 作為 item 核心欄位
+- 不再以 `Today / Upcoming / Overdue task queue` 作為 item 主畫面語意
 
 ---
 
@@ -391,7 +392,7 @@ history 僅包含：
 
 Home 是唯一核心畫面。
 
-### 8.1 Responsibility 區塊
+### 8.1 Item 區塊
 
 只關注：
 
@@ -416,15 +417,15 @@ Home 是唯一核心畫面。
 
 ### 8.3 顯示優先級
 
-1. responsibility `danger`
-2. responsibility `warning`
+1. item `danger`
+2. item `warning`
 3. timeline upcoming
 
 ---
 
 ## 9. 編輯與管理流程
 
-### 9.1 ResponsibilityItem 編輯流程
+### 9.1 Item 編輯流程
 
 1. 輸入內容
 2. 選擇 pack
@@ -439,7 +440,7 @@ Home 是唯一核心畫面。
 
 ### 9.3 Management
 
-- responsibility 以 pack 分組顯示
+- item 以 pack 分組顯示
 - pack 是正式可見實體
 - item 可在 pack 間移動
 - archived pack 預設不作為 active selector 候選
@@ -448,7 +449,7 @@ Home 是唯一核心畫面。
 
 ## 10. Persistence Model
 
-### 10.1 responsibility_packs
+### 10.1 item_packs
 
 - `id`
 - `title`
@@ -458,7 +459,7 @@ Home 是唯一核心畫面。
 - `createdAt`
 - `updatedAt`
 
-### 10.2 responsibility_items
+### 10.2 items
 
 - `id`
 - `packId`
@@ -517,13 +518,13 @@ Home 是唯一核心畫面。
 
 ## 11. Domain Constraints
 
-- `ResponsibilityItem` 與 `Timeline` 不混用
-- responsibility side 不再拆成 `TaskTemplate + Task`
-- `ResponsibilityItemStatus` 來自規則計算，不作為核心歷史模型
+- `Item` 與 `Timeline` 不混用
+- item side 不再拆成 `TaskTemplate + Task`
+- `ItemStatus` 來自規則計算，不作為核心歷史模型
 - `TimelineMilestoneRule` 是 primary source，occurrence 為動態計算結果
 - `TimelineMilestoneRecord` 不依使用者操作產生下一筆
 - archived `Timeline` 為唯讀
-- system default `ResponsibilityPack` 必須唯一、可見、不可封存
+- system default `ItemPack` 必須唯一、可見、不可封存
 
 ---
 
@@ -531,8 +532,8 @@ Home 是唯一核心畫面。
 
 ### 必做
 
-- `ResponsibilityPack`
-- `ResponsibilityItem`
+- `ItemPack`
+- `Item`
 - `STATE_BASED`
 - 狀態計算
 - Home 顯示（warning / danger）
@@ -554,7 +555,7 @@ Home 是唯一核心畫面。
 - `Task`
 - `TaskStatus`
 - `TaskTemplateStatus`
-- 單純依 due date 的 responsibility reminder 系統
+- 單純依 due date 的 item reminder 系統
 - 巨型通用 Reminder model
 - recurring task instance generation
 - defer / cancel / pause-template 作為責任主流轉
@@ -566,7 +567,6 @@ Home 是唯一核心畫面。
 後續所有 reminders feature 實作必須遵守：
 
 1. 不再新增 `task`、`template`、`instance` 型命名到核心 domain/data/UI
-2. responsibility 相關實作一律以 `ResponsibilityPack / ResponsibilityItem` 收斂
+2. item 相關實作一律以 `ItemPack / Item` 收斂
 3. timeline 相關實作一律維持 `rule -> occurrence -> record` 邊界
 4. 若舊註解、舊文件、舊欄位名稱仍使用 task 語言，以本文件覆寫
-

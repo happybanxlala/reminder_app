@@ -1,4 +1,4 @@
-# Responsibility Pack 概念說明
+# Item Pack 概念說明
 
 ## 1. 為什麼需要這個模型？
 
@@ -33,9 +33,9 @@
 
 ---
 
-## 3. Responsibility Pack 是什麼？
+## 3. Item Pack 是什麼？
 
-Responsibility Pack 代表一個持續存在的生活責任。
+Item Pack 代表一個持續存在的生活責任。
 
 例如：
 - 養貓
@@ -50,9 +50,9 @@ Responsibility Pack 代表一個持續存在的生活責任。
 
 ---
 
-## 4. Responsibility Item 是什麼？
+## 4. Item 是什麼？
 
-Responsibility Item 是 Pack 內的具體責任。
+Item 是 Pack 內的具體責任。
 
 例如（養貓）：
 - 飲水機加水

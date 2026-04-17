@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:reminder_app/features/reminders/data/local/responsibility_timeline_dao.dart';
+import 'package:reminder_app/features/reminders/data/local/item_timeline_dao.dart';
 import 'package:reminder_app/features/reminders/data/timeline_models.dart';
 import 'package:reminder_app/features/reminders/domain/timeline.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_record.dart';

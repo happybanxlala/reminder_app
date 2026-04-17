@@ -3,49 +3,43 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
-import 'package:reminder_app/features/reminders/data/local/responsibility_timeline_dao.dart';
-import 'package:reminder_app/features/reminders/data/responsibility_repository.dart';
+import 'package:reminder_app/features/reminders/data/local/item_timeline_dao.dart';
+import 'package:reminder_app/features/reminders/data/item_repository.dart';
 import 'package:reminder_app/features/reminders/data/timeline_models.dart';
-import 'package:reminder_app/features/reminders/domain/responsibility_item.dart';
-import 'package:reminder_app/features/reminders/domain/responsibility_pack.dart';
+import 'package:reminder_app/features/reminders/domain/item.dart';
+import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/timeline.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_occurrence.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_record.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_rule.dart';
 import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
-import 'package:reminder_app/features/reminders/providers/responsibility_providers.dart';
+import 'package:reminder_app/features/reminders/providers/item_providers.dart';
 import 'package:reminder_app/features/reminders/providers/timeline_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/management_page.dart';
 
 void main() {
-  testWidgets('management page groups responsibility items by pack', (
-    tester,
-  ) async {
+  testWidgets('management page groups items by pack', (tester) async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          responsibilityRepositoryProvider.overrideWith(
-            (ref) => ResponsibilityRepository(db.responsibilityTimelineDao),
+          itemRepositoryProvider.overrideWith(
+            (ref) => ItemRepository(db.itemTimelineDao),
           ),
-          activeResponsibilityPacksProvider.overrideWith(
+          activeItemPacksProvider.overrideWith(
             (ref) => Stream.value([
-              _pack(
-                1,
-                title: 'Default Responsibility Pack',
-                isSystemDefault: true,
-              ),
+              _pack(1, title: 'Default Item Pack', isSystemDefault: true),
               _pack(2, title: 'Cat Care'),
             ]),
           ),
-          responsibilityItemsProvider.overrideWith(
+          itemsProvider.overrideWith(
             (ref) => Stream.value([
-              _itemBundle(1, ResponsibilityItemType.stateBased),
+              _itemBundle(1, ItemType.stateBased),
               _itemBundle(
                 2,
-                ResponsibilityItemType.resourceBased,
+                ItemType.resourceBased,
                 packId: 2,
                 packTitle: 'Cat Care',
               ),
@@ -181,9 +175,9 @@ void main() {
     expect(find.byKey(const Key('pack-system-default-1')), findsOneWidget);
     expect(find.byKey(const Key('pack-edit-2')), findsOneWidget);
     expect(find.byKey(const Key('pack-archive-2')), findsOneWidget);
-    expect(find.byKey(const Key('responsibility-edit-1')), findsOneWidget);
-    expect(find.byKey(const Key('responsibility-done-1')), findsOneWidget);
-    expect(find.byKey(const Key('responsibility-edit-2')), findsOneWidget);
+    expect(find.byKey(const Key('item-edit-1')), findsOneWidget);
+    expect(find.byKey(const Key('item-done-1')), findsOneWidget);
+    expect(find.byKey(const Key('item-edit-2')), findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.text('No sugar', skipOffstage: false),
@@ -215,18 +209,18 @@ void main() {
   ) async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = ResponsibilityRepository(db.responsibilityTimelineDao);
+    final repository = ItemRepository(db.itemTimelineDao);
 
     final choresPackId = await repository.createPack(
-      const ResponsibilityPackInput(
+      const ItemPackInput(
         title: 'Cat Care',
         description: 'Feeding and cleanup',
       ),
     );
     await repository.createItem(
-      ResponsibilityItemInput(
+      ItemInput(
         title: 'Clean litter box',
-        type: ResponsibilityItemType.stateBased,
+        type: ItemType.stateBased,
         config: const StateBasedItemConfig(
           expectedInterval: Duration(days: 2),
           warningAfter: Duration(days: 2),
@@ -239,22 +233,18 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          responsibilityRepositoryProvider.overrideWith((ref) => repository),
-          activeResponsibilityPacksProvider.overrideWith(
+          itemRepositoryProvider.overrideWith((ref) => repository),
+          activeItemPacksProvider.overrideWith(
             (ref) => Stream.value([
-              _pack(
-                1,
-                title: 'Default Responsibility Pack',
-                isSystemDefault: true,
-              ),
+              _pack(1, title: 'Default Item Pack', isSystemDefault: true),
               _pack(choresPackId, title: 'Cat Care'),
             ]),
           ),
-          responsibilityItemsProvider.overrideWith(
+          itemsProvider.overrideWith(
             (ref) => Stream.value([
               _itemBundle(
                 1,
-                ResponsibilityItemType.stateBased,
+                ItemType.stateBased,
                 packId: choresPackId,
                 packTitle: 'Cat Care',
               ),
@@ -283,7 +273,7 @@ void main() {
     await tester.tap(find.byKey(const Key('pack-save-button')));
     await tester.pumpAndSettle();
 
-    final packs = await db.select(db.responsibilityPacks).get();
+    final packs = await db.select(db.itemPacks).get();
     expect(packs.any((item) => item.title == 'Health'), isTrue);
 
     await tester.pumpWidget(const SizedBox.shrink());
@@ -291,29 +281,29 @@ void main() {
   });
 }
 
-ResponsibilityItemBundle _itemBundle(
+ItemBundle _itemBundle(
   int id,
-  ResponsibilityItemType type, {
+  ItemType type, {
   int packId = 1,
-  String packTitle = 'Default Responsibility Pack',
+  String packTitle = 'Default Item Pack',
 }) {
   final config = switch (type) {
-    ResponsibilityItemType.stateBased => const StateBasedItemConfig(
+    ItemType.stateBased => const StateBasedItemConfig(
       expectedInterval: Duration(days: 7),
       warningAfter: Duration(days: 7),
       dangerAfter: Duration(days: 14),
     ),
-    ResponsibilityItemType.resourceBased => const ResourceBasedItemConfig(
+    ItemType.resourceBased => const ResourceBasedItemConfig(
       estimatedDuration: Duration(days: 30),
       warningBeforeDepletion: Duration(days: 7),
     ),
-    ResponsibilityItemType.fixedTime => FixedTimeItemConfig(
+    ItemType.fixedTime => FixedTimeItemConfig(
       scheduleType: FixedTimeScheduleType.daily,
       anchorDate: DateTime(2026, 4, 10),
     ),
   };
-  return ResponsibilityItemBundle(
-    item: ResponsibilityItem(
+  return ItemBundle(
+    item: Item(
       id: id,
       packId: packId,
       title: 'Item $id',
@@ -327,15 +317,11 @@ ResponsibilityItemBundle _itemBundle(
   );
 }
 
-ResponsibilityPack _pack(
-  int id, {
-  required String title,
-  bool isSystemDefault = false,
-}) {
-  return ResponsibilityPack(
+ItemPack _pack(int id, {required String title, bool isSystemDefault = false}) {
+  return ItemPack(
     id: id,
     title: title,
-    status: ResponsibilityPackStatus.active,
+    status: ItemPackStatus.active,
     isSystemDefault: isSystemDefault,
     createdAt: DateTime(2026, 4, 1),
     updatedAt: DateTime(2026, 4, 1),

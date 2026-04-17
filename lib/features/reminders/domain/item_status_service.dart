@@ -1,9 +1,9 @@
-import 'responsibility_item.dart';
+import 'item.dart';
 
-class ResponsibilityStatusService {
-  const ResponsibilityStatusService();
+class ItemStatusService {
+  const ItemStatusService();
 
-  ResponsibilityItemStatus classify(ResponsibilityItem item, {DateTime? now}) {
+  ItemStatus classify(Item item, {DateTime? now}) {
     final current = _normalizeDate(now ?? DateTime.now());
     return switch (item.config) {
       FixedTimeItemConfig config => _classifyFixedTime(
@@ -21,11 +21,11 @@ class ResponsibilityStatusService {
         config,
         now: current,
       ),
-      _ => ResponsibilityItemStatus.unknown,
+      _ => ItemStatus.unknown,
     };
   }
 
-  Duration? elapsedSinceLastDone(ResponsibilityItem item, {DateTime? now}) {
+  Duration? elapsedSinceLastDone(Item item, {DateTime? now}) {
     final lastDoneAt = item.lastDoneAt;
     if (lastDoneAt == null) {
       return null;
@@ -35,13 +35,13 @@ class ResponsibilityStatusService {
     ).difference(_normalizeDate(lastDoneAt));
   }
 
-  ResponsibilityItemStatus _classifyStateBased(
+  ItemStatus _classifyStateBased(
     DateTime? lastDoneAt,
     StateBasedItemConfig config, {
     required DateTime now,
   }) {
     if (lastDoneAt == null) {
-      return ResponsibilityItemStatus.unknown;
+      return ItemStatus.unknown;
     }
 
     final elapsed = now.difference(_normalizeDate(lastDoneAt));
@@ -52,21 +52,21 @@ class ResponsibilityStatusService {
     final dangerBoundary = _maxDuration(config.dangerAfter, normalBoundary);
 
     if (elapsed < normalBoundary) {
-      return ResponsibilityItemStatus.normal;
+      return ItemStatus.normal;
     }
     if (elapsed < dangerBoundary) {
-      return ResponsibilityItemStatus.warning;
+      return ItemStatus.warning;
     }
-    return ResponsibilityItemStatus.danger;
+    return ItemStatus.danger;
   }
 
-  ResponsibilityItemStatus _classifyResourceBased(
+  ItemStatus _classifyResourceBased(
     DateTime? lastDoneAt,
     ResourceBasedItemConfig config, {
     required DateTime now,
   }) {
     if (lastDoneAt == null) {
-      return ResponsibilityItemStatus.unknown;
+      return ItemStatus.unknown;
     }
 
     final elapsed = now.difference(_normalizeDate(lastDoneAt));
@@ -75,15 +75,15 @@ class ResponsibilityStatusService {
 
     if (elapsed <
         (warningBoundary.isNegative ? Duration.zero : warningBoundary)) {
-      return ResponsibilityItemStatus.normal;
+      return ItemStatus.normal;
     }
     if (elapsed < config.estimatedDuration) {
-      return ResponsibilityItemStatus.warning;
+      return ItemStatus.warning;
     }
-    return ResponsibilityItemStatus.danger;
+    return ItemStatus.danger;
   }
 
-  ResponsibilityItemStatus _classifyFixedTime(
+  ItemStatus _classifyFixedTime(
     DateTime? lastDoneAt,
     FixedTimeItemConfig config, {
     required DateTime now,
@@ -92,7 +92,7 @@ class ResponsibilityStatusService {
         ? null
         : _normalizeDate(config.anchorDate!);
     if (anchorDate == null) {
-      return ResponsibilityItemStatus.unknown;
+      return ItemStatus.unknown;
     }
 
     final completedAt = lastDoneAt == null ? null : _normalizeDate(lastDoneAt);
@@ -115,61 +115,61 @@ class ResponsibilityStatusService {
     };
   }
 
-  ResponsibilityItemStatus _classifyDailyFixedTime(
+  ItemStatus _classifyDailyFixedTime(
     DateTime? completedAt, {
     required DateTime anchorDate,
     required DateTime now,
   }) {
     if (now.isBefore(anchorDate)) {
-      return ResponsibilityItemStatus.normal;
+      return ItemStatus.normal;
     }
     if (_isCompletedOnOrAfter(completedAt, now)) {
-      return ResponsibilityItemStatus.normal;
+      return ItemStatus.normal;
     }
     if (completedAt != null &&
         _sameDate(
           _normalizeDate(completedAt),
           now.subtract(const Duration(days: 1)),
         )) {
-      return ResponsibilityItemStatus.warning;
+      return ItemStatus.warning;
     }
-    return ResponsibilityItemStatus.danger;
+    return ItemStatus.danger;
   }
 
-  ResponsibilityItemStatus _classifyWeeklyFixedTime(
+  ItemStatus _classifyWeeklyFixedTime(
     DateTime? completedAt, {
     required DateTime anchorDate,
     required DateTime now,
   }) {
     if (now.isBefore(anchorDate)) {
-      return ResponsibilityItemStatus.normal;
+      return ItemStatus.normal;
     }
 
     final cycleStart = _latestWeeklyCycleStart(anchorDate, now);
     if (_isCompletedOnOrAfter(completedAt, cycleStart)) {
-      return ResponsibilityItemStatus.normal;
+      return ItemStatus.normal;
     }
     if (_sameDate(now, cycleStart)) {
-      return ResponsibilityItemStatus.warning;
+      return ItemStatus.warning;
     }
-    return ResponsibilityItemStatus.danger;
+    return ItemStatus.danger;
   }
 
-  ResponsibilityItemStatus _classifyCustomFixedTime(
+  ItemStatus _classifyCustomFixedTime(
     DateTime? completedAt, {
     required DateTime anchorDate,
     required DateTime now,
   }) {
     if (_isCompletedOnOrAfter(completedAt, anchorDate)) {
-      return ResponsibilityItemStatus.normal;
+      return ItemStatus.normal;
     }
     if (now.isBefore(anchorDate)) {
-      return ResponsibilityItemStatus.normal;
+      return ItemStatus.normal;
     }
     if (_sameDate(now, anchorDate)) {
-      return ResponsibilityItemStatus.warning;
+      return ItemStatus.warning;
     }
-    return ResponsibilityItemStatus.danger;
+    return ItemStatus.danger;
   }
 
   DateTime _latestWeeklyCycleStart(DateTime anchorDate, DateTime now) {

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/home_models.dart';
-import 'package:reminder_app/features/reminders/data/local/responsibility_timeline_dao.dart';
-import 'package:reminder_app/features/reminders/domain/responsibility_item.dart';
-import 'package:reminder_app/features/reminders/domain/responsibility_pack.dart';
+import 'package:reminder_app/features/reminders/data/local/item_timeline_dao.dart';
+import 'package:reminder_app/features/reminders/domain/item.dart';
+import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_occurrence.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_record.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_rule.dart';
@@ -21,17 +21,14 @@ void main() {
         overrides: [
           dangerHomeEntriesProvider.overrideWith(
             (ref) => Stream.value([
-              _responsibilityEntry(
-                title: 'Clean litter box',
-                status: ResponsibilityItemStatus.danger,
-              ),
+              _itemEntry(title: 'Clean litter box', status: ItemStatus.danger),
             ]),
           ),
           warningHomeEntriesProvider.overrideWith(
             (ref) => Stream.value([
-              _responsibilityEntry(
+              _itemEntry(
                 title: 'Refill water fountain',
-                status: ResponsibilityItemStatus.warning,
+                status: ItemStatus.warning,
               ),
             ]),
           ),
@@ -57,10 +54,10 @@ void main() {
       ProviderScope(
         overrides: [
           dangerHomeEntriesProvider.overrideWith(
-            (ref) => Stream.value(<ResponsibilityItemHomeEntry>[]),
+            (ref) => Stream.value(<ItemHomeEntry>[]),
           ),
           warningHomeEntriesProvider.overrideWith(
-            (ref) => Stream.value(<ResponsibilityItemHomeEntry>[]),
+            (ref) => Stream.value(<ItemHomeEntry>[]),
           ),
           upcomingTimelineMilestonesProvider.overrideWith(
             (ref) => Stream.value([_occurrence(title: 'No sugar')]),
@@ -80,59 +77,50 @@ void main() {
     expect(find.text('跳過'), findsOneWidget);
   });
 
-  testWidgets(
-    'history page shows responsibility note and paginated milestone section',
-    (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            milestoneHistoryProvider.overrideWith(
-              (ref) => Stream.value(
-                List.generate(
-                  11,
-                  (index) => _milestoneRecordBundle(title: 'Timeline $index'),
-                ),
+  testWidgets('history page shows item note and paginated milestone section', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          milestoneHistoryProvider.overrideWith(
+            (ref) => Stream.value(
+              List.generate(
+                11,
+                (index) => _milestoneRecordBundle(title: 'Timeline $index'),
               ),
             ),
-          ],
-          child: const MaterialApp(home: HistoryPage()),
-        ),
-      );
-      await tester.pump();
+          ),
+        ],
+        child: const MaterialApp(home: HistoryPage()),
+      ),
+    );
+    await tester.pump();
 
-      expect(find.text('Responsibility History'), findsOneWidget);
-      expect(
-        find.textContaining('不保留 responsibility completion history'),
-        findsOneWidget,
-      );
-      expect(find.text('Milestone History'), findsOneWidget);
-      expect(find.text('Timeline 0'), findsOneWidget);
-      expect(find.text('Timeline 10'), findsNothing);
+    expect(find.text('Item History'), findsOneWidget);
+    expect(find.textContaining('不保留 item completion history'), findsOneWidget);
+    expect(find.text('Milestone History'), findsOneWidget);
+    expect(find.text('Timeline 0'), findsOneWidget);
+    expect(find.text('Timeline 10'), findsNothing);
 
-      await tester.ensureVisible(
-        find.byKey(const Key('milestone-history-next')),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('milestone-history-next')));
-      await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('milestone-history-next')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('milestone-history-next')));
+    await tester.pumpAndSettle();
 
-      expect(find.text('Timeline 10'), findsOneWidget);
-    },
-  );
+    expect(find.text('Timeline 10'), findsOneWidget);
+  });
 }
 
-ResponsibilityItemHomeEntry _responsibilityEntry({
-  required String title,
-  required ResponsibilityItemStatus status,
-}) {
+ItemHomeEntry _itemEntry({required String title, required ItemStatus status}) {
   final id = title.hashCode;
-  return ResponsibilityItemHomeEntry(
-    bundle: ResponsibilityItemBundle(
-      item: ResponsibilityItem(
+  return ItemHomeEntry(
+    bundle: ItemBundle(
+      item: Item(
         id: id,
         packId: 1,
         title: title,
-        type: ResponsibilityItemType.stateBased,
+        type: ItemType.stateBased,
         config: const StateBasedItemConfig(
           expectedInterval: Duration(days: 1),
           warningAfter: Duration(days: 1),
@@ -142,10 +130,10 @@ ResponsibilityItemHomeEntry _responsibilityEntry({
         createdAt: DateTime(2026, 4, 1),
         updatedAt: DateTime(2026, 4, 1),
       ),
-      pack: ResponsibilityPack(
+      pack: ItemPack(
         id: 1,
-        title: 'Default Responsibility Pack',
-        status: ResponsibilityPackStatus.active,
+        title: 'Default Item Pack',
+        status: ItemPackStatus.active,
         isSystemDefault: true,
         createdAt: DateTime(2026, 4, 1),
         updatedAt: DateTime(2026, 4, 1),

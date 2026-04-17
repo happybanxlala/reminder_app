@@ -1,7 +1,7 @@
 import 'package:drift/drift.dart';
 
-import '../../domain/responsibility_item.dart';
-import '../../domain/responsibility_pack.dart';
+import '../../domain/item.dart';
+import '../../domain/item_pack.dart';
 import '../../domain/timeline.dart';
 import '../../domain/timeline_milestone_occurrence.dart';
 import '../../domain/timeline_milestone_record.dart';
@@ -9,13 +9,13 @@ import '../../domain/timeline_milestone_rule.dart';
 import 'app_database.dart';
 import 'tables.dart';
 
-part 'responsibility_timeline_dao.g.dart';
+part 'item_timeline_dao.g.dart';
 
-class ResponsibilityItemBundle {
-  const ResponsibilityItemBundle({required this.item, required this.pack});
+class ItemBundle {
+  const ItemBundle({required this.item, required this.pack});
 
-  final ResponsibilityItem item;
-  final ResponsibilityPack pack;
+  final Item item;
+  final ItemPack pack;
 }
 
 class TimelineMilestoneRecordBundle {
@@ -44,106 +44,98 @@ class TimelineDetailRecord {
 
 @DriftAccessor(
   tables: [
-    ResponsibilityPacks,
-    ResponsibilityItems,
+    ItemPacks,
+    Items,
     Timelines,
     TimelineMilestoneRules,
     TimelineMilestoneRecords,
   ],
 )
-class ResponsibilityTimelineDao extends DatabaseAccessor<AppDatabase>
-    with _$ResponsibilityTimelineDaoMixin {
-  ResponsibilityTimelineDao(super.attachedDatabase);
+class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
+    with _$ItemTimelineDaoMixin {
+  ItemTimelineDao(super.attachedDatabase);
 
-  Future<int> insertResponsibilityPack(ResponsibilityPacksCompanion entry) {
-    return into(responsibilityPacks).insert(entry);
+  Future<int> insertItemPack(ItemPacksCompanion entry) {
+    return into(itemPacks).insert(entry);
   }
 
-  Future<int> insertResponsibilityItem(ResponsibilityItemsCompanion entry) {
-    return into(responsibilityItems).insert(entry);
+  Future<int> insertItem(ItemsCompanion entry) {
+    return into(items).insert(entry);
   }
 
-  Future<bool> updateResponsibilityPackRecord(ResponsibilityPackRow entry) {
-    return update(responsibilityPacks).replace(entry);
+  Future<bool> updateItemPackRecord(ItemPackRow entry) {
+    return update(itemPacks).replace(entry);
   }
 
-  Future<bool> updateResponsibilityItemRecord(ResponsibilityItemRow entry) {
-    return update(responsibilityItems).replace(entry);
+  Future<bool> updateItemRecord(ItemRow entry) {
+    return update(items).replace(entry);
   }
 
-  Stream<List<ResponsibilityPack>> watchResponsibilityPacks({
-    bool includeArchived = false,
-  }) {
-    final query = select(responsibilityPacks);
+  Stream<List<ItemPack>> watchItemPacks({bool includeArchived = false}) {
+    final query = select(itemPacks);
     if (!includeArchived) {
-      query.where((t) => t.status.equals(ResponsibilityPackStatus.active.name));
+      query.where((t) => t.status.equals(ItemPackStatus.active.name));
     }
-    query.orderBy(_responsibilityPackOrdering);
+    query.orderBy(_itemPackOrdering);
     return query.watch().map(
-      (rows) => rows.map(_toResponsibilityPack).toList(growable: false),
+      (rows) => rows.map(_toItemPack).toList(growable: false),
     );
   }
 
-  Future<List<ResponsibilityPack>> listResponsibilityPacks({
-    bool includeArchived = false,
-  }) async {
-    final query = select(responsibilityPacks);
+  Future<List<ItemPack>> listItemPacks({bool includeArchived = false}) async {
+    final query = select(itemPacks);
     if (!includeArchived) {
-      query.where((t) => t.status.equals(ResponsibilityPackStatus.active.name));
+      query.where((t) => t.status.equals(ItemPackStatus.active.name));
     }
-    query.orderBy(_responsibilityPackOrdering);
+    query.orderBy(_itemPackOrdering);
     final rows = await query.get();
-    return rows.map(_toResponsibilityPack).toList(growable: false);
+    return rows.map(_toItemPack).toList(growable: false);
   }
 
-  Future<ResponsibilityPack?> getResponsibilityPackById(int id) async {
+  Future<ItemPack?> getItemPackById(int id) async {
     final row = await (select(
-      responsibilityPacks,
+      itemPacks,
     )..where((t) => t.id.equals(id))).getSingleOrNull();
-    return row == null ? null : _toResponsibilityPack(row);
+    return row == null ? null : _toItemPack(row);
   }
 
-  Future<int> countResponsibilityItemsForPack(int packId) async {
-    final countExpression = responsibilityItems.id.count();
-    final query = selectOnly(responsibilityItems)
+  Future<int> countItemsForPack(int packId) async {
+    final countExpression = items.id.count();
+    final query = selectOnly(items)
       ..addColumns([countExpression])
-      ..where(responsibilityItems.packId.equals(packId));
+      ..where(items.packId.equals(packId));
     final row = await query.getSingle();
     return row.read(countExpression) ?? 0;
   }
 
-  Stream<List<ResponsibilityItemBundle>> watchResponsibilityItemBundles() {
-    return _responsibilityItemBundleQuery().watch().map(
-      (rows) => rows.map(_mapResponsibilityItemBundle).toList(growable: false),
+  Stream<List<ItemBundle>> watchItemBundles() {
+    return _itemBundleQuery().watch().map(
+      (rows) => rows.map(_mapItemBundle).toList(growable: false),
     );
   }
 
-  Future<List<ResponsibilityItemBundle>> listResponsibilityItemBundles() {
-    return _responsibilityItemBundleQuery().get().then(
-      (rows) => rows.map(_mapResponsibilityItemBundle).toList(growable: false),
+  Future<List<ItemBundle>> listItemBundles() {
+    return _itemBundleQuery().get().then(
+      (rows) => rows.map(_mapItemBundle).toList(growable: false),
     );
   }
 
-  Future<ResponsibilityItemBundle?> getResponsibilityItemBundleById(
-    int id,
-  ) async {
-    final rows = await _responsibilityItemBundleQuery(
+  Future<ItemBundle?> getItemBundleById(int id) async {
+    final rows = await _itemBundleQuery(
       where: (t) => t.id.equals(id),
       limit: 1,
     ).get();
     if (rows.isEmpty) {
       return null;
     }
-    return _mapResponsibilityItemBundle(rows.single);
+    return _mapItemBundle(rows.single);
   }
 
-  Future<bool> markResponsibilityItemDone(int id, {DateTime? doneAt}) async {
+  Future<bool> markItemDone(int id, {DateTime? doneAt}) async {
     final now = doneAt ?? DateTime.now();
-    final updatedRows =
-        await (update(
-          responsibilityItems,
-        )..where((t) => t.id.equals(id))).write(
-          ResponsibilityItemsCompanion(
+    final updatedRows = await (update(items)..where((t) => t.id.equals(id)))
+        .write(
+          ItemsCompanion(
             lastDoneAt: Value(now.millisecondsSinceEpoch),
             updatedAt: Value(now.millisecondsSinceEpoch),
           ),
@@ -385,22 +377,19 @@ class ResponsibilityTimelineDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
-  JoinedSelectStatement<HasResultSet, dynamic> _responsibilityItemBundleQuery({
-    Expression<bool> Function($ResponsibilityItemsTable t)? where,
+  JoinedSelectStatement<HasResultSet, dynamic> _itemBundleQuery({
+    Expression<bool> Function($ItemsTable t)? where,
     int? limit,
   }) {
-    final query = select(responsibilityItems).join([
-      innerJoin(
-        responsibilityPacks,
-        responsibilityPacks.id.equalsExp(responsibilityItems.packId),
-      ),
-    ]);
+    final query = select(
+      items,
+    ).join([innerJoin(itemPacks, itemPacks.id.equalsExp(items.packId))]);
     if (where != null) {
-      query.where(where(responsibilityItems));
+      query.where(where(items));
     }
     query.orderBy([
-      OrderingTerm.desc(responsibilityItems.updatedAt),
-      OrderingTerm.asc(responsibilityItems.id),
+      OrderingTerm.desc(items.updatedAt),
+      OrderingTerm.asc(items.id),
     ]);
     if (limit != null) {
       query.limit(limit);
@@ -436,10 +425,10 @@ class ResponsibilityTimelineDao extends DatabaseAccessor<AppDatabase>
     return query;
   }
 
-  ResponsibilityItemBundle _mapResponsibilityItemBundle(TypedResult row) {
-    return ResponsibilityItemBundle(
-      item: _toResponsibilityItem(row.readTable(responsibilityItems)),
-      pack: _toResponsibilityPack(row.readTable(responsibilityPacks)),
+  ItemBundle _mapItemBundle(TypedResult row) {
+    return ItemBundle(
+      item: _toItem(row.readTable(items)),
+      pack: _toItemPack(row.readTable(itemPacks)),
     );
   }
 
@@ -455,27 +444,27 @@ class ResponsibilityTimelineDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
-  ResponsibilityPack _toResponsibilityPack(ResponsibilityPackRow row) {
-    return ResponsibilityPack(
+  ItemPack _toItemPack(ItemPackRow row) {
+    return ItemPack(
       id: row.id,
       title: row.title,
       description: row.description,
-      status: ResponsibilityPackStatus.values.byName(row.status),
+      status: ItemPackStatus.values.byName(row.status),
       isSystemDefault: row.isSystemDefault,
       createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
     );
   }
 
-  ResponsibilityItem _toResponsibilityItem(ResponsibilityItemRow row) {
-    final itemType = ResponsibilityItemType.values.byName(row.type);
-    return ResponsibilityItem(
+  Item _toItem(ItemRow row) {
+    final itemType = ItemType.values.byName(row.type);
+    return Item(
       id: row.id,
       packId: row.packId,
       title: row.title,
       description: row.description,
       type: itemType,
-      config: _toResponsibilityItemConfig(row, itemType),
+      config: _toItemConfig(row, itemType),
       lastDoneAt: row.lastDoneAt == null
           ? null
           : DateTime.fromMillisecondsSinceEpoch(row.lastDoneAt!),
@@ -484,12 +473,9 @@ class ResponsibilityTimelineDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
-  ResponsibilityItemConfig _toResponsibilityItemConfig(
-    ResponsibilityItemRow row,
-    ResponsibilityItemType type,
-  ) {
+  ItemConfig _toItemConfig(ItemRow row, ItemType type) {
     return switch (type) {
-      ResponsibilityItemType.fixedTime => FixedTimeItemConfig(
+      ItemType.fixedTime => FixedTimeItemConfig(
         scheduleType: FixedTimeScheduleType.values.byName(
           row.fixedScheduleType ?? FixedTimeScheduleType.custom.name,
         ),
@@ -498,14 +484,14 @@ class ResponsibilityTimelineDao extends DatabaseAccessor<AppDatabase>
             : DateTime.fromMillisecondsSinceEpoch(row.fixedAnchorDate!),
         timeOfDay: row.fixedTimeOfDay,
       ),
-      ResponsibilityItemType.stateBased => StateBasedItemConfig(
+      ItemType.stateBased => StateBasedItemConfig(
         expectedInterval: Duration(
           minutes: row.stateExpectedIntervalMinutes ?? 0,
         ),
         warningAfter: Duration(minutes: row.stateWarningAfterMinutes ?? 0),
         dangerAfter: Duration(minutes: row.stateDangerAfterMinutes ?? 0),
       ),
-      ResponsibilityItemType.resourceBased => ResourceBasedItemConfig(
+      ItemType.resourceBased => ResourceBasedItemConfig(
         estimatedDuration: Duration(
           minutes: row.resourceEstimatedDurationMinutes ?? 0,
         ),
@@ -576,8 +562,7 @@ class ResponsibilityTimelineDao extends DatabaseAccessor<AppDatabase>
     };
   }
 
-  List<OrderingTerm Function($ResponsibilityPacksTable)>
-  get _responsibilityPackOrdering => [
+  List<OrderingTerm Function($ItemPacksTable)> get _itemPackOrdering => [
     (t) => OrderingTerm.desc(t.isSystemDefault),
     (t) => OrderingTerm.desc(t.updatedAt),
     (t) => OrderingTerm.asc(t.id),

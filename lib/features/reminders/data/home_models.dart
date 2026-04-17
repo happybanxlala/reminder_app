@@ -1,20 +1,20 @@
-import '../domain/responsibility_item.dart';
+import '../domain/item.dart';
 import '../domain/timeline_milestone_occurrence.dart';
-import 'local/responsibility_timeline_dao.dart';
+import 'local/item_timeline_dao.dart';
 
 sealed class HomeEntry {
   const HomeEntry();
 }
 
-class ResponsibilityItemHomeEntry extends HomeEntry {
-  const ResponsibilityItemHomeEntry({
+class ItemHomeEntry extends HomeEntry {
+  const ItemHomeEntry({
     required this.bundle,
     required this.status,
     this.elapsed,
   });
 
-  final ResponsibilityItemBundle bundle;
-  final ResponsibilityItemStatus status;
+  final ItemBundle bundle;
+  final ItemStatus status;
   final Duration? elapsed;
 }
 

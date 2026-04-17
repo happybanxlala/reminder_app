@@ -6,9 +6,7 @@ import '../domain/timeline.dart';
 import 'database_providers.dart';
 
 final timelineRepositoryProvider = Provider<TimelineRepository>((ref) {
-  return TimelineRepository(
-    ref.watch(appDatabaseProvider).responsibilityTimelineDao,
-  );
+  return TimelineRepository(ref.watch(appDatabaseProvider).itemTimelineDao);
 });
 
 final timelinesProvider = StreamProvider<List<Timeline>>((ref) {

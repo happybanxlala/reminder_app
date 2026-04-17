@@ -1,33 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:reminder_app/features/reminders/data/local/responsibility_timeline_dao.dart';
-import 'package:reminder_app/features/reminders/domain/responsibility_item.dart';
-import 'package:reminder_app/features/reminders/domain/responsibility_pack.dart';
-import 'package:reminder_app/features/reminders/providers/responsibility_providers.dart';
-import 'package:reminder_app/features/reminders/ui/pages/responsibility_item_edit_page.dart';
+import 'package:reminder_app/features/reminders/data/local/item_timeline_dao.dart';
+import 'package:reminder_app/features/reminders/domain/item.dart';
+import 'package:reminder_app/features/reminders/domain/item_pack.dart';
+import 'package:reminder_app/features/reminders/providers/item_providers.dart';
+import 'package:reminder_app/features/reminders/ui/pages/item_edit_page.dart';
 
 void main() {
-  testWidgets('responsibility item editor toggles fields by item type', (
-    tester,
-  ) async {
+  testWidgets('item editor toggles fields by item type', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          activeResponsibilityPacksProvider.overrideWith(
+          activeItemPacksProvider.overrideWith(
             (ref) => Stream.value([
-              ResponsibilityPack(
+              ItemPack(
                 id: 1,
-                title: 'Default Responsibility Pack',
-                status: ResponsibilityPackStatus.active,
+                title: 'Default Item Pack',
+                status: ItemPackStatus.active,
                 isSystemDefault: true,
                 createdAt: DateTime(2026, 4, 1),
                 updatedAt: DateTime(2026, 4, 1),
               ),
-              ResponsibilityPack(
+              ItemPack(
                 id: 2,
                 title: 'Cat Care',
-                status: ResponsibilityPackStatus.active,
+                status: ItemPackStatus.active,
                 isSystemDefault: false,
                 createdAt: DateTime(2026, 4, 1),
                 updatedAt: DateTime(2026, 4, 2),
@@ -35,11 +33,7 @@ void main() {
             ]),
           ),
         ],
-        child: MaterialApp(
-          home: ResponsibilityItemEditPage(
-            mode: ResponsibilityItemEditMode.create,
-          ),
-        ),
+        child: MaterialApp(home: ItemEditPage(mode: ItemEditMode.create)),
       ),
     );
     await tester.pump();
@@ -48,42 +42,40 @@ void main() {
     expect(find.byKey(const Key('estimated-duration-field')), findsNothing);
     expect(find.byKey(const Key('pack-field')), findsOneWidget);
 
-    await tester.tap(find.text(ResponsibilityItemType.stateBased.name));
+    await tester.tap(find.text(ItemType.stateBased.name));
     await tester.pumpAndSettle();
-    await tester.tap(find.text(ResponsibilityItemType.resourceBased.name).last);
+    await tester.tap(find.text(ItemType.resourceBased.name).last);
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('expected-interval-field')), findsNothing);
     expect(find.byKey(const Key('estimated-duration-field')), findsOneWidget);
   });
 
-  testWidgets('editor loads existing state-based responsibility item', (
-    tester,
-  ) async {
+  testWidgets('editor loads existing state-based item', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          activeResponsibilityPacksProvider.overrideWith(
+          activeItemPacksProvider.overrideWith(
             (ref) => Stream.value([
-              ResponsibilityPack(
+              ItemPack(
                 id: 1,
-                title: 'Default Responsibility Pack',
-                status: ResponsibilityPackStatus.active,
+                title: 'Default Item Pack',
+                status: ItemPackStatus.active,
                 isSystemDefault: true,
                 createdAt: DateTime(2026, 4, 1),
                 updatedAt: DateTime(2026, 4, 2),
               ),
             ]),
           ),
-          responsibilityItemProvider(7).overrideWith(
+          itemProvider(7).overrideWith(
             (ref) => Future.value(
-              ResponsibilityItemBundle(
-                item: ResponsibilityItem(
+              ItemBundle(
+                item: Item(
                   id: 7,
                   packId: 1,
                   title: 'Weekly grooming',
                   description: 'Brush and trim',
-                  type: ResponsibilityItemType.stateBased,
+                  type: ItemType.stateBased,
                   config: const StateBasedItemConfig(
                     expectedInterval: Duration(days: 7),
                     warningAfter: Duration(days: 7),
@@ -92,10 +84,10 @@ void main() {
                   createdAt: DateTime(2026, 4, 1),
                   updatedAt: DateTime(2026, 4, 2),
                 ),
-                pack: ResponsibilityPack(
+                pack: ItemPack(
                   id: 1,
-                  title: 'Default Responsibility Pack',
-                  status: ResponsibilityPackStatus.active,
+                  title: 'Default Item Pack',
+                  status: ItemPackStatus.active,
                   isSystemDefault: true,
                   createdAt: DateTime(2026, 4, 1),
                   updatedAt: DateTime(2026, 4, 2),
@@ -105,10 +97,7 @@ void main() {
           ),
         ],
         child: const MaterialApp(
-          home: ResponsibilityItemEditPage(
-            mode: ResponsibilityItemEditMode.edit,
-            id: 7,
-          ),
+          home: ItemEditPage(mode: ItemEditMode.edit, id: 7),
         ),
       ),
     );
@@ -118,7 +107,7 @@ void main() {
     expect(find.text('Brush and trim'), findsOneWidget);
     expect(find.text('7'), findsWidgets);
     expect(find.byKey(const Key('danger-after-field')), findsOneWidget);
-    expect(find.text('Default Responsibility Pack (系統預設)'), findsOneWidget);
+    expect(find.text('Default Item Pack (系統預設)'), findsOneWidget);
   });
 
   testWidgets('editor keeps archived current pack visible while editing', (
@@ -127,26 +116,26 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          activeResponsibilityPacksProvider.overrideWith(
+          activeItemPacksProvider.overrideWith(
             (ref) => Stream.value([
-              ResponsibilityPack(
+              ItemPack(
                 id: 1,
                 title: 'Active Pack',
-                status: ResponsibilityPackStatus.active,
+                status: ItemPackStatus.active,
                 isSystemDefault: false,
                 createdAt: DateTime(2026, 4, 1),
                 updatedAt: DateTime(2026, 4, 2),
               ),
             ]),
           ),
-          responsibilityItemProvider(8).overrideWith(
+          itemProvider(8).overrideWith(
             (ref) => Future.value(
-              ResponsibilityItemBundle(
-                item: ResponsibilityItem(
+              ItemBundle(
+                item: Item(
                   id: 8,
                   packId: 2,
                   title: 'Archived owner',
-                  type: ResponsibilityItemType.resourceBased,
+                  type: ItemType.resourceBased,
                   config: const ResourceBasedItemConfig(
                     estimatedDuration: Duration(days: 30),
                     warningBeforeDepletion: Duration(days: 7),
@@ -154,10 +143,10 @@ void main() {
                   createdAt: DateTime(2026, 4, 1),
                   updatedAt: DateTime(2026, 4, 2),
                 ),
-                pack: ResponsibilityPack(
+                pack: ItemPack(
                   id: 2,
                   title: 'Archived Pack',
-                  status: ResponsibilityPackStatus.archived,
+                  status: ItemPackStatus.archived,
                   isSystemDefault: false,
                   createdAt: DateTime(2026, 4, 1),
                   updatedAt: DateTime(2026, 4, 2),
@@ -167,10 +156,7 @@ void main() {
           ),
         ],
         child: const MaterialApp(
-          home: ResponsibilityItemEditPage(
-            mode: ResponsibilityItemEditMode.edit,
-            id: 8,
-          ),
+          home: ItemEditPage(mode: ItemEditMode.edit, id: 8),
         ),
       ),
     );

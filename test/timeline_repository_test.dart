@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/home_repository.dart';
 import 'package:reminder_app/features/reminders/data/timeline_models.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
-import 'package:reminder_app/features/reminders/data/responsibility_repository.dart';
+import 'package:reminder_app/features/reminders/data/item_repository.dart';
 import 'package:reminder_app/features/reminders/data/timeline_repository.dart';
 import 'package:reminder_app/features/reminders/domain/timeline.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_record.dart';
@@ -15,7 +15,7 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = TimelineRepository(db.responsibilityTimelineDao);
+      final repository = TimelineRepository(db.itemTimelineDao);
 
       final timelineId = await repository.createTimeline(
         TimelineInput(
@@ -59,7 +59,7 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = TimelineRepository(db.responsibilityTimelineDao);
+      final repository = TimelineRepository(db.itemTimelineDao);
 
       final timelineId = await repository.createTimeline(
         TimelineInput(
@@ -97,17 +97,13 @@ void main() {
   );
 
   test(
-    'paused rules do not produce occurrences and milestones never become responsibility items',
+    'paused rules do not produce occurrences and milestones never become items',
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final timelineRepository = TimelineRepository(
-        db.responsibilityTimelineDao,
-      );
+      final timelineRepository = TimelineRepository(db.itemTimelineDao);
       final homeRepository = HomeRepository(
-        responsibilityRepository: ResponsibilityRepository(
-          db.responsibilityTimelineDao,
-        ),
+        itemRepository: ItemRepository(db.itemTimelineDao),
         timelineRepository: timelineRepository,
       );
 
@@ -148,7 +144,7 @@ void main() {
   test('weeks rules round-trip through repository mappings', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = TimelineRepository(db.responsibilityTimelineDao);
+    final repository = TimelineRepository(db.itemTimelineDao);
 
     final timelineId = await repository.createTimeline(
       TimelineInput(
@@ -189,7 +185,7 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = TimelineRepository(db.responsibilityTimelineDao);
+      final repository = TimelineRepository(db.itemTimelineDao);
 
       final timelineId = await repository.createTimeline(
         TimelineInput(

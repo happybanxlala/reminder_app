@@ -1,9 +1,9 @@
 import 'package:intl/intl.dart';
 
 import '../../data/home_models.dart';
-import '../../data/local/responsibility_timeline_dao.dart';
-import '../../domain/responsibility_item.dart';
-import '../../domain/responsibility_pack.dart';
+import '../../data/local/item_timeline_dao.dart';
+import '../../domain/item.dart';
+import '../../domain/item_pack.dart';
 import '../../domain/timeline.dart';
 import '../../domain/timeline_milestone_occurrence.dart';
 import '../../domain/timeline_milestone_record.dart';
@@ -22,7 +22,7 @@ class ReminderFormatters {
     return DateFormat('yyyy/MM/dd HH:mm').format(value.toLocal());
   }
 
-  static String responsibilitySummary(ResponsibilityItemBundle bundle) {
+  static String itemSummary(ItemBundle bundle) {
     return switch (bundle.item.config) {
       FixedTimeItemConfig config => _fixedTimeSummary(config),
       StateBasedItemConfig config => _stateBasedSummary(config),
@@ -31,10 +31,10 @@ class ReminderFormatters {
     };
   }
 
-  static String responsibilityHomeSummary(ResponsibilityItemHomeEntry entry) {
+  static String itemHomeSummary(ItemHomeEntry entry) {
     final elapsed = entry.elapsed;
     final elapsedText = elapsed == null ? '尚未完成過' : elapsedLabel(elapsed);
-    return '${entry.bundle.pack.title} • ${responsibilityStatus(entry.status)} • $elapsedText';
+    return '${entry.bundle.pack.title} • ${itemStatus(entry.status)} • $elapsedText';
   }
 
   static String milestoneSummary(TimelineMilestoneOccurrence occurrence) {
@@ -106,19 +106,19 @@ class ReminderFormatters {
     };
   }
 
-  static String responsibilityStatus(ResponsibilityItemStatus status) {
+  static String itemStatus(ItemStatus status) {
     return switch (status) {
-      ResponsibilityItemStatus.normal => 'normal',
-      ResponsibilityItemStatus.warning => 'warning',
-      ResponsibilityItemStatus.danger => 'danger',
-      ResponsibilityItemStatus.unknown => 'unknown',
+      ItemStatus.normal => 'normal',
+      ItemStatus.warning => 'warning',
+      ItemStatus.danger => 'danger',
+      ItemStatus.unknown => 'unknown',
     };
   }
 
-  static String responsibilityPackStatus(ResponsibilityPackStatus status) {
+  static String itemPackStatus(ItemPackStatus status) {
     return switch (status) {
-      ResponsibilityPackStatus.active => 'active',
-      ResponsibilityPackStatus.archived => 'archived',
+      ItemPackStatus.active => 'active',
+      ItemPackStatus.archived => 'archived',
     };
   }
 

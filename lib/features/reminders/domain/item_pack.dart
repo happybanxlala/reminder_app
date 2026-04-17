@@ -1,14 +1,14 @@
-enum ResponsibilityPackStatus { active, archived }
+enum ItemPackStatus { active, archived }
 
-class ResponsibilityPackInput {
-  const ResponsibilityPackInput({required this.title, this.description});
+class ItemPackInput {
+  const ItemPackInput({required this.title, this.description});
 
   final String title;
   final String? description;
 }
 
-class ResponsibilityPack {
-  const ResponsibilityPack({
+class ItemPack {
+  const ItemPack({
     required this.id,
     required this.title,
     this.description,
@@ -21,7 +21,7 @@ class ResponsibilityPack {
   final int id;
   final String title;
   final String? description;
-  final ResponsibilityPackStatus status;
+  final ItemPackStatus status;
   final bool isSystemDefault;
   final DateTime createdAt;
   final DateTime updatedAt;

@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../data/local/responsibility_timeline_dao.dart';
-import '../../domain/responsibility_item.dart';
-import '../../domain/responsibility_pack.dart';
+import '../../data/local/item_timeline_dao.dart';
+import '../../domain/item.dart';
+import '../../domain/item_pack.dart';
 import '../../domain/timeline.dart';
 import '../../domain/timeline_milestone_occurrence.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
-import '../../providers/responsibility_providers.dart';
+import '../../providers/item_providers.dart';
 import '../../providers/timeline_providers.dart';
-import 'responsibility_item_edit_page.dart';
+import 'item_edit_page.dart';
 import 'timeline_edit_page.dart';
 import 'timeline_milestone_history_page.dart';
 
@@ -23,10 +23,8 @@ class ManagementPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final responsibilityItemsAsync = ref.watch(responsibilityItemsProvider);
-    final responsibilityPacksAsync = ref.watch(
-      activeResponsibilityPacksProvider,
-    );
+    final itemPacksAsync = ref.watch(activeItemPacksProvider);
+    final itemsAsync = ref.watch(itemsProvider);
     final timelinesAsync = ref.watch(timelinesProvider);
 
     return Scaffold(
@@ -35,27 +33,24 @@ class ManagementPage extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           _SectionHeader(
-            title: ReminderUiText.responsibilityPackTitle,
+            title: ReminderUiText.itemPackTitle,
             actions: [
               FilledButton(
                 key: const Key('add-pack-button'),
                 onPressed: () => _showPackDialog(context, ref),
-                child: const Text(ReminderUiText.addResponsibilityPack),
+                child: const Text(ReminderUiText.addItemPack),
               ),
               FilledButton(
-                key: const Key('add-responsibility-item-button'),
+                key: const Key('add-item-button'),
                 onPressed: () {
-                  context.pushNamed(ResponsibilityItemEditPage.createRouteName);
+                  context.pushNamed(ItemEditPage.createRouteName);
                 },
-                child: const Text(ReminderUiText.addResponsibilityItem),
+                child: const Text(ReminderUiText.addItem),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          _ResponsibilityPackSection(
-            packsAsync: responsibilityPacksAsync,
-            itemsAsync: responsibilityItemsAsync,
-          ),
+          _ItemPackSection(packsAsync: itemPacksAsync, itemsAsync: itemsAsync),
           const Divider(height: 32),
           _SectionHeader(
             title: ReminderUiText.timelineTitle,
@@ -92,12 +87,12 @@ class ManagementPage extends ConsumerWidget {
   Future<void> _showPackDialog(
     BuildContext context,
     WidgetRef ref, {
-    ResponsibilityPack? pack,
+    ItemPack? pack,
   }) async {
     if (pack?.isSystemDefault ?? false) {
       return;
     }
-    final input = await showDialog<ResponsibilityPackInput>(
+    final input = await showDialog<ItemPackInput>(
       context: context,
       builder: (dialogContext) => _PackFormDialog(pack: pack),
     );
@@ -105,7 +100,7 @@ class ManagementPage extends ConsumerWidget {
       return;
     }
 
-    final repository = ref.read(responsibilityRepositoryProvider);
+    final repository = ref.read(itemRepositoryProvider);
     if (pack == null) {
       await repository.createPack(input);
       return;
@@ -120,14 +115,11 @@ class ManagementPage extends ConsumerWidget {
   }
 }
 
-class _ResponsibilityPackSection extends ConsumerWidget {
-  const _ResponsibilityPackSection({
-    required this.packsAsync,
-    required this.itemsAsync,
-  });
+class _ItemPackSection extends ConsumerWidget {
+  const _ItemPackSection({required this.packsAsync, required this.itemsAsync});
 
-  final AsyncValue<List<ResponsibilityPack>> packsAsync;
-  final AsyncValue<List<ResponsibilityItemBundle>> itemsAsync;
+  final AsyncValue<List<ItemPack>> packsAsync;
+  final AsyncValue<List<ItemBundle>> itemsAsync;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -144,10 +136,10 @@ class _ResponsibilityPackSection extends ConsumerWidget {
     final packs = packsAsync.requireValue;
     final items = itemsAsync.requireValue;
     if (packs.isEmpty) {
-      return const Text(ReminderUiText.noResponsibilityPacks);
+      return const Text(ReminderUiText.noItemPacks);
     }
 
-    final itemsByPackId = <int, List<ResponsibilityItemBundle>>{};
+    final itemsByPackId = <int, List<ItemBundle>>{};
     for (final item in items) {
       itemsByPackId.putIfAbsent(item.pack.id, () => []).add(item);
     }
@@ -155,7 +147,7 @@ class _ResponsibilityPackSection extends ConsumerWidget {
     return Column(
       children: packs
           .map(
-            (pack) => _ResponsibilityPackCard(
+            (pack) => _ItemPackCard(
               pack: pack,
               items: itemsByPackId[pack.id] ?? const [],
             ),
@@ -165,15 +157,15 @@ class _ResponsibilityPackSection extends ConsumerWidget {
   }
 }
 
-class _ResponsibilityPackCard extends ConsumerWidget {
-  const _ResponsibilityPackCard({required this.pack, required this.items});
+class _ItemPackCard extends ConsumerWidget {
+  const _ItemPackCard({required this.pack, required this.items});
 
-  final ResponsibilityPack pack;
-  final List<ResponsibilityItemBundle> items;
+  final ItemPack pack;
+  final List<ItemBundle> items;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final repository = ref.read(responsibilityRepositoryProvider);
+    final repository = ref.read(itemRepositoryProvider);
 
     return Card(
       key: Key('pack-section-${pack.id}'),
@@ -273,7 +265,7 @@ class _ResponsibilityPackCard extends ConsumerWidget {
                     .map(
                       (item) => Padding(
                         padding: const EdgeInsets.only(bottom: 12),
-                        child: _ResponsibilityItemCard(
+                        child: _ItemCard(
                           bundle: item,
                           status: repository.statusFor(item.item),
                         ),
@@ -290,9 +282,9 @@ class _ResponsibilityPackCard extends ConsumerWidget {
   Future<void> _showPackDialog(
     BuildContext context,
     WidgetRef ref, {
-    ResponsibilityPack? pack,
+    ItemPack? pack,
   }) async {
-    final input = await showDialog<ResponsibilityPackInput>(
+    final input = await showDialog<ItemPackInput>(
       context: context,
       builder: (dialogContext) => _PackFormDialog(pack: pack),
     );
@@ -301,7 +293,7 @@ class _ResponsibilityPackCard extends ConsumerWidget {
     }
 
     final updated = await ref
-        .read(responsibilityRepositoryProvider)
+        .read(itemRepositoryProvider)
         .updatePack(pack.id, input);
     if (!updated && context.mounted) {
       ScaffoldMessenger.of(
@@ -311,11 +303,11 @@ class _ResponsibilityPackCard extends ConsumerWidget {
   }
 }
 
-class _ResponsibilityItemCard extends ConsumerWidget {
-  const _ResponsibilityItemCard({required this.bundle, required this.status});
+class _ItemCard extends ConsumerWidget {
+  const _ItemCard({required this.bundle, required this.status});
 
-  final ResponsibilityItemBundle bundle;
-  final ResponsibilityItemStatus status;
+  final ItemBundle bundle;
+  final ItemStatus status;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -341,11 +333,11 @@ class _ResponsibilityItemCard extends ConsumerWidget {
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 4),
-                      Text(ReminderFormatters.responsibilitySummary(bundle)),
+                      Text(ReminderFormatters.itemSummary(bundle)),
                     ],
                   ),
                 ),
-                Text(ReminderFormatters.responsibilityStatus(status)),
+                Text(ReminderFormatters.itemStatus(status)),
               ],
             ),
             const SizedBox(height: 12),
@@ -354,20 +346,20 @@ class _ResponsibilityItemCard extends ConsumerWidget {
               runSpacing: 8,
               children: [
                 OutlinedButton(
-                  key: Key('responsibility-edit-${bundle.item.id}'),
+                  key: Key('item-edit-${bundle.item.id}'),
                   onPressed: () {
                     context.pushNamed(
-                      ResponsibilityItemEditPage.editRouteName,
+                      ItemEditPage.editRouteName,
                       pathParameters: {'id': bundle.item.id.toString()},
                     );
                   },
                   child: const Text(ReminderUiText.editAction),
                 ),
                 OutlinedButton(
-                  key: Key('responsibility-done-${bundle.item.id}'),
+                  key: Key('item-done-${bundle.item.id}'),
                   onPressed: () async {
                     await ref
-                        .read(responsibilityRepositoryProvider)
+                        .read(itemRepositoryProvider)
                         .markDone(bundle.item.id);
                   },
                   child: const Text(ReminderUiText.completeAction),
@@ -406,7 +398,7 @@ class _SectionHeader extends StatelessWidget {
 class _PackFormDialog extends StatefulWidget {
   const _PackFormDialog({this.pack});
 
-  final ResponsibilityPack? pack;
+  final ItemPack? pack;
 
   @override
   State<_PackFormDialog> createState() => _PackFormDialogState();
@@ -439,9 +431,7 @@ class _PackFormDialogState extends State<_PackFormDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(
-        _isEdit
-            ? ReminderUiText.editResponsibilityPack
-            : ReminderUiText.addResponsibilityPack,
+        _isEdit ? ReminderUiText.editItemPack : ReminderUiText.addItemPack,
       ),
       content: Form(
         key: _formKey,
@@ -492,7 +482,7 @@ class _PackFormDialogState extends State<_PackFormDialog> {
       return;
     }
     Navigator.of(context).pop(
-      ResponsibilityPackInput(
+      ItemPackInput(
         title: _titleController.text.trim(),
         description: _normalizeOptionalText(_descriptionController.text),
       ),

@@ -6,14 +6,14 @@ import '../domain/timeline_milestone_record.dart';
 import '../domain/timeline_milestone_rule.dart';
 import '../domain/timeline_milestone_service.dart';
 import 'local/app_database.dart';
-import 'local/responsibility_timeline_dao.dart';
+import 'local/item_timeline_dao.dart';
 import 'timeline_models.dart';
 
 class TimelineRepository {
   TimelineRepository(this._dao, {TimelineMilestoneService? milestoneService})
     : _milestoneService = milestoneService ?? const TimelineMilestoneService();
 
-  final ResponsibilityTimelineDao _dao;
+  final ItemTimelineDao _dao;
   final TimelineMilestoneService _milestoneService;
 
   Stream<List<Timeline>> watchTimelines() => _dao.watchTimelines();

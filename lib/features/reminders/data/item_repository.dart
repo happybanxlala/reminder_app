@@ -1,13 +1,13 @@
 import 'package:drift/drift.dart';
 
-import '../domain/responsibility_item.dart';
-import '../domain/responsibility_pack.dart';
-import '../domain/responsibility_status_service.dart';
+import '../domain/item.dart';
+import '../domain/item_pack.dart';
+import '../domain/item_status_service.dart';
 import 'local/app_database.dart';
-import 'local/responsibility_timeline_dao.dart';
+import 'local/item_timeline_dao.dart';
 
-class ResponsibilityItemInput {
-  const ResponsibilityItemInput({
+class ItemInput {
+  const ItemInput({
     required this.title,
     this.description,
     required this.type,
@@ -17,32 +17,29 @@ class ResponsibilityItemInput {
 
   final String title;
   final String? description;
-  final ResponsibilityItemType type;
-  final ResponsibilityItemConfig config;
+  final ItemType type;
+  final ItemConfig config;
   final int? packId;
 }
 
-class ResponsibilityRepository {
-  ResponsibilityRepository(
-    this._dao, {
-    ResponsibilityStatusService? statusService,
-  }) : _statusService = statusService ?? const ResponsibilityStatusService();
+class ItemRepository {
+  ItemRepository(this._dao, {ItemStatusService? statusService})
+    : _statusService = statusService ?? const ItemStatusService();
 
-  final ResponsibilityTimelineDao _dao;
-  final ResponsibilityStatusService _statusService;
+  final ItemTimelineDao _dao;
+  final ItemStatusService _statusService;
 
-  Stream<List<ResponsibilityPack>> watchPacks({bool includeArchived = false}) =>
-      _dao.watchResponsibilityPacks(includeArchived: includeArchived);
+  Stream<List<ItemPack>> watchPacks({bool includeArchived = false}) =>
+      _dao.watchItemPacks(includeArchived: includeArchived);
 
-  Stream<List<ResponsibilityItemBundle>> watchItems() =>
-      _dao.watchResponsibilityItemBundles();
+  Stream<List<ItemBundle>> watchItems() => _dao.watchItemBundles();
 
-  Stream<List<ResponsibilityItemBundle>> watchItemsByStatus(
-    ResponsibilityItemStatus status, {
+  Stream<List<ItemBundle>> watchItemsByStatus(
+    ItemStatus status, {
     DateTime? now,
   }) {
     final current = now ?? DateTime.now();
-    return _dao.watchResponsibilityItemBundles().map(
+    return _dao.watchItemBundles().map(
       (items) => items
           .where(
             (item) =>
@@ -52,18 +49,16 @@ class ResponsibilityRepository {
     );
   }
 
-  Future<ResponsibilityItemBundle?> getItemById(int id) =>
-      _dao.getResponsibilityItemBundleById(id);
+  Future<ItemBundle?> getItemById(int id) => _dao.getItemBundleById(id);
 
-  Future<ResponsibilityPack?> getPackById(int id) =>
-      _dao.getResponsibilityPackById(id);
+  Future<ItemPack?> getPackById(int id) => _dao.getItemPackById(id);
 
-  Future<int> createItem(ResponsibilityItemInput input) async {
+  Future<int> createItem(ItemInput input) async {
     final now = DateTime.now();
     final packId = input.packId ?? await _ensureDefaultPackId(now);
     await _assertPackCanAcceptItems(packId);
-    return _dao.insertResponsibilityItem(
-      ResponsibilityItemsCompanion.insert(
+    return _dao.insertItem(
+      ItemsCompanion.insert(
         packId: packId,
         title: input.title,
         description: Value(input.description),
@@ -93,7 +88,7 @@ class ResponsibilityRepository {
     );
   }
 
-  Future<bool> updateItem(int id, ResponsibilityItemInput input) async {
+  Future<bool> updateItem(int id, ItemInput input) async {
     final existing = await getItemById(id);
     if (existing == null) {
       return false;
@@ -101,8 +96,8 @@ class ResponsibilityRepository {
     final now = DateTime.now();
     final packId = input.packId ?? existing.item.packId;
     await _assertPackCanAcceptItems(packId, existingItem: existing.item);
-    return _dao.updateResponsibilityItemRecord(
-      ResponsibilityItemRow(
+    return _dao.updateItemRecord(
+      ItemRow(
         id: existing.item.id,
         packId: packId,
         title: input.title,
@@ -134,13 +129,13 @@ class ResponsibilityRepository {
   }
 
   Future<bool> markDone(int id, {DateTime? doneAt}) {
-    return _dao.markResponsibilityItemDone(id, doneAt: doneAt);
+    return _dao.markItemDone(id, doneAt: doneAt);
   }
 
-  Future<int> createPack(ResponsibilityPackInput input) async {
+  Future<int> createPack(ItemPackInput input) async {
     final now = DateTime.now();
-    return _dao.insertResponsibilityPack(
-      ResponsibilityPacksCompanion.insert(
+    return _dao.insertItemPack(
+      ItemPacksCompanion.insert(
         title: input.title,
         description: Value(input.description),
         status: const Value('active'),
@@ -151,16 +146,16 @@ class ResponsibilityRepository {
     );
   }
 
-  Future<bool> updatePack(int id, ResponsibilityPackInput input) async {
+  Future<bool> updatePack(int id, ItemPackInput input) async {
     final existing = await getPackById(id);
     if (existing == null ||
         existing.isSystemDefault ||
-        existing.status == ResponsibilityPackStatus.archived) {
+        existing.status == ItemPackStatus.archived) {
       return false;
     }
     final now = DateTime.now();
-    return _dao.updateResponsibilityPackRecord(
-      ResponsibilityPackRow(
+    return _dao.updateItemPackRecord(
+      ItemPackRow(
         id: existing.id,
         title: input.title,
         description: input.description,
@@ -176,10 +171,10 @@ class ResponsibilityRepository {
     final pack = await getPackById(id);
     if (pack == null ||
         pack.isSystemDefault ||
-        pack.status == ResponsibilityPackStatus.archived) {
+        pack.status == ItemPackStatus.archived) {
       return false;
     }
-    final itemCount = await _dao.countResponsibilityItemsForPack(id);
+    final itemCount = await _dao.countItemsForPack(id);
     return itemCount == 0;
   }
 
@@ -189,12 +184,12 @@ class ResponsibilityRepository {
       return false;
     }
     final now = DateTime.now();
-    return _dao.updateResponsibilityPackRecord(
-      ResponsibilityPackRow(
+    return _dao.updateItemPackRecord(
+      ItemPackRow(
         id: existing.id,
         title: existing.title,
         description: existing.description,
-        status: ResponsibilityPackStatus.archived.name,
+        status: ItemPackStatus.archived.name,
         isSystemDefault: existing.isSystemDefault,
         createdAt: existing.createdAt.millisecondsSinceEpoch,
         updatedAt: now.millisecondsSinceEpoch,
@@ -202,23 +197,23 @@ class ResponsibilityRepository {
     );
   }
 
-  ResponsibilityItemStatus statusFor(ResponsibilityItem item, {DateTime? now}) {
+  ItemStatus statusFor(Item item, {DateTime? now}) {
     return _statusService.classify(item, now: now);
   }
 
-  Duration? elapsedFor(ResponsibilityItem item, {DateTime? now}) {
+  Duration? elapsedFor(Item item, {DateTime? now}) {
     return _statusService.elapsedSinceLastDone(item, now: now);
   }
 
   Future<int> _ensureDefaultPackId(DateTime now) async {
-    final packs = await _dao.listResponsibilityPacks(includeArchived: true);
+    final packs = await _dao.listItemPacks(includeArchived: true);
     for (final pack in packs) {
       if (pack.isSystemDefault) {
         return pack.id;
       }
     }
-    return _dao.insertResponsibilityPack(
-      ResponsibilityPacksCompanion.insert(
+    return _dao.insertItemPack(
+      ItemPacksCompanion.insert(
         title: AppDatabase.systemDefaultPackTitle,
         description: const Value(AppDatabase.systemDefaultPackDescription),
         status: const Value('active'),
@@ -231,71 +226,71 @@ class ResponsibilityRepository {
 
   Future<void> _assertPackCanAcceptItems(
     int packId, {
-    ResponsibilityItem? existingItem,
+    Item? existingItem,
   }) async {
     final pack = await getPackById(packId);
     if (pack == null) {
-      throw StateError('Responsibility pack not found.');
+      throw StateError('Item pack not found.');
     }
-    if (pack.status == ResponsibilityPackStatus.active) {
+    if (pack.status == ItemPackStatus.active) {
       return;
     }
     if (existingItem != null && existingItem.packId == pack.id) {
       return;
     }
-    throw StateError('Archived responsibility pack cannot accept items.');
+    throw StateError('Archived item pack cannot accept items.');
   }
 
-  String? _fixedScheduleType(ResponsibilityItemConfig config) {
+  String? _fixedScheduleType(ItemConfig config) {
     return switch (config) {
       FixedTimeItemConfig fixed => fixed.scheduleType.name,
       _ => null,
     };
   }
 
-  int? _fixedAnchorDate(ResponsibilityItemConfig config) {
+  int? _fixedAnchorDate(ItemConfig config) {
     return switch (config) {
       FixedTimeItemConfig fixed => fixed.anchorDate?.millisecondsSinceEpoch,
       _ => null,
     };
   }
 
-  String? _fixedTimeOfDay(ResponsibilityItemConfig config) {
+  String? _fixedTimeOfDay(ItemConfig config) {
     return switch (config) {
       FixedTimeItemConfig fixed => fixed.timeOfDay,
       _ => null,
     };
   }
 
-  Duration? _stateExpectedInterval(ResponsibilityItemConfig config) {
+  Duration? _stateExpectedInterval(ItemConfig config) {
     return switch (config) {
       StateBasedItemConfig state => state.expectedInterval,
       _ => null,
     };
   }
 
-  Duration? _stateWarningAfter(ResponsibilityItemConfig config) {
+  Duration? _stateWarningAfter(ItemConfig config) {
     return switch (config) {
       StateBasedItemConfig state => state.warningAfter,
       _ => null,
     };
   }
 
-  Duration? _stateDangerAfter(ResponsibilityItemConfig config) {
+  Duration? _stateDangerAfter(ItemConfig config) {
     return switch (config) {
       StateBasedItemConfig state => state.dangerAfter,
       _ => null,
     };
   }
 
-  Duration? _resourceEstimatedDuration(ResponsibilityItemConfig config) {
+  Duration? _resourceEstimatedDuration(ItemConfig config) {
     return switch (config) {
       ResourceBasedItemConfig resource => resource.estimatedDuration,
       _ => null,
     };
   }
 
-  Duration? _resourceWarningBeforeDepletion(ResponsibilityItemConfig config) {
+  Duration? _resourceWarningBeforeDepletion(ItemConfig config) {
     return switch (config) {
       ResourceBasedItemConfig resource => resource.warningBeforeDepletion,
       _ => null,

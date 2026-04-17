@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:reminder_app/features/reminders/domain/responsibility_item.dart';
-import 'package:reminder_app/features/reminders/domain/responsibility_status_service.dart';
+import 'package:reminder_app/features/reminders/domain/item.dart';
+import 'package:reminder_app/features/reminders/domain/item_status_service.dart';
 import 'package:reminder_app/features/reminders/domain/timeline.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_calculator.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_record.dart';
@@ -8,13 +8,13 @@ import 'package:reminder_app/features/reminders/domain/timeline_milestone_rule.d
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_service.dart';
 
 void main() {
-  test('responsibility status service classifies state-based items', () {
-    const service = ResponsibilityStatusService();
-    final item = ResponsibilityItem(
+  test('item status service classifies state-based items', () {
+    const service = ItemStatusService();
+    final item = Item(
       id: 1,
       packId: 1,
       title: 'Trash',
-      type: ResponsibilityItemType.stateBased,
+      type: ItemType.stateBased,
       config: const StateBasedItemConfig(
         expectedInterval: Duration(days: 7),
         warningAfter: Duration(days: 7),
@@ -27,25 +27,25 @@ void main() {
 
     expect(
       service.classify(item, now: DateTime(2026, 4, 5)),
-      ResponsibilityItemStatus.normal,
+      ItemStatus.normal,
     );
     expect(
       service.classify(item, now: DateTime(2026, 4, 10)),
-      ResponsibilityItemStatus.warning,
+      ItemStatus.warning,
     );
     expect(
       service.classify(item, now: DateTime(2026, 4, 16)),
-      ResponsibilityItemStatus.danger,
+      ItemStatus.danger,
     );
   });
 
-  test('responsibility status service classifies resource-based items', () {
-    const service = ResponsibilityStatusService();
-    final item = ResponsibilityItem(
+  test('item status service classifies resource-based items', () {
+    const service = ItemStatusService();
+    final item = Item(
       id: 2,
       packId: 1,
       title: 'Cat food',
-      type: ResponsibilityItemType.resourceBased,
+      type: ItemType.resourceBased,
       config: const ResourceBasedItemConfig(
         estimatedDuration: Duration(days: 30),
         warningBeforeDepletion: Duration(days: 7),
@@ -57,15 +57,15 @@ void main() {
 
     expect(
       service.classify(item, now: DateTime(2026, 4, 20)),
-      ResponsibilityItemStatus.normal,
+      ItemStatus.normal,
     );
     expect(
       service.classify(item, now: DateTime(2026, 4, 25)),
-      ResponsibilityItemStatus.warning,
+      ItemStatus.warning,
     );
     expect(
       service.classify(item, now: DateTime(2026, 5, 2)),
-      ResponsibilityItemStatus.danger,
+      ItemStatus.danger,
     );
   });
 

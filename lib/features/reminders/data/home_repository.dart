@@ -1,62 +1,56 @@
 import 'dart:async';
 
-import '../domain/responsibility_item.dart';
+import '../domain/item.dart';
 import '../domain/timeline.dart';
 import '../domain/timeline_milestone_occurrence.dart';
 import '../domain/timeline_milestone_record.dart';
 import '../domain/timeline_milestone_rule.dart';
 import '../domain/timeline_milestone_service.dart';
 import 'home_models.dart';
-import 'responsibility_repository.dart';
+import 'item_repository.dart';
 import 'timeline_repository.dart';
 
 class HomeRepository {
   HomeRepository({
-    required ResponsibilityRepository responsibilityRepository,
+    required ItemRepository itemRepository,
     required TimelineRepository timelineRepository,
     TimelineMilestoneService? milestoneService,
-  }) : _responsibilityRepository = responsibilityRepository,
+  }) : _itemRepository = itemRepository,
        _timelineRepository = timelineRepository,
        _milestoneService = milestoneService ?? const TimelineMilestoneService();
 
-  final ResponsibilityRepository _responsibilityRepository;
+  final ItemRepository _itemRepository;
   final TimelineRepository _timelineRepository;
   final TimelineMilestoneService _milestoneService;
 
-  Stream<List<ResponsibilityItemHomeEntry>> watchDangerItems({DateTime? now}) {
+  Stream<List<ItemHomeEntry>> watchDangerItems({DateTime? now}) {
     final current = now ?? DateTime.now();
-    return _responsibilityRepository
-        .watchItemsByStatus(ResponsibilityItemStatus.danger, now: current)
+    return _itemRepository
+        .watchItemsByStatus(ItemStatus.danger, now: current)
         .map(
           (items) => items
               .map(
-                (item) => ResponsibilityItemHomeEntry(
+                (item) => ItemHomeEntry(
                   bundle: item,
-                  status: ResponsibilityItemStatus.danger,
-                  elapsed: _responsibilityRepository.elapsedFor(
-                    item.item,
-                    now: current,
-                  ),
+                  status: ItemStatus.danger,
+                  elapsed: _itemRepository.elapsedFor(item.item, now: current),
                 ),
               )
               .toList(growable: false),
         );
   }
 
-  Stream<List<ResponsibilityItemHomeEntry>> watchWarningItems({DateTime? now}) {
+  Stream<List<ItemHomeEntry>> watchWarningItems({DateTime? now}) {
     final current = now ?? DateTime.now();
-    return _responsibilityRepository
-        .watchItemsByStatus(ResponsibilityItemStatus.warning, now: current)
+    return _itemRepository
+        .watchItemsByStatus(ItemStatus.warning, now: current)
         .map(
           (items) => items
               .map(
-                (item) => ResponsibilityItemHomeEntry(
+                (item) => ItemHomeEntry(
                   bundle: item,
-                  status: ResponsibilityItemStatus.warning,
-                  elapsed: _responsibilityRepository.elapsedFor(
-                    item.item,
-                    now: current,
-                  ),
+                  status: ItemStatus.warning,
+                  elapsed: _itemRepository.elapsedFor(item.item, now: current),
                 ),
               )
               .toList(growable: false),
