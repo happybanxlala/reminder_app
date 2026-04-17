@@ -13,15 +13,13 @@ import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_occurrence.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_record.dart';
-import 'package:reminder_app/features/reminders/domain/timeline_milestone_rule.dart';
 import 'package:reminder_app/features/reminders/domain/timeline.dart';
 import 'package:reminder_app/features/reminders/providers/developer_settings_providers.dart';
 import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
-import 'package:reminder_app/features/reminders/providers/history_providers.dart';
 import 'package:reminder_app/features/reminders/providers/home_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/feature_page.dart';
-import 'package:reminder_app/features/reminders/ui/pages/history_page.dart';
 import 'package:reminder_app/features/reminders/ui/pages/home_page.dart';
+import 'package:reminder_app/features/reminders/ui/pages/item_edit_page.dart';
 
 void main() {
   testWidgets('home shows danger warning and timeline tabs', (tester) async {
@@ -54,6 +52,9 @@ void main() {
     expect(find.text('Warning'), findsOneWidget);
     expect(find.text('Timeline'), findsOneWidget);
     expect(find.text('Clean litter box'), findsOneWidget);
+    expect(find.byKey(const Key('history-button')), findsNothing);
+    expect(find.byKey(const Key('quick-add-item-button')), findsNothing);
+    expect(find.byKey(const Key('home-add-item-fab')), findsOneWidget);
   });
 
   testWidgets('timeline tab only renders timeline milestone items', (
@@ -129,6 +130,52 @@ void main() {
     expect(find.text(ReminderUiText.featurePageTitle), findsOneWidget);
   });
 
+  testWidgets('home add item fab navigates to item create page', (
+    tester,
+  ) async {
+    final router = GoRouter(
+      initialLocation: HomePage.routePath,
+      routes: [
+        GoRoute(
+          path: HomePage.routePath,
+          name: HomePage.routeName,
+          builder: (context, state) => const HomePage(),
+        ),
+        GoRoute(
+          path: ItemEditPage.createRoutePath,
+          name: ItemEditPage.createRouteName,
+          builder: (context, state) =>
+              const Scaffold(body: Text('Create Item Page')),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          dangerHomeEntriesProvider.overrideWith(
+            (ref) => Stream.value(<ItemHomeEntry>[]),
+          ),
+          warningHomeEntriesProvider.overrideWith(
+            (ref) => Stream.value(<ItemHomeEntry>[]),
+          ),
+          upcomingTimelineMilestonesProvider.overrideWith(
+            (ref) => Stream.value(<TimelineMilestoneOccurrence>[]),
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('home-add-item-fab')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('home-add-item-fab')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Create Item Page'), findsOneWidget);
+  });
+
   testWidgets('home preview updates when developer date override changes', (
     tester,
   ) async {
@@ -170,40 +217,6 @@ void main() {
 
     expect(find.text('Danger 11'), findsNothing);
     expect(find.text('Danger 18'), findsOneWidget);
-  });
-
-  testWidgets('history page shows item note and paginated milestone section', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          milestoneHistoryProvider.overrideWith(
-            (ref) => Stream.value(
-              List.generate(
-                11,
-                (index) => _milestoneRecordBundle(title: 'Timeline $index'),
-              ),
-            ),
-          ),
-        ],
-        child: const MaterialApp(home: HistoryPage()),
-      ),
-    );
-    await tester.pump();
-
-    expect(find.text('Item History'), findsOneWidget);
-    expect(find.textContaining('不保留 item completion history'), findsOneWidget);
-    expect(find.text('Milestone History'), findsOneWidget);
-    expect(find.text('Timeline 0'), findsOneWidget);
-    expect(find.text('Timeline 10'), findsNothing);
-
-    await tester.ensureVisible(find.byKey(const Key('milestone-history-next')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('milestone-history-next')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Timeline 10'), findsOneWidget);
   });
 }
 
@@ -282,43 +295,5 @@ TimelineMilestoneOccurrence _occurrence({required String title}) {
     status: TimelineMilestoneRecordStatus.noticed,
     reminderOffsetDays: 0,
     actedAt: DateTime(2026, 4, 10),
-  );
-}
-
-TimelineMilestoneRecordBundle _milestoneRecordBundle({required String title}) {
-  final id = title.hashCode;
-  return TimelineMilestoneRecordBundle(
-    record: TimelineMilestoneRecord(
-      id: id,
-      timelineId: id,
-      ruleId: id,
-      occurrenceIndex: 1,
-      targetDate: DateTime(2026, 4, 10),
-      status: TimelineMilestoneRecordStatus.noticed,
-      actedAt: DateTime(2026, 4, 10),
-      createdAt: DateTime(2026, 4, 1),
-      updatedAt: DateTime(2026, 4, 1),
-    ),
-    rule: TimelineMilestoneRule(
-      id: id,
-      timelineId: id,
-      type: TimelineMilestoneRuleType.everyNDays,
-      intervalValue: 30,
-      intervalUnit: TimelineMilestoneIntervalUnit.days,
-      labelTemplate: '第 {n} 個 30 天',
-      reminderOffsetDays: 0,
-      status: TimelineMilestoneRuleStatus.active,
-      createdAt: DateTime(2026, 4, 1),
-      updatedAt: DateTime(2026, 4, 1),
-    ),
-    timeline: Timeline(
-      id: id,
-      title: title,
-      startDate: DateTime(2026, 4, 1),
-      displayUnit: TimelineDisplayUnit.day,
-      status: TimelineStatus.active,
-      createdAt: DateTime(2026, 4, 1),
-      updatedAt: DateTime(2026, 4, 1),
-    ),
   );
 }

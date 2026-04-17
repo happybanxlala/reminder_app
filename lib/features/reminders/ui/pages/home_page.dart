@@ -10,7 +10,6 @@ import '../../providers/home_providers.dart';
 import '../../providers/item_providers.dart';
 import '../../providers/timeline_providers.dart';
 import 'feature_page.dart';
-import 'history_page.dart';
 import 'item_edit_page.dart';
 
 class HomePage extends ConsumerStatefulWidget {
@@ -55,22 +54,10 @@ class _HomePageState extends ConsumerState<HomePage>
         title: const Text(ReminderUiText.homeTitle),
         actions: [
           IconButton(
-            key: const Key('history-button'),
-            onPressed: () => context.pushNamed(HistoryPage.routeName),
-            icon: const Icon(Icons.history),
-            tooltip: ReminderUiText.historyAction,
-          ),
-          IconButton(
             key: const Key('feature-button'),
             onPressed: () => context.pushNamed(FeaturePage.routeName),
             icon: const Icon(Icons.widgets_outlined),
             tooltip: ReminderUiText.featureAction,
-          ),
-          IconButton(
-            key: const Key('quick-add-item-button'),
-            onPressed: () => context.pushNamed(ItemEditPage.createRouteName),
-            icon: const Icon(Icons.add_task),
-            tooltip: ReminderUiText.addItem,
           ),
         ],
         bottom: TabBar(
@@ -110,6 +97,12 @@ class _HomePageState extends ConsumerState<HomePage>
             loading: () => const Center(child: CircularProgressIndicator()),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        key: const Key('home-add-item-fab'),
+        onPressed: () => context.pushNamed(ItemEditPage.createRouteName),
+        tooltip: ReminderUiText.addItem,
+        child: const Icon(Icons.add_task),
       ),
     );
   }

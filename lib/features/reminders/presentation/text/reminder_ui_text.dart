@@ -6,7 +6,6 @@ class ReminderUiText {
   static const manageTitle = '管理';
   static const featureAction = '功能';
   static const featurePageTitle = '功能頁';
-  static const historyTitle = '歷史紀錄';
   static const itemPackTitle = 'Item Packs';
   static const itemTitle = 'Items';
   static const timelineTitle = 'Timelines';
@@ -35,12 +34,10 @@ class ReminderUiText {
   static const noTimelines = '目前沒有 Timeline。';
   static const noDefaultItemPack = '目前沒有 Default Item Pack。';
   static const manageAction = '管理';
-  static const historyAction = '歷史紀錄';
   static const saveAction = '儲存';
   static const addRuleAction = '新增 Rule';
   static const milestoneRulesTitle = 'Milestone Rules';
   static const upcomingMilestonesTitle = 'Upcoming Milestones';
-  static const itemHistoryTitle = 'Item History';
   static const milestoneHistoryTitle = 'Milestone History';
   static const timelineMilestoneHistoryTitle = 'Timeline Milestone History';
   static const noTimelineUpcomingMilestone = '目前沒有 upcoming milestone。';
@@ -62,7 +59,6 @@ class ReminderUiText {
   static const developerPreviewDatePickAction = '選擇日期';
   static const developerPreviewDateResetAction = '還原今天';
   static const nextMilestoneLabel = '下一筆';
-  static const historyEntryAction = 'History';
   static const completeAction = '完成';
   static const skipAction = '跳過';
   static const noticedAction = '已看過';

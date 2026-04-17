@@ -421,6 +421,19 @@ Home 是唯一核心畫面。
 2. item `warning`
 3. timeline upcoming
 
+### 8.4 Home 入口
+
+Home 的 AppBar 保留主要日常操作入口，並提供一個 `功能` 入口導向功能頁。
+
+功能頁作為 reminders feature 的導覽層，至少包含：
+
+- `動態（for item）`
+- `Items 管理 (= Default Item Packs)`
+- `Item Packs 管理`
+- `Timeline 管理`
+- `設定頁(for user）`
+- `開發者設定`
+
 ---
 
 ## 9. 編輯與管理流程
@@ -440,10 +453,77 @@ Home 是唯一核心畫面。
 
 ### 9.3 Management
 
-- item 以 pack 分組顯示
+管理不再以單一「總管理頁」承載全部內容，而是透過功能頁分流到獨立頁面。
+
+#### 9.3.1 Items 管理
+
+- 只管理 system default pack 內的 items
+- 可顯示：
+  - default pack 標示
+  - item title
+  - item summary
+  - derived status
+- 可操作：
+  - 新增 item
+  - 編輯 item
+  - 完成 item
+
+#### 9.3.2 Item Packs 管理
+
 - pack 是正式可見實體
-- item 可在 pack 間移動
+- item packs 頁只負責 pack 管理，不內嵌 item 清單
+- 可操作：
+  - 新增 pack
+  - 編輯非 system default pack
+  - 封存非 system default 且為空的 pack
 - archived pack 預設不作為 active selector 候選
+
+#### 9.3.3 Timeline 管理
+
+- timeline 管理獨立為單頁
+- 可顯示：
+  - timeline summary
+  - milestone rules
+  - next upcoming milestone by rule
+- 可操作：
+  - 新增 timeline
+  - 編輯 active timeline
+  - 查看 milestone history
+
+#### 9.3.4 History
+
+- 不再保留首頁層級的聚合 history page
+- milestone history 只保留在單一 timeline 的明細層級
+- item completion history 仍非 MVP 必做項目
+
+#### 9.3.5 Settings / Developer Settings
+
+- `設定頁(for user）` 可先保留為 UI shell，不強制在 MVP 實作資料設定
+- `開發者設定` 可承載只用於預覽與測試的 UI control
+
+### 9.4 Developer Preview Date Override
+
+MVP 允許在 `開發者設定` 中覆蓋 app 內的預覽日期，用於快速檢查不同日期下的 UI/UX 結果。
+
+規則：
+
+- 覆蓋值為 `DateTime?`
+- `null` 代表使用真實今天
+- 生效日期一律正規化為本地時區的年月日 `00:00`
+- 此設定只影響預覽計算，不影響 persistence timestamp
+- 此設定只存在記憶體，本次 app 啟動有效
+
+影響範圍：
+
+- Home 的 `danger / warning / upcoming timeline` 計算
+- `Items 管理` 中 item derived status 的顯示
+- `Timeline 管理` 中 next / upcoming milestone 的顯示
+
+不影響：
+
+- `createdAt / updatedAt / actedAt / notifiedAt`
+- item / timeline 編輯頁的預設日期欄位
+- DAO、schema、record 結構
 
 ---
 
