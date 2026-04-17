@@ -7,13 +7,16 @@ import 'package:reminder_app/features/reminders/data/item_repository.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/local/item_timeline_dao.dart';
 import 'package:reminder_app/features/reminders/data/timeline_models.dart';
+import 'package:reminder_app/features/reminders/data/timeline_repository.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/timeline.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_occurrence.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_record.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_rule.dart';
+import 'package:reminder_app/features/reminders/presentation/formatters/reminder_formatters.dart';
 import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
+import 'package:reminder_app/features/reminders/providers/developer_settings_providers.dart';
 import 'package:reminder_app/features/reminders/providers/item_providers.dart';
 import 'package:reminder_app/features/reminders/providers/timeline_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/feature_page.dart';
@@ -169,6 +172,50 @@ void main() {
               ),
             ),
           ),
+          previewTimelineDetailProvider(9).overrideWith(
+            (ref) => Future.value(
+              TimelineDetail(
+                timeline: Timeline(
+                  id: 9,
+                  title: 'No sugar',
+                  startDate: DateTime(2026, 4, 10),
+                  displayUnit: TimelineDisplayUnit.day,
+                  status: TimelineStatus.active,
+                  createdAt: DateTime(2026, 4, 1),
+                  updatedAt: DateTime(2026, 4, 1),
+                ),
+                milestoneRuleDetails: [
+                  TimelineMilestoneRuleDetail(
+                    rule: _rule(92, TimelineMilestoneRuleStatus.active),
+                    nextMilestone: TimelineMilestoneOccurrence(
+                      timelineId: 9,
+                      timelineTitle: 'No sugar',
+                      ruleId: 92,
+                      occurrenceIndex: 1,
+                      targetDate: DateTime(2026, 4, 20),
+                      label: '第 10天',
+                      status: TimelineMilestoneRecordStatus.upcoming,
+                      reminderOffsetDays: 0,
+                    ),
+                    historyRecords: const [],
+                  ),
+                ],
+                upcomingMilestones: [
+                  TimelineMilestoneOccurrence(
+                    timelineId: 9,
+                    timelineTitle: 'No sugar',
+                    ruleId: 92,
+                    occurrenceIndex: 1,
+                    targetDate: DateTime(2026, 4, 20),
+                    label: '第 10天',
+                    status: TimelineMilestoneRecordStatus.upcoming,
+                    reminderOffsetDays: 0,
+                  ),
+                ],
+                milestoneHistory: const [],
+              ),
+            ),
+          ),
         ],
         child: MaterialApp.router(routerConfig: router),
       ),
@@ -204,7 +251,7 @@ void main() {
       const _FeatureRouteCase(
         key: 'developer-settings',
         title: ReminderUiText.developerSettingsFeatureTitle,
-        placeholder: ReminderUiText.developerSettingsPlaceholderMessage,
+        placeholder: ReminderUiText.developerPreviewDateCurrentLabel,
       ),
     ];
 
@@ -212,7 +259,7 @@ void main() {
       await tester.tap(find.byKey(Key('feature-entry-${testCase.key}')));
       await tester.pumpAndSettle();
 
-      expect(find.text(testCase.title), findsNWidgets(2));
+      expect(find.text(testCase.title), findsAtLeastNWidgets(1));
       expect(find.text(testCase.placeholder), findsOneWidget);
 
       await tester.pageBack();
@@ -220,15 +267,51 @@ void main() {
     }
   });
 
-  testWidgets('placeholder pages render title and message', (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: DeveloperSettingsPage()));
+  testWidgets('developer settings page updates and resets preview date', (
+    tester,
+  ) async {
+    final today = normalizePreviewDate(DateTime.now());
+    final selectedDate = DateTime(2026, 5, 2);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: DeveloperSettingsPage(
+            pickDate: (context, initialDate) async => selectedDate,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
 
     expect(
       find.text(ReminderUiText.developerSettingsFeatureTitle),
-      findsNWidgets(2),
+      findsOneWidget,
+    );
+    expect(find.text(ReminderFormatters.date(today)), findsOneWidget);
+    expect(
+      find.text(ReminderUiText.developerPreviewDateOverrideDisabled),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('pick-preview-date-button')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(ReminderFormatters.date(normalizePreviewDate(selectedDate))),
+      findsOneWidget,
     );
     expect(
-      find.text(ReminderUiText.developerSettingsPlaceholderMessage),
+      find.text(ReminderUiText.developerPreviewDateOverrideEnabled),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('reset-preview-date-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text(ReminderFormatters.date(today)), findsOneWidget);
+    expect(
+      find.text(ReminderUiText.developerPreviewDateOverrideDisabled),
       findsOneWidget,
     );
   });
@@ -238,31 +321,40 @@ void main() {
   ) async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
+    final container = ProviderContainer(
+      overrides: [
+        itemRepositoryProvider.overrideWith(
+          (ref) => ItemRepository(db.itemTimelineDao),
+        ),
+        activeItemPacksProvider.overrideWith(
+          (ref) => Stream.value([
+            _pack(1, title: 'Default Item Pack', isSystemDefault: true),
+            _pack(2, title: 'Cat Care'),
+          ]),
+        ),
+        itemsProvider.overrideWith(
+          (ref) => Stream.value([
+            _itemBundle(1, ItemType.stateBased),
+            _itemBundle(
+              2,
+              ItemType.resourceBased,
+              packId: 2,
+              packTitle: 'Cat Care',
+            ),
+          ]),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(developerDateOverrideProvider.notifier).state = DateTime(
+      2026,
+      4,
+      11,
+    );
 
     await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          itemRepositoryProvider.overrideWith(
-            (ref) => ItemRepository(db.itemTimelineDao),
-          ),
-          activeItemPacksProvider.overrideWith(
-            (ref) => Stream.value([
-              _pack(1, title: 'Default Item Pack', isSystemDefault: true),
-              _pack(2, title: 'Cat Care'),
-            ]),
-          ),
-          itemsProvider.overrideWith(
-            (ref) => Stream.value([
-              _itemBundle(1, ItemType.stateBased),
-              _itemBundle(
-                2,
-                ItemType.resourceBased,
-                packId: 2,
-                packTitle: 'Cat Care',
-              ),
-            ]),
-          ),
-        ],
+      UncontrolledProviderScope(
+        container: container,
         child: const MaterialApp(home: ItemsManagementPage()),
       ),
     );
@@ -272,6 +364,16 @@ void main() {
     expect(find.byKey(const Key('add-item-button')), findsOneWidget);
     expect(find.text('Item 1'), findsOneWidget);
     expect(find.text('Item 2'), findsNothing);
+    expect(find.text('normal'), findsOneWidget);
+
+    container.read(developerDateOverrideProvider.notifier).state = DateTime(
+      2026,
+      4,
+      25,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('danger'), findsOneWidget);
   });
 
   testWidgets('item packs management page lists packs without nested items', (
@@ -320,67 +422,25 @@ void main() {
   testWidgets('timeline management page shows timeline actions', (
     tester,
   ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final container = ProviderContainer(
+      overrides: [
+        timelineRepositoryProvider.overrideWith(
+          (ref) => _FakeTimelineRepository(db.itemTimelineDao),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(developerDateOverrideProvider.notifier).state = DateTime(
+      2026,
+      4,
+      11,
+    );
+
     await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          timelinesProvider.overrideWith(
-            (ref) => Stream.value([
-              Timeline(
-                id: 9,
-                title: 'No sugar',
-                startDate: DateTime(2026, 4, 10),
-                displayUnit: TimelineDisplayUnit.day,
-                status: TimelineStatus.active,
-                createdAt: DateTime(2026, 4, 1),
-                updatedAt: DateTime(2026, 4, 1),
-              ),
-            ]),
-          ),
-          timelineDetailProvider(9).overrideWith(
-            (ref) => Future.value(
-              TimelineDetail(
-                timeline: Timeline(
-                  id: 9,
-                  title: 'No sugar',
-                  startDate: DateTime(2026, 4, 10),
-                  displayUnit: TimelineDisplayUnit.day,
-                  status: TimelineStatus.active,
-                  createdAt: DateTime(2026, 4, 1),
-                  updatedAt: DateTime(2026, 4, 1),
-                ),
-                milestoneRuleDetails: [
-                  TimelineMilestoneRuleDetail(
-                    rule: _rule(92, TimelineMilestoneRuleStatus.active),
-                    nextMilestone: TimelineMilestoneOccurrence(
-                      timelineId: 9,
-                      timelineTitle: 'No sugar',
-                      ruleId: 92,
-                      occurrenceIndex: 1,
-                      targetDate: DateTime(2026, 4, 20),
-                      label: '第 10天',
-                      status: TimelineMilestoneRecordStatus.upcoming,
-                      reminderOffsetDays: 0,
-                    ),
-                    historyRecords: const [],
-                  ),
-                ],
-                upcomingMilestones: [
-                  TimelineMilestoneOccurrence(
-                    timelineId: 9,
-                    timelineTitle: 'No sugar',
-                    ruleId: 92,
-                    occurrenceIndex: 1,
-                    targetDate: DateTime(2026, 4, 20),
-                    label: '第 10天',
-                    status: TimelineMilestoneRecordStatus.upcoming,
-                    reminderOffsetDays: 0,
-                  ),
-                ],
-                milestoneHistory: const [],
-              ),
-            ),
-          ),
-        ],
+      UncontrolledProviderScope(
+        container: container,
         child: const MaterialApp(home: TimelineManagementPage()),
       ),
     );
@@ -390,6 +450,18 @@ void main() {
     expect(find.text('No sugar'), findsOneWidget);
     expect(find.byKey(const Key('timeline-edit-9')), findsOneWidget);
     expect(find.byKey(const Key('timeline-history-9')), findsOneWidget);
+    expect(find.text('第 10天'), findsOneWidget);
+    expect(find.text('2026/04/20'), findsOneWidget);
+
+    container.read(developerDateOverrideProvider.notifier).state = DateTime(
+      2026,
+      4,
+      21,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('第 20天'), findsOneWidget);
+    expect(find.text('2026/04/30'), findsOneWidget);
   });
 }
 
@@ -465,4 +537,63 @@ TimelineMilestoneRule _rule(int id, TimelineMilestoneRuleStatus status) {
     createdAt: DateTime(2026, 4, 1),
     updatedAt: DateTime(2026, 4, 1),
   );
+}
+
+class _FakeTimelineRepository extends TimelineRepository {
+  _FakeTimelineRepository(super.dao);
+
+  static final Timeline _timeline = Timeline(
+    id: 9,
+    title: 'No sugar',
+    startDate: DateTime(2026, 4, 10),
+    displayUnit: TimelineDisplayUnit.day,
+    status: TimelineStatus.active,
+    createdAt: DateTime(2026, 4, 1),
+    updatedAt: DateTime(2026, 4, 1),
+  );
+
+  @override
+  Stream<List<Timeline>> watchTimelines() => Stream.value([_timeline]);
+
+  @override
+  Future<TimelineDetail?> getTimelineDetailById(int id, {DateTime? now}) async {
+    final previewDate = normalizePreviewDate(now ?? DateTime.now());
+    final targetDate = previewDate.day <= 15
+        ? DateTime(2026, 4, 20)
+        : DateTime(2026, 4, 30);
+    final label = previewDate.day <= 15 ? '第 10天' : '第 20天';
+
+    return TimelineDetail(
+      timeline: _timeline,
+      milestoneRuleDetails: [
+        TimelineMilestoneRuleDetail(
+          rule: _rule(92, TimelineMilestoneRuleStatus.active),
+          nextMilestone: TimelineMilestoneOccurrence(
+            timelineId: 9,
+            timelineTitle: 'No sugar',
+            ruleId: 92,
+            occurrenceIndex: 1,
+            targetDate: targetDate,
+            label: label,
+            status: TimelineMilestoneRecordStatus.upcoming,
+            reminderOffsetDays: 0,
+          ),
+          historyRecords: const [],
+        ),
+      ],
+      upcomingMilestones: [
+        TimelineMilestoneOccurrence(
+          timelineId: 9,
+          timelineTitle: 'No sugar',
+          ruleId: 92,
+          occurrenceIndex: 1,
+          targetDate: targetDate,
+          label: label,
+          status: TimelineMilestoneRecordStatus.upcoming,
+          reminderOffsetDays: 0,
+        ),
+      ],
+      milestoneHistory: const [],
+    );
+  }
 }

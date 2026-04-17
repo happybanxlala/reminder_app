@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/timeline_models.dart';
 import '../data/timeline_repository.dart';
 import '../domain/timeline.dart';
+import 'developer_settings_providers.dart';
 import 'database_providers.dart';
 
 final timelineRepositoryProvider = Provider<TimelineRepository>((ref) {
@@ -23,4 +24,12 @@ final timelineByIdProvider = FutureProvider.autoDispose.family<Timeline?, int>((
 final timelineDetailProvider = FutureProvider.autoDispose
     .family<TimelineDetail?, int>((ref, id) {
       return ref.watch(timelineRepositoryProvider).getTimelineDetailById(id);
+    });
+
+final previewTimelineDetailProvider = FutureProvider.autoDispose
+    .family<TimelineDetail?, int>((ref, id) {
+      final previewDate = ref.watch(effectivePreviewDateProvider);
+      return ref
+          .watch(timelineRepositoryProvider)
+          .getTimelineDetailById(id, now: previewDate);
     });

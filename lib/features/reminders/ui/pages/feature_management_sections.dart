@@ -9,6 +9,7 @@ import '../../domain/timeline.dart';
 import '../../domain/timeline_milestone_occurrence.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
+import '../../providers/developer_settings_providers.dart';
 import '../../providers/item_providers.dart';
 import '../../providers/timeline_providers.dart';
 import 'item_edit_page.dart';
@@ -22,6 +23,7 @@ class DefaultItemsManagementContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final packsAsync = ref.watch(activeItemPacksProvider);
     final itemsAsync = ref.watch(itemsProvider);
+    final previewDate = ref.watch(effectivePreviewDateProvider);
 
     if (packsAsync.hasError) {
       return Center(child: Text('讀取失敗: ${packsAsync.error}'));
@@ -111,7 +113,7 @@ class DefaultItemsManagementContent extends ConsumerWidget {
               padding: const EdgeInsets.only(bottom: 12),
               child: _ItemCard(
                 bundle: item,
-                status: repository.statusFor(item.item),
+                status: repository.statusFor(item.item, now: previewDate),
               ),
             ),
           ),
@@ -571,7 +573,7 @@ class _TimelineCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final detailAsync = ref.watch(timelineDetailProvider(timeline.id));
+    final detailAsync = ref.watch(previewTimelineDetailProvider(timeline.id));
 
     return Card(
       child: Padding(

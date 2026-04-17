@@ -1,15 +1,21 @@
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:reminder_app/features/reminders/data/home_models.dart';
+import 'package:reminder_app/features/reminders/data/home_repository.dart';
+import 'package:reminder_app/features/reminders/data/item_repository.dart';
+import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/local/item_timeline_dao.dart';
+import 'package:reminder_app/features/reminders/data/timeline_repository.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_occurrence.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_record.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_rule.dart';
 import 'package:reminder_app/features/reminders/domain/timeline.dart';
+import 'package:reminder_app/features/reminders/providers/developer_settings_providers.dart';
 import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
 import 'package:reminder_app/features/reminders/providers/history_providers.dart';
 import 'package:reminder_app/features/reminders/providers/home_providers.dart';
@@ -123,6 +129,49 @@ void main() {
     expect(find.text(ReminderUiText.featurePageTitle), findsOneWidget);
   });
 
+  testWidgets('home preview updates when developer date override changes', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final container = ProviderContainer(
+      overrides: [
+        homeRepositoryProvider.overrideWith(
+          (ref) => _FakeHomeRepository(
+            itemRepository: ItemRepository(db.itemTimelineDao),
+            timelineRepository: TimelineRepository(db.itemTimelineDao),
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(developerDateOverrideProvider.notifier).state = DateTime(
+      2026,
+      4,
+      11,
+    );
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: HomePage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Danger 11'), findsOneWidget);
+
+    container.read(developerDateOverrideProvider.notifier).state = DateTime(
+      2026,
+      4,
+      18,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Danger 11'), findsNothing);
+    expect(find.text('Danger 18'), findsOneWidget);
+  });
+
   testWidgets('history page shows item note and paginated milestone section', (
     tester,
   ) async {
@@ -188,6 +237,36 @@ ItemHomeEntry _itemEntry({required String title, required ItemStatus status}) {
     status: status,
     elapsed: const Duration(days: 5),
   );
+}
+
+class _FakeHomeRepository extends HomeRepository {
+  _FakeHomeRepository({
+    required ItemRepository itemRepository,
+    required TimelineRepository timelineRepository,
+  }) : super(
+         itemRepository: itemRepository,
+         timelineRepository: timelineRepository,
+       );
+
+  @override
+  Stream<List<ItemHomeEntry>> watchDangerItems({DateTime? now}) {
+    final current = now ?? DateTime.now();
+    return Stream.value([
+      _itemEntry(title: 'Danger ${current.day}', status: ItemStatus.danger),
+    ]);
+  }
+
+  @override
+  Stream<List<ItemHomeEntry>> watchWarningItems({DateTime? now}) {
+    return Stream.value(const <ItemHomeEntry>[]);
+  }
+
+  @override
+  Stream<List<TimelineMilestoneOccurrence>> watchUpcomingTimelineMilestones({
+    DateTime? now,
+  }) {
+    return Stream.value(const <TimelineMilestoneOccurrence>[]);
+  }
 }
 
 TimelineMilestoneOccurrence _occurrence({required String title}) {

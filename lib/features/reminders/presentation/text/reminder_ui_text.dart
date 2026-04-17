@@ -11,11 +11,11 @@ class ReminderUiText {
   static const itemTitle = 'Items';
   static const timelineTitle = 'Timelines';
   static const itemActivityFeatureTitle = '動態（for item）';
-  static const itemsManagementFeatureTitle = 'Items 管理 (= Default Item Packs)';
+  static const itemsManagementFeatureTitle = 'Items 管理';
   static const itemPacksManagementFeatureTitle = 'Item Packs 管理';
   static const timelineManagementFeatureTitle = 'Timeline 管理';
   static const userSettingsFeatureTitle = '設定頁(for user）';
-  static const developerSettingsFeatureTitle = '開發者設定頁';
+  static const developerSettingsFeatureTitle = '開發者設定';
   static const dangerTab = 'Danger';
   static const warningTab = 'Warning';
   static const timelineTab = 'Timeline';
@@ -54,6 +54,13 @@ class ReminderUiText {
       '此頁為 UI 空殼，尚未接上 Timeline 管理資料。';
   static const userSettingsPlaceholderMessage = '此頁為 UI 空殼，尚未接上使用者設定資料。';
   static const developerSettingsPlaceholderMessage = '此頁為 UI 空殼，尚未接上開發者設定資料。';
+  static const developerPreviewDateTitle = '當前日期';
+  static const developerPreviewDateCurrentLabel = '目前生效日期';
+  static const developerPreviewDateOverrideStatusLabel = '覆蓋狀態';
+  static const developerPreviewDateOverrideEnabled = '已啟用';
+  static const developerPreviewDateOverrideDisabled = '使用真實今天';
+  static const developerPreviewDatePickAction = '選擇日期';
+  static const developerPreviewDateResetAction = '還原今天';
   static const nextMilestoneLabel = '下一筆';
   static const historyEntryAction = 'History';
   static const completeAction = '完成';

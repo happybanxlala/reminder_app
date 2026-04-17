@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
+import '../../providers/developer_settings_providers.dart';
 import 'feature_management_sections.dart';
+
+typedef PreviewDatePicker =
+    Future<DateTime?> Function(BuildContext context, DateTime initialDate);
 
 class FeaturePage extends StatelessWidget {
   const FeaturePage({super.key});
@@ -145,17 +151,123 @@ class SettingsPage extends StatelessWidget {
   }
 }
 
-class DeveloperSettingsPage extends StatelessWidget {
-  const DeveloperSettingsPage({super.key});
+class DeveloperSettingsPage extends ConsumerWidget {
+  const DeveloperSettingsPage({super.key, this.pickDate});
 
   static const routeName = 'developer-settings';
   static const routePath = '/feature/developer-settings';
+  final PreviewDatePicker? pickDate;
 
   @override
-  Widget build(BuildContext context) {
-    return const _FeaturePlaceholderPage(
-      title: ReminderUiText.developerSettingsFeatureTitle,
-      message: ReminderUiText.developerSettingsPlaceholderMessage,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final overrideDate = ref.watch(developerDateOverrideProvider);
+    final effectiveDate = ref.watch(effectivePreviewDateProvider);
+    final isOverridden = overrideDate != null;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(ReminderUiText.developerSettingsFeatureTitle),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    ReminderUiText.developerPreviewDateTitle,
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 16),
+                  ListTile(
+                    key: const Key('developer-preview-date-tile'),
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text(
+                      ReminderUiText.developerPreviewDateCurrentLabel,
+                    ),
+                    subtitle: Text(ReminderFormatters.date(effectiveDate)),
+                  ),
+                  ListTile(
+                    key: const Key('developer-preview-status-tile'),
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text(
+                      ReminderUiText.developerPreviewDateOverrideStatusLabel,
+                    ),
+                    subtitle: Text(
+                      isOverridden
+                          ? ReminderUiText.developerPreviewDateOverrideEnabled
+                          : ReminderUiText.developerPreviewDateOverrideDisabled,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      FilledButton(
+                        key: const Key('pick-preview-date-button'),
+                        onPressed: () =>
+                            _pickPreviewDate(context, ref, effectiveDate),
+                        child: const Text(
+                          ReminderUiText.developerPreviewDatePickAction,
+                        ),
+                      ),
+                      OutlinedButton(
+                        key: const Key('reset-preview-date-button'),
+                        onPressed: isOverridden
+                            ? () {
+                                ref
+                                        .read(
+                                          developerDateOverrideProvider
+                                              .notifier,
+                                        )
+                                        .state =
+                                    null;
+                              }
+                            : null,
+                        child: const Text(
+                          ReminderUiText.developerPreviewDateResetAction,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickPreviewDate(
+    BuildContext context,
+    WidgetRef ref,
+    DateTime initialDate,
+  ) async {
+    final picker = pickDate ?? _showPreviewDatePicker;
+    final selected = await picker(context, initialDate);
+    if (selected == null) {
+      return;
+    }
+    ref.read(developerDateOverrideProvider.notifier).state =
+        normalizePreviewDate(selected);
+  }
+
+  static Future<DateTime?> _showPreviewDatePicker(
+    BuildContext context,
+    DateTime initialDate,
+  ) {
+    final today = normalizePreviewDate(DateTime.now());
+    return showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(today.year - 10),
+      lastDate: DateTime(today.year + 10),
+      currentDate: today,
     );
   }
 }
