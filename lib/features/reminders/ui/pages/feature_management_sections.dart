@@ -537,6 +537,7 @@ class _ItemCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final previewDate = ref.watch(effectivePreviewDateProvider);
     return DecoratedBox(
       decoration: BoxDecoration(
         border: Border.all(color: Theme.of(context).dividerColor),
@@ -587,7 +588,7 @@ class _ItemCard extends ConsumerWidget {
                   onPressed: () async {
                     await ref
                         .read(itemRepositoryProvider)
-                        .markDone(bundle.item.id);
+                        .markDone(bundle.item.id, doneAt: previewDate);
                   },
                   child: const Text(ReminderUiText.completeAction),
                 ),

@@ -16,6 +16,7 @@ import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_occurrence.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_record.dart';
 import 'package:reminder_app/features/reminders/providers/developer_settings_providers.dart';
+import 'package:reminder_app/features/reminders/providers/item_providers.dart';
 import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
 import 'package:reminder_app/features/reminders/providers/home_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/feature_page.dart';
@@ -205,7 +206,8 @@ void main() {
         child: const MaterialApp(home: HomePage()),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.text('Danger 11'), findsOneWidget);
 
@@ -257,6 +259,76 @@ void main() {
       expect(find.text('Danger 19'), findsOneWidget);
     },
   );
+
+  testWidgets('home complete action writes preview date into lastDoneAt', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final itemRepository = _RecordingItemRepository(db.itemTimelineDao);
+    final previewDate = DateTime(2026, 4, 11);
+    const itemId = 101;
+    final container = ProviderContainer(
+      overrides: [
+        itemRepositoryProvider.overrideWith((ref) => itemRepository),
+        dangerHomeEntriesProvider.overrideWith(
+          (ref) => Stream.value([
+            ItemHomeEntry(
+              bundle: ItemBundle(
+                item: Item(
+                  id: itemId,
+                  packId: 1,
+                  title: 'Clean litter box',
+                  type: ItemType.stateBased,
+                  config: const StateBasedItemConfig(
+                    expectedInterval: Duration(days: 1),
+                    warningAfter: Duration(days: 1),
+                    dangerAfter: Duration(days: 2),
+                  ),
+                  lastDoneAt: DateTime(2026, 4, 8),
+                  createdAt: DateTime(2026, 4, 1),
+                  updatedAt: DateTime(2026, 4, 1),
+                ),
+                pack: ItemPack(
+                  id: 1,
+                  title: 'Default Item Pack',
+                  status: ItemPackStatus.active,
+                  isSystemDefault: true,
+                  createdAt: DateTime(2026, 4, 1),
+                  updatedAt: DateTime(2026, 4, 1),
+                ),
+              ),
+              status: ItemStatus.danger,
+              elapsed: const Duration(days: 3),
+            ),
+          ]),
+        ),
+        warningHomeEntriesProvider.overrideWith(
+          (ref) => Stream.value(const <ItemHomeEntry>[]),
+        ),
+        upcomingTimelineMilestonesProvider.overrideWith(
+          (ref) => Stream.value(const <TimelineMilestoneOccurrence>[]),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(developerDateOverrideProvider.notifier).state = previewDate;
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: HomePage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text(ReminderUiText.completeAction).first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(itemRepository.recordedItemId, itemId);
+    expect(itemRepository.recordedDoneAt, previewDate);
+  });
 }
 
 ItemHomeEntry _itemEntry({required String title, required ItemStatus status}) {
@@ -315,6 +387,20 @@ class _FakeHomeRepository extends HomeRepository {
     DateTime? now,
   }) {
     return Stream.value(const <TimelineMilestoneOccurrence>[]);
+  }
+}
+
+class _RecordingItemRepository extends ItemRepository {
+  _RecordingItemRepository(super.dao);
+
+  int? recordedItemId;
+  DateTime? recordedDoneAt;
+
+  @override
+  Future<bool> markDone(int id, {DateTime? doneAt}) async {
+    recordedItemId = id;
+    recordedDoneAt = doneAt;
+    return true;
   }
 }
 

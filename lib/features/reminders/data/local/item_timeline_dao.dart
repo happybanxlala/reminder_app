@@ -164,12 +164,15 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
   }
 
   Future<bool> markItemDone(int id, {DateTime? doneAt}) async {
-    final now = doneAt ?? DateTime.now();
+    final completionTime = doneAt == null
+        ? DateTime.now()
+        : DateTime(doneAt.year, doneAt.month, doneAt.day);
+    final updatedAt = DateTime.now();
     final updatedRows = await (update(items)..where((t) => t.id.equals(id)))
         .write(
           ItemsCompanion(
-            lastDoneAt: Value(now.millisecondsSinceEpoch),
-            updatedAt: Value(now.millisecondsSinceEpoch),
+            lastDoneAt: Value(completionTime.millisecondsSinceEpoch),
+            updatedAt: Value(updatedAt.millisecondsSinceEpoch),
           ),
         );
     return updatedRows > 0;

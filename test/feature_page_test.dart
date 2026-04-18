@@ -417,6 +417,48 @@ void main() {
     expect(find.text('danger'), findsOneWidget);
   });
 
+  testWidgets(
+    'items management complete action writes preview date into lastDoneAt',
+    (tester) async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = _RecordingItemRepository(db.itemTimelineDao);
+      final previewDate = DateTime(2026, 4, 11);
+      const itemId = 1;
+      final container = ProviderContainer(
+        overrides: [
+          itemRepositoryProvider.overrideWith((ref) => repository),
+          activeItemPacksProvider.overrideWith(
+            (ref) => Stream.value([
+              _pack(1, title: 'Default Item Pack', isSystemDefault: true),
+            ]),
+          ),
+          itemsProvider.overrideWith(
+            (ref) => Stream.value([_itemBundle(1, ItemType.stateBased)]),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(developerDateOverrideProvider.notifier).state =
+          previewDate;
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: ItemsManagementPage()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(Key('item-done-$itemId')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(repository.recordedItemId, itemId);
+      expect(repository.recordedDoneAt, previewDate);
+    },
+  );
+
   testWidgets('items management routes add and edit into locked pack editor', (
     tester,
   ) async {
@@ -651,6 +693,20 @@ ItemPack _pack(int id, {required String title, bool isSystemDefault = false}) {
     createdAt: DateTime(2026, 4, 1),
     updatedAt: DateTime(2026, 4, 1),
   );
+}
+
+class _RecordingItemRepository extends ItemRepository {
+  _RecordingItemRepository(super.dao);
+
+  int? recordedItemId;
+  DateTime? recordedDoneAt;
+
+  @override
+  Future<bool> markDone(int id, {DateTime? doneAt}) async {
+    recordedItemId = id;
+    recordedDoneAt = doneAt;
+    return true;
+  }
 }
 
 TimelineMilestoneRule _rule(int id, TimelineMilestoneRuleStatus status) {

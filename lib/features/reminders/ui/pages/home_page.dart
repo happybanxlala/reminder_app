@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../data/home_models.dart';
 import '../../domain/timeline_milestone_occurrence.dart';
+import '../../providers/developer_settings_providers.dart';
 import '../../presentation/text/reminder_ui_text.dart';
 import '../../presentation/view_models/item_timeline_card_view_model.dart';
 import '../../providers/home_providers.dart';
@@ -119,6 +120,7 @@ class _ItemList extends ConsumerWidget {
     if (items.isEmpty) {
       return Center(child: Text(emptyMessage));
     }
+    final previewDate = ref.watch(effectivePreviewDateProvider);
     return ListView.builder(
       itemCount: items.length,
       itemBuilder: (context, index) {
@@ -139,7 +141,7 @@ class _ItemList extends ConsumerWidget {
                     onPressed: () async {
                       await ref
                           .read(itemRepositoryProvider)
-                          .markDone(viewModel.id);
+                          .markDone(viewModel.id, doneAt: previewDate);
                     },
                     child: const Text(ReminderUiText.completeAction),
                   ),

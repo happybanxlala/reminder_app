@@ -75,6 +75,38 @@ void main() {
     );
   });
 
+  test(
+    'markDone uses preview date for lastDoneAt and real time for updatedAt',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = ItemRepository(db.itemTimelineDao);
+
+      final itemId = await repository.createItem(
+        ItemInput(
+          title: 'Preview-safe completion',
+          type: ItemType.stateBased,
+          config: const StateBasedItemConfig(
+            expectedInterval: Duration(days: 1),
+            warningAfter: Duration(days: 1),
+            dangerAfter: Duration(days: 2),
+          ),
+        ),
+      );
+      final before = await repository.getItemById(itemId);
+      final previewDate = DateTime(2026, 4, 14, 15, 30);
+
+      await repository.markDone(itemId, doneAt: previewDate);
+
+      final after = await repository.getItemById(itemId);
+      expect(before, isNotNull);
+      expect(after, isNotNull);
+      expect(after!.item.lastDoneAt, DateTime(2026, 4, 14));
+      expect(after.item.updatedAt, isNot(DateTime(2026, 4, 14)));
+      expect(after.item.updatedAt.isBefore(before!.item.updatedAt), isFalse);
+    },
+  );
+
   test('watchItemsByStatus filters items by computed status', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
