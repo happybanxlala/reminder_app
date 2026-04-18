@@ -9,12 +9,12 @@ import 'package:sqlite3/sqlite3.dart';
 
 void main() {
   test(
-    'database uses schema version 12 and item pack/item plus timeline tables are writable',
+    'database uses schema version 13 and item pack/item plus timeline tables are writable',
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
 
-      expect(db.schemaVersion, 12);
+      expect(db.schemaVersion, 13);
 
       final packId = await db
           .into(db.itemPacks)
@@ -104,7 +104,9 @@ void main() {
       final defaultPacks = await (db.select(
         db.itemPacks,
       )..where((t) => t.isSystemDefault.equals(true))).get();
+      final items = await db.select(db.items).get();
       expect(defaultPacks, hasLength(1));
+      expect(items.single.status, 'active');
     },
   );
 
@@ -238,7 +240,7 @@ void main() {
           )
           .get();
 
-      expect(db.schemaVersion, 12);
+      expect(db.schemaVersion, 13);
       expect(packs, hasLength(1));
       expect(packs.single.title, AppDatabase.systemDefaultPackTitle);
       expect(packs.single.status, 'active');
@@ -359,12 +361,13 @@ void main() {
       final packs = await db.select(db.itemPacks).get();
       final items = await db.select(db.items).get();
 
-      expect(db.schemaVersion, 12);
+      expect(db.schemaVersion, 13);
       expect(packs, hasLength(1));
       expect(packs.single.status, 'active');
       expect(packs.single.isSystemDefault, isTrue);
       expect(items, hasLength(1));
       expect(items.single.packId, 1);
+      expect(items.single.status, 'active');
     },
   );
 }

@@ -26,20 +26,29 @@ class ItemRepository {
   ItemRepository(this._dao, {ItemStatusService? statusService})
     : _statusService = statusService ?? const ItemStatusService();
 
+  static const managedItemStatuses = {
+    ItemLifecycleStatus.active,
+    ItemLifecycleStatus.paused,
+  };
+
   final ItemTimelineDao _dao;
   final ItemStatusService _statusService;
 
   Stream<List<ItemPack>> watchPacks({bool includeArchived = false}) =>
       _dao.watchItemPacks(includeArchived: includeArchived);
 
-  Stream<List<ItemBundle>> watchItems() => _dao.watchItemBundles();
+  Stream<List<ItemBundle>> watchItems() =>
+      _dao.watchItemBundles(statuses: const {ItemLifecycleStatus.active});
+
+  Stream<List<ItemBundle>> watchPackManagementItems() =>
+      _dao.watchItemBundles(statuses: managedItemStatuses);
 
   Stream<List<ItemBundle>> watchItemsByStatus(
     ItemStatus status, {
     DateTime? now,
   }) {
     final current = now ?? DateTime.now();
-    return _dao.watchItemBundles().map(
+    return watchItems().map(
       (items) => items
           .where(
             (item) =>
@@ -62,6 +71,7 @@ class ItemRepository {
         packId: packId,
         title: input.title,
         description: Value(input.description),
+        status: const Value('active'),
         type: input.type.name,
         fixedScheduleType: Value(_fixedScheduleType(input.config)),
         fixedAnchorDate: Value(_fixedAnchorDate(input.config)),
@@ -102,6 +112,7 @@ class ItemRepository {
         packId: packId,
         title: input.title,
         description: input.description,
+        status: existing.item.status.name,
         type: input.type.name,
         fixedScheduleType: _fixedScheduleType(input.config),
         fixedAnchorDate: _fixedAnchorDate(input.config),
@@ -169,13 +180,13 @@ class ItemRepository {
 
   Future<bool> canArchivePack(int id) async {
     final pack = await getPackById(id);
-    if (pack == null ||
-        pack.isSystemDefault ||
-        pack.status == ItemPackStatus.archived) {
-      return false;
-    }
-    final itemCount = await _dao.countItemsForPack(id);
-    return itemCount == 0;
+    return pack != null &&
+        !pack.isSystemDefault &&
+        pack.status != ItemPackStatus.archived;
+  }
+
+  Future<int> countPackManagedItems(int id) {
+    return _dao.countItemsForPack(id, statuses: managedItemStatuses);
   }
 
   Future<bool> archivePack(int id) async {
@@ -184,7 +195,7 @@ class ItemRepository {
       return false;
     }
     final now = DateTime.now();
-    return _dao.updateItemPackRecord(
+    final updated = await _dao.updateItemPackRecord(
       ItemPackRow(
         id: existing.id,
         title: existing.title,
@@ -195,6 +206,38 @@ class ItemRepository {
         updatedAt: now.millisecondsSinceEpoch,
       ),
     );
+    if (!updated) {
+      return false;
+    }
+    await _dao.updateItemsStatusForPack(id, ItemLifecycleStatus.archived);
+    return true;
+  }
+
+  Future<bool> pauseItem(int id) async {
+    final existing = await getItemById(id);
+    if (existing == null ||
+        existing.item.status != ItemLifecycleStatus.active) {
+      return false;
+    }
+    return _dao.updateItemStatus(id, ItemLifecycleStatus.paused);
+  }
+
+  Future<bool> resumeItem(int id) async {
+    final existing = await getItemById(id);
+    if (existing == null ||
+        existing.item.status != ItemLifecycleStatus.paused) {
+      return false;
+    }
+    return _dao.updateItemStatus(id, ItemLifecycleStatus.active);
+  }
+
+  Future<bool> archiveItem(int id) async {
+    final existing = await getItemById(id);
+    if (existing == null ||
+        existing.item.status == ItemLifecycleStatus.archived) {
+      return false;
+    }
+    return _dao.updateItemStatus(id, ItemLifecycleStatus.archived);
   }
 
   ItemStatus statusFor(Item item, {DateTime? now}) {

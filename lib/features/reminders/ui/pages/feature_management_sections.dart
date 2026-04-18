@@ -131,7 +131,8 @@ class ItemPacksManagementContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final packsAsync = ref.watch(activeItemPacksProvider);
-    final itemsAsync = ref.watch(itemsProvider);
+    final itemsAsync = ref.watch(packManagementItemsProvider);
+    final previewDate = ref.watch(effectivePreviewDateProvider);
 
     if (packsAsync.hasError) {
       return Center(child: Text('讀取失敗: ${packsAsync.error}'));
@@ -183,7 +184,8 @@ class ItemPacksManagementContent extends ConsumerWidget {
             padding: const EdgeInsets.only(bottom: 12),
             child: _ItemPackSummaryCard(
               pack: pack,
-              itemCount: (itemsByPackId[pack.id] ?? const []).length,
+              items: itemsByPackId[pack.id] ?? const <ItemBundle>[],
+              previewDate: previewDate,
             ),
           ),
         ),
@@ -270,10 +272,15 @@ Future<void> _showPackDialog(
 }
 
 class _ItemPackSummaryCard extends ConsumerWidget {
-  const _ItemPackSummaryCard({required this.pack, required this.itemCount});
+  const _ItemPackSummaryCard({
+    required this.pack,
+    required this.items,
+    required this.previewDate,
+  });
 
   final ItemPack pack;
-  final int itemCount;
+  final List<ItemBundle> items;
+  final DateTime previewDate;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -326,46 +333,193 @@ class _ItemPackSummaryCard extends ConsumerWidget {
                         Text(pack.description!.trim()),
                       ],
                       const SizedBox(height: 4),
-                      Text('$itemCount ${ReminderUiText.itemCountLabel}'),
+                      Text('${items.length} ${ReminderUiText.itemCountLabel}'),
                     ],
                   ),
                 ),
-                if (!pack.isSystemDefault)
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      OutlinedButton(
+                Wrap(
+                  spacing: 4,
+                  runSpacing: 4,
+                  children: [
+                    IconButton(
+                      key: Key('pack-add-item-${pack.id}'),
+                      onPressed: () {
+                        context.pushNamed(
+                          ItemEditPage.createRouteName,
+                          extra: pack.id,
+                        );
+                      },
+                      tooltip: ReminderUiText.addItem,
+                      icon: const Icon(Icons.add),
+                    ),
+                    if (!pack.isSystemDefault)
+                      IconButton(
                         key: Key('pack-edit-${pack.id}'),
                         onPressed: () =>
                             _showPackDialog(context, ref, pack: pack),
-                        child: const Text(ReminderUiText.editAction),
+                        tooltip: ReminderUiText.editAction,
+                        icon: const Icon(Icons.edit_outlined),
                       ),
-                      OutlinedButton(
+                    if (!pack.isSystemDefault)
+                      IconButton(
                         key: Key('pack-archive-${pack.id}'),
                         onPressed: () async {
                           final canArchive = await repository.canArchivePack(
                             pack.id,
                           );
+                          if (!context.mounted || !canArchive) {
+                            return;
+                          }
+                          final managedItemCount = await repository
+                              .countPackManagedItems(pack.id);
                           if (!context.mounted) {
                             return;
                           }
-                          if (!canArchive) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  ReminderUiText.packArchiveBlockedMessage,
+                          if (managedItemCount > 0) {
+                            final confirmed = await showDialog<bool>(
+                              context: context,
+                              builder: (dialogContext) => AlertDialog(
+                                title: const Text(
+                                  ReminderUiText.archivePackConfirmTitle,
                                 ),
+                                content: const Text(
+                                  ReminderUiText.archivePackConfirmMessage,
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.of(dialogContext).pop(false),
+                                    child: Text(
+                                      MaterialLocalizations.of(
+                                        dialogContext,
+                                      ).cancelButtonLabel,
+                                    ),
+                                  ),
+                                  FilledButton(
+                                    onPressed: () =>
+                                        Navigator.of(dialogContext).pop(true),
+                                    child: const Text(
+                                      ReminderUiText.archiveAction,
+                                    ),
+                                  ),
+                                ],
                               ),
                             );
-                            return;
+                            if (confirmed != true || !context.mounted) {
+                              return;
+                            }
                           }
                           await repository.archivePack(pack.id);
                         },
-                        child: const Text(ReminderUiText.archiveAction),
+                        tooltip: ReminderUiText.archiveAction,
+                        icon: const Icon(Icons.archive_outlined),
                       ),
-                    ],
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (items.isEmpty)
+              const Text(ReminderUiText.emptyPackHint)
+            else
+              ...items.map(
+                (item) => Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: _PackItemRow(
+                    bundle: item,
+                    status: repository.statusFor(item.item, now: previewDate),
                   ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PackItemRow extends ConsumerWidget {
+  const _PackItemRow({required this.bundle, required this.status});
+
+  final ItemBundle bundle;
+  final ItemStatus status;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final repository = ref.read(itemRepositoryProvider);
+    final lifecycle = bundle.item.status;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: Theme.of(context).dividerColor),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    bundle.item.title,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(ReminderFormatters.itemSummary(bundle)),
+                  const SizedBox(height: 4),
+                  Text(
+                    lifecycle == ItemLifecycleStatus.active
+                        ? ReminderFormatters.itemStatus(status)
+                        : '${ReminderFormatters.itemStatus(status)} • ${ReminderFormatters.itemLifecycleStatus(lifecycle)}',
+                  ),
+                ],
+              ),
+            ),
+            Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: [
+                IconButton(
+                  key: Key('pack-item-edit-${bundle.item.id}'),
+                  onPressed: () {
+                    context.pushNamed(
+                      ItemEditPage.editRouteName,
+                      pathParameters: {'id': bundle.item.id.toString()},
+                      extra: bundle.pack.id,
+                    );
+                  },
+                  tooltip: ReminderUiText.editAction,
+                  icon: const Icon(Icons.edit_outlined),
+                ),
+                if (lifecycle == ItemLifecycleStatus.active)
+                  IconButton(
+                    key: Key('pack-item-pause-${bundle.item.id}'),
+                    onPressed: () async {
+                      await repository.pauseItem(bundle.item.id);
+                    },
+                    tooltip: ReminderUiText.pauseAction,
+                    icon: const Icon(Icons.pause_circle_outline),
+                  ),
+                if (lifecycle == ItemLifecycleStatus.paused)
+                  IconButton(
+                    key: Key('pack-item-resume-${bundle.item.id}'),
+                    onPressed: () async {
+                      await repository.resumeItem(bundle.item.id);
+                    },
+                    tooltip: ReminderUiText.resumeAction,
+                    icon: const Icon(Icons.play_circle_outline),
+                  ),
+                IconButton(
+                  key: Key('pack-item-archive-${bundle.item.id}'),
+                  onPressed: () async {
+                    await repository.archiveItem(bundle.item.id);
+                  },
+                  tooltip: ReminderUiText.archiveAction,
+                  icon: const Icon(Icons.archive_outlined),
+                ),
               ],
             ),
           ],

@@ -2,6 +2,8 @@ enum ItemType { fixedTime, stateBased, resourceBased }
 
 enum ItemStatus { normal, warning, danger, unknown }
 
+enum ItemLifecycleStatus { active, paused, archived }
+
 enum FixedTimeScheduleType { daily, weekly, custom }
 
 abstract class ItemConfig {
@@ -61,6 +63,7 @@ class Item {
     this.description,
     required this.type,
     required this.config,
+    this.status = ItemLifecycleStatus.active,
     this.lastDoneAt,
     required this.createdAt,
     required this.updatedAt,
@@ -72,6 +75,7 @@ class Item {
   final String? description;
   final ItemType type;
   final ItemConfig config;
+  final ItemLifecycleStatus status;
   final DateTime? lastDoneAt;
   final DateTime createdAt;
   final DateTime updatedAt;

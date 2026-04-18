@@ -29,7 +29,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -82,6 +82,11 @@ class AppDatabase extends _$AppDatabase {
 
       if (currentFrom == 11) {
         await _migrateFromV11ToV12();
+        currentFrom = 12;
+      }
+
+      if (currentFrom == 12) {
+        await _migrateFromV12ToV13();
       }
     },
   );
@@ -218,6 +223,22 @@ class AppDatabase extends _$AppDatabase {
       'ALTER TABLE responsibility_packs RENAME TO item_packs',
     );
     await customStatement('ALTER TABLE responsibility_items RENAME TO items');
+  }
+
+  Future<void> _migrateFromV12ToV13() async {
+    final columns = await customSelect('PRAGMA table_info(items)').get();
+    final hasStatusColumn = columns.any(
+      (row) => row.read<String>('name') == 'status',
+    );
+    if (hasStatusColumn) {
+      return;
+    }
+    await customStatement(
+      "ALTER TABLE items ADD COLUMN status TEXT NOT NULL DEFAULT 'active'",
+    );
+    await customStatement(
+      "UPDATE items SET status = 'active' WHERE status IS NULL OR status = ''",
+    );
   }
 
   Future<void> _ensureSystemDefaultPack() async {

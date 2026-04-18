@@ -513,6 +513,16 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('active'),
+  );
   static const VerificationMeta _typeMeta = const VerificationMeta('type');
   @override
   late final GeneratedColumn<String> type = GeneratedColumn<String>(
@@ -650,6 +660,7 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
     packId,
     title,
     description,
+    status,
     type,
     fixedScheduleType,
     fixedAnchorDate,
@@ -701,6 +712,12 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
           data['description']!,
           _descriptionMeta,
         ),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
       );
     }
     if (data.containsKey('type')) {
@@ -833,6 +850,10 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
         DriftSqlType.string,
         data['${effectivePrefix}description'],
       ),
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
       type: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}type'],
@@ -895,6 +916,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
   final int packId;
   final String title;
   final String? description;
+  final String status;
   final String type;
   final String? fixedScheduleType;
   final int? fixedAnchorDate;
@@ -912,6 +934,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     required this.packId,
     required this.title,
     this.description,
+    required this.status,
     required this.type,
     this.fixedScheduleType,
     this.fixedAnchorDate,
@@ -934,6 +957,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     if (!nullToAbsent || description != null) {
       map['description'] = Variable<String>(description);
     }
+    map['status'] = Variable<String>(status);
     map['type'] = Variable<String>(type);
     if (!nullToAbsent || fixedScheduleType != null) {
       map['fixed_schedule_type'] = Variable<String>(fixedScheduleType);
@@ -985,6 +1009,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       description: description == null && nullToAbsent
           ? const Value.absent()
           : Value(description),
+      status: Value(status),
       type: Value(type),
       fixedScheduleType: fixedScheduleType == null && nullToAbsent
           ? const Value.absent()
@@ -1031,6 +1056,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       packId: serializer.fromJson<int>(json['packId']),
       title: serializer.fromJson<String>(json['title']),
       description: serializer.fromJson<String?>(json['description']),
+      status: serializer.fromJson<String>(json['status']),
       type: serializer.fromJson<String>(json['type']),
       fixedScheduleType: serializer.fromJson<String?>(
         json['fixedScheduleType'],
@@ -1065,6 +1091,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       'packId': serializer.toJson<int>(packId),
       'title': serializer.toJson<String>(title),
       'description': serializer.toJson<String?>(description),
+      'status': serializer.toJson<String>(status),
       'type': serializer.toJson<String>(type),
       'fixedScheduleType': serializer.toJson<String?>(fixedScheduleType),
       'fixedAnchorDate': serializer.toJson<int?>(fixedAnchorDate),
@@ -1095,6 +1122,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     int? packId,
     String? title,
     Value<String?> description = const Value.absent(),
+    String? status,
     String? type,
     Value<String?> fixedScheduleType = const Value.absent(),
     Value<int?> fixedAnchorDate = const Value.absent(),
@@ -1112,6 +1140,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     packId: packId ?? this.packId,
     title: title ?? this.title,
     description: description.present ? description.value : this.description,
+    status: status ?? this.status,
     type: type ?? this.type,
     fixedScheduleType: fixedScheduleType.present
         ? fixedScheduleType.value
@@ -1150,6 +1179,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       description: data.description.present
           ? data.description.value
           : this.description,
+      status: data.status.present ? data.status.value : this.status,
       type: data.type.present ? data.type.value : this.type,
       fixedScheduleType: data.fixedScheduleType.present
           ? data.fixedScheduleType.value
@@ -1192,6 +1222,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
           ..write('packId: $packId, ')
           ..write('title: $title, ')
           ..write('description: $description, ')
+          ..write('status: $status, ')
           ..write('type: $type, ')
           ..write('fixedScheduleType: $fixedScheduleType, ')
           ..write('fixedAnchorDate: $fixedAnchorDate, ')
@@ -1220,6 +1251,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     packId,
     title,
     description,
+    status,
     type,
     fixedScheduleType,
     fixedAnchorDate,
@@ -1241,6 +1273,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
           other.packId == this.packId &&
           other.title == this.title &&
           other.description == this.description &&
+          other.status == this.status &&
           other.type == this.type &&
           other.fixedScheduleType == this.fixedScheduleType &&
           other.fixedAnchorDate == this.fixedAnchorDate &&
@@ -1263,6 +1296,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
   final Value<int> packId;
   final Value<String> title;
   final Value<String?> description;
+  final Value<String> status;
   final Value<String> type;
   final Value<String?> fixedScheduleType;
   final Value<int?> fixedAnchorDate;
@@ -1280,6 +1314,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     this.packId = const Value.absent(),
     this.title = const Value.absent(),
     this.description = const Value.absent(),
+    this.status = const Value.absent(),
     this.type = const Value.absent(),
     this.fixedScheduleType = const Value.absent(),
     this.fixedAnchorDate = const Value.absent(),
@@ -1298,6 +1333,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     required int packId,
     required String title,
     this.description = const Value.absent(),
+    this.status = const Value.absent(),
     required String type,
     this.fixedScheduleType = const Value.absent(),
     this.fixedAnchorDate = const Value.absent(),
@@ -1320,6 +1356,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     Expression<int>? packId,
     Expression<String>? title,
     Expression<String>? description,
+    Expression<String>? status,
     Expression<String>? type,
     Expression<String>? fixedScheduleType,
     Expression<int>? fixedAnchorDate,
@@ -1338,6 +1375,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
       if (packId != null) 'pack_id': packId,
       if (title != null) 'title': title,
       if (description != null) 'description': description,
+      if (status != null) 'status': status,
       if (type != null) 'type': type,
       if (fixedScheduleType != null) 'fixed_schedule_type': fixedScheduleType,
       if (fixedAnchorDate != null) 'fixed_anchor_date': fixedAnchorDate,
@@ -1364,6 +1402,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     Value<int>? packId,
     Value<String>? title,
     Value<String?>? description,
+    Value<String>? status,
     Value<String>? type,
     Value<String?>? fixedScheduleType,
     Value<int?>? fixedAnchorDate,
@@ -1382,6 +1421,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
       packId: packId ?? this.packId,
       title: title ?? this.title,
       description: description ?? this.description,
+      status: status ?? this.status,
       type: type ?? this.type,
       fixedScheduleType: fixedScheduleType ?? this.fixedScheduleType,
       fixedAnchorDate: fixedAnchorDate ?? this.fixedAnchorDate,
@@ -1418,6 +1458,9 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     }
     if (description.present) {
       map['description'] = Variable<String>(description.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
     }
     if (type.present) {
       map['type'] = Variable<String>(type.value);
@@ -1475,6 +1518,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
           ..write('packId: $packId, ')
           ..write('title: $title, ')
           ..write('description: $description, ')
+          ..write('status: $status, ')
           ..write('type: $type, ')
           ..write('fixedScheduleType: $fixedScheduleType, ')
           ..write('fixedAnchorDate: $fixedAnchorDate, ')
@@ -3568,6 +3612,7 @@ typedef $$ItemsTableCreateCompanionBuilder =
       required int packId,
       required String title,
       Value<String?> description,
+      Value<String> status,
       required String type,
       Value<String?> fixedScheduleType,
       Value<int?> fixedAnchorDate,
@@ -3587,6 +3632,7 @@ typedef $$ItemsTableUpdateCompanionBuilder =
       Value<int> packId,
       Value<String> title,
       Value<String?> description,
+      Value<String> status,
       Value<String> type,
       Value<String?> fixedScheduleType,
       Value<int?> fixedAnchorDate,
@@ -3643,6 +3689,11 @@ class $$ItemsTableFilterComposer extends Composer<_$AppDatabase, $ItemsTable> {
 
   ColumnFilters<String> get description => $composableBuilder(
     column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3755,6 +3806,11 @@ class $$ItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get type => $composableBuilder(
     column: $table.type,
     builder: (column) => ColumnOrderings(column),
@@ -3860,6 +3916,9 @@ class $$ItemsTableAnnotationComposer
     column: $table.description,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
 
   GeneratedColumn<String> get type =>
       $composableBuilder(column: $table.type, builder: (column) => column);
@@ -3973,6 +4032,7 @@ class $$ItemsTableTableManager
                 Value<int> packId = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String?> description = const Value.absent(),
+                Value<String> status = const Value.absent(),
                 Value<String> type = const Value.absent(),
                 Value<String?> fixedScheduleType = const Value.absent(),
                 Value<int?> fixedAnchorDate = const Value.absent(),
@@ -3992,6 +4052,7 @@ class $$ItemsTableTableManager
                 packId: packId,
                 title: title,
                 description: description,
+                status: status,
                 type: type,
                 fixedScheduleType: fixedScheduleType,
                 fixedAnchorDate: fixedAnchorDate,
@@ -4013,6 +4074,7 @@ class $$ItemsTableTableManager
                 required int packId,
                 required String title,
                 Value<String?> description = const Value.absent(),
+                Value<String> status = const Value.absent(),
                 required String type,
                 Value<String?> fixedScheduleType = const Value.absent(),
                 Value<int?> fixedAnchorDate = const Value.absent(),
@@ -4032,6 +4094,7 @@ class $$ItemsTableTableManager
                 packId: packId,
                 title: title,
                 description: description,
+                status: status,
                 type: type,
                 fixedScheduleType: fixedScheduleType,
                 fixedAnchorDate: fixedAnchorDate,

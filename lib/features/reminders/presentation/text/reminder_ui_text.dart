@@ -38,6 +38,9 @@ class ReminderUiText {
   static const saveFailedPrefix = '儲存失敗';
   static const itemSaveFailedMessage = '此 Item 已不存在或目前不可儲存。';
   static const timelineSaveFailedMessage = '此 Timeline 已不存在或目前不可儲存。';
+  static const archivePackConfirmTitle = '封存 Item Pack';
+  static const archivePackConfirmMessage =
+      '此 Item Pack 仍有 active 或 paused items。封存後，底下 items 會全部一併封存。';
   static const addRuleAction = '新增 Rule';
   static const milestoneRulesTitle = 'Milestone Rules';
   static const upcomingMilestonesTitle = 'Upcoming Milestones';
@@ -66,6 +69,8 @@ class ReminderUiText {
   static const skipAction = '跳過';
   static const noticedAction = '已看過';
   static const editAction = '編輯';
+  static const pauseAction = '暫停';
+  static const resumeAction = '恢復';
   static const archiveAction = '封存';
   static const viewAllAction = '查看全部';
   static const collapseAction = '收起';
@@ -76,7 +81,6 @@ class ReminderUiText {
   static const unassignedPackOption = '未指定（將使用系統預設 pack）';
   static const archivedPackSuffix = 'archived';
   static const emptyPackHint = '此 item pack 目前沒有 item。';
-  static const packArchiveBlockedMessage = '此 item pack 仍有 item，不能封存。';
   static const packTitleFieldLabel = 'Pack Title';
   static const packDescriptionFieldLabel = 'Pack Description';
   static const itemCountLabel = 'items';

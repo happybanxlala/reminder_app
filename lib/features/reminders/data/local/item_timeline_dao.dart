@@ -99,25 +99,32 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
     return row == null ? null : _toItemPack(row);
   }
 
-  Future<int> countItemsForPack(int packId) async {
+  Future<int> countItemsForPack(
+    int packId, {
+    Set<ItemLifecycleStatus>? statuses,
+  }) async {
     final countExpression = items.id.count();
     final query = selectOnly(items)
       ..addColumns([countExpression])
-      ..where(items.packId.equals(packId));
+      ..where(_itemStatusPredicate(items.packId.equals(packId), statuses));
     final row = await query.getSingle();
     return row.read(countExpression) ?? 0;
   }
 
-  Stream<List<ItemBundle>> watchItemBundles() {
-    return _itemBundleQuery().watch().map(
-      (rows) => rows.map(_mapItemBundle).toList(growable: false),
-    );
+  Stream<List<ItemBundle>> watchItemBundles({
+    Set<ItemLifecycleStatus>? statuses,
+  }) {
+    return _itemBundleQuery(
+      statuses: statuses,
+    ).watch().map((rows) => rows.map(_mapItemBundle).toList(growable: false));
   }
 
-  Future<List<ItemBundle>> listItemBundles() {
-    return _itemBundleQuery().get().then(
-      (rows) => rows.map(_mapItemBundle).toList(growable: false),
-    );
+  Future<List<ItemBundle>> listItemBundles({
+    Set<ItemLifecycleStatus>? statuses,
+  }) {
+    return _itemBundleQuery(
+      statuses: statuses,
+    ).get().then((rows) => rows.map(_mapItemBundle).toList(growable: false));
   }
 
   Future<ItemBundle?> getItemBundleById(int id) async {
@@ -129,6 +136,31 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
       return null;
     }
     return _mapItemBundle(rows.single);
+  }
+
+  Future<bool> updateItemStatus(int id, ItemLifecycleStatus status) async {
+    final now = DateTime.now();
+    final updatedRows = await (update(items)..where((t) => t.id.equals(id)))
+        .write(
+          ItemsCompanion(
+            status: Value(status.name),
+            updatedAt: Value(now.millisecondsSinceEpoch),
+          ),
+        );
+    return updatedRows > 0;
+  }
+
+  Future<int> updateItemsStatusForPack(
+    int packId,
+    ItemLifecycleStatus status,
+  ) async {
+    final now = DateTime.now();
+    return (update(items)..where((t) => t.packId.equals(packId))).write(
+      ItemsCompanion(
+        status: Value(status.name),
+        updatedAt: Value(now.millisecondsSinceEpoch),
+      ),
+    );
   }
 
   Future<bool> markItemDone(int id, {DateTime? doneAt}) async {
@@ -379,11 +411,15 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
 
   JoinedSelectStatement<HasResultSet, dynamic> _itemBundleQuery({
     Expression<bool> Function($ItemsTable t)? where,
+    Set<ItemLifecycleStatus>? statuses,
     int? limit,
   }) {
     final query = select(
       items,
     ).join([innerJoin(itemPacks, itemPacks.id.equalsExp(items.packId))]);
+    if (statuses != null) {
+      query.where(_itemStatusPredicate(const Constant(true), statuses));
+    }
     if (where != null) {
       query.where(where(items));
     }
@@ -432,6 +468,16 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  Expression<bool> _itemStatusPredicate(
+    Expression<bool> base,
+    Set<ItemLifecycleStatus>? statuses,
+  ) {
+    if (statuses == null) {
+      return base;
+    }
+    return base & items.status.isIn(statuses.map((item) => item.name));
+  }
+
   TimelineMilestoneRecordBundle _mapTimelineMilestoneRecordBundle(
     TypedResult row,
   ) {
@@ -463,6 +509,7 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
       packId: row.packId,
       title: row.title,
       description: row.description,
+      status: ItemLifecycleStatus.values.byName(row.status),
       type: itemType,
       config: _toItemConfig(row, itemType),
       lastDoneAt: row.lastDoneAt == null

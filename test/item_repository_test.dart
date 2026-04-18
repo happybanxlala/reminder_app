@@ -36,6 +36,7 @@ void main() {
       expect(packs.single.isSystemDefault, isTrue);
       expect(item!.pack.id, packs.single.id);
       expect(item.item.title, 'Clean litter box');
+      expect(item.item.status, ItemLifecycleStatus.active);
       expect(item.item.type, ItemType.stateBased);
       expect(item.item.config, isA<StateBasedItemConfig>());
     },
@@ -187,7 +188,63 @@ void main() {
     expect(await repository.archivePack(defaultPack.id), isFalse);
   });
 
-  test('non-empty pack cannot be archived', () async {
+  test(
+    'watchItems and pack management queries filter item lifecycle',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = ItemRepository(db.itemTimelineDao);
+
+      final activeId = await repository.createItem(
+        ItemInput(
+          title: 'Active item',
+          type: ItemType.stateBased,
+          config: const StateBasedItemConfig(
+            expectedInterval: Duration(days: 1),
+            warningAfter: Duration(days: 1),
+            dangerAfter: Duration(days: 2),
+          ),
+        ),
+      );
+      final pausedId = await repository.createItem(
+        ItemInput(
+          title: 'Paused item',
+          type: ItemType.stateBased,
+          config: const StateBasedItemConfig(
+            expectedInterval: Duration(days: 1),
+            warningAfter: Duration(days: 1),
+            dangerAfter: Duration(days: 2),
+          ),
+        ),
+      );
+      final archivedId = await repository.createItem(
+        ItemInput(
+          title: 'Archived item',
+          type: ItemType.stateBased,
+          config: const StateBasedItemConfig(
+            expectedInterval: Duration(days: 1),
+            warningAfter: Duration(days: 1),
+            dangerAfter: Duration(days: 2),
+          ),
+        ),
+      );
+
+      expect(await repository.pauseItem(pausedId), isTrue);
+      expect(await repository.archiveItem(archivedId), isTrue);
+
+      final activeItems = await repository.watchItems().first;
+      final managedItems = await repository.watchPackManagementItems().first;
+
+      expect(activeItems.map((item) => item.item.title), ['Active item']);
+      expect(managedItems.map((item) => item.item.title), [
+        'Paused item',
+        'Active item',
+      ]);
+      expect(await repository.resumeItem(activeId), isFalse);
+    },
+  );
+
+  test('archiving a pack cascades items to archived', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
     final repository = ItemRepository(db.itemTimelineDao);
@@ -195,7 +252,7 @@ void main() {
     final packId = await repository.createPack(
       const ItemPackInput(title: 'Food'),
     );
-    await repository.createItem(
+    final activeId = await repository.createItem(
       ItemInput(
         title: 'Refill bowls',
         type: ItemType.stateBased,
@@ -207,8 +264,33 @@ void main() {
         packId: packId,
       ),
     );
+    final pausedId = await repository.createItem(
+      ItemInput(
+        title: 'Clean storage',
+        type: ItemType.stateBased,
+        config: const StateBasedItemConfig(
+          expectedInterval: Duration(days: 1),
+          warningAfter: Duration(days: 1),
+          dangerAfter: Duration(days: 2),
+        ),
+        packId: packId,
+      ),
+    );
 
-    expect(await repository.canArchivePack(packId), isFalse);
-    expect(await repository.archivePack(packId), isFalse);
+    expect(await repository.pauseItem(pausedId), isTrue);
+    expect(await repository.countPackManagedItems(packId), 2);
+    expect(await repository.archivePack(packId), isTrue);
+
+    final archivedPack = await repository.getPackById(packId);
+    final activeItems = await repository.watchItems().first;
+    final managedItems = await repository.watchPackManagementItems().first;
+    final archivedActive = await repository.getItemById(activeId);
+    final archivedPaused = await repository.getItemById(pausedId);
+
+    expect(archivedPack!.status, ItemPackStatus.archived);
+    expect(activeItems.where((item) => item.item.packId == packId), isEmpty);
+    expect(managedItems.where((item) => item.item.packId == packId), isEmpty);
+    expect(archivedActive!.item.status, ItemLifecycleStatus.archived);
+    expect(archivedPaused!.item.status, ItemLifecycleStatus.archived);
   });
 }

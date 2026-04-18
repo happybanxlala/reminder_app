@@ -21,6 +21,10 @@ final itemsProvider = StreamProvider<List<ItemBundle>>((ref) {
   return ref.watch(itemRepositoryProvider).watchItems();
 });
 
+final packManagementItemsProvider = StreamProvider<List<ItemBundle>>((ref) {
+  return ref.watch(itemRepositoryProvider).watchPackManagementItems();
+});
+
 final itemProvider = FutureProvider.family<ItemBundle?, int>((ref, id) {
   return ref.watch(itemRepositoryProvider).getItemById(id);
 });

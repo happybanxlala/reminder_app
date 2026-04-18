@@ -24,6 +24,7 @@ class Items extends Table {
   IntColumn get packId => integer().references(ItemPacks, #id)();
   TextColumn get title => text()();
   TextColumn get description => text().nullable()();
+  TextColumn get status => text().withDefault(const Constant('active'))();
   TextColumn get type => text()();
   TextColumn get fixedScheduleType => text().nullable()();
   IntColumn get fixedAnchorDate => integer().nullable()();

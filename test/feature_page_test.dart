@@ -118,6 +118,17 @@ void main() {
               ),
             ]),
           ),
+          packManagementItemsProvider.overrideWith(
+            (ref) => Stream.value([
+              _itemBundle(1, ItemType.stateBased),
+              _itemBundle(
+                2,
+                ItemType.resourceBased,
+                packId: 2,
+                packTitle: 'Cat Care',
+              ),
+            ]),
+          ),
           timelinesProvider.overrideWith(
             (ref) => Stream.value([
               Timeline(
@@ -470,14 +481,12 @@ void main() {
     expect(find.byKey(const Key('pack-field')), findsNothing);
   });
 
-  testWidgets('item packs management page lists packs without nested items', (
-    tester,
-  ) async {
-    final db = AppDatabase.forTesting(NativeDatabase.memory());
-    addTearDown(db.close);
-
-    await tester.pumpWidget(
-      ProviderScope(
+  testWidgets(
+    'item packs management page shows nested active and paused items',
+    (tester) async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final container = ProviderContainer(
         overrides: [
           itemRepositoryProvider.overrideWith(
             (ref) => ItemRepository(db.itemTimelineDao),
@@ -488,7 +497,7 @@ void main() {
               _pack(2, title: 'Cat Care'),
             ]),
           ),
-          itemsProvider.overrideWith(
+          packManagementItemsProvider.overrideWith(
             (ref) => Stream.value([
               _itemBundle(1, ItemType.stateBased),
               _itemBundle(
@@ -497,21 +506,45 @@ void main() {
                 packId: 2,
                 packTitle: 'Cat Care',
               ),
+              _itemBundle(
+                3,
+                ItemType.stateBased,
+                packId: 2,
+                packTitle: 'Cat Care',
+                lifecycleStatus: ItemLifecycleStatus.paused,
+              ),
             ]),
           ),
         ],
-        child: const MaterialApp(home: ItemPacksManagementPage()),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      addTearDown(container.dispose);
+      container.read(developerDateOverrideProvider.notifier).state = DateTime(
+        2026,
+        4,
+        11,
+      );
 
-    expect(find.byKey(const Key('add-pack-button')), findsOneWidget);
-    expect(find.byKey(const Key('pack-section-1')), findsOneWidget);
-    expect(find.byKey(const Key('pack-section-2')), findsOneWidget);
-    expect(find.text('Cat Care'), findsOneWidget);
-    expect(find.text('Item 1'), findsNothing);
-    expect(find.text('Item 2'), findsNothing);
-  });
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: ItemPacksManagementPage()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('add-pack-button')), findsOneWidget);
+      expect(find.byKey(const Key('pack-section-1')), findsOneWidget);
+      expect(find.byKey(const Key('pack-section-2')), findsOneWidget);
+      expect(find.text('Cat Care'), findsOneWidget);
+      expect(find.text('Item 1'), findsOneWidget);
+      expect(find.text('Item 2'), findsOneWidget);
+      expect(find.text('Item 3'), findsOneWidget);
+      expect(find.byKey(const Key('pack-add-item-2')), findsOneWidget);
+      expect(find.byKey(const Key('pack-item-edit-2')), findsOneWidget);
+      expect(find.byKey(const Key('pack-item-pause-2')), findsOneWidget);
+      expect(find.byKey(const Key('pack-item-resume-3')), findsOneWidget);
+    },
+  );
 
   testWidgets('timeline management page shows timeline actions', (
     tester,
@@ -576,6 +609,7 @@ ItemBundle _itemBundle(
   ItemType type, {
   int packId = 1,
   String packTitle = 'Default Item Pack',
+  ItemLifecycleStatus lifecycleStatus = ItemLifecycleStatus.active,
 }) {
   final config = switch (type) {
     ItemType.stateBased => const StateBasedItemConfig(
@@ -597,6 +631,7 @@ ItemBundle _itemBundle(
       id: id,
       packId: packId,
       title: 'Item $id',
+      status: lifecycleStatus,
       type: type,
       config: config,
       lastDoneAt: DateTime(2026, 4, 10),

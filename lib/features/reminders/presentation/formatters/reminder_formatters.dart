@@ -115,6 +115,14 @@ class ReminderFormatters {
     };
   }
 
+  static String itemLifecycleStatus(ItemLifecycleStatus status) {
+    return switch (status) {
+      ItemLifecycleStatus.active => 'active',
+      ItemLifecycleStatus.paused => 'paused',
+      ItemLifecycleStatus.archived => 'archived',
+    };
+  }
+
   static String itemPackStatus(ItemPackStatus status) {
     return switch (status) {
       ItemPackStatus.active => 'active',
