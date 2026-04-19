@@ -14,6 +14,7 @@ part 'app_database.g.dart';
   tables: [
     ItemPacks,
     Items,
+    ItemActionRecords,
     Timelines,
     TimelineMilestoneRules,
     TimelineMilestoneRecords,
@@ -29,7 +30,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -72,7 +73,7 @@ class AppDatabase extends _$AppDatabase {
 
       if (currentFrom == 9) {
         await _migrateFromV9ToV10(m);
-        currentFrom = 12;
+        currentFrom = 14;
       }
 
       if (currentFrom == 10) {
@@ -87,6 +88,11 @@ class AppDatabase extends _$AppDatabase {
 
       if (currentFrom == 12) {
         await _migrateFromV12ToV13();
+        currentFrom = 13;
+      }
+
+      if (currentFrom == 13) {
+        await _migrateFromV13ToV14(m);
       }
     },
   );
@@ -239,6 +245,72 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       "UPDATE items SET status = 'active' WHERE status IS NULL OR status = ''",
     );
+  }
+
+  Future<void> _migrateFromV13ToV14(Migrator m) async {
+    await customStatement('ALTER TABLE items RENAME TO items_v13');
+    await m.createTable(items);
+    await m.createTable(itemActionRecords);
+    await customStatement('''
+      INSERT INTO items (
+        id,
+        pack_id,
+        title,
+        description,
+        status,
+        type,
+        fixed_schedule_type,
+        fixed_anchor_date,
+        fixed_due_date,
+        fixed_time_of_day,
+        fixed_overdue_policy,
+        fixed_expected_before_minutes,
+        fixed_warning_before_minutes,
+        fixed_danger_before_minutes,
+        state_expected_after_minutes,
+        state_warning_after_minutes,
+        state_danger_after_minutes,
+        resource_anchor_date,
+        resource_duration_days,
+        resource_expected_before_days,
+        resource_warning_before_days,
+        resource_danger_before_days,
+        last_done_at,
+        created_at,
+        updated_at
+      )
+      SELECT
+        id,
+        pack_id,
+        title,
+        description,
+        status,
+        CASE type
+          WHEN 'fixedTime' THEN 'fixed'
+          ELSE type
+        END,
+        fixed_schedule_type,
+        fixed_anchor_date,
+        fixed_anchor_date,
+        fixed_time_of_day,
+        'autoAdvance',
+        0,
+        0,
+        0,
+        state_expected_interval_minutes,
+        state_warning_after_minutes,
+        state_danger_after_minutes,
+        last_done_at,
+        CAST(resource_estimated_duration_minutes / 1440 AS INTEGER),
+        0,
+        CAST(resource_warning_before_depletion_minutes / 1440 AS INTEGER),
+        0,
+        last_done_at,
+        created_at,
+        updated_at
+      FROM items_v13
+    ''');
+    await customStatement('DROP TABLE IF EXISTS items_v13');
   }
 
   Future<void> _ensureSystemDefaultPack() async {

@@ -2,6 +2,7 @@ import 'package:intl/intl.dart';
 
 import '../../data/home_models.dart';
 import '../../data/local/item_timeline_dao.dart';
+import '../../domain/item_action_record.dart';
 import '../../domain/item.dart';
 import '../../domain/item_pack.dart';
 import '../../domain/timeline.dart';
@@ -24,7 +25,7 @@ class ReminderFormatters {
 
   static String itemSummary(ItemBundle bundle) {
     return switch (bundle.item.config) {
-      FixedTimeItemConfig config => _fixedTimeSummary(config),
+      FixedItemConfig config => _fixedSummary(config),
       StateBasedItemConfig config => _stateBasedSummary(config),
       ResourceBasedItemConfig config => _resourceBasedSummary(config),
       _ => bundle.item.type.name,
@@ -32,9 +33,22 @@ class ReminderFormatters {
   }
 
   static String itemHomeSummary(ItemHomeEntry entry) {
-    final elapsed = entry.elapsed;
-    final elapsedText = elapsed == null ? '尚未完成過' : elapsedLabel(elapsed);
-    return '${entry.bundle.pack.title} • ${itemStatus(entry.status)} • $elapsedText';
+    return '${entry.bundle.pack.title} • ${itemStatus(entry.status)} • ${itemSummary(entry.bundle)}';
+  }
+
+  static String itemActionRecord(ItemActionRecord record) {
+    final payload = record.payload;
+    final payloadText = switch (record.actionType) {
+      ItemActionType.done when payload?['addedDays'] != null =>
+        ' • 補充 ${(payload?['addedDays'] as num).toInt()} 天',
+      ItemActionType.deferred when payload?['deferDays'] != null =>
+        ' • 延後 ${(payload?['deferDays'] as num).toInt()} 天',
+      _ => '',
+    };
+    final remarkText = record.remark == null || record.remark!.isEmpty
+        ? ''
+        : ' • ${record.remark}';
+    return '${itemActionType(record.actionType)} • ${date(record.actionDate)}$payloadText$remarkText';
   }
 
   static String milestoneSummary(TimelineMilestoneOccurrence occurrence) {
@@ -108,10 +122,10 @@ class ReminderFormatters {
 
   static String itemStatus(ItemStatus status) {
     return switch (status) {
-      ItemStatus.normal => 'normal',
-      ItemStatus.warning => 'warning',
-      ItemStatus.danger => 'danger',
-      ItemStatus.unknown => 'unknown',
+      ItemStatus.normal => '穩定',
+      ItemStatus.warning => '需留意',
+      ItemStatus.danger => '快變糟',
+      ItemStatus.unknown => '未建立基準',
     };
   }
 
@@ -130,6 +144,14 @@ class ReminderFormatters {
     };
   }
 
+  static String itemActionType(ItemActionType actionType) {
+    return switch (actionType) {
+      ItemActionType.done => '完成',
+      ItemActionType.skipped => '跳過',
+      ItemActionType.deferred => '延期',
+    };
+  }
+
   static String elapsedLabel(Duration value) {
     if (value.inDays >= 1) {
       return '${value.inDays} 天未完成';
@@ -140,30 +162,40 @@ class ReminderFormatters {
     return '${value.inMinutes} 分鐘未完成';
   }
 
-  static String _fixedTimeSummary(FixedTimeItemConfig config) {
+  static String _fixedSummary(FixedItemConfig config) {
     final scheduleLabel = switch (config.scheduleType) {
-      FixedTimeScheduleType.daily => 'daily',
-      FixedTimeScheduleType.weekly => 'weekly',
-      FixedTimeScheduleType.custom => 'custom',
+      FixedScheduleType.daily => '每天',
+      FixedScheduleType.weekly => '每週',
+      FixedScheduleType.custom => '自訂',
     };
     final anchorLabel = config.anchorDate == null
         ? null
         : date(config.anchorDate!);
+    final dueLabel = config.dueDate == null ? null : date(config.dueDate!);
+    final overdueLabel = switch (config.overduePolicy) {
+      ItemOverduePolicy.autoAdvance => '逾期自動進下一輪',
+      ItemOverduePolicy.waitForAction => '逾期等待處理',
+    };
     final parts = <String>[scheduleLabel];
     if (anchorLabel != null) {
-      parts.add(anchorLabel);
+      parts.add('起點 $anchorLabel');
+    }
+    if (dueLabel != null) {
+      parts.add('到期 $dueLabel');
     }
     if (config.timeOfDay != null && config.timeOfDay!.isNotEmpty) {
       parts.add(config.timeOfDay!);
     }
+    parts.add(overdueLabel);
     return parts.join(' • ');
   }
 
   static String _stateBasedSummary(StateBasedItemConfig config) {
-    return 'expected ${config.expectedInterval.inDays}d • warning ${config.warningAfter.inDays}d • danger ${config.dangerAfter.inDays}d';
+    return '基準 ${config.expectedAfter.inDays} 天 • 留意 ${config.warningAfter.inDays} 天 • 變糟 ${config.dangerAfter.inDays} 天';
   }
 
   static String _resourceBasedSummary(ResourceBasedItemConfig config) {
-    return 'estimate ${config.estimatedDuration.inDays}d • warn before ${config.warningBeforeDepletion.inDays}d';
+    final anchor = config.anchorDate == null ? '未建立' : date(config.anchorDate!);
+    return '起點 $anchor • 可維持 ${config.durationDays} 天 • 留意前 ${config.warningBefore} 天';
   }
 }

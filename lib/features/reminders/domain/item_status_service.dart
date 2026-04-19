@@ -1,12 +1,24 @@
 import 'item.dart';
 
+class FixedCycleWindow {
+  const FixedCycleWindow({
+    required this.anchorDate,
+    required this.dueDate,
+    required this.isVirtualAdvance,
+  });
+
+  final DateTime anchorDate;
+  final DateTime dueDate;
+  final bool isVirtualAdvance;
+}
+
 class ItemStatusService {
   const ItemStatusService();
 
   ItemStatus classify(Item item, {DateTime? now}) {
     final current = _normalizeDate(now ?? DateTime.now());
     return switch (item.config) {
-      FixedTimeItemConfig config => _classifyFixedTime(
+      FixedItemConfig config => _classifyFixed(
         item.lastDoneAt,
         config,
         now: current,
@@ -16,11 +28,7 @@ class ItemStatusService {
         config,
         now: current,
       ),
-      ResourceBasedItemConfig config => _classifyResourceBased(
-        item.lastDoneAt,
-        config,
-        now: current,
-      ),
+      ResourceBasedItemConfig config => _classifyResourceBased(config, now: current),
       _ => ItemStatus.unknown,
     };
   }
@@ -35,6 +43,62 @@ class ItemStatusService {
     ).difference(_normalizeDate(lastDoneAt));
   }
 
+  FixedCycleWindow? currentFixedCycle(Item item, {DateTime? now}) {
+    final config = item.config;
+    if (config is! FixedItemConfig) {
+      return null;
+    }
+    return resolveFixedCycle(config, now: now);
+  }
+
+  FixedCycleWindow? resolveFixedCycle(FixedItemConfig config, {DateTime? now}) {
+    final anchorDate = config.anchorDate == null
+        ? null
+        : _normalizeDate(config.anchorDate!);
+    final dueDate = config.dueDate == null
+        ? null
+        : _normalizeDate(config.dueDate!);
+    if (anchorDate == null || dueDate == null) {
+      return null;
+    }
+    final current = _normalizeDate(now ?? DateTime.now());
+    if (config.overduePolicy != ItemOverduePolicy.autoAdvance ||
+        !current.isAfter(dueDate)) {
+      return FixedCycleWindow(
+        anchorDate: anchorDate,
+        dueDate: dueDate,
+        isVirtualAdvance: false,
+      );
+    }
+
+    if (config.scheduleType == FixedScheduleType.custom) {
+      return FixedCycleWindow(
+        anchorDate: anchorDate,
+        dueDate: dueDate,
+        isVirtualAdvance: false,
+      );
+    }
+
+    final cycleLength = dueDate.difference(anchorDate).inDays;
+    var resolvedAnchor = anchorDate;
+    var resolvedDue = dueDate;
+    var advanced = false;
+    while (current.isAfter(resolvedDue)) {
+      resolvedAnchor = _advanceDate(resolvedAnchor, config.scheduleType);
+      resolvedDue = _advanceDate(
+        resolvedDue,
+        config.scheduleType,
+        fallbackDays: cycleLength,
+      );
+      advanced = true;
+    }
+    return FixedCycleWindow(
+      anchorDate: resolvedAnchor,
+      dueDate: resolvedDue,
+      isVirtualAdvance: advanced,
+    );
+  }
+
   ItemStatus _classifyStateBased(
     DateTime? lastDoneAt,
     StateBasedItemConfig config, {
@@ -46,7 +110,7 @@ class ItemStatusService {
 
     final elapsed = now.difference(_normalizeDate(lastDoneAt));
     final normalBoundary = _maxDuration(
-      config.expectedInterval,
+      config.expectedAfter,
       config.warningAfter,
     );
     final dangerBoundary = _maxDuration(config.dangerAfter, normalBoundary);
@@ -61,134 +125,98 @@ class ItemStatusService {
   }
 
   ItemStatus _classifyResourceBased(
-    DateTime? lastDoneAt,
     ResourceBasedItemConfig config, {
-    required DateTime now,
-  }) {
-    if (lastDoneAt == null) {
-      return ItemStatus.unknown;
-    }
-
-    final elapsed = now.difference(_normalizeDate(lastDoneAt));
-    final warningBoundary =
-        config.estimatedDuration - config.warningBeforeDepletion;
-
-    if (elapsed <
-        (warningBoundary.isNegative ? Duration.zero : warningBoundary)) {
-      return ItemStatus.normal;
-    }
-    if (elapsed < config.estimatedDuration) {
-      return ItemStatus.warning;
-    }
-    return ItemStatus.danger;
-  }
-
-  ItemStatus _classifyFixedTime(
-    DateTime? lastDoneAt,
-    FixedTimeItemConfig config, {
     required DateTime now,
   }) {
     final anchorDate = config.anchorDate == null
         ? null
         : _normalizeDate(config.anchorDate!);
-    if (anchorDate == null) {
+    if (anchorDate == null || config.durationDays <= 0) {
       return ItemStatus.unknown;
     }
 
+    final elapsedDays = now.difference(anchorDate).inDays;
+    final remainingDays = config.durationDays - elapsedDays;
+    if (remainingDays <= config.dangerBefore) {
+      return ItemStatus.danger;
+    }
+    if (remainingDays <= config.warningBefore) {
+      return ItemStatus.warning;
+    }
+    return ItemStatus.normal;
+  }
+
+  ItemStatus _classifyFixed(
+    DateTime? lastDoneAt,
+    FixedItemConfig config, {
+    required DateTime now,
+  }) {
+    final cycle = resolveFixedCycle(config, now: now);
+    if (cycle == null) {
+      return ItemStatus.unknown;
+    }
     final completedAt = lastDoneAt == null ? null : _normalizeDate(lastDoneAt);
-    return switch (config.scheduleType) {
-      FixedTimeScheduleType.daily => _classifyDailyFixedTime(
-        completedAt,
-        anchorDate: anchorDate,
-        now: now,
-      ),
-      FixedTimeScheduleType.weekly => _classifyWeeklyFixedTime(
-        completedAt,
-        anchorDate: anchorDate,
-        now: now,
-      ),
-      FixedTimeScheduleType.custom => _classifyCustomFixedTime(
-        completedAt,
-        anchorDate: anchorDate,
-        now: now,
-      ),
-    };
-  }
+    if (now.isBefore(cycle.anchorDate)) {
+      return ItemStatus.normal;
+    }
+    if (_isCompletedWithinCycle(completedAt, cycle)) {
+      return ItemStatus.normal;
+    }
+    if (now.isAfter(cycle.dueDate) &&
+        config.overduePolicy == ItemOverduePolicy.waitForAction) {
+      return ItemStatus.danger;
+    }
 
-  ItemStatus _classifyDailyFixedTime(
-    DateTime? completedAt, {
-    required DateTime anchorDate,
-    required DateTime now,
-  }) {
-    if (now.isBefore(anchorDate)) {
-      return ItemStatus.normal;
+    final remainingDays = cycle.dueDate.difference(now).inDays;
+    if (remainingDays <= config.dangerBefore.inDays) {
+      return ItemStatus.danger;
     }
-    if (_isCompletedOnOrAfter(completedAt, now)) {
-      return ItemStatus.normal;
-    }
-    if (completedAt != null &&
-        _sameDate(
-          _normalizeDate(completedAt),
-          now.subtract(const Duration(days: 1)),
-        )) {
+    if (remainingDays <= config.warningBefore.inDays) {
       return ItemStatus.warning;
     }
-    return ItemStatus.danger;
+    return ItemStatus.normal;
   }
 
-  ItemStatus _classifyWeeklyFixedTime(
-    DateTime? completedAt, {
-    required DateTime anchorDate,
-    required DateTime now,
-  }) {
-    if (now.isBefore(anchorDate)) {
-      return ItemStatus.normal;
-    }
-
-    final cycleStart = _latestWeeklyCycleStart(anchorDate, now);
-    if (_isCompletedOnOrAfter(completedAt, cycleStart)) {
-      return ItemStatus.normal;
-    }
-    if (_sameDate(now, cycleStart)) {
-      return ItemStatus.warning;
-    }
-    return ItemStatus.danger;
+  DateTime nextFixedCycleAnchor(FixedCycleWindow cycle, FixedItemConfig config) {
+    return _advanceDate(cycle.anchorDate, config.scheduleType);
   }
 
-  ItemStatus _classifyCustomFixedTime(
-    DateTime? completedAt, {
-    required DateTime anchorDate,
-    required DateTime now,
-  }) {
-    if (_isCompletedOnOrAfter(completedAt, anchorDate)) {
-      return ItemStatus.normal;
-    }
-    if (now.isBefore(anchorDate)) {
-      return ItemStatus.normal;
-    }
-    if (_sameDate(now, anchorDate)) {
-      return ItemStatus.warning;
-    }
-    return ItemStatus.danger;
+  DateTime nextFixedCycleDue(FixedCycleWindow cycle, FixedItemConfig config) {
+    final fallbackDays = cycle.dueDate.difference(cycle.anchorDate).inDays;
+    return _advanceDate(
+      cycle.dueDate,
+      config.scheduleType,
+      fallbackDays: fallbackDays,
+    );
   }
 
-  DateTime _latestWeeklyCycleStart(DateTime anchorDate, DateTime now) {
-    final difference = now.difference(anchorDate).inDays;
-    final weeks = difference ~/ 7;
-    return anchorDate.add(Duration(days: weeks * 7));
+  DateTime shiftDateByDelay(DateTime value, int delayDays) {
+    return _normalizeDate(value.add(Duration(days: delayDays)));
   }
 
-  bool _isCompletedOnOrAfter(DateTime? completedAt, DateTime cycleStart) {
+  bool _isCompletedWithinCycle(
+    DateTime? completedAt,
+    FixedCycleWindow cycle,
+  ) {
     if (completedAt == null) {
       return false;
     }
-    return !_normalizeDate(completedAt).isBefore(_normalizeDate(cycleStart));
+    return !completedAt.isBefore(cycle.anchorDate) &&
+        !completedAt.isAfter(cycle.dueDate);
   }
 
-  bool _sameDate(DateTime left, DateTime right) {
-    return left.year == right.year &&
-        left.month == right.month &&
-        left.day == right.day;
+  DateTime _advanceDate(
+    DateTime value,
+    FixedScheduleType scheduleType, {
+    int? fallbackDays,
+  }) {
+    return switch (scheduleType) {
+      FixedScheduleType.daily => value.add(const Duration(days: 1)),
+      FixedScheduleType.weekly => value.add(const Duration(days: 7)),
+      FixedScheduleType.custom => value.add(
+        Duration(days: (fallbackDays ?? 0) + 1),
+      ),
+    };
   }
 
   DateTime _normalizeDate(DateTime value) {

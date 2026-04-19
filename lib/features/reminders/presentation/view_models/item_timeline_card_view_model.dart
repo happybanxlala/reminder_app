@@ -15,7 +15,7 @@ class ItemCardViewModel {
       id: entry.bundle.item.id,
       title: entry.bundle.item.title,
       subtitle: ReminderFormatters.itemHomeSummary(entry),
-      status: entry.status.name,
+      status: ReminderFormatters.itemStatus(entry.status),
     );
   }
 

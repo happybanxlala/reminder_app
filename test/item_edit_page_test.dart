@@ -141,9 +141,10 @@ void main() {
                   packId: 2,
                   title: 'Archived owner',
                   type: ItemType.resourceBased,
-                  config: const ResourceBasedItemConfig(
-                    estimatedDuration: Duration(days: 30),
-                    warningBeforeDepletion: Duration(days: 7),
+                  config: ResourceBasedItemConfig(
+                    anchorDate: DateTime(2026, 4, 1),
+                    durationDays: 30,
+                    warningBefore: 7,
                   ),
                   createdAt: DateTime(2026, 4, 1),
                   updatedAt: DateTime(2026, 4, 2),

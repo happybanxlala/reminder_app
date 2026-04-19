@@ -405,7 +405,7 @@ void main() {
     expect(find.byKey(const Key('add-item-button')), findsOneWidget);
     expect(find.text('Item 1'), findsOneWidget);
     expect(find.text('Item 2'), findsNothing);
-    expect(find.text('normal'), findsOneWidget);
+    expect(find.text('穩定'), findsOneWidget);
 
     container.read(developerDateOverrideProvider.notifier).state = DateTime(
       2026,
@@ -414,7 +414,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('danger'), findsOneWidget);
+    expect(find.text('快變糟'), findsOneWidget);
   });
 
   testWidgets(
@@ -659,13 +659,15 @@ ItemBundle _itemBundle(
       warningAfter: Duration(days: 7),
       dangerAfter: Duration(days: 14),
     ),
-    ItemType.resourceBased => const ResourceBasedItemConfig(
-      estimatedDuration: Duration(days: 30),
-      warningBeforeDepletion: Duration(days: 7),
+    ItemType.resourceBased => ResourceBasedItemConfig(
+      anchorDate: DateTime(2026, 4, 10),
+      durationDays: 30,
+      warningBefore: 7,
     ),
-    ItemType.fixedTime => FixedTimeItemConfig(
+    ItemType.fixed => FixedTimeItemConfig(
       scheduleType: FixedTimeScheduleType.daily,
       anchorDate: DateTime(2026, 4, 10),
+      dueDate: DateTime(2026, 4, 10),
     ),
   };
   return ItemBundle(
@@ -702,7 +704,14 @@ class _RecordingItemRepository extends ItemRepository {
   DateTime? recordedDoneAt;
 
   @override
-  Future<bool> markDone(int id, {DateTime? doneAt}) async {
+  Future<bool> markDone(
+    int id, {
+    int? addedDays,
+    DateTime? doneAt,
+    ItemNextCycleStrategy nextCycleStrategy =
+        ItemNextCycleStrategy.keepSchedule,
+    String? remark,
+  }) async {
     recordedItemId = id;
     recordedDoneAt = doneAt;
     return true;

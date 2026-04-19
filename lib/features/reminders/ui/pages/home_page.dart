@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/home_models.dart';
+import '../../domain/item.dart';
 import '../../domain/timeline_milestone_occurrence.dart';
 import '../../providers/developer_settings_providers.dart';
 import '../../presentation/text/reminder_ui_text.dart';
@@ -12,6 +13,7 @@ import '../../providers/item_providers.dart';
 import '../../providers/timeline_providers.dart';
 import 'feature_page.dart';
 import 'item_edit_page.dart';
+import 'item_history_page.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -145,6 +147,38 @@ class _ItemList extends ConsumerWidget {
                     },
                     child: const Text(ReminderUiText.completeAction),
                   ),
+                  TextButton(
+                    onPressed: () async {
+                      await ref
+                          .read(itemRepositoryProvider)
+                          .skip(viewModel.id, actionAt: previewDate);
+                    },
+                    child: const Text(ReminderUiText.skipAction),
+                  ),
+                  if (item.bundle.item.type == ItemType.fixed)
+                    TextButton(
+                      onPressed: () async {
+                        final deferDays = await _pickDeferDays(context);
+                        if (deferDays == null) {
+                          return;
+                        }
+                        await ref.read(itemRepositoryProvider).defer(
+                          viewModel.id,
+                          deferDays: deferDays,
+                          actionAt: previewDate,
+                        );
+                      },
+                      child: const Text(ReminderUiText.deferAction),
+                    ),
+                  TextButton(
+                    onPressed: () {
+                      context.pushNamed(
+                        ItemHistoryPage.routeName,
+                        pathParameters: {'id': viewModel.id.toString()},
+                      );
+                    },
+                    child: const Text(ReminderUiText.viewAllAction),
+                  ),
                 ],
               ),
             ],
@@ -153,6 +187,37 @@ class _ItemList extends ConsumerWidget {
       },
     );
   }
+}
+
+Future<int?> _pickDeferDays(BuildContext context) async {
+  final controller = TextEditingController(text: '1');
+  final result = await showDialog<int>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text(ReminderUiText.deferAction),
+      content: TextField(
+        controller: controller,
+        keyboardType: TextInputType.number,
+        decoration: const InputDecoration(labelText: '延期天數'),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: () {
+            Navigator.of(
+              context,
+            ).pop(int.tryParse(controller.text.trim()) ?? 1);
+          },
+          child: const Text(ReminderUiText.saveAction),
+        ),
+      ],
+    ),
+  );
+  controller.dispose();
+  return result;
 }
 
 class _TimelineMilestoneList extends ConsumerWidget {

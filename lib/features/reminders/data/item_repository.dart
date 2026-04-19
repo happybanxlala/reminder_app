@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../domain/item_action_record.dart';
 import '../domain/item.dart';
 import '../domain/item_pack.dart';
 import '../domain/item_status_service.dart';
@@ -58,6 +59,14 @@ class ItemRepository {
     );
   }
 
+  Stream<List<ItemActionRecord>> watchActionHistory(int itemId) {
+    return _dao.watchItemActionRecordsForItem(itemId);
+  }
+
+  Future<List<ItemActionRecord>> listActionHistory(int itemId) {
+    return _dao.listItemActionRecordsForItem(itemId);
+  }
+
   Future<ItemBundle?> getItemById(int id) => _dao.getItemBundleById(id);
 
   Future<ItemPack?> getPackById(int id) => _dao.getItemPackById(id);
@@ -75,9 +84,20 @@ class ItemRepository {
         type: input.type.name,
         fixedScheduleType: Value(_fixedScheduleType(input.config)),
         fixedAnchorDate: Value(_fixedAnchorDate(input.config)),
+        fixedDueDate: Value(_fixedDueDate(input.config)),
         fixedTimeOfDay: Value(_fixedTimeOfDay(input.config)),
-        stateExpectedIntervalMinutes: Value(
-          _durationMinutes(_stateExpectedInterval(input.config)),
+        fixedOverduePolicy: Value(_fixedOverduePolicy(input.config)),
+        fixedExpectedBeforeMinutes: Value(
+          _durationMinutes(_fixedExpectedBefore(input.config)),
+        ),
+        fixedWarningBeforeMinutes: Value(
+          _durationMinutes(_fixedWarningBefore(input.config)),
+        ),
+        fixedDangerBeforeMinutes: Value(
+          _durationMinutes(_fixedDangerBefore(input.config)),
+        ),
+        stateExpectedAfterMinutes: Value(
+          _durationMinutes(_stateExpectedAfter(input.config)),
         ),
         stateWarningAfterMinutes: Value(
           _durationMinutes(_stateWarningAfter(input.config)),
@@ -85,12 +105,11 @@ class ItemRepository {
         stateDangerAfterMinutes: Value(
           _durationMinutes(_stateDangerAfter(input.config)),
         ),
-        resourceEstimatedDurationMinutes: Value(
-          _durationMinutes(_resourceEstimatedDuration(input.config)),
-        ),
-        resourceWarningBeforeDepletionMinutes: Value(
-          _durationMinutes(_resourceWarningBeforeDepletion(input.config)),
-        ),
+        resourceAnchorDate: Value(_resourceAnchorDate(input.config)),
+        resourceDurationDays: Value(_resourceDurationDays(input.config)),
+        resourceExpectedBeforeDays: Value(_resourceExpectedBefore(input.config)),
+        resourceWarningBeforeDays: Value(_resourceWarningBefore(input.config)),
+        resourceDangerBeforeDays: Value(_resourceDangerBefore(input.config)),
         lastDoneAt: const Value.absent(),
         createdAt: now.millisecondsSinceEpoch,
         updatedAt: now.millisecondsSinceEpoch,
@@ -116,9 +135,20 @@ class ItemRepository {
         type: input.type.name,
         fixedScheduleType: _fixedScheduleType(input.config),
         fixedAnchorDate: _fixedAnchorDate(input.config),
+        fixedDueDate: _fixedDueDate(input.config),
         fixedTimeOfDay: _fixedTimeOfDay(input.config),
-        stateExpectedIntervalMinutes: _durationMinutes(
-          _stateExpectedInterval(input.config),
+        fixedOverduePolicy: _fixedOverduePolicy(input.config),
+        fixedExpectedBeforeMinutes: _durationMinutes(
+          _fixedExpectedBefore(input.config),
+        ),
+        fixedWarningBeforeMinutes: _durationMinutes(
+          _fixedWarningBefore(input.config),
+        ),
+        fixedDangerBeforeMinutes: _durationMinutes(
+          _fixedDangerBefore(input.config),
+        ),
+        stateExpectedAfterMinutes: _durationMinutes(
+          _stateExpectedAfter(input.config),
         ),
         stateWarningAfterMinutes: _durationMinutes(
           _stateWarningAfter(input.config),
@@ -126,12 +156,11 @@ class ItemRepository {
         stateDangerAfterMinutes: _durationMinutes(
           _stateDangerAfter(input.config),
         ),
-        resourceEstimatedDurationMinutes: _durationMinutes(
-          _resourceEstimatedDuration(input.config),
-        ),
-        resourceWarningBeforeDepletionMinutes: _durationMinutes(
-          _resourceWarningBeforeDepletion(input.config),
-        ),
+        resourceAnchorDate: _resourceAnchorDate(input.config),
+        resourceDurationDays: _resourceDurationDays(input.config),
+        resourceExpectedBeforeDays: _resourceExpectedBefore(input.config),
+        resourceWarningBeforeDays: _resourceWarningBefore(input.config),
+        resourceDangerBeforeDays: _resourceDangerBefore(input.config),
         lastDoneAt: existing.item.lastDoneAt?.millisecondsSinceEpoch,
         createdAt: existing.item.createdAt.millisecondsSinceEpoch,
         updatedAt: now.millisecondsSinceEpoch,
@@ -139,8 +168,58 @@ class ItemRepository {
     );
   }
 
-  Future<bool> markDone(int id, {DateTime? doneAt}) {
-    return _dao.markItemDone(id, doneAt: doneAt);
+  Future<bool> markDone(
+    int id, {
+    DateTime? doneAt,
+    String? remark,
+    int? addedDays,
+    ItemNextCycleStrategy nextCycleStrategy =
+        ItemNextCycleStrategy.keepSchedule,
+  }) {
+    final payload = <String, Object?>{
+      'nextCycleStrategy': nextCycleStrategy.name,
+    };
+    if (addedDays != null) {
+      payload['addedDays'] = addedDays;
+    }
+    return _recordAction(
+      id,
+      actionType: ItemActionType.done,
+      actionDate: doneAt,
+      remark: remark,
+      payload: payload,
+    );
+  }
+
+  Future<bool> skip(
+    int id, {
+    DateTime? actionAt,
+    String? remark,
+    ItemNextCycleStrategy nextCycleStrategy =
+        ItemNextCycleStrategy.keepSchedule,
+  }) {
+    return _recordAction(
+      id,
+      actionType: ItemActionType.skipped,
+      actionDate: actionAt,
+      remark: remark,
+      payload: {'nextCycleStrategy': nextCycleStrategy.name},
+    );
+  }
+
+  Future<bool> defer(
+    int id, {
+    required int deferDays,
+    DateTime? actionAt,
+    String? remark,
+  }) {
+    return _recordAction(
+      id,
+      actionType: ItemActionType.deferred,
+      actionDate: actionAt,
+      remark: remark,
+      payload: {'deferDays': deferDays},
+    );
   }
 
   Future<int> createPack(ItemPackInput input) async {
@@ -248,6 +327,183 @@ class ItemRepository {
     return _statusService.elapsedSinceLastDone(item, now: now);
   }
 
+  Future<bool> _recordAction(
+    int id, {
+    required ItemActionType actionType,
+    DateTime? actionDate,
+    String? remark,
+    Map<String, Object?>? payload,
+  }) async {
+    final existing = await getItemById(id);
+    if (existing == null) {
+      return false;
+    }
+    final normalizedActionDate = _normalizeDate(actionDate ?? DateTime.now());
+    final now = DateTime.now();
+    return _dao.attachedDatabase.transaction(() async {
+      final companion = _updatedItemSnapshot(
+        existing.item,
+        actionType: actionType,
+        actionDate: normalizedActionDate,
+        payload: payload,
+        updatedAt: now,
+      );
+      final updated = await _dao.updateItemFields(id, companion);
+      if (!updated) {
+        return false;
+      }
+      await _dao.insertItemActionRecord(
+        ItemActionRecordsCompanion.insert(
+          itemId: id,
+          actionType: actionType.name,
+          actionDate: normalizedActionDate.millisecondsSinceEpoch,
+          remark: Value(remark),
+          payload: Value(ItemActionRecord.encodePayload(payload)),
+          createdAt: now.millisecondsSinceEpoch,
+          updatedAt: now.millisecondsSinceEpoch,
+        ),
+      );
+      return true;
+    });
+  }
+
+  ItemsCompanion _updatedItemSnapshot(
+    Item item, {
+    required ItemActionType actionType,
+    required DateTime actionDate,
+    required Map<String, Object?>? payload,
+    required DateTime updatedAt,
+  }) {
+    return switch (item.config) {
+      FixedItemConfig config => _updateFixedItemSnapshot(
+        item,
+        config,
+        actionType: actionType,
+        actionDate: actionDate,
+        payload: payload,
+        updatedAt: updatedAt,
+      ),
+      StateBasedItemConfig _ => _updateStateBasedSnapshot(
+        actionType: actionType,
+        actionDate: actionDate,
+        updatedAt: updatedAt,
+      ),
+      ResourceBasedItemConfig config => _updateResourceSnapshot(
+        config,
+        actionType: actionType,
+        actionDate: actionDate,
+        payload: payload,
+        updatedAt: updatedAt,
+      ),
+      _ => ItemsCompanion(
+        updatedAt: Value(updatedAt.millisecondsSinceEpoch),
+      ),
+    };
+  }
+
+  ItemsCompanion _updateFixedItemSnapshot(
+    Item item,
+    FixedItemConfig config, {
+    required ItemActionType actionType,
+    required DateTime actionDate,
+    required Map<String, Object?>? payload,
+    required DateTime updatedAt,
+  }) {
+    final cycle = _statusService.resolveFixedCycle(config, now: actionDate);
+    final nextCycleStrategy = ItemNextCycleStrategy.values.byName(
+      (payload?['nextCycleStrategy'] as String?) ??
+          ItemNextCycleStrategy.keepSchedule.name,
+    );
+    var anchorDate = config.anchorDate;
+    var dueDate = config.dueDate;
+    var lastDoneAt = item.lastDoneAt;
+
+    if (actionType == ItemActionType.deferred) {
+      final deferDays = (payload?['deferDays'] as num?)?.toInt() ?? 0;
+      if (anchorDate != null) {
+        anchorDate = anchorDate.add(Duration(days: deferDays));
+      }
+      if (dueDate != null) {
+        dueDate = dueDate.add(Duration(days: deferDays));
+      }
+    } else if (cycle != null && config.scheduleType != FixedScheduleType.custom) {
+      anchorDate = _statusService.nextFixedCycleAnchor(cycle, config);
+      dueDate = _statusService.nextFixedCycleDue(cycle, config);
+      if (config.overduePolicy == ItemOverduePolicy.waitForAction &&
+          actionDate.isAfter(cycle.dueDate) &&
+          nextCycleStrategy == ItemNextCycleStrategy.shiftByDelay) {
+        final delayDays = actionDate.difference(cycle.dueDate).inDays;
+        anchorDate = _statusService.shiftDateByDelay(anchorDate, delayDays);
+        dueDate = _statusService.shiftDateByDelay(dueDate, delayDays);
+      }
+    }
+
+    if (actionType == ItemActionType.done) {
+      lastDoneAt = actionDate;
+    }
+
+    return ItemsCompanion(
+      fixedAnchorDate: Value(anchorDate?.millisecondsSinceEpoch),
+      fixedDueDate: Value(dueDate?.millisecondsSinceEpoch),
+      lastDoneAt: Value(lastDoneAt?.millisecondsSinceEpoch),
+      updatedAt: Value(updatedAt.millisecondsSinceEpoch),
+    );
+  }
+
+  ItemsCompanion _updateStateBasedSnapshot({
+    required ItemActionType actionType,
+    required DateTime actionDate,
+    required DateTime updatedAt,
+  }) {
+    return ItemsCompanion(
+      lastDoneAt: actionType == ItemActionType.done
+          ? Value(actionDate.millisecondsSinceEpoch)
+          : const Value.absent(),
+      updatedAt: Value(updatedAt.millisecondsSinceEpoch),
+    );
+  }
+
+  ItemsCompanion _updateResourceSnapshot(
+    ResourceBasedItemConfig config, {
+    required ItemActionType actionType,
+    required DateTime actionDate,
+    required Map<String, Object?>? payload,
+    required DateTime updatedAt,
+  }) {
+    var anchorDate = config.anchorDate;
+    var durationDays = config.durationDays;
+    int? lastDoneAt;
+
+    if (actionType == ItemActionType.done) {
+      final addedDays = (payload?['addedDays'] as num?)?.toInt() ?? durationDays;
+      if (anchorDate == null || durationDays <= 0) {
+        anchorDate = actionDate;
+        durationDays = addedDays;
+      } else {
+        final depletionDate = anchorDate.add(Duration(days: durationDays));
+        if (actionDate.isAfter(depletionDate)) {
+          anchorDate = actionDate;
+          durationDays = addedDays;
+        } else {
+          final consumedDays = actionDate.difference(anchorDate).inDays + 1;
+          final remainingDays = durationDays - consumedDays;
+          durationDays = (remainingDays < 0 ? 0 : remainingDays) + addedDays;
+          anchorDate = actionDate.add(const Duration(days: 1));
+        }
+      }
+      lastDoneAt = actionDate.millisecondsSinceEpoch;
+    }
+
+    return ItemsCompanion(
+      resourceAnchorDate: Value(anchorDate?.millisecondsSinceEpoch),
+      resourceDurationDays: Value(durationDays),
+      lastDoneAt: lastDoneAt == null
+          ? const Value.absent()
+          : Value(lastDoneAt),
+      updatedAt: Value(updatedAt.millisecondsSinceEpoch),
+    );
+  }
+
   Future<int> _ensureDefaultPackId(DateTime now) async {
     final packs = await _dao.listItemPacks(includeArchived: true);
     for (final pack in packs) {
@@ -286,28 +542,63 @@ class ItemRepository {
 
   String? _fixedScheduleType(ItemConfig config) {
     return switch (config) {
-      FixedTimeItemConfig fixed => fixed.scheduleType.name,
+      FixedItemConfig fixed => fixed.scheduleType.name,
       _ => null,
     };
   }
 
   int? _fixedAnchorDate(ItemConfig config) {
     return switch (config) {
-      FixedTimeItemConfig fixed => fixed.anchorDate?.millisecondsSinceEpoch,
+      FixedItemConfig fixed => fixed.anchorDate?.millisecondsSinceEpoch,
+      _ => null,
+    };
+  }
+
+  int? _fixedDueDate(ItemConfig config) {
+    return switch (config) {
+      FixedItemConfig fixed => fixed.dueDate?.millisecondsSinceEpoch,
       _ => null,
     };
   }
 
   String? _fixedTimeOfDay(ItemConfig config) {
     return switch (config) {
-      FixedTimeItemConfig fixed => fixed.timeOfDay,
+      FixedItemConfig fixed => fixed.timeOfDay,
       _ => null,
     };
   }
 
-  Duration? _stateExpectedInterval(ItemConfig config) {
+  String? _fixedOverduePolicy(ItemConfig config) {
     return switch (config) {
-      StateBasedItemConfig state => state.expectedInterval,
+      FixedItemConfig fixed => fixed.overduePolicy.name,
+      _ => null,
+    };
+  }
+
+  Duration? _fixedExpectedBefore(ItemConfig config) {
+    return switch (config) {
+      FixedItemConfig fixed => fixed.expectedBefore,
+      _ => null,
+    };
+  }
+
+  Duration? _fixedWarningBefore(ItemConfig config) {
+    return switch (config) {
+      FixedItemConfig fixed => fixed.warningBefore,
+      _ => null,
+    };
+  }
+
+  Duration? _fixedDangerBefore(ItemConfig config) {
+    return switch (config) {
+      FixedItemConfig fixed => fixed.dangerBefore,
+      _ => null,
+    };
+  }
+
+  Duration? _stateExpectedAfter(ItemConfig config) {
+    return switch (config) {
+      StateBasedItemConfig state => state.expectedAfter,
       _ => null,
     };
   }
@@ -326,21 +617,46 @@ class ItemRepository {
     };
   }
 
-  Duration? _resourceEstimatedDuration(ItemConfig config) {
+  int? _resourceAnchorDate(ItemConfig config) {
     return switch (config) {
-      ResourceBasedItemConfig resource => resource.estimatedDuration,
+      ResourceBasedItemConfig resource => resource.anchorDate?.millisecondsSinceEpoch,
       _ => null,
     };
   }
 
-  Duration? _resourceWarningBeforeDepletion(ItemConfig config) {
+  int? _resourceDurationDays(ItemConfig config) {
     return switch (config) {
-      ResourceBasedItemConfig resource => resource.warningBeforeDepletion,
+      ResourceBasedItemConfig resource => resource.durationDays,
+      _ => null,
+    };
+  }
+
+  int? _resourceExpectedBefore(ItemConfig config) {
+    return switch (config) {
+      ResourceBasedItemConfig resource => resource.expectedBefore,
+      _ => null,
+    };
+  }
+
+  int? _resourceWarningBefore(ItemConfig config) {
+    return switch (config) {
+      ResourceBasedItemConfig resource => resource.warningBefore,
+      _ => null,
+    };
+  }
+
+  int? _resourceDangerBefore(ItemConfig config) {
+    return switch (config) {
+      ResourceBasedItemConfig resource => resource.dangerBefore,
       _ => null,
     };
   }
 
   int? _durationMinutes(Duration? value) {
     return value?.inMinutes;
+  }
+
+  DateTime _normalizeDate(DateTime value) {
+    return DateTime(value.year, value.month, value.day);
   }
 }

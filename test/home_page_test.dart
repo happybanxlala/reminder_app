@@ -397,7 +397,14 @@ class _RecordingItemRepository extends ItemRepository {
   DateTime? recordedDoneAt;
 
   @override
-  Future<bool> markDone(int id, {DateTime? doneAt}) async {
+  Future<bool> markDone(
+    int id, {
+    int? addedDays,
+    DateTime? doneAt,
+    ItemNextCycleStrategy nextCycleStrategy =
+        ItemNextCycleStrategy.keepSchedule,
+    String? remark,
+  }) async {
     recordedItemId = id;
     recordedDoneAt = doneAt;
     return true;

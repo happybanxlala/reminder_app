@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../domain/item_action_record.dart';
 import '../data/item_repository.dart';
 import '../data/local/item_timeline_dao.dart';
 import '../domain/item_pack.dart';
@@ -28,6 +29,11 @@ final packManagementItemsProvider = StreamProvider<List<ItemBundle>>((ref) {
 final itemProvider = FutureProvider.family<ItemBundle?, int>((ref, id) {
   return ref.watch(itemRepositoryProvider).getItemById(id);
 });
+
+final itemActionHistoryProvider =
+    StreamProvider.family<List<ItemActionRecord>, int>((ref, id) {
+      return ref.watch(itemRepositoryProvider).watchActionHistory(id);
+    });
 
 final itemPackProvider = FutureProvider.family<ItemPack?, int>((ref, id) {
   return ref.watch(itemRepositoryProvider).getPackById(id);

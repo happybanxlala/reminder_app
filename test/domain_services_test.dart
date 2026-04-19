@@ -46,9 +46,10 @@ void main() {
       packId: 1,
       title: 'Cat food',
       type: ItemType.resourceBased,
-      config: const ResourceBasedItemConfig(
-        estimatedDuration: Duration(days: 30),
-        warningBeforeDepletion: Duration(days: 7),
+      config: ResourceBasedItemConfig(
+        anchorDate: DateTime(2026, 4, 1),
+        durationDays: 30,
+        warningBefore: 7,
       ),
       lastDoneAt: DateTime(2026, 4, 1),
       createdAt: DateTime(2026, 4, 1),

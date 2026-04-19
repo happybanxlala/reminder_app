@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../features/reminders/ui/pages/home_page.dart';
 import '../features/reminders/ui/pages/feature_page.dart';
 import '../features/reminders/ui/pages/item_edit_page.dart';
+import '../features/reminders/ui/pages/item_history_page.dart';
 import '../features/reminders/ui/pages/timeline_edit_page.dart';
 import '../features/reminders/ui/pages/timeline_milestone_history_page.dart';
 
@@ -69,6 +70,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             id: id,
             lockedPackId: state.extra as int?,
           );
+        },
+      ),
+      GoRoute(
+        path: ItemHistoryPage.routePath,
+        name: ItemHistoryPage.routeName,
+        builder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '');
+          return ItemHistoryPage(itemId: id ?? 0);
         },
       ),
       GoRoute(

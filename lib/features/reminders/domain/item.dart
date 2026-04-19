@@ -1,10 +1,17 @@
-enum ItemType { fixedTime, stateBased, resourceBased }
+enum ItemType { fixed, stateBased, resourceBased }
 
 enum ItemStatus { normal, warning, danger, unknown }
 
 enum ItemLifecycleStatus { active, paused, archived }
 
-enum FixedTimeScheduleType { daily, weekly, custom }
+enum FixedScheduleType { daily, weekly, custom }
+
+enum ItemOverduePolicy { autoAdvance, waitForAction }
+
+enum ItemNextCycleStrategy { keepSchedule, shiftByDelay }
+
+typedef FixedTimeScheduleType = FixedScheduleType;
+typedef FixedTimeItemConfig = FixedItemConfig;
 
 abstract class ItemConfig {
   const ItemConfig();
@@ -12,31 +19,44 @@ abstract class ItemConfig {
   ItemType get type;
 }
 
-class FixedTimeItemConfig extends ItemConfig {
-  const FixedTimeItemConfig({
+class FixedItemConfig extends ItemConfig {
+  const FixedItemConfig({
     required this.scheduleType,
     this.anchorDate,
+    this.dueDate,
     this.timeOfDay,
+    this.overduePolicy = ItemOverduePolicy.autoAdvance,
+    this.expectedBefore = Duration.zero,
+    this.warningBefore = Duration.zero,
+    this.dangerBefore = Duration.zero,
   });
 
-  final FixedTimeScheduleType scheduleType;
+  final FixedScheduleType scheduleType;
   final DateTime? anchorDate;
+  final DateTime? dueDate;
   final String? timeOfDay;
+  final ItemOverduePolicy overduePolicy;
+  final Duration expectedBefore;
+  final Duration warningBefore;
+  final Duration dangerBefore;
 
   @override
-  ItemType get type => ItemType.fixedTime;
+  ItemType get type => ItemType.fixed;
 }
 
 class StateBasedItemConfig extends ItemConfig {
   const StateBasedItemConfig({
-    required this.expectedInterval,
+    Duration? expectedAfter,
+    Duration? expectedInterval,
     required this.warningAfter,
     required this.dangerAfter,
-  });
+  }) : expectedAfter = expectedAfter ?? expectedInterval ?? Duration.zero;
 
-  final Duration expectedInterval;
+  final Duration expectedAfter;
   final Duration warningAfter;
   final Duration dangerAfter;
+
+  Duration get expectedInterval => expectedAfter;
 
   @override
   ItemType get type => ItemType.stateBased;
@@ -44,12 +64,21 @@ class StateBasedItemConfig extends ItemConfig {
 
 class ResourceBasedItemConfig extends ItemConfig {
   const ResourceBasedItemConfig({
-    required this.estimatedDuration,
-    required this.warningBeforeDepletion,
+    this.anchorDate,
+    required this.durationDays,
+    this.expectedBefore = 0,
+    this.warningBefore = 0,
+    this.dangerBefore = 0,
   });
 
-  final Duration estimatedDuration;
-  final Duration warningBeforeDepletion;
+  final DateTime? anchorDate;
+  final int durationDays;
+  final int expectedBefore;
+  final int warningBefore;
+  final int dangerBefore;
+
+  Duration get estimatedDuration => Duration(days: durationDays);
+  Duration get warningBeforeDepletion => Duration(days: warningBefore);
 
   @override
   ItemType get type => ItemType.resourceBased;

@@ -28,13 +28,36 @@ class Items extends Table {
   TextColumn get type => text()();
   TextColumn get fixedScheduleType => text().nullable()();
   IntColumn get fixedAnchorDate => integer().nullable()();
+  IntColumn get fixedDueDate => integer().nullable()();
   TextColumn get fixedTimeOfDay => text().nullable()();
-  IntColumn get stateExpectedIntervalMinutes => integer().nullable()();
+  TextColumn get fixedOverduePolicy => text().nullable()();
+  IntColumn get fixedExpectedBeforeMinutes => integer().nullable()();
+  IntColumn get fixedWarningBeforeMinutes => integer().nullable()();
+  IntColumn get fixedDangerBeforeMinutes => integer().nullable()();
+  IntColumn get stateExpectedAfterMinutes => integer().nullable()();
   IntColumn get stateWarningAfterMinutes => integer().nullable()();
   IntColumn get stateDangerAfterMinutes => integer().nullable()();
-  IntColumn get resourceEstimatedDurationMinutes => integer().nullable()();
-  IntColumn get resourceWarningBeforeDepletionMinutes => integer().nullable()();
+  IntColumn get resourceAnchorDate => integer().nullable()();
+  IntColumn get resourceDurationDays => integer().nullable()();
+  IntColumn get resourceExpectedBeforeDays => integer().nullable()();
+  IntColumn get resourceWarningBeforeDays => integer().nullable()();
+  IntColumn get resourceDangerBeforeDays => integer().nullable()();
   IntColumn get lastDoneAt => integer().nullable()();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+}
+
+@DataClassName('ItemActionRecordRow')
+class ItemActionRecords extends Table {
+  @override
+  String get tableName => 'item_action_records';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get itemId => integer().references(Items, #id)();
+  TextColumn get actionType => text()();
+  IntColumn get actionDate => integer()();
+  TextColumn get remark => text().nullable()();
+  TextColumn get payload => text().nullable()();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 }

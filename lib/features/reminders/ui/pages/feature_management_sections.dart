@@ -13,6 +13,7 @@ import '../../providers/developer_settings_providers.dart';
 import '../../providers/item_providers.dart';
 import '../../providers/timeline_providers.dart';
 import 'item_edit_page.dart';
+import 'item_history_page.dart';
 import 'timeline_edit_page.dart';
 import 'timeline_milestone_history_page.dart';
 
@@ -592,6 +593,41 @@ class _ItemCard extends ConsumerWidget {
                   },
                   child: const Text(ReminderUiText.completeAction),
                 ),
+                OutlinedButton(
+                  key: Key('item-skip-${bundle.item.id}'),
+                  onPressed: () async {
+                    await ref
+                        .read(itemRepositoryProvider)
+                        .skip(bundle.item.id, actionAt: previewDate);
+                  },
+                  child: const Text(ReminderUiText.skipAction),
+                ),
+                if (bundle.item.type == ItemType.fixed)
+                  OutlinedButton(
+                    key: Key('item-defer-${bundle.item.id}'),
+                    onPressed: () async {
+                      final deferDays = await _showDeferDialog(context);
+                      if (deferDays == null) {
+                        return;
+                      }
+                      await ref.read(itemRepositoryProvider).defer(
+                        bundle.item.id,
+                        deferDays: deferDays,
+                        actionAt: previewDate,
+                      );
+                    },
+                    child: const Text(ReminderUiText.deferAction),
+                  ),
+                OutlinedButton(
+                  key: Key('item-history-${bundle.item.id}'),
+                  onPressed: () {
+                    context.pushNamed(
+                      ItemHistoryPage.routeName,
+                      pathParameters: {'id': bundle.item.id.toString()},
+                    );
+                  },
+                  child: const Text(ReminderUiText.viewAllAction),
+                ),
               ],
             ),
           ],
@@ -599,6 +635,37 @@ class _ItemCard extends ConsumerWidget {
       ),
     );
   }
+}
+
+Future<int?> _showDeferDialog(BuildContext context) async {
+  final controller = TextEditingController(text: '1');
+  final result = await showDialog<int>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text(ReminderUiText.deferAction),
+      content: TextField(
+        controller: controller,
+        keyboardType: TextInputType.number,
+        decoration: const InputDecoration(labelText: '延期天數'),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: () {
+            Navigator.of(
+              context,
+            ).pop(int.tryParse(controller.text.trim()) ?? 1);
+          },
+          child: const Text(ReminderUiText.saveAction),
+        ),
+      ],
+    ),
+  );
+  controller.dispose();
+  return result;
 }
 
 class _SectionHeader extends StatelessWidget {

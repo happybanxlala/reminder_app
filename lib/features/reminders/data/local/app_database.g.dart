@@ -555,6 +555,17 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _fixedDueDateMeta = const VerificationMeta(
+    'fixedDueDate',
+  );
+  @override
+  late final GeneratedColumn<int> fixedDueDate = GeneratedColumn<int>(
+    'fixed_due_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _fixedTimeOfDayMeta = const VerificationMeta(
     'fixedTimeOfDay',
   );
@@ -566,12 +577,56 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _stateExpectedIntervalMinutesMeta =
-      const VerificationMeta('stateExpectedIntervalMinutes');
+  static const VerificationMeta _fixedOverduePolicyMeta =
+      const VerificationMeta('fixedOverduePolicy');
   @override
-  late final GeneratedColumn<int> stateExpectedIntervalMinutes =
+  late final GeneratedColumn<String> fixedOverduePolicy =
+      GeneratedColumn<String>(
+        'fixed_overdue_policy',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _fixedExpectedBeforeMinutesMeta =
+      const VerificationMeta('fixedExpectedBeforeMinutes');
+  @override
+  late final GeneratedColumn<int> fixedExpectedBeforeMinutes =
       GeneratedColumn<int>(
-        'state_expected_interval_minutes',
+        'fixed_expected_before_minutes',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _fixedWarningBeforeMinutesMeta =
+      const VerificationMeta('fixedWarningBeforeMinutes');
+  @override
+  late final GeneratedColumn<int> fixedWarningBeforeMinutes =
+      GeneratedColumn<int>(
+        'fixed_warning_before_minutes',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _fixedDangerBeforeMinutesMeta =
+      const VerificationMeta('fixedDangerBeforeMinutes');
+  @override
+  late final GeneratedColumn<int> fixedDangerBeforeMinutes =
+      GeneratedColumn<int>(
+        'fixed_danger_before_minutes',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _stateExpectedAfterMinutesMeta =
+      const VerificationMeta('stateExpectedAfterMinutes');
+  @override
+  late final GeneratedColumn<int> stateExpectedAfterMinutes =
+      GeneratedColumn<int>(
+        'state_expected_after_minutes',
         aliasedName,
         true,
         type: DriftSqlType.int,
@@ -599,23 +654,54 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
         type: DriftSqlType.int,
         requiredDuringInsert: false,
       );
-  static const VerificationMeta _resourceEstimatedDurationMinutesMeta =
-      const VerificationMeta('resourceEstimatedDurationMinutes');
+  static const VerificationMeta _resourceAnchorDateMeta =
+      const VerificationMeta('resourceAnchorDate');
   @override
-  late final GeneratedColumn<int> resourceEstimatedDurationMinutes =
+  late final GeneratedColumn<int> resourceAnchorDate = GeneratedColumn<int>(
+    'resource_anchor_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _resourceDurationDaysMeta =
+      const VerificationMeta('resourceDurationDays');
+  @override
+  late final GeneratedColumn<int> resourceDurationDays = GeneratedColumn<int>(
+    'resource_duration_days',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _resourceExpectedBeforeDaysMeta =
+      const VerificationMeta('resourceExpectedBeforeDays');
+  @override
+  late final GeneratedColumn<int> resourceExpectedBeforeDays =
       GeneratedColumn<int>(
-        'resource_estimated_duration_minutes',
+        'resource_expected_before_days',
         aliasedName,
         true,
         type: DriftSqlType.int,
         requiredDuringInsert: false,
       );
-  static const VerificationMeta _resourceWarningBeforeDepletionMinutesMeta =
-      const VerificationMeta('resourceWarningBeforeDepletionMinutes');
+  static const VerificationMeta _resourceWarningBeforeDaysMeta =
+      const VerificationMeta('resourceWarningBeforeDays');
   @override
-  late final GeneratedColumn<int> resourceWarningBeforeDepletionMinutes =
+  late final GeneratedColumn<int> resourceWarningBeforeDays =
       GeneratedColumn<int>(
-        'resource_warning_before_depletion_minutes',
+        'resource_warning_before_days',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _resourceDangerBeforeDaysMeta =
+      const VerificationMeta('resourceDangerBeforeDays');
+  @override
+  late final GeneratedColumn<int> resourceDangerBeforeDays =
+      GeneratedColumn<int>(
+        'resource_danger_before_days',
         aliasedName,
         true,
         type: DriftSqlType.int,
@@ -664,12 +750,20 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
     type,
     fixedScheduleType,
     fixedAnchorDate,
+    fixedDueDate,
     fixedTimeOfDay,
-    stateExpectedIntervalMinutes,
+    fixedOverduePolicy,
+    fixedExpectedBeforeMinutes,
+    fixedWarningBeforeMinutes,
+    fixedDangerBeforeMinutes,
+    stateExpectedAfterMinutes,
     stateWarningAfterMinutes,
     stateDangerAfterMinutes,
-    resourceEstimatedDurationMinutes,
-    resourceWarningBeforeDepletionMinutes,
+    resourceAnchorDate,
+    resourceDurationDays,
+    resourceExpectedBeforeDays,
+    resourceWarningBeforeDays,
+    resourceDangerBeforeDays,
     lastDoneAt,
     createdAt,
     updatedAt,
@@ -746,6 +840,15 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
         ),
       );
     }
+    if (data.containsKey('fixed_due_date')) {
+      context.handle(
+        _fixedDueDateMeta,
+        fixedDueDate.isAcceptableOrUnknown(
+          data['fixed_due_date']!,
+          _fixedDueDateMeta,
+        ),
+      );
+    }
     if (data.containsKey('fixed_time_of_day')) {
       context.handle(
         _fixedTimeOfDayMeta,
@@ -755,12 +858,48 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
         ),
       );
     }
-    if (data.containsKey('state_expected_interval_minutes')) {
+    if (data.containsKey('fixed_overdue_policy')) {
       context.handle(
-        _stateExpectedIntervalMinutesMeta,
-        stateExpectedIntervalMinutes.isAcceptableOrUnknown(
-          data['state_expected_interval_minutes']!,
-          _stateExpectedIntervalMinutesMeta,
+        _fixedOverduePolicyMeta,
+        fixedOverduePolicy.isAcceptableOrUnknown(
+          data['fixed_overdue_policy']!,
+          _fixedOverduePolicyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('fixed_expected_before_minutes')) {
+      context.handle(
+        _fixedExpectedBeforeMinutesMeta,
+        fixedExpectedBeforeMinutes.isAcceptableOrUnknown(
+          data['fixed_expected_before_minutes']!,
+          _fixedExpectedBeforeMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('fixed_warning_before_minutes')) {
+      context.handle(
+        _fixedWarningBeforeMinutesMeta,
+        fixedWarningBeforeMinutes.isAcceptableOrUnknown(
+          data['fixed_warning_before_minutes']!,
+          _fixedWarningBeforeMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('fixed_danger_before_minutes')) {
+      context.handle(
+        _fixedDangerBeforeMinutesMeta,
+        fixedDangerBeforeMinutes.isAcceptableOrUnknown(
+          data['fixed_danger_before_minutes']!,
+          _fixedDangerBeforeMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('state_expected_after_minutes')) {
+      context.handle(
+        _stateExpectedAfterMinutesMeta,
+        stateExpectedAfterMinutes.isAcceptableOrUnknown(
+          data['state_expected_after_minutes']!,
+          _stateExpectedAfterMinutesMeta,
         ),
       );
     }
@@ -782,21 +921,48 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
         ),
       );
     }
-    if (data.containsKey('resource_estimated_duration_minutes')) {
+    if (data.containsKey('resource_anchor_date')) {
       context.handle(
-        _resourceEstimatedDurationMinutesMeta,
-        resourceEstimatedDurationMinutes.isAcceptableOrUnknown(
-          data['resource_estimated_duration_minutes']!,
-          _resourceEstimatedDurationMinutesMeta,
+        _resourceAnchorDateMeta,
+        resourceAnchorDate.isAcceptableOrUnknown(
+          data['resource_anchor_date']!,
+          _resourceAnchorDateMeta,
         ),
       );
     }
-    if (data.containsKey('resource_warning_before_depletion_minutes')) {
+    if (data.containsKey('resource_duration_days')) {
       context.handle(
-        _resourceWarningBeforeDepletionMinutesMeta,
-        resourceWarningBeforeDepletionMinutes.isAcceptableOrUnknown(
-          data['resource_warning_before_depletion_minutes']!,
-          _resourceWarningBeforeDepletionMinutesMeta,
+        _resourceDurationDaysMeta,
+        resourceDurationDays.isAcceptableOrUnknown(
+          data['resource_duration_days']!,
+          _resourceDurationDaysMeta,
+        ),
+      );
+    }
+    if (data.containsKey('resource_expected_before_days')) {
+      context.handle(
+        _resourceExpectedBeforeDaysMeta,
+        resourceExpectedBeforeDays.isAcceptableOrUnknown(
+          data['resource_expected_before_days']!,
+          _resourceExpectedBeforeDaysMeta,
+        ),
+      );
+    }
+    if (data.containsKey('resource_warning_before_days')) {
+      context.handle(
+        _resourceWarningBeforeDaysMeta,
+        resourceWarningBeforeDays.isAcceptableOrUnknown(
+          data['resource_warning_before_days']!,
+          _resourceWarningBeforeDaysMeta,
+        ),
+      );
+    }
+    if (data.containsKey('resource_danger_before_days')) {
+      context.handle(
+        _resourceDangerBeforeDaysMeta,
+        resourceDangerBeforeDays.isAcceptableOrUnknown(
+          data['resource_danger_before_days']!,
+          _resourceDangerBeforeDaysMeta,
         ),
       );
     }
@@ -866,13 +1032,33 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
         DriftSqlType.int,
         data['${effectivePrefix}fixed_anchor_date'],
       ),
+      fixedDueDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}fixed_due_date'],
+      ),
       fixedTimeOfDay: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}fixed_time_of_day'],
       ),
-      stateExpectedIntervalMinutes: attachedDatabase.typeMapping.read(
+      fixedOverduePolicy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}fixed_overdue_policy'],
+      ),
+      fixedExpectedBeforeMinutes: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}state_expected_interval_minutes'],
+        data['${effectivePrefix}fixed_expected_before_minutes'],
+      ),
+      fixedWarningBeforeMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}fixed_warning_before_minutes'],
+      ),
+      fixedDangerBeforeMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}fixed_danger_before_minutes'],
+      ),
+      stateExpectedAfterMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}state_expected_after_minutes'],
       ),
       stateWarningAfterMinutes: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
@@ -882,13 +1068,25 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
         DriftSqlType.int,
         data['${effectivePrefix}state_danger_after_minutes'],
       ),
-      resourceEstimatedDurationMinutes: attachedDatabase.typeMapping.read(
+      resourceAnchorDate: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}resource_estimated_duration_minutes'],
+        data['${effectivePrefix}resource_anchor_date'],
       ),
-      resourceWarningBeforeDepletionMinutes: attachedDatabase.typeMapping.read(
+      resourceDurationDays: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}resource_warning_before_depletion_minutes'],
+        data['${effectivePrefix}resource_duration_days'],
+      ),
+      resourceExpectedBeforeDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}resource_expected_before_days'],
+      ),
+      resourceWarningBeforeDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}resource_warning_before_days'],
+      ),
+      resourceDangerBeforeDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}resource_danger_before_days'],
       ),
       lastDoneAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
@@ -920,12 +1118,20 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
   final String type;
   final String? fixedScheduleType;
   final int? fixedAnchorDate;
+  final int? fixedDueDate;
   final String? fixedTimeOfDay;
-  final int? stateExpectedIntervalMinutes;
+  final String? fixedOverduePolicy;
+  final int? fixedExpectedBeforeMinutes;
+  final int? fixedWarningBeforeMinutes;
+  final int? fixedDangerBeforeMinutes;
+  final int? stateExpectedAfterMinutes;
   final int? stateWarningAfterMinutes;
   final int? stateDangerAfterMinutes;
-  final int? resourceEstimatedDurationMinutes;
-  final int? resourceWarningBeforeDepletionMinutes;
+  final int? resourceAnchorDate;
+  final int? resourceDurationDays;
+  final int? resourceExpectedBeforeDays;
+  final int? resourceWarningBeforeDays;
+  final int? resourceDangerBeforeDays;
   final int? lastDoneAt;
   final int createdAt;
   final int updatedAt;
@@ -938,12 +1144,20 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     required this.type,
     this.fixedScheduleType,
     this.fixedAnchorDate,
+    this.fixedDueDate,
     this.fixedTimeOfDay,
-    this.stateExpectedIntervalMinutes,
+    this.fixedOverduePolicy,
+    this.fixedExpectedBeforeMinutes,
+    this.fixedWarningBeforeMinutes,
+    this.fixedDangerBeforeMinutes,
+    this.stateExpectedAfterMinutes,
     this.stateWarningAfterMinutes,
     this.stateDangerAfterMinutes,
-    this.resourceEstimatedDurationMinutes,
-    this.resourceWarningBeforeDepletionMinutes,
+    this.resourceAnchorDate,
+    this.resourceDurationDays,
+    this.resourceExpectedBeforeDays,
+    this.resourceWarningBeforeDays,
+    this.resourceDangerBeforeDays,
     this.lastDoneAt,
     required this.createdAt,
     required this.updatedAt,
@@ -965,12 +1179,33 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     if (!nullToAbsent || fixedAnchorDate != null) {
       map['fixed_anchor_date'] = Variable<int>(fixedAnchorDate);
     }
+    if (!nullToAbsent || fixedDueDate != null) {
+      map['fixed_due_date'] = Variable<int>(fixedDueDate);
+    }
     if (!nullToAbsent || fixedTimeOfDay != null) {
       map['fixed_time_of_day'] = Variable<String>(fixedTimeOfDay);
     }
-    if (!nullToAbsent || stateExpectedIntervalMinutes != null) {
-      map['state_expected_interval_minutes'] = Variable<int>(
-        stateExpectedIntervalMinutes,
+    if (!nullToAbsent || fixedOverduePolicy != null) {
+      map['fixed_overdue_policy'] = Variable<String>(fixedOverduePolicy);
+    }
+    if (!nullToAbsent || fixedExpectedBeforeMinutes != null) {
+      map['fixed_expected_before_minutes'] = Variable<int>(
+        fixedExpectedBeforeMinutes,
+      );
+    }
+    if (!nullToAbsent || fixedWarningBeforeMinutes != null) {
+      map['fixed_warning_before_minutes'] = Variable<int>(
+        fixedWarningBeforeMinutes,
+      );
+    }
+    if (!nullToAbsent || fixedDangerBeforeMinutes != null) {
+      map['fixed_danger_before_minutes'] = Variable<int>(
+        fixedDangerBeforeMinutes,
+      );
+    }
+    if (!nullToAbsent || stateExpectedAfterMinutes != null) {
+      map['state_expected_after_minutes'] = Variable<int>(
+        stateExpectedAfterMinutes,
       );
     }
     if (!nullToAbsent || stateWarningAfterMinutes != null) {
@@ -983,14 +1218,25 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
         stateDangerAfterMinutes,
       );
     }
-    if (!nullToAbsent || resourceEstimatedDurationMinutes != null) {
-      map['resource_estimated_duration_minutes'] = Variable<int>(
-        resourceEstimatedDurationMinutes,
+    if (!nullToAbsent || resourceAnchorDate != null) {
+      map['resource_anchor_date'] = Variable<int>(resourceAnchorDate);
+    }
+    if (!nullToAbsent || resourceDurationDays != null) {
+      map['resource_duration_days'] = Variable<int>(resourceDurationDays);
+    }
+    if (!nullToAbsent || resourceExpectedBeforeDays != null) {
+      map['resource_expected_before_days'] = Variable<int>(
+        resourceExpectedBeforeDays,
       );
     }
-    if (!nullToAbsent || resourceWarningBeforeDepletionMinutes != null) {
-      map['resource_warning_before_depletion_minutes'] = Variable<int>(
-        resourceWarningBeforeDepletionMinutes,
+    if (!nullToAbsent || resourceWarningBeforeDays != null) {
+      map['resource_warning_before_days'] = Variable<int>(
+        resourceWarningBeforeDays,
+      );
+    }
+    if (!nullToAbsent || resourceDangerBeforeDays != null) {
+      map['resource_danger_before_days'] = Variable<int>(
+        resourceDangerBeforeDays,
       );
     }
     if (!nullToAbsent || lastDoneAt != null) {
@@ -1017,27 +1263,53 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       fixedAnchorDate: fixedAnchorDate == null && nullToAbsent
           ? const Value.absent()
           : Value(fixedAnchorDate),
+      fixedDueDate: fixedDueDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fixedDueDate),
       fixedTimeOfDay: fixedTimeOfDay == null && nullToAbsent
           ? const Value.absent()
           : Value(fixedTimeOfDay),
-      stateExpectedIntervalMinutes:
-          stateExpectedIntervalMinutes == null && nullToAbsent
+      fixedOverduePolicy: fixedOverduePolicy == null && nullToAbsent
           ? const Value.absent()
-          : Value(stateExpectedIntervalMinutes),
+          : Value(fixedOverduePolicy),
+      fixedExpectedBeforeMinutes:
+          fixedExpectedBeforeMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fixedExpectedBeforeMinutes),
+      fixedWarningBeforeMinutes:
+          fixedWarningBeforeMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fixedWarningBeforeMinutes),
+      fixedDangerBeforeMinutes: fixedDangerBeforeMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fixedDangerBeforeMinutes),
+      stateExpectedAfterMinutes:
+          stateExpectedAfterMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stateExpectedAfterMinutes),
       stateWarningAfterMinutes: stateWarningAfterMinutes == null && nullToAbsent
           ? const Value.absent()
           : Value(stateWarningAfterMinutes),
       stateDangerAfterMinutes: stateDangerAfterMinutes == null && nullToAbsent
           ? const Value.absent()
           : Value(stateDangerAfterMinutes),
-      resourceEstimatedDurationMinutes:
-          resourceEstimatedDurationMinutes == null && nullToAbsent
+      resourceAnchorDate: resourceAnchorDate == null && nullToAbsent
           ? const Value.absent()
-          : Value(resourceEstimatedDurationMinutes),
-      resourceWarningBeforeDepletionMinutes:
-          resourceWarningBeforeDepletionMinutes == null && nullToAbsent
+          : Value(resourceAnchorDate),
+      resourceDurationDays: resourceDurationDays == null && nullToAbsent
           ? const Value.absent()
-          : Value(resourceWarningBeforeDepletionMinutes),
+          : Value(resourceDurationDays),
+      resourceExpectedBeforeDays:
+          resourceExpectedBeforeDays == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resourceExpectedBeforeDays),
+      resourceWarningBeforeDays:
+          resourceWarningBeforeDays == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resourceWarningBeforeDays),
+      resourceDangerBeforeDays: resourceDangerBeforeDays == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resourceDangerBeforeDays),
       lastDoneAt: lastDoneAt == null && nullToAbsent
           ? const Value.absent()
           : Value(lastDoneAt),
@@ -1062,9 +1334,22 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
         json['fixedScheduleType'],
       ),
       fixedAnchorDate: serializer.fromJson<int?>(json['fixedAnchorDate']),
+      fixedDueDate: serializer.fromJson<int?>(json['fixedDueDate']),
       fixedTimeOfDay: serializer.fromJson<String?>(json['fixedTimeOfDay']),
-      stateExpectedIntervalMinutes: serializer.fromJson<int?>(
-        json['stateExpectedIntervalMinutes'],
+      fixedOverduePolicy: serializer.fromJson<String?>(
+        json['fixedOverduePolicy'],
+      ),
+      fixedExpectedBeforeMinutes: serializer.fromJson<int?>(
+        json['fixedExpectedBeforeMinutes'],
+      ),
+      fixedWarningBeforeMinutes: serializer.fromJson<int?>(
+        json['fixedWarningBeforeMinutes'],
+      ),
+      fixedDangerBeforeMinutes: serializer.fromJson<int?>(
+        json['fixedDangerBeforeMinutes'],
+      ),
+      stateExpectedAfterMinutes: serializer.fromJson<int?>(
+        json['stateExpectedAfterMinutes'],
       ),
       stateWarningAfterMinutes: serializer.fromJson<int?>(
         json['stateWarningAfterMinutes'],
@@ -1072,11 +1357,18 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       stateDangerAfterMinutes: serializer.fromJson<int?>(
         json['stateDangerAfterMinutes'],
       ),
-      resourceEstimatedDurationMinutes: serializer.fromJson<int?>(
-        json['resourceEstimatedDurationMinutes'],
+      resourceAnchorDate: serializer.fromJson<int?>(json['resourceAnchorDate']),
+      resourceDurationDays: serializer.fromJson<int?>(
+        json['resourceDurationDays'],
       ),
-      resourceWarningBeforeDepletionMinutes: serializer.fromJson<int?>(
-        json['resourceWarningBeforeDepletionMinutes'],
+      resourceExpectedBeforeDays: serializer.fromJson<int?>(
+        json['resourceExpectedBeforeDays'],
+      ),
+      resourceWarningBeforeDays: serializer.fromJson<int?>(
+        json['resourceWarningBeforeDays'],
+      ),
+      resourceDangerBeforeDays: serializer.fromJson<int?>(
+        json['resourceDangerBeforeDays'],
       ),
       lastDoneAt: serializer.fromJson<int?>(json['lastDoneAt']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
@@ -1095,9 +1387,20 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       'type': serializer.toJson<String>(type),
       'fixedScheduleType': serializer.toJson<String?>(fixedScheduleType),
       'fixedAnchorDate': serializer.toJson<int?>(fixedAnchorDate),
+      'fixedDueDate': serializer.toJson<int?>(fixedDueDate),
       'fixedTimeOfDay': serializer.toJson<String?>(fixedTimeOfDay),
-      'stateExpectedIntervalMinutes': serializer.toJson<int?>(
-        stateExpectedIntervalMinutes,
+      'fixedOverduePolicy': serializer.toJson<String?>(fixedOverduePolicy),
+      'fixedExpectedBeforeMinutes': serializer.toJson<int?>(
+        fixedExpectedBeforeMinutes,
+      ),
+      'fixedWarningBeforeMinutes': serializer.toJson<int?>(
+        fixedWarningBeforeMinutes,
+      ),
+      'fixedDangerBeforeMinutes': serializer.toJson<int?>(
+        fixedDangerBeforeMinutes,
+      ),
+      'stateExpectedAfterMinutes': serializer.toJson<int?>(
+        stateExpectedAfterMinutes,
       ),
       'stateWarningAfterMinutes': serializer.toJson<int?>(
         stateWarningAfterMinutes,
@@ -1105,11 +1408,16 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       'stateDangerAfterMinutes': serializer.toJson<int?>(
         stateDangerAfterMinutes,
       ),
-      'resourceEstimatedDurationMinutes': serializer.toJson<int?>(
-        resourceEstimatedDurationMinutes,
+      'resourceAnchorDate': serializer.toJson<int?>(resourceAnchorDate),
+      'resourceDurationDays': serializer.toJson<int?>(resourceDurationDays),
+      'resourceExpectedBeforeDays': serializer.toJson<int?>(
+        resourceExpectedBeforeDays,
       ),
-      'resourceWarningBeforeDepletionMinutes': serializer.toJson<int?>(
-        resourceWarningBeforeDepletionMinutes,
+      'resourceWarningBeforeDays': serializer.toJson<int?>(
+        resourceWarningBeforeDays,
+      ),
+      'resourceDangerBeforeDays': serializer.toJson<int?>(
+        resourceDangerBeforeDays,
       ),
       'lastDoneAt': serializer.toJson<int?>(lastDoneAt),
       'createdAt': serializer.toJson<int>(createdAt),
@@ -1126,12 +1434,20 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     String? type,
     Value<String?> fixedScheduleType = const Value.absent(),
     Value<int?> fixedAnchorDate = const Value.absent(),
+    Value<int?> fixedDueDate = const Value.absent(),
     Value<String?> fixedTimeOfDay = const Value.absent(),
-    Value<int?> stateExpectedIntervalMinutes = const Value.absent(),
+    Value<String?> fixedOverduePolicy = const Value.absent(),
+    Value<int?> fixedExpectedBeforeMinutes = const Value.absent(),
+    Value<int?> fixedWarningBeforeMinutes = const Value.absent(),
+    Value<int?> fixedDangerBeforeMinutes = const Value.absent(),
+    Value<int?> stateExpectedAfterMinutes = const Value.absent(),
     Value<int?> stateWarningAfterMinutes = const Value.absent(),
     Value<int?> stateDangerAfterMinutes = const Value.absent(),
-    Value<int?> resourceEstimatedDurationMinutes = const Value.absent(),
-    Value<int?> resourceWarningBeforeDepletionMinutes = const Value.absent(),
+    Value<int?> resourceAnchorDate = const Value.absent(),
+    Value<int?> resourceDurationDays = const Value.absent(),
+    Value<int?> resourceExpectedBeforeDays = const Value.absent(),
+    Value<int?> resourceWarningBeforeDays = const Value.absent(),
+    Value<int?> resourceDangerBeforeDays = const Value.absent(),
     Value<int?> lastDoneAt = const Value.absent(),
     int? createdAt,
     int? updatedAt,
@@ -1148,25 +1464,46 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     fixedAnchorDate: fixedAnchorDate.present
         ? fixedAnchorDate.value
         : this.fixedAnchorDate,
+    fixedDueDate: fixedDueDate.present ? fixedDueDate.value : this.fixedDueDate,
     fixedTimeOfDay: fixedTimeOfDay.present
         ? fixedTimeOfDay.value
         : this.fixedTimeOfDay,
-    stateExpectedIntervalMinutes: stateExpectedIntervalMinutes.present
-        ? stateExpectedIntervalMinutes.value
-        : this.stateExpectedIntervalMinutes,
+    fixedOverduePolicy: fixedOverduePolicy.present
+        ? fixedOverduePolicy.value
+        : this.fixedOverduePolicy,
+    fixedExpectedBeforeMinutes: fixedExpectedBeforeMinutes.present
+        ? fixedExpectedBeforeMinutes.value
+        : this.fixedExpectedBeforeMinutes,
+    fixedWarningBeforeMinutes: fixedWarningBeforeMinutes.present
+        ? fixedWarningBeforeMinutes.value
+        : this.fixedWarningBeforeMinutes,
+    fixedDangerBeforeMinutes: fixedDangerBeforeMinutes.present
+        ? fixedDangerBeforeMinutes.value
+        : this.fixedDangerBeforeMinutes,
+    stateExpectedAfterMinutes: stateExpectedAfterMinutes.present
+        ? stateExpectedAfterMinutes.value
+        : this.stateExpectedAfterMinutes,
     stateWarningAfterMinutes: stateWarningAfterMinutes.present
         ? stateWarningAfterMinutes.value
         : this.stateWarningAfterMinutes,
     stateDangerAfterMinutes: stateDangerAfterMinutes.present
         ? stateDangerAfterMinutes.value
         : this.stateDangerAfterMinutes,
-    resourceEstimatedDurationMinutes: resourceEstimatedDurationMinutes.present
-        ? resourceEstimatedDurationMinutes.value
-        : this.resourceEstimatedDurationMinutes,
-    resourceWarningBeforeDepletionMinutes:
-        resourceWarningBeforeDepletionMinutes.present
-        ? resourceWarningBeforeDepletionMinutes.value
-        : this.resourceWarningBeforeDepletionMinutes,
+    resourceAnchorDate: resourceAnchorDate.present
+        ? resourceAnchorDate.value
+        : this.resourceAnchorDate,
+    resourceDurationDays: resourceDurationDays.present
+        ? resourceDurationDays.value
+        : this.resourceDurationDays,
+    resourceExpectedBeforeDays: resourceExpectedBeforeDays.present
+        ? resourceExpectedBeforeDays.value
+        : this.resourceExpectedBeforeDays,
+    resourceWarningBeforeDays: resourceWarningBeforeDays.present
+        ? resourceWarningBeforeDays.value
+        : this.resourceWarningBeforeDays,
+    resourceDangerBeforeDays: resourceDangerBeforeDays.present
+        ? resourceDangerBeforeDays.value
+        : this.resourceDangerBeforeDays,
     lastDoneAt: lastDoneAt.present ? lastDoneAt.value : this.lastDoneAt,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -1187,26 +1524,48 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       fixedAnchorDate: data.fixedAnchorDate.present
           ? data.fixedAnchorDate.value
           : this.fixedAnchorDate,
+      fixedDueDate: data.fixedDueDate.present
+          ? data.fixedDueDate.value
+          : this.fixedDueDate,
       fixedTimeOfDay: data.fixedTimeOfDay.present
           ? data.fixedTimeOfDay.value
           : this.fixedTimeOfDay,
-      stateExpectedIntervalMinutes: data.stateExpectedIntervalMinutes.present
-          ? data.stateExpectedIntervalMinutes.value
-          : this.stateExpectedIntervalMinutes,
+      fixedOverduePolicy: data.fixedOverduePolicy.present
+          ? data.fixedOverduePolicy.value
+          : this.fixedOverduePolicy,
+      fixedExpectedBeforeMinutes: data.fixedExpectedBeforeMinutes.present
+          ? data.fixedExpectedBeforeMinutes.value
+          : this.fixedExpectedBeforeMinutes,
+      fixedWarningBeforeMinutes: data.fixedWarningBeforeMinutes.present
+          ? data.fixedWarningBeforeMinutes.value
+          : this.fixedWarningBeforeMinutes,
+      fixedDangerBeforeMinutes: data.fixedDangerBeforeMinutes.present
+          ? data.fixedDangerBeforeMinutes.value
+          : this.fixedDangerBeforeMinutes,
+      stateExpectedAfterMinutes: data.stateExpectedAfterMinutes.present
+          ? data.stateExpectedAfterMinutes.value
+          : this.stateExpectedAfterMinutes,
       stateWarningAfterMinutes: data.stateWarningAfterMinutes.present
           ? data.stateWarningAfterMinutes.value
           : this.stateWarningAfterMinutes,
       stateDangerAfterMinutes: data.stateDangerAfterMinutes.present
           ? data.stateDangerAfterMinutes.value
           : this.stateDangerAfterMinutes,
-      resourceEstimatedDurationMinutes:
-          data.resourceEstimatedDurationMinutes.present
-          ? data.resourceEstimatedDurationMinutes.value
-          : this.resourceEstimatedDurationMinutes,
-      resourceWarningBeforeDepletionMinutes:
-          data.resourceWarningBeforeDepletionMinutes.present
-          ? data.resourceWarningBeforeDepletionMinutes.value
-          : this.resourceWarningBeforeDepletionMinutes,
+      resourceAnchorDate: data.resourceAnchorDate.present
+          ? data.resourceAnchorDate.value
+          : this.resourceAnchorDate,
+      resourceDurationDays: data.resourceDurationDays.present
+          ? data.resourceDurationDays.value
+          : this.resourceDurationDays,
+      resourceExpectedBeforeDays: data.resourceExpectedBeforeDays.present
+          ? data.resourceExpectedBeforeDays.value
+          : this.resourceExpectedBeforeDays,
+      resourceWarningBeforeDays: data.resourceWarningBeforeDays.present
+          ? data.resourceWarningBeforeDays.value
+          : this.resourceWarningBeforeDays,
+      resourceDangerBeforeDays: data.resourceDangerBeforeDays.present
+          ? data.resourceDangerBeforeDays.value
+          : this.resourceDangerBeforeDays,
       lastDoneAt: data.lastDoneAt.present
           ? data.lastDoneAt.value
           : this.lastDoneAt,
@@ -1226,18 +1585,20 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
           ..write('type: $type, ')
           ..write('fixedScheduleType: $fixedScheduleType, ')
           ..write('fixedAnchorDate: $fixedAnchorDate, ')
+          ..write('fixedDueDate: $fixedDueDate, ')
           ..write('fixedTimeOfDay: $fixedTimeOfDay, ')
-          ..write(
-            'stateExpectedIntervalMinutes: $stateExpectedIntervalMinutes, ',
-          )
+          ..write('fixedOverduePolicy: $fixedOverduePolicy, ')
+          ..write('fixedExpectedBeforeMinutes: $fixedExpectedBeforeMinutes, ')
+          ..write('fixedWarningBeforeMinutes: $fixedWarningBeforeMinutes, ')
+          ..write('fixedDangerBeforeMinutes: $fixedDangerBeforeMinutes, ')
+          ..write('stateExpectedAfterMinutes: $stateExpectedAfterMinutes, ')
           ..write('stateWarningAfterMinutes: $stateWarningAfterMinutes, ')
           ..write('stateDangerAfterMinutes: $stateDangerAfterMinutes, ')
-          ..write(
-            'resourceEstimatedDurationMinutes: $resourceEstimatedDurationMinutes, ',
-          )
-          ..write(
-            'resourceWarningBeforeDepletionMinutes: $resourceWarningBeforeDepletionMinutes, ',
-          )
+          ..write('resourceAnchorDate: $resourceAnchorDate, ')
+          ..write('resourceDurationDays: $resourceDurationDays, ')
+          ..write('resourceExpectedBeforeDays: $resourceExpectedBeforeDays, ')
+          ..write('resourceWarningBeforeDays: $resourceWarningBeforeDays, ')
+          ..write('resourceDangerBeforeDays: $resourceDangerBeforeDays, ')
           ..write('lastDoneAt: $lastDoneAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -1246,7 +1607,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     packId,
     title,
@@ -1255,16 +1616,24 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     type,
     fixedScheduleType,
     fixedAnchorDate,
+    fixedDueDate,
     fixedTimeOfDay,
-    stateExpectedIntervalMinutes,
+    fixedOverduePolicy,
+    fixedExpectedBeforeMinutes,
+    fixedWarningBeforeMinutes,
+    fixedDangerBeforeMinutes,
+    stateExpectedAfterMinutes,
     stateWarningAfterMinutes,
     stateDangerAfterMinutes,
-    resourceEstimatedDurationMinutes,
-    resourceWarningBeforeDepletionMinutes,
+    resourceAnchorDate,
+    resourceDurationDays,
+    resourceExpectedBeforeDays,
+    resourceWarningBeforeDays,
+    resourceDangerBeforeDays,
     lastDoneAt,
     createdAt,
     updatedAt,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1277,15 +1646,20 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
           other.type == this.type &&
           other.fixedScheduleType == this.fixedScheduleType &&
           other.fixedAnchorDate == this.fixedAnchorDate &&
+          other.fixedDueDate == this.fixedDueDate &&
           other.fixedTimeOfDay == this.fixedTimeOfDay &&
-          other.stateExpectedIntervalMinutes ==
-              this.stateExpectedIntervalMinutes &&
+          other.fixedOverduePolicy == this.fixedOverduePolicy &&
+          other.fixedExpectedBeforeMinutes == this.fixedExpectedBeforeMinutes &&
+          other.fixedWarningBeforeMinutes == this.fixedWarningBeforeMinutes &&
+          other.fixedDangerBeforeMinutes == this.fixedDangerBeforeMinutes &&
+          other.stateExpectedAfterMinutes == this.stateExpectedAfterMinutes &&
           other.stateWarningAfterMinutes == this.stateWarningAfterMinutes &&
           other.stateDangerAfterMinutes == this.stateDangerAfterMinutes &&
-          other.resourceEstimatedDurationMinutes ==
-              this.resourceEstimatedDurationMinutes &&
-          other.resourceWarningBeforeDepletionMinutes ==
-              this.resourceWarningBeforeDepletionMinutes &&
+          other.resourceAnchorDate == this.resourceAnchorDate &&
+          other.resourceDurationDays == this.resourceDurationDays &&
+          other.resourceExpectedBeforeDays == this.resourceExpectedBeforeDays &&
+          other.resourceWarningBeforeDays == this.resourceWarningBeforeDays &&
+          other.resourceDangerBeforeDays == this.resourceDangerBeforeDays &&
           other.lastDoneAt == this.lastDoneAt &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -1300,12 +1674,20 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
   final Value<String> type;
   final Value<String?> fixedScheduleType;
   final Value<int?> fixedAnchorDate;
+  final Value<int?> fixedDueDate;
   final Value<String?> fixedTimeOfDay;
-  final Value<int?> stateExpectedIntervalMinutes;
+  final Value<String?> fixedOverduePolicy;
+  final Value<int?> fixedExpectedBeforeMinutes;
+  final Value<int?> fixedWarningBeforeMinutes;
+  final Value<int?> fixedDangerBeforeMinutes;
+  final Value<int?> stateExpectedAfterMinutes;
   final Value<int?> stateWarningAfterMinutes;
   final Value<int?> stateDangerAfterMinutes;
-  final Value<int?> resourceEstimatedDurationMinutes;
-  final Value<int?> resourceWarningBeforeDepletionMinutes;
+  final Value<int?> resourceAnchorDate;
+  final Value<int?> resourceDurationDays;
+  final Value<int?> resourceExpectedBeforeDays;
+  final Value<int?> resourceWarningBeforeDays;
+  final Value<int?> resourceDangerBeforeDays;
   final Value<int?> lastDoneAt;
   final Value<int> createdAt;
   final Value<int> updatedAt;
@@ -1318,12 +1700,20 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     this.type = const Value.absent(),
     this.fixedScheduleType = const Value.absent(),
     this.fixedAnchorDate = const Value.absent(),
+    this.fixedDueDate = const Value.absent(),
     this.fixedTimeOfDay = const Value.absent(),
-    this.stateExpectedIntervalMinutes = const Value.absent(),
+    this.fixedOverduePolicy = const Value.absent(),
+    this.fixedExpectedBeforeMinutes = const Value.absent(),
+    this.fixedWarningBeforeMinutes = const Value.absent(),
+    this.fixedDangerBeforeMinutes = const Value.absent(),
+    this.stateExpectedAfterMinutes = const Value.absent(),
     this.stateWarningAfterMinutes = const Value.absent(),
     this.stateDangerAfterMinutes = const Value.absent(),
-    this.resourceEstimatedDurationMinutes = const Value.absent(),
-    this.resourceWarningBeforeDepletionMinutes = const Value.absent(),
+    this.resourceAnchorDate = const Value.absent(),
+    this.resourceDurationDays = const Value.absent(),
+    this.resourceExpectedBeforeDays = const Value.absent(),
+    this.resourceWarningBeforeDays = const Value.absent(),
+    this.resourceDangerBeforeDays = const Value.absent(),
     this.lastDoneAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -1337,12 +1727,20 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     required String type,
     this.fixedScheduleType = const Value.absent(),
     this.fixedAnchorDate = const Value.absent(),
+    this.fixedDueDate = const Value.absent(),
     this.fixedTimeOfDay = const Value.absent(),
-    this.stateExpectedIntervalMinutes = const Value.absent(),
+    this.fixedOverduePolicy = const Value.absent(),
+    this.fixedExpectedBeforeMinutes = const Value.absent(),
+    this.fixedWarningBeforeMinutes = const Value.absent(),
+    this.fixedDangerBeforeMinutes = const Value.absent(),
+    this.stateExpectedAfterMinutes = const Value.absent(),
     this.stateWarningAfterMinutes = const Value.absent(),
     this.stateDangerAfterMinutes = const Value.absent(),
-    this.resourceEstimatedDurationMinutes = const Value.absent(),
-    this.resourceWarningBeforeDepletionMinutes = const Value.absent(),
+    this.resourceAnchorDate = const Value.absent(),
+    this.resourceDurationDays = const Value.absent(),
+    this.resourceExpectedBeforeDays = const Value.absent(),
+    this.resourceWarningBeforeDays = const Value.absent(),
+    this.resourceDangerBeforeDays = const Value.absent(),
     this.lastDoneAt = const Value.absent(),
     required int createdAt,
     required int updatedAt,
@@ -1360,12 +1758,20 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     Expression<String>? type,
     Expression<String>? fixedScheduleType,
     Expression<int>? fixedAnchorDate,
+    Expression<int>? fixedDueDate,
     Expression<String>? fixedTimeOfDay,
-    Expression<int>? stateExpectedIntervalMinutes,
+    Expression<String>? fixedOverduePolicy,
+    Expression<int>? fixedExpectedBeforeMinutes,
+    Expression<int>? fixedWarningBeforeMinutes,
+    Expression<int>? fixedDangerBeforeMinutes,
+    Expression<int>? stateExpectedAfterMinutes,
     Expression<int>? stateWarningAfterMinutes,
     Expression<int>? stateDangerAfterMinutes,
-    Expression<int>? resourceEstimatedDurationMinutes,
-    Expression<int>? resourceWarningBeforeDepletionMinutes,
+    Expression<int>? resourceAnchorDate,
+    Expression<int>? resourceDurationDays,
+    Expression<int>? resourceExpectedBeforeDays,
+    Expression<int>? resourceWarningBeforeDays,
+    Expression<int>? resourceDangerBeforeDays,
     Expression<int>? lastDoneAt,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
@@ -1379,18 +1785,32 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
       if (type != null) 'type': type,
       if (fixedScheduleType != null) 'fixed_schedule_type': fixedScheduleType,
       if (fixedAnchorDate != null) 'fixed_anchor_date': fixedAnchorDate,
+      if (fixedDueDate != null) 'fixed_due_date': fixedDueDate,
       if (fixedTimeOfDay != null) 'fixed_time_of_day': fixedTimeOfDay,
-      if (stateExpectedIntervalMinutes != null)
-        'state_expected_interval_minutes': stateExpectedIntervalMinutes,
+      if (fixedOverduePolicy != null)
+        'fixed_overdue_policy': fixedOverduePolicy,
+      if (fixedExpectedBeforeMinutes != null)
+        'fixed_expected_before_minutes': fixedExpectedBeforeMinutes,
+      if (fixedWarningBeforeMinutes != null)
+        'fixed_warning_before_minutes': fixedWarningBeforeMinutes,
+      if (fixedDangerBeforeMinutes != null)
+        'fixed_danger_before_minutes': fixedDangerBeforeMinutes,
+      if (stateExpectedAfterMinutes != null)
+        'state_expected_after_minutes': stateExpectedAfterMinutes,
       if (stateWarningAfterMinutes != null)
         'state_warning_after_minutes': stateWarningAfterMinutes,
       if (stateDangerAfterMinutes != null)
         'state_danger_after_minutes': stateDangerAfterMinutes,
-      if (resourceEstimatedDurationMinutes != null)
-        'resource_estimated_duration_minutes': resourceEstimatedDurationMinutes,
-      if (resourceWarningBeforeDepletionMinutes != null)
-        'resource_warning_before_depletion_minutes':
-            resourceWarningBeforeDepletionMinutes,
+      if (resourceAnchorDate != null)
+        'resource_anchor_date': resourceAnchorDate,
+      if (resourceDurationDays != null)
+        'resource_duration_days': resourceDurationDays,
+      if (resourceExpectedBeforeDays != null)
+        'resource_expected_before_days': resourceExpectedBeforeDays,
+      if (resourceWarningBeforeDays != null)
+        'resource_warning_before_days': resourceWarningBeforeDays,
+      if (resourceDangerBeforeDays != null)
+        'resource_danger_before_days': resourceDangerBeforeDays,
       if (lastDoneAt != null) 'last_done_at': lastDoneAt,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -1406,12 +1826,20 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     Value<String>? type,
     Value<String?>? fixedScheduleType,
     Value<int?>? fixedAnchorDate,
+    Value<int?>? fixedDueDate,
     Value<String?>? fixedTimeOfDay,
-    Value<int?>? stateExpectedIntervalMinutes,
+    Value<String?>? fixedOverduePolicy,
+    Value<int?>? fixedExpectedBeforeMinutes,
+    Value<int?>? fixedWarningBeforeMinutes,
+    Value<int?>? fixedDangerBeforeMinutes,
+    Value<int?>? stateExpectedAfterMinutes,
     Value<int?>? stateWarningAfterMinutes,
     Value<int?>? stateDangerAfterMinutes,
-    Value<int?>? resourceEstimatedDurationMinutes,
-    Value<int?>? resourceWarningBeforeDepletionMinutes,
+    Value<int?>? resourceAnchorDate,
+    Value<int?>? resourceDurationDays,
+    Value<int?>? resourceExpectedBeforeDays,
+    Value<int?>? resourceWarningBeforeDays,
+    Value<int?>? resourceDangerBeforeDays,
     Value<int?>? lastDoneAt,
     Value<int>? createdAt,
     Value<int>? updatedAt,
@@ -1425,19 +1853,29 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
       type: type ?? this.type,
       fixedScheduleType: fixedScheduleType ?? this.fixedScheduleType,
       fixedAnchorDate: fixedAnchorDate ?? this.fixedAnchorDate,
+      fixedDueDate: fixedDueDate ?? this.fixedDueDate,
       fixedTimeOfDay: fixedTimeOfDay ?? this.fixedTimeOfDay,
-      stateExpectedIntervalMinutes:
-          stateExpectedIntervalMinutes ?? this.stateExpectedIntervalMinutes,
+      fixedOverduePolicy: fixedOverduePolicy ?? this.fixedOverduePolicy,
+      fixedExpectedBeforeMinutes:
+          fixedExpectedBeforeMinutes ?? this.fixedExpectedBeforeMinutes,
+      fixedWarningBeforeMinutes:
+          fixedWarningBeforeMinutes ?? this.fixedWarningBeforeMinutes,
+      fixedDangerBeforeMinutes:
+          fixedDangerBeforeMinutes ?? this.fixedDangerBeforeMinutes,
+      stateExpectedAfterMinutes:
+          stateExpectedAfterMinutes ?? this.stateExpectedAfterMinutes,
       stateWarningAfterMinutes:
           stateWarningAfterMinutes ?? this.stateWarningAfterMinutes,
       stateDangerAfterMinutes:
           stateDangerAfterMinutes ?? this.stateDangerAfterMinutes,
-      resourceEstimatedDurationMinutes:
-          resourceEstimatedDurationMinutes ??
-          this.resourceEstimatedDurationMinutes,
-      resourceWarningBeforeDepletionMinutes:
-          resourceWarningBeforeDepletionMinutes ??
-          this.resourceWarningBeforeDepletionMinutes,
+      resourceAnchorDate: resourceAnchorDate ?? this.resourceAnchorDate,
+      resourceDurationDays: resourceDurationDays ?? this.resourceDurationDays,
+      resourceExpectedBeforeDays:
+          resourceExpectedBeforeDays ?? this.resourceExpectedBeforeDays,
+      resourceWarningBeforeDays:
+          resourceWarningBeforeDays ?? this.resourceWarningBeforeDays,
+      resourceDangerBeforeDays:
+          resourceDangerBeforeDays ?? this.resourceDangerBeforeDays,
       lastDoneAt: lastDoneAt ?? this.lastDoneAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -1471,12 +1909,33 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     if (fixedAnchorDate.present) {
       map['fixed_anchor_date'] = Variable<int>(fixedAnchorDate.value);
     }
+    if (fixedDueDate.present) {
+      map['fixed_due_date'] = Variable<int>(fixedDueDate.value);
+    }
     if (fixedTimeOfDay.present) {
       map['fixed_time_of_day'] = Variable<String>(fixedTimeOfDay.value);
     }
-    if (stateExpectedIntervalMinutes.present) {
-      map['state_expected_interval_minutes'] = Variable<int>(
-        stateExpectedIntervalMinutes.value,
+    if (fixedOverduePolicy.present) {
+      map['fixed_overdue_policy'] = Variable<String>(fixedOverduePolicy.value);
+    }
+    if (fixedExpectedBeforeMinutes.present) {
+      map['fixed_expected_before_minutes'] = Variable<int>(
+        fixedExpectedBeforeMinutes.value,
+      );
+    }
+    if (fixedWarningBeforeMinutes.present) {
+      map['fixed_warning_before_minutes'] = Variable<int>(
+        fixedWarningBeforeMinutes.value,
+      );
+    }
+    if (fixedDangerBeforeMinutes.present) {
+      map['fixed_danger_before_minutes'] = Variable<int>(
+        fixedDangerBeforeMinutes.value,
+      );
+    }
+    if (stateExpectedAfterMinutes.present) {
+      map['state_expected_after_minutes'] = Variable<int>(
+        stateExpectedAfterMinutes.value,
       );
     }
     if (stateWarningAfterMinutes.present) {
@@ -1489,14 +1948,25 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
         stateDangerAfterMinutes.value,
       );
     }
-    if (resourceEstimatedDurationMinutes.present) {
-      map['resource_estimated_duration_minutes'] = Variable<int>(
-        resourceEstimatedDurationMinutes.value,
+    if (resourceAnchorDate.present) {
+      map['resource_anchor_date'] = Variable<int>(resourceAnchorDate.value);
+    }
+    if (resourceDurationDays.present) {
+      map['resource_duration_days'] = Variable<int>(resourceDurationDays.value);
+    }
+    if (resourceExpectedBeforeDays.present) {
+      map['resource_expected_before_days'] = Variable<int>(
+        resourceExpectedBeforeDays.value,
       );
     }
-    if (resourceWarningBeforeDepletionMinutes.present) {
-      map['resource_warning_before_depletion_minutes'] = Variable<int>(
-        resourceWarningBeforeDepletionMinutes.value,
+    if (resourceWarningBeforeDays.present) {
+      map['resource_warning_before_days'] = Variable<int>(
+        resourceWarningBeforeDays.value,
+      );
+    }
+    if (resourceDangerBeforeDays.present) {
+      map['resource_danger_before_days'] = Variable<int>(
+        resourceDangerBeforeDays.value,
       );
     }
     if (lastDoneAt.present) {
@@ -1522,19 +1992,529 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
           ..write('type: $type, ')
           ..write('fixedScheduleType: $fixedScheduleType, ')
           ..write('fixedAnchorDate: $fixedAnchorDate, ')
+          ..write('fixedDueDate: $fixedDueDate, ')
           ..write('fixedTimeOfDay: $fixedTimeOfDay, ')
-          ..write(
-            'stateExpectedIntervalMinutes: $stateExpectedIntervalMinutes, ',
-          )
+          ..write('fixedOverduePolicy: $fixedOverduePolicy, ')
+          ..write('fixedExpectedBeforeMinutes: $fixedExpectedBeforeMinutes, ')
+          ..write('fixedWarningBeforeMinutes: $fixedWarningBeforeMinutes, ')
+          ..write('fixedDangerBeforeMinutes: $fixedDangerBeforeMinutes, ')
+          ..write('stateExpectedAfterMinutes: $stateExpectedAfterMinutes, ')
           ..write('stateWarningAfterMinutes: $stateWarningAfterMinutes, ')
           ..write('stateDangerAfterMinutes: $stateDangerAfterMinutes, ')
-          ..write(
-            'resourceEstimatedDurationMinutes: $resourceEstimatedDurationMinutes, ',
-          )
-          ..write(
-            'resourceWarningBeforeDepletionMinutes: $resourceWarningBeforeDepletionMinutes, ',
-          )
+          ..write('resourceAnchorDate: $resourceAnchorDate, ')
+          ..write('resourceDurationDays: $resourceDurationDays, ')
+          ..write('resourceExpectedBeforeDays: $resourceExpectedBeforeDays, ')
+          ..write('resourceWarningBeforeDays: $resourceWarningBeforeDays, ')
+          ..write('resourceDangerBeforeDays: $resourceDangerBeforeDays, ')
           ..write('lastDoneAt: $lastDoneAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ItemActionRecordsTable extends ItemActionRecords
+    with TableInfo<$ItemActionRecordsTable, ItemActionRecordRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ItemActionRecordsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _itemIdMeta = const VerificationMeta('itemId');
+  @override
+  late final GeneratedColumn<int> itemId = GeneratedColumn<int>(
+    'item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES items (id)',
+    ),
+  );
+  static const VerificationMeta _actionTypeMeta = const VerificationMeta(
+    'actionType',
+  );
+  @override
+  late final GeneratedColumn<String> actionType = GeneratedColumn<String>(
+    'action_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _actionDateMeta = const VerificationMeta(
+    'actionDate',
+  );
+  @override
+  late final GeneratedColumn<int> actionDate = GeneratedColumn<int>(
+    'action_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _remarkMeta = const VerificationMeta('remark');
+  @override
+  late final GeneratedColumn<String> remark = GeneratedColumn<String>(
+    'remark',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _payloadMeta = const VerificationMeta(
+    'payload',
+  );
+  @override
+  late final GeneratedColumn<String> payload = GeneratedColumn<String>(
+    'payload',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    itemId,
+    actionType,
+    actionDate,
+    remark,
+    payload,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'item_action_records';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ItemActionRecordRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('item_id')) {
+      context.handle(
+        _itemIdMeta,
+        itemId.isAcceptableOrUnknown(data['item_id']!, _itemIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_itemIdMeta);
+    }
+    if (data.containsKey('action_type')) {
+      context.handle(
+        _actionTypeMeta,
+        actionType.isAcceptableOrUnknown(data['action_type']!, _actionTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_actionTypeMeta);
+    }
+    if (data.containsKey('action_date')) {
+      context.handle(
+        _actionDateMeta,
+        actionDate.isAcceptableOrUnknown(data['action_date']!, _actionDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_actionDateMeta);
+    }
+    if (data.containsKey('remark')) {
+      context.handle(
+        _remarkMeta,
+        remark.isAcceptableOrUnknown(data['remark']!, _remarkMeta),
+      );
+    }
+    if (data.containsKey('payload')) {
+      context.handle(
+        _payloadMeta,
+        payload.isAcceptableOrUnknown(data['payload']!, _payloadMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ItemActionRecordRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ItemActionRecordRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      itemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}item_id'],
+      )!,
+      actionType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}action_type'],
+      )!,
+      actionDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}action_date'],
+      )!,
+      remark: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remark'],
+      ),
+      payload: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ItemActionRecordsTable createAlias(String alias) {
+    return $ItemActionRecordsTable(attachedDatabase, alias);
+  }
+}
+
+class ItemActionRecordRow extends DataClass
+    implements Insertable<ItemActionRecordRow> {
+  final int id;
+  final int itemId;
+  final String actionType;
+  final int actionDate;
+  final String? remark;
+  final String? payload;
+  final int createdAt;
+  final int updatedAt;
+  const ItemActionRecordRow({
+    required this.id,
+    required this.itemId,
+    required this.actionType,
+    required this.actionDate,
+    this.remark,
+    this.payload,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['item_id'] = Variable<int>(itemId);
+    map['action_type'] = Variable<String>(actionType);
+    map['action_date'] = Variable<int>(actionDate);
+    if (!nullToAbsent || remark != null) {
+      map['remark'] = Variable<String>(remark);
+    }
+    if (!nullToAbsent || payload != null) {
+      map['payload'] = Variable<String>(payload);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  ItemActionRecordsCompanion toCompanion(bool nullToAbsent) {
+    return ItemActionRecordsCompanion(
+      id: Value(id),
+      itemId: Value(itemId),
+      actionType: Value(actionType),
+      actionDate: Value(actionDate),
+      remark: remark == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remark),
+      payload: payload == null && nullToAbsent
+          ? const Value.absent()
+          : Value(payload),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ItemActionRecordRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ItemActionRecordRow(
+      id: serializer.fromJson<int>(json['id']),
+      itemId: serializer.fromJson<int>(json['itemId']),
+      actionType: serializer.fromJson<String>(json['actionType']),
+      actionDate: serializer.fromJson<int>(json['actionDate']),
+      remark: serializer.fromJson<String?>(json['remark']),
+      payload: serializer.fromJson<String?>(json['payload']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'itemId': serializer.toJson<int>(itemId),
+      'actionType': serializer.toJson<String>(actionType),
+      'actionDate': serializer.toJson<int>(actionDate),
+      'remark': serializer.toJson<String?>(remark),
+      'payload': serializer.toJson<String?>(payload),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  ItemActionRecordRow copyWith({
+    int? id,
+    int? itemId,
+    String? actionType,
+    int? actionDate,
+    Value<String?> remark = const Value.absent(),
+    Value<String?> payload = const Value.absent(),
+    int? createdAt,
+    int? updatedAt,
+  }) => ItemActionRecordRow(
+    id: id ?? this.id,
+    itemId: itemId ?? this.itemId,
+    actionType: actionType ?? this.actionType,
+    actionDate: actionDate ?? this.actionDate,
+    remark: remark.present ? remark.value : this.remark,
+    payload: payload.present ? payload.value : this.payload,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  ItemActionRecordRow copyWithCompanion(ItemActionRecordsCompanion data) {
+    return ItemActionRecordRow(
+      id: data.id.present ? data.id.value : this.id,
+      itemId: data.itemId.present ? data.itemId.value : this.itemId,
+      actionType: data.actionType.present
+          ? data.actionType.value
+          : this.actionType,
+      actionDate: data.actionDate.present
+          ? data.actionDate.value
+          : this.actionDate,
+      remark: data.remark.present ? data.remark.value : this.remark,
+      payload: data.payload.present ? data.payload.value : this.payload,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ItemActionRecordRow(')
+          ..write('id: $id, ')
+          ..write('itemId: $itemId, ')
+          ..write('actionType: $actionType, ')
+          ..write('actionDate: $actionDate, ')
+          ..write('remark: $remark, ')
+          ..write('payload: $payload, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    itemId,
+    actionType,
+    actionDate,
+    remark,
+    payload,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ItemActionRecordRow &&
+          other.id == this.id &&
+          other.itemId == this.itemId &&
+          other.actionType == this.actionType &&
+          other.actionDate == this.actionDate &&
+          other.remark == this.remark &&
+          other.payload == this.payload &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ItemActionRecordsCompanion extends UpdateCompanion<ItemActionRecordRow> {
+  final Value<int> id;
+  final Value<int> itemId;
+  final Value<String> actionType;
+  final Value<int> actionDate;
+  final Value<String?> remark;
+  final Value<String?> payload;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  const ItemActionRecordsCompanion({
+    this.id = const Value.absent(),
+    this.itemId = const Value.absent(),
+    this.actionType = const Value.absent(),
+    this.actionDate = const Value.absent(),
+    this.remark = const Value.absent(),
+    this.payload = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  ItemActionRecordsCompanion.insert({
+    this.id = const Value.absent(),
+    required int itemId,
+    required String actionType,
+    required int actionDate,
+    this.remark = const Value.absent(),
+    this.payload = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+  }) : itemId = Value(itemId),
+       actionType = Value(actionType),
+       actionDate = Value(actionDate),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<ItemActionRecordRow> custom({
+    Expression<int>? id,
+    Expression<int>? itemId,
+    Expression<String>? actionType,
+    Expression<int>? actionDate,
+    Expression<String>? remark,
+    Expression<String>? payload,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (itemId != null) 'item_id': itemId,
+      if (actionType != null) 'action_type': actionType,
+      if (actionDate != null) 'action_date': actionDate,
+      if (remark != null) 'remark': remark,
+      if (payload != null) 'payload': payload,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  ItemActionRecordsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? itemId,
+    Value<String>? actionType,
+    Value<int>? actionDate,
+    Value<String?>? remark,
+    Value<String?>? payload,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+  }) {
+    return ItemActionRecordsCompanion(
+      id: id ?? this.id,
+      itemId: itemId ?? this.itemId,
+      actionType: actionType ?? this.actionType,
+      actionDate: actionDate ?? this.actionDate,
+      remark: remark ?? this.remark,
+      payload: payload ?? this.payload,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (itemId.present) {
+      map['item_id'] = Variable<int>(itemId.value);
+    }
+    if (actionType.present) {
+      map['action_type'] = Variable<String>(actionType.value);
+    }
+    if (actionDate.present) {
+      map['action_date'] = Variable<int>(actionDate.value);
+    }
+    if (remark.present) {
+      map['remark'] = Variable<String>(remark.value);
+    }
+    if (payload.present) {
+      map['payload'] = Variable<String>(payload.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ItemActionRecordsCompanion(')
+          ..write('id: $id, ')
+          ..write('itemId: $itemId, ')
+          ..write('actionType: $actionType, ')
+          ..write('actionDate: $actionDate, ')
+          ..write('remark: $remark, ')
+          ..write('payload: $payload, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -3251,6 +4231,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $ItemPacksTable itemPacks = $ItemPacksTable(this);
   late final $ItemsTable items = $ItemsTable(this);
+  late final $ItemActionRecordsTable itemActionRecords =
+      $ItemActionRecordsTable(this);
   late final $TimelinesTable timelines = $TimelinesTable(this);
   late final $TimelineMilestoneRulesTable timelineMilestoneRules =
       $TimelineMilestoneRulesTable(this);
@@ -3266,6 +4248,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     itemPacks,
     items,
+    itemActionRecords,
     timelines,
     timelineMilestoneRules,
     timelineMilestoneRecords,
@@ -3616,12 +4599,20 @@ typedef $$ItemsTableCreateCompanionBuilder =
       required String type,
       Value<String?> fixedScheduleType,
       Value<int?> fixedAnchorDate,
+      Value<int?> fixedDueDate,
       Value<String?> fixedTimeOfDay,
-      Value<int?> stateExpectedIntervalMinutes,
+      Value<String?> fixedOverduePolicy,
+      Value<int?> fixedExpectedBeforeMinutes,
+      Value<int?> fixedWarningBeforeMinutes,
+      Value<int?> fixedDangerBeforeMinutes,
+      Value<int?> stateExpectedAfterMinutes,
       Value<int?> stateWarningAfterMinutes,
       Value<int?> stateDangerAfterMinutes,
-      Value<int?> resourceEstimatedDurationMinutes,
-      Value<int?> resourceWarningBeforeDepletionMinutes,
+      Value<int?> resourceAnchorDate,
+      Value<int?> resourceDurationDays,
+      Value<int?> resourceExpectedBeforeDays,
+      Value<int?> resourceWarningBeforeDays,
+      Value<int?> resourceDangerBeforeDays,
       Value<int?> lastDoneAt,
       required int createdAt,
       required int updatedAt,
@@ -3636,12 +4627,20 @@ typedef $$ItemsTableUpdateCompanionBuilder =
       Value<String> type,
       Value<String?> fixedScheduleType,
       Value<int?> fixedAnchorDate,
+      Value<int?> fixedDueDate,
       Value<String?> fixedTimeOfDay,
-      Value<int?> stateExpectedIntervalMinutes,
+      Value<String?> fixedOverduePolicy,
+      Value<int?> fixedExpectedBeforeMinutes,
+      Value<int?> fixedWarningBeforeMinutes,
+      Value<int?> fixedDangerBeforeMinutes,
+      Value<int?> stateExpectedAfterMinutes,
       Value<int?> stateWarningAfterMinutes,
       Value<int?> stateDangerAfterMinutes,
-      Value<int?> resourceEstimatedDurationMinutes,
-      Value<int?> resourceWarningBeforeDepletionMinutes,
+      Value<int?> resourceAnchorDate,
+      Value<int?> resourceDurationDays,
+      Value<int?> resourceExpectedBeforeDays,
+      Value<int?> resourceWarningBeforeDays,
+      Value<int?> resourceDangerBeforeDays,
       Value<int?> lastDoneAt,
       Value<int> createdAt,
       Value<int> updatedAt,
@@ -3665,6 +4664,30 @@ final class $$ItemsTableReferences
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<$ItemActionRecordsTable, List<ItemActionRecordRow>>
+  _itemActionRecordsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.itemActionRecords,
+        aliasName: $_aliasNameGenerator(
+          db.items.id,
+          db.itemActionRecords.itemId,
+        ),
+      );
+
+  $$ItemActionRecordsTableProcessedTableManager get itemActionRecordsRefs {
+    final manager = $$ItemActionRecordsTableTableManager(
+      $_db,
+      $_db.itemActionRecords,
+    ).filter((f) => f.itemId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _itemActionRecordsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
     );
   }
 }
@@ -3712,13 +4735,38 @@ class $$ItemsTableFilterComposer extends Composer<_$AppDatabase, $ItemsTable> {
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get fixedDueDate => $composableBuilder(
+    column: $table.fixedDueDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get fixedTimeOfDay => $composableBuilder(
     column: $table.fixedTimeOfDay,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get stateExpectedIntervalMinutes => $composableBuilder(
-    column: $table.stateExpectedIntervalMinutes,
+  ColumnFilters<String> get fixedOverduePolicy => $composableBuilder(
+    column: $table.fixedOverduePolicy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get fixedExpectedBeforeMinutes => $composableBuilder(
+    column: $table.fixedExpectedBeforeMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get fixedWarningBeforeMinutes => $composableBuilder(
+    column: $table.fixedWarningBeforeMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get fixedDangerBeforeMinutes => $composableBuilder(
+    column: $table.fixedDangerBeforeMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get stateExpectedAfterMinutes => $composableBuilder(
+    column: $table.stateExpectedAfterMinutes,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3732,16 +4780,30 @@ class $$ItemsTableFilterComposer extends Composer<_$AppDatabase, $ItemsTable> {
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get resourceEstimatedDurationMinutes => $composableBuilder(
-    column: $table.resourceEstimatedDurationMinutes,
+  ColumnFilters<int> get resourceAnchorDate => $composableBuilder(
+    column: $table.resourceAnchorDate,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get resourceWarningBeforeDepletionMinutes =>
-      $composableBuilder(
-        column: $table.resourceWarningBeforeDepletionMinutes,
-        builder: (column) => ColumnFilters(column),
-      );
+  ColumnFilters<int> get resourceDurationDays => $composableBuilder(
+    column: $table.resourceDurationDays,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get resourceExpectedBeforeDays => $composableBuilder(
+    column: $table.resourceExpectedBeforeDays,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get resourceWarningBeforeDays => $composableBuilder(
+    column: $table.resourceWarningBeforeDays,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get resourceDangerBeforeDays => $composableBuilder(
+    column: $table.resourceDangerBeforeDays,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastDoneAt => $composableBuilder(
     column: $table.lastDoneAt,
@@ -3779,6 +4841,31 @@ class $$ItemsTableFilterComposer extends Composer<_$AppDatabase, $ItemsTable> {
           ),
     );
     return composer;
+  }
+
+  Expression<bool> itemActionRecordsRefs(
+    Expression<bool> Function($$ItemActionRecordsTableFilterComposer f) f,
+  ) {
+    final $$ItemActionRecordsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.itemActionRecords,
+      getReferencedColumn: (t) => t.itemId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemActionRecordsTableFilterComposer(
+            $db: $db,
+            $table: $db.itemActionRecords,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
   }
 }
 
@@ -3826,13 +4913,38 @@ class $$ItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get fixedDueDate => $composableBuilder(
+    column: $table.fixedDueDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get fixedTimeOfDay => $composableBuilder(
     column: $table.fixedTimeOfDay,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get stateExpectedIntervalMinutes => $composableBuilder(
-    column: $table.stateExpectedIntervalMinutes,
+  ColumnOrderings<String> get fixedOverduePolicy => $composableBuilder(
+    column: $table.fixedOverduePolicy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get fixedExpectedBeforeMinutes => $composableBuilder(
+    column: $table.fixedExpectedBeforeMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get fixedWarningBeforeMinutes => $composableBuilder(
+    column: $table.fixedWarningBeforeMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get fixedDangerBeforeMinutes => $composableBuilder(
+    column: $table.fixedDangerBeforeMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get stateExpectedAfterMinutes => $composableBuilder(
+    column: $table.stateExpectedAfterMinutes,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -3846,17 +4958,30 @@ class $$ItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get resourceEstimatedDurationMinutes =>
-      $composableBuilder(
-        column: $table.resourceEstimatedDurationMinutes,
-        builder: (column) => ColumnOrderings(column),
-      );
+  ColumnOrderings<int> get resourceAnchorDate => $composableBuilder(
+    column: $table.resourceAnchorDate,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<int> get resourceWarningBeforeDepletionMinutes =>
-      $composableBuilder(
-        column: $table.resourceWarningBeforeDepletionMinutes,
-        builder: (column) => ColumnOrderings(column),
-      );
+  ColumnOrderings<int> get resourceDurationDays => $composableBuilder(
+    column: $table.resourceDurationDays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get resourceExpectedBeforeDays => $composableBuilder(
+    column: $table.resourceExpectedBeforeDays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get resourceWarningBeforeDays => $composableBuilder(
+    column: $table.resourceWarningBeforeDays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get resourceDangerBeforeDays => $composableBuilder(
+    column: $table.resourceDangerBeforeDays,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastDoneAt => $composableBuilder(
     column: $table.lastDoneAt,
@@ -3933,13 +5058,38 @@ class $$ItemsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<int> get fixedDueDate => $composableBuilder(
+    column: $table.fixedDueDate,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get fixedTimeOfDay => $composableBuilder(
     column: $table.fixedTimeOfDay,
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get stateExpectedIntervalMinutes => $composableBuilder(
-    column: $table.stateExpectedIntervalMinutes,
+  GeneratedColumn<String> get fixedOverduePolicy => $composableBuilder(
+    column: $table.fixedOverduePolicy,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get fixedExpectedBeforeMinutes => $composableBuilder(
+    column: $table.fixedExpectedBeforeMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get fixedWarningBeforeMinutes => $composableBuilder(
+    column: $table.fixedWarningBeforeMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get fixedDangerBeforeMinutes => $composableBuilder(
+    column: $table.fixedDangerBeforeMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get stateExpectedAfterMinutes => $composableBuilder(
+    column: $table.stateExpectedAfterMinutes,
     builder: (column) => column,
   );
 
@@ -3953,17 +5103,30 @@ class $$ItemsTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get resourceEstimatedDurationMinutes =>
-      $composableBuilder(
-        column: $table.resourceEstimatedDurationMinutes,
-        builder: (column) => column,
-      );
+  GeneratedColumn<int> get resourceAnchorDate => $composableBuilder(
+    column: $table.resourceAnchorDate,
+    builder: (column) => column,
+  );
 
-  GeneratedColumn<int> get resourceWarningBeforeDepletionMinutes =>
-      $composableBuilder(
-        column: $table.resourceWarningBeforeDepletionMinutes,
-        builder: (column) => column,
-      );
+  GeneratedColumn<int> get resourceDurationDays => $composableBuilder(
+    column: $table.resourceDurationDays,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get resourceExpectedBeforeDays => $composableBuilder(
+    column: $table.resourceExpectedBeforeDays,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get resourceWarningBeforeDays => $composableBuilder(
+    column: $table.resourceWarningBeforeDays,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get resourceDangerBeforeDays => $composableBuilder(
+    column: $table.resourceDangerBeforeDays,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get lastDoneAt => $composableBuilder(
     column: $table.lastDoneAt,
@@ -3998,6 +5161,32 @@ class $$ItemsTableAnnotationComposer
     );
     return composer;
   }
+
+  Expression<T> itemActionRecordsRefs<T extends Object>(
+    Expression<T> Function($$ItemActionRecordsTableAnnotationComposer a) f,
+  ) {
+    final $$ItemActionRecordsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.itemActionRecords,
+          getReferencedColumn: (t) => t.itemId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ItemActionRecordsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.itemActionRecords,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$ItemsTableTableManager
@@ -4013,7 +5202,7 @@ class $$ItemsTableTableManager
           $$ItemsTableUpdateCompanionBuilder,
           (ItemRow, $$ItemsTableReferences),
           ItemRow,
-          PrefetchHooks Function({bool packId})
+          PrefetchHooks Function({bool packId, bool itemActionRecordsRefs})
         > {
   $$ItemsTableTableManager(_$AppDatabase db, $ItemsTable table)
     : super(
@@ -4036,14 +5225,20 @@ class $$ItemsTableTableManager
                 Value<String> type = const Value.absent(),
                 Value<String?> fixedScheduleType = const Value.absent(),
                 Value<int?> fixedAnchorDate = const Value.absent(),
+                Value<int?> fixedDueDate = const Value.absent(),
                 Value<String?> fixedTimeOfDay = const Value.absent(),
-                Value<int?> stateExpectedIntervalMinutes = const Value.absent(),
+                Value<String?> fixedOverduePolicy = const Value.absent(),
+                Value<int?> fixedExpectedBeforeMinutes = const Value.absent(),
+                Value<int?> fixedWarningBeforeMinutes = const Value.absent(),
+                Value<int?> fixedDangerBeforeMinutes = const Value.absent(),
+                Value<int?> stateExpectedAfterMinutes = const Value.absent(),
                 Value<int?> stateWarningAfterMinutes = const Value.absent(),
                 Value<int?> stateDangerAfterMinutes = const Value.absent(),
-                Value<int?> resourceEstimatedDurationMinutes =
-                    const Value.absent(),
-                Value<int?> resourceWarningBeforeDepletionMinutes =
-                    const Value.absent(),
+                Value<int?> resourceAnchorDate = const Value.absent(),
+                Value<int?> resourceDurationDays = const Value.absent(),
+                Value<int?> resourceExpectedBeforeDays = const Value.absent(),
+                Value<int?> resourceWarningBeforeDays = const Value.absent(),
+                Value<int?> resourceDangerBeforeDays = const Value.absent(),
                 Value<int?> lastDoneAt = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
@@ -4056,14 +5251,20 @@ class $$ItemsTableTableManager
                 type: type,
                 fixedScheduleType: fixedScheduleType,
                 fixedAnchorDate: fixedAnchorDate,
+                fixedDueDate: fixedDueDate,
                 fixedTimeOfDay: fixedTimeOfDay,
-                stateExpectedIntervalMinutes: stateExpectedIntervalMinutes,
+                fixedOverduePolicy: fixedOverduePolicy,
+                fixedExpectedBeforeMinutes: fixedExpectedBeforeMinutes,
+                fixedWarningBeforeMinutes: fixedWarningBeforeMinutes,
+                fixedDangerBeforeMinutes: fixedDangerBeforeMinutes,
+                stateExpectedAfterMinutes: stateExpectedAfterMinutes,
                 stateWarningAfterMinutes: stateWarningAfterMinutes,
                 stateDangerAfterMinutes: stateDangerAfterMinutes,
-                resourceEstimatedDurationMinutes:
-                    resourceEstimatedDurationMinutes,
-                resourceWarningBeforeDepletionMinutes:
-                    resourceWarningBeforeDepletionMinutes,
+                resourceAnchorDate: resourceAnchorDate,
+                resourceDurationDays: resourceDurationDays,
+                resourceExpectedBeforeDays: resourceExpectedBeforeDays,
+                resourceWarningBeforeDays: resourceWarningBeforeDays,
+                resourceDangerBeforeDays: resourceDangerBeforeDays,
                 lastDoneAt: lastDoneAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -4078,14 +5279,20 @@ class $$ItemsTableTableManager
                 required String type,
                 Value<String?> fixedScheduleType = const Value.absent(),
                 Value<int?> fixedAnchorDate = const Value.absent(),
+                Value<int?> fixedDueDate = const Value.absent(),
                 Value<String?> fixedTimeOfDay = const Value.absent(),
-                Value<int?> stateExpectedIntervalMinutes = const Value.absent(),
+                Value<String?> fixedOverduePolicy = const Value.absent(),
+                Value<int?> fixedExpectedBeforeMinutes = const Value.absent(),
+                Value<int?> fixedWarningBeforeMinutes = const Value.absent(),
+                Value<int?> fixedDangerBeforeMinutes = const Value.absent(),
+                Value<int?> stateExpectedAfterMinutes = const Value.absent(),
                 Value<int?> stateWarningAfterMinutes = const Value.absent(),
                 Value<int?> stateDangerAfterMinutes = const Value.absent(),
-                Value<int?> resourceEstimatedDurationMinutes =
-                    const Value.absent(),
-                Value<int?> resourceWarningBeforeDepletionMinutes =
-                    const Value.absent(),
+                Value<int?> resourceAnchorDate = const Value.absent(),
+                Value<int?> resourceDurationDays = const Value.absent(),
+                Value<int?> resourceExpectedBeforeDays = const Value.absent(),
+                Value<int?> resourceWarningBeforeDays = const Value.absent(),
+                Value<int?> resourceDangerBeforeDays = const Value.absent(),
                 Value<int?> lastDoneAt = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
@@ -4098,14 +5305,20 @@ class $$ItemsTableTableManager
                 type: type,
                 fixedScheduleType: fixedScheduleType,
                 fixedAnchorDate: fixedAnchorDate,
+                fixedDueDate: fixedDueDate,
                 fixedTimeOfDay: fixedTimeOfDay,
-                stateExpectedIntervalMinutes: stateExpectedIntervalMinutes,
+                fixedOverduePolicy: fixedOverduePolicy,
+                fixedExpectedBeforeMinutes: fixedExpectedBeforeMinutes,
+                fixedWarningBeforeMinutes: fixedWarningBeforeMinutes,
+                fixedDangerBeforeMinutes: fixedDangerBeforeMinutes,
+                stateExpectedAfterMinutes: stateExpectedAfterMinutes,
                 stateWarningAfterMinutes: stateWarningAfterMinutes,
                 stateDangerAfterMinutes: stateDangerAfterMinutes,
-                resourceEstimatedDurationMinutes:
-                    resourceEstimatedDurationMinutes,
-                resourceWarningBeforeDepletionMinutes:
-                    resourceWarningBeforeDepletionMinutes,
+                resourceAnchorDate: resourceAnchorDate,
+                resourceDurationDays: resourceDurationDays,
+                resourceExpectedBeforeDays: resourceExpectedBeforeDays,
+                resourceWarningBeforeDays: resourceWarningBeforeDays,
+                resourceDangerBeforeDays: resourceDangerBeforeDays,
                 lastDoneAt: lastDoneAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -4116,7 +5329,419 @@ class $$ItemsTableTableManager
                     (e.readTable(table), $$ItemsTableReferences(db, table, e)),
               )
               .toList(),
-          prefetchHooksCallback: ({packId = false}) {
+          prefetchHooksCallback:
+              ({packId = false, itemActionRecordsRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (itemActionRecordsRefs) db.itemActionRecords,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (packId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.packId,
+                                    referencedTable: $$ItemsTableReferences
+                                        ._packIdTable(db),
+                                    referencedColumn: $$ItemsTableReferences
+                                        ._packIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (itemActionRecordsRefs)
+                        await $_getPrefetchedData<
+                          ItemRow,
+                          $ItemsTable,
+                          ItemActionRecordRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ItemsTableReferences
+                              ._itemActionRecordsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ItemsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).itemActionRecordsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.itemId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$ItemsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ItemsTable,
+      ItemRow,
+      $$ItemsTableFilterComposer,
+      $$ItemsTableOrderingComposer,
+      $$ItemsTableAnnotationComposer,
+      $$ItemsTableCreateCompanionBuilder,
+      $$ItemsTableUpdateCompanionBuilder,
+      (ItemRow, $$ItemsTableReferences),
+      ItemRow,
+      PrefetchHooks Function({bool packId, bool itemActionRecordsRefs})
+    >;
+typedef $$ItemActionRecordsTableCreateCompanionBuilder =
+    ItemActionRecordsCompanion Function({
+      Value<int> id,
+      required int itemId,
+      required String actionType,
+      required int actionDate,
+      Value<String?> remark,
+      Value<String?> payload,
+      required int createdAt,
+      required int updatedAt,
+    });
+typedef $$ItemActionRecordsTableUpdateCompanionBuilder =
+    ItemActionRecordsCompanion Function({
+      Value<int> id,
+      Value<int> itemId,
+      Value<String> actionType,
+      Value<int> actionDate,
+      Value<String?> remark,
+      Value<String?> payload,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+    });
+
+final class $$ItemActionRecordsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $ItemActionRecordsTable,
+          ItemActionRecordRow
+        > {
+  $$ItemActionRecordsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $ItemsTable _itemIdTable(_$AppDatabase db) => db.items.createAlias(
+    $_aliasNameGenerator(db.itemActionRecords.itemId, db.items.id),
+  );
+
+  $$ItemsTableProcessedTableManager get itemId {
+    final $_column = $_itemColumn<int>('item_id')!;
+
+    final manager = $$ItemsTableTableManager(
+      $_db,
+      $_db.items,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_itemIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ItemActionRecordsTableFilterComposer
+    extends Composer<_$AppDatabase, $ItemActionRecordsTable> {
+  $$ItemActionRecordsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get actionType => $composableBuilder(
+    column: $table.actionType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get actionDate => $composableBuilder(
+    column: $table.actionDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remark => $composableBuilder(
+    column: $table.remark,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payload => $composableBuilder(
+    column: $table.payload,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$ItemsTableFilterComposer get itemId {
+    final $$ItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.itemId,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ItemActionRecordsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ItemActionRecordsTable> {
+  $$ItemActionRecordsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get actionType => $composableBuilder(
+    column: $table.actionType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get actionDate => $composableBuilder(
+    column: $table.actionDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get remark => $composableBuilder(
+    column: $table.remark,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payload => $composableBuilder(
+    column: $table.payload,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ItemsTableOrderingComposer get itemId {
+    final $$ItemsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.itemId,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableOrderingComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ItemActionRecordsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ItemActionRecordsTable> {
+  $$ItemActionRecordsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get actionType => $composableBuilder(
+    column: $table.actionType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get actionDate => $composableBuilder(
+    column: $table.actionDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get remark =>
+      $composableBuilder(column: $table.remark, builder: (column) => column);
+
+  GeneratedColumn<String> get payload =>
+      $composableBuilder(column: $table.payload, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$ItemsTableAnnotationComposer get itemId {
+    final $$ItemsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.itemId,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ItemActionRecordsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ItemActionRecordsTable,
+          ItemActionRecordRow,
+          $$ItemActionRecordsTableFilterComposer,
+          $$ItemActionRecordsTableOrderingComposer,
+          $$ItemActionRecordsTableAnnotationComposer,
+          $$ItemActionRecordsTableCreateCompanionBuilder,
+          $$ItemActionRecordsTableUpdateCompanionBuilder,
+          (ItemActionRecordRow, $$ItemActionRecordsTableReferences),
+          ItemActionRecordRow,
+          PrefetchHooks Function({bool itemId})
+        > {
+  $$ItemActionRecordsTableTableManager(
+    _$AppDatabase db,
+    $ItemActionRecordsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ItemActionRecordsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ItemActionRecordsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ItemActionRecordsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> itemId = const Value.absent(),
+                Value<String> actionType = const Value.absent(),
+                Value<int> actionDate = const Value.absent(),
+                Value<String?> remark = const Value.absent(),
+                Value<String?> payload = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+              }) => ItemActionRecordsCompanion(
+                id: id,
+                itemId: itemId,
+                actionType: actionType,
+                actionDate: actionDate,
+                remark: remark,
+                payload: payload,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int itemId,
+                required String actionType,
+                required int actionDate,
+                Value<String?> remark = const Value.absent(),
+                Value<String?> payload = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+              }) => ItemActionRecordsCompanion.insert(
+                id: id,
+                itemId: itemId,
+                actionType: actionType,
+                actionDate: actionDate,
+                remark: remark,
+                payload: payload,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ItemActionRecordsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({itemId = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -4136,16 +5761,18 @@ class $$ItemsTableTableManager
                       dynamic
                     >
                   >(state) {
-                    if (packId) {
+                    if (itemId) {
                       state =
                           state.withJoin(
                                 currentTable: table,
-                                currentColumn: table.packId,
-                                referencedTable: $$ItemsTableReferences
-                                    ._packIdTable(db),
-                                referencedColumn: $$ItemsTableReferences
-                                    ._packIdTable(db)
-                                    .id,
+                                currentColumn: table.itemId,
+                                referencedTable:
+                                    $$ItemActionRecordsTableReferences
+                                        ._itemIdTable(db),
+                                referencedColumn:
+                                    $$ItemActionRecordsTableReferences
+                                        ._itemIdTable(db)
+                                        .id,
                               )
                               as T;
                     }
@@ -4161,19 +5788,19 @@ class $$ItemsTableTableManager
       );
 }
 
-typedef $$ItemsTableProcessedTableManager =
+typedef $$ItemActionRecordsTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
-      $ItemsTable,
-      ItemRow,
-      $$ItemsTableFilterComposer,
-      $$ItemsTableOrderingComposer,
-      $$ItemsTableAnnotationComposer,
-      $$ItemsTableCreateCompanionBuilder,
-      $$ItemsTableUpdateCompanionBuilder,
-      (ItemRow, $$ItemsTableReferences),
-      ItemRow,
-      PrefetchHooks Function({bool packId})
+      $ItemActionRecordsTable,
+      ItemActionRecordRow,
+      $$ItemActionRecordsTableFilterComposer,
+      $$ItemActionRecordsTableOrderingComposer,
+      $$ItemActionRecordsTableAnnotationComposer,
+      $$ItemActionRecordsTableCreateCompanionBuilder,
+      $$ItemActionRecordsTableUpdateCompanionBuilder,
+      (ItemActionRecordRow, $$ItemActionRecordsTableReferences),
+      ItemActionRecordRow,
+      PrefetchHooks Function({bool itemId})
     >;
 typedef $$TimelinesTableCreateCompanionBuilder =
     TimelinesCompanion Function({
@@ -5743,6 +7370,8 @@ class $AppDatabaseManager {
       $$ItemPacksTableTableManager(_db, _db.itemPacks);
   $$ItemsTableTableManager get items =>
       $$ItemsTableTableManager(_db, _db.items);
+  $$ItemActionRecordsTableTableManager get itemActionRecords =>
+      $$ItemActionRecordsTableTableManager(_db, _db.itemActionRecords);
   $$TimelinesTableTableManager get timelines =>
       $$TimelinesTableTableManager(_db, _db.timelines);
   $$TimelineMilestoneRulesTableTableManager get timelineMilestoneRules =>

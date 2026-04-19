@@ -22,12 +22,13 @@ class ReminderUiText {
   static const addItemPack = '新增 Item Pack';
   static const addTimeline = '新增 Timeline';
   static const editItem = '編輯 Item';
+  static const itemHistoryTitle = 'Item 操作紀錄';
   static const editItemPack = '編輯 Item Pack';
   static const editTimeline = '編輯 Timeline';
   static const noDangerItems = '目前沒有 danger item。';
   static const noWarningItems = '目前沒有 warning item。';
   static const noUpcomingTimelineItems = '目前沒有 upcoming timeline milestone。';
-  static const noItemHistory = '此輪 core model 不保留 item completion history。';
+  static const noItemHistory = '此 item 目前沒有操作紀錄。';
   static const noMilestoneHistory = '目前沒有 Milestone History。';
   static const noItems = '目前沒有 Item。';
   static const noItemPacks = '目前沒有 Item Pack。';
@@ -67,6 +68,7 @@ class ReminderUiText {
   static const nextMilestoneLabel = '下一筆';
   static const completeAction = '完成';
   static const skipAction = '跳過';
+  static const deferAction = '延期';
   static const noticedAction = '已看過';
   static const editAction = '編輯';
   static const pauseAction = '暫停';

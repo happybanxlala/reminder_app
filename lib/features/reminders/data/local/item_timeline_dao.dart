@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../domain/item_action_record.dart';
 import '../../domain/item.dart';
 import '../../domain/item_pack.dart';
 import '../../domain/timeline.dart';
@@ -46,6 +47,7 @@ class TimelineDetailRecord {
   tables: [
     ItemPacks,
     Items,
+    ItemActionRecords,
     Timelines,
     TimelineMilestoneRules,
     TimelineMilestoneRecords,
@@ -63,12 +65,22 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
     return into(items).insert(entry);
   }
 
+  Future<int> insertItemActionRecord(ItemActionRecordsCompanion entry) {
+    return into(itemActionRecords).insert(entry);
+  }
+
   Future<bool> updateItemPackRecord(ItemPackRow entry) {
     return update(itemPacks).replace(entry);
   }
 
   Future<bool> updateItemRecord(ItemRow entry) {
     return update(items).replace(entry);
+  }
+
+  Future<bool> updateItemFields(int id, ItemsCompanion entry) async {
+    final updatedRows = await (update(items)..where((t) => t.id.equals(id)))
+        .write(entry);
+    return updatedRows > 0;
   }
 
   Stream<List<ItemPack>> watchItemPacks({bool includeArchived = false}) {
@@ -138,6 +150,30 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
     return _mapItemBundle(rows.single);
   }
 
+  Stream<List<ItemActionRecord>> watchItemActionRecordsForItem(int itemId) {
+    final query = select(itemActionRecords)
+      ..where((t) => t.itemId.equals(itemId))
+      ..orderBy([
+        (t) => OrderingTerm.desc(t.actionDate),
+        (t) => OrderingTerm.desc(t.id),
+      ]);
+    return query.watch().map(
+      (rows) => rows.map(_toItemActionRecord).toList(growable: false),
+    );
+  }
+
+  Future<List<ItemActionRecord>> listItemActionRecordsForItem(int itemId) async {
+    final rows =
+        await (select(itemActionRecords)
+              ..where((t) => t.itemId.equals(itemId))
+              ..orderBy([
+                (t) => OrderingTerm.desc(t.actionDate),
+                (t) => OrderingTerm.desc(t.id),
+              ]))
+            .get();
+    return rows.map(_toItemActionRecord).toList(growable: false);
+  }
+
   Future<bool> updateItemStatus(int id, ItemLifecycleStatus status) async {
     final now = DateTime.now();
     final updatedRows = await (update(items)..where((t) => t.id.equals(id)))
@@ -161,21 +197,6 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
         updatedAt: Value(now.millisecondsSinceEpoch),
       ),
     );
-  }
-
-  Future<bool> markItemDone(int id, {DateTime? doneAt}) async {
-    final completionTime = doneAt == null
-        ? DateTime.now()
-        : DateTime(doneAt.year, doneAt.month, doneAt.day);
-    final updatedAt = DateTime.now();
-    final updatedRows = await (update(items)..where((t) => t.id.equals(id)))
-        .write(
-          ItemsCompanion(
-            lastDoneAt: Value(completionTime.millisecondsSinceEpoch),
-            updatedAt: Value(updatedAt.millisecondsSinceEpoch),
-          ),
-        );
-    return updatedRows > 0;
   }
 
   Future<int> insertTimeline(TimelinesCompanion entry) {
@@ -506,7 +527,7 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
   }
 
   Item _toItem(ItemRow row) {
-    final itemType = ItemType.values.byName(row.type);
+    final itemType = _itemTypeFromRow(row.type);
     return Item(
       id: row.id,
       packId: row.packId,
@@ -525,31 +546,60 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
 
   ItemConfig _toItemConfig(ItemRow row, ItemType type) {
     return switch (type) {
-      ItemType.fixedTime => FixedTimeItemConfig(
-        scheduleType: FixedTimeScheduleType.values.byName(
-          row.fixedScheduleType ?? FixedTimeScheduleType.custom.name,
+      ItemType.fixed => FixedItemConfig(
+        scheduleType: FixedScheduleType.values.byName(
+          row.fixedScheduleType ?? FixedScheduleType.custom.name,
         ),
         anchorDate: row.fixedAnchorDate == null
             ? null
             : DateTime.fromMillisecondsSinceEpoch(row.fixedAnchorDate!),
+        dueDate: row.fixedDueDate == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch(row.fixedDueDate!),
         timeOfDay: row.fixedTimeOfDay,
+        overduePolicy: ItemOverduePolicy.values.byName(
+          row.fixedOverduePolicy ?? ItemOverduePolicy.autoAdvance.name,
+        ),
+        expectedBefore: Duration(
+          minutes: row.fixedExpectedBeforeMinutes ?? 0,
+        ),
+        warningBefore: Duration(
+          minutes: row.fixedWarningBeforeMinutes ?? 0,
+        ),
+        dangerBefore: Duration(
+          minutes: row.fixedDangerBeforeMinutes ?? 0,
+        ),
       ),
       ItemType.stateBased => StateBasedItemConfig(
-        expectedInterval: Duration(
-          minutes: row.stateExpectedIntervalMinutes ?? 0,
+        expectedAfter: Duration(
+          minutes: row.stateExpectedAfterMinutes ?? 0,
         ),
         warningAfter: Duration(minutes: row.stateWarningAfterMinutes ?? 0),
         dangerAfter: Duration(minutes: row.stateDangerAfterMinutes ?? 0),
       ),
       ItemType.resourceBased => ResourceBasedItemConfig(
-        estimatedDuration: Duration(
-          minutes: row.resourceEstimatedDurationMinutes ?? 0,
-        ),
-        warningBeforeDepletion: Duration(
-          minutes: row.resourceWarningBeforeDepletionMinutes ?? 0,
-        ),
+        anchorDate: row.resourceAnchorDate == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch(row.resourceAnchorDate!),
+        durationDays: row.resourceDurationDays ?? 0,
+        expectedBefore: row.resourceExpectedBeforeDays ?? 0,
+        warningBefore: row.resourceWarningBeforeDays ?? 0,
+        dangerBefore: row.resourceDangerBeforeDays ?? 0,
       ),
     };
+  }
+
+  ItemActionRecord _toItemActionRecord(ItemActionRecordRow row) {
+    return ItemActionRecord(
+      id: row.id,
+      itemId: row.itemId,
+      actionType: ItemActionType.values.byName(row.actionType),
+      actionDate: DateTime.fromMillisecondsSinceEpoch(row.actionDate),
+      remark: row.remark,
+      payload: ItemActionRecord.decodePayload(row.payload),
+      createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
+    );
   }
 
   Timeline _toTimeline(TimelineRow row) {
@@ -609,6 +659,13 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
       'every_n_months' => TimelineMilestoneRuleType.everyNMonths,
       'every_n_years' => TimelineMilestoneRuleType.everyNYears,
       _ => TimelineMilestoneRuleType.everyNDays,
+    };
+  }
+
+  ItemType _itemTypeFromRow(String value) {
+    return switch (value) {
+      'fixedTime' => ItemType.fixed,
+      _ => ItemType.values.byName(value),
     };
   }
 
