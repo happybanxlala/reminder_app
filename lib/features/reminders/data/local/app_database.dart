@@ -30,7 +30,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -93,6 +93,16 @@ class AppDatabase extends _$AppDatabase {
 
       if (currentFrom == 13) {
         await _migrateFromV13ToV14(m);
+        currentFrom = 14;
+      }
+
+      if (currentFrom == 14) {
+        await _migrateFromV14ToV15();
+        currentFrom = 15;
+      }
+
+      if (currentFrom == 15) {
+        await _migrateFromV15ToV16();
       }
     },
   );
@@ -311,6 +321,43 @@ class AppDatabase extends _$AppDatabase {
       FROM items_v13
     ''');
     await customStatement('DROP TABLE IF EXISTS items_v13');
+  }
+
+  Future<void> _migrateFromV14ToV15() async {
+    final columns = await customSelect('PRAGMA table_info(items)').get();
+    final hasStateAnchorDate = columns.any(
+      (row) => row.read<String>('name') == 'state_anchor_date',
+    );
+    if (!hasStateAnchorDate) {
+      await customStatement(
+        'ALTER TABLE items ADD COLUMN state_anchor_date INTEGER',
+      );
+    }
+    await customStatement('''
+      UPDATE items
+      SET state_anchor_date = last_done_at
+      WHERE type = 'stateBased'
+        AND state_anchor_date IS NULL
+        AND last_done_at IS NOT NULL
+    ''');
+    await customStatement('''
+      UPDATE items
+      SET fixed_schedule_type = 'oneTime'
+      WHERE fixed_schedule_type = 'custom'
+    ''');
+  }
+
+  Future<void> _migrateFromV15ToV16() async {
+    await customStatement('''
+      UPDATE items
+      SET state_anchor_date = COALESCE(state_anchor_date, last_done_at)
+      WHERE type = 'stateBased'
+    ''');
+    await customStatement('''
+      UPDATE items
+      SET last_done_at = NULL
+      WHERE type = 'stateBased'
+    ''');
   }
 
   Future<void> _ensureSystemDefaultPack() async {

@@ -10,6 +10,7 @@ import '../../domain/timeline_milestone_occurrence.dart';
 import '../../domain/timeline_milestone_record.dart';
 import '../../domain/timeline_milestone_rule.dart';
 import '../../domain/timeline_milestone_service.dart';
+import '../../domain/item_status_service.dart';
 import '../text/reminder_ui_text.dart';
 
 class ReminderFormatters {
@@ -23,17 +24,29 @@ class ReminderFormatters {
     return DateFormat('yyyy/MM/dd HH:mm').format(value.toLocal());
   }
 
-  static String itemSummary(ItemBundle bundle) {
+  static String itemSummary(
+    ItemBundle bundle, {
+    DateTime? now,
+    ItemStatusService statusService = const ItemStatusService(),
+  }) {
     return switch (bundle.item.config) {
-      FixedItemConfig config => _fixedSummary(config),
+      FixedItemConfig config => _fixedSummary(
+        config,
+        now: now,
+        statusService: statusService,
+      ),
       StateBasedItemConfig config => _stateBasedSummary(config),
       ResourceBasedItemConfig config => _resourceBasedSummary(config),
       _ => bundle.item.type.name,
     };
   }
 
-  static String itemHomeSummary(ItemHomeEntry entry) {
-    return '${entry.bundle.pack.title} • ${itemStatus(entry.status)} • ${itemSummary(entry.bundle)}';
+  static String itemHomeSummary(
+    ItemHomeEntry entry, {
+    DateTime? now,
+    ItemStatusService statusService = const ItemStatusService(),
+  }) {
+    return '${entry.bundle.pack.title} • ${itemStatus(entry.status)} • ${itemSummary(entry.bundle, now: now, statusService: statusService)}';
   }
 
   static String itemActionRecord(ItemActionRecord record) {
@@ -162,16 +175,23 @@ class ReminderFormatters {
     return '${value.inMinutes} 分鐘未完成';
   }
 
-  static String _fixedSummary(FixedItemConfig config) {
+  static String _fixedSummary(
+    FixedItemConfig config, {
+    DateTime? now,
+    required ItemStatusService statusService,
+  }) {
     final scheduleLabel = switch (config.scheduleType) {
       FixedScheduleType.daily => '每天',
       FixedScheduleType.weekly => '每週',
-      FixedScheduleType.custom => '自訂',
+      FixedScheduleType.oneTime => 'ONETIME',
     };
-    final anchorLabel = config.anchorDate == null
-        ? null
-        : date(config.anchorDate!);
-    final dueLabel = config.dueDate == null ? null : date(config.dueDate!);
+    final resolvedCycle = statusService.resolveFixedCycle(config, now: now);
+    final anchorLabel = resolvedCycle == null
+        ? (config.anchorDate == null ? null : date(config.anchorDate!))
+        : date(resolvedCycle.anchorDate);
+    final dueLabel = resolvedCycle == null
+        ? (config.dueDate == null ? null : date(config.dueDate!))
+        : date(resolvedCycle.dueDate);
     final overdueLabel = switch (config.overduePolicy) {
       ItemOverduePolicy.autoAdvance => '逾期自動進下一輪',
       ItemOverduePolicy.waitForAction => '逾期等待處理',
@@ -186,16 +206,26 @@ class ReminderFormatters {
     if (config.timeOfDay != null && config.timeOfDay!.isNotEmpty) {
       parts.add(config.timeOfDay!);
     }
+    if (resolvedCycle?.isVirtualAdvance ?? false) {
+      parts.add('目前顯示下一輪');
+    }
     parts.add(overdueLabel);
     return parts.join(' • ');
   }
 
   static String _stateBasedSummary(StateBasedItemConfig config) {
-    return '基準 ${config.expectedAfter.inDays} 天 • 留意 ${config.warningAfter.inDays} 天 • 變糟 ${config.dangerAfter.inDays} 天';
+    final parts = <String>[];
+    if (config.anchorDate != null) {
+      parts.add('起點 ${date(config.anchorDate!)}');
+    }
+    parts.add('基準 ${config.expectedAfter.inDays} 天');
+    parts.add('留意 ${config.warningAfter.inDays} 天');
+    parts.add('變糟 ${config.dangerAfter.inDays} 天');
+    return parts.join(' • ');
   }
 
   static String _resourceBasedSummary(ResourceBasedItemConfig config) {
     final anchor = config.anchorDate == null ? '未建立' : date(config.anchorDate!);
-    return '起點 $anchor • 可維持 ${config.durationDays} 天 • 留意前 ${config.warningBefore} 天';
+    return '起點 $anchor • 可維持 ${config.durationDays} 天（含起點） • 留意前 ${config.warningBefore} 天';
   }
 }

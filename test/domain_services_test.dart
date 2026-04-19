@@ -15,12 +15,12 @@ void main() {
       packId: 1,
       title: 'Trash',
       type: ItemType.stateBased,
-      config: const StateBasedItemConfig(
+      config: StateBasedItemConfig(
+        anchorDate: DateTime(2026, 4, 1),
         expectedInterval: Duration(days: 7),
         warningAfter: Duration(days: 7),
         dangerAfter: Duration(days: 14),
       ),
-      lastDoneAt: DateTime(2026, 4, 1),
       createdAt: DateTime(2026, 4, 1),
       updatedAt: DateTime(2026, 4, 1),
     );
@@ -37,6 +37,47 @@ void main() {
       service.classify(item, now: DateTime(2026, 4, 16)),
       ItemStatus.danger,
     );
+  });
+
+  test('state-based items use anchor date as initial baseline', () {
+    const service = ItemStatusService();
+    final item = Item(
+      id: 10,
+      packId: 1,
+      title: 'Replace filter',
+      type: ItemType.stateBased,
+      config: StateBasedItemConfig(
+        anchorDate: DateTime(2026, 4, 1),
+        expectedAfter: const Duration(days: 7),
+        warningAfter: const Duration(days: 7),
+        dangerAfter: const Duration(days: 14),
+      ),
+      createdAt: DateTime(2026, 4, 1),
+      updatedAt: DateTime(2026, 4, 1),
+    );
+
+    expect(
+      service.classify(item, now: DateTime(2026, 4, 5)),
+      ItemStatus.normal,
+    );
+  });
+
+  test('fixed auto-advance resolves preview cycle to next round', () {
+    const service = ItemStatusService();
+    final cycle = service.resolveFixedCycle(
+      FixedItemConfig(
+        scheduleType: FixedScheduleType.daily,
+        anchorDate: DateTime(2026, 4, 1),
+        dueDate: DateTime(2026, 4, 1),
+        overduePolicy: ItemOverduePolicy.autoAdvance,
+      ),
+      now: DateTime(2026, 4, 3),
+    );
+
+    expect(cycle, isNotNull);
+    expect(cycle!.anchorDate, DateTime(2026, 4, 3));
+    expect(cycle.dueDate, DateTime(2026, 4, 3));
+    expect(cycle.isVirtualAdvance, isTrue);
   });
 
   test('item status service classifies resource-based items', () {
@@ -66,6 +107,27 @@ void main() {
     );
     expect(
       service.classify(item, now: DateTime(2026, 5, 2)),
+      ItemStatus.danger,
+    );
+  });
+
+  test('resource-based depletion day is already danger', () {
+    const service = ItemStatusService();
+    final item = Item(
+      id: 3,
+      packId: 1,
+      title: 'Cat food',
+      type: ItemType.resourceBased,
+      config: ResourceBasedItemConfig(
+        anchorDate: DateTime(2026, 4, 1),
+        durationDays: 5,
+      ),
+      createdAt: DateTime(2026, 4, 1),
+      updatedAt: DateTime(2026, 4, 1),
+    );
+
+    expect(
+      service.classify(item, now: DateTime(2026, 4, 5)),
       ItemStatus.danger,
     );
   });

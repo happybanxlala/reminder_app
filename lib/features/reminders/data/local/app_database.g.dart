@@ -621,6 +621,17 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
         type: DriftSqlType.int,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _stateAnchorDateMeta = const VerificationMeta(
+    'stateAnchorDate',
+  );
+  @override
+  late final GeneratedColumn<int> stateAnchorDate = GeneratedColumn<int>(
+    'state_anchor_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _stateExpectedAfterMinutesMeta =
       const VerificationMeta('stateExpectedAfterMinutes');
   @override
@@ -756,6 +767,7 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
     fixedExpectedBeforeMinutes,
     fixedWarningBeforeMinutes,
     fixedDangerBeforeMinutes,
+    stateAnchorDate,
     stateExpectedAfterMinutes,
     stateWarningAfterMinutes,
     stateDangerAfterMinutes,
@@ -891,6 +903,15 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
         fixedDangerBeforeMinutes.isAcceptableOrUnknown(
           data['fixed_danger_before_minutes']!,
           _fixedDangerBeforeMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('state_anchor_date')) {
+      context.handle(
+        _stateAnchorDateMeta,
+        stateAnchorDate.isAcceptableOrUnknown(
+          data['state_anchor_date']!,
+          _stateAnchorDateMeta,
         ),
       );
     }
@@ -1056,6 +1077,10 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
         DriftSqlType.int,
         data['${effectivePrefix}fixed_danger_before_minutes'],
       ),
+      stateAnchorDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}state_anchor_date'],
+      ),
       stateExpectedAfterMinutes: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}state_expected_after_minutes'],
@@ -1124,6 +1149,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
   final int? fixedExpectedBeforeMinutes;
   final int? fixedWarningBeforeMinutes;
   final int? fixedDangerBeforeMinutes;
+  final int? stateAnchorDate;
   final int? stateExpectedAfterMinutes;
   final int? stateWarningAfterMinutes;
   final int? stateDangerAfterMinutes;
@@ -1150,6 +1176,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     this.fixedExpectedBeforeMinutes,
     this.fixedWarningBeforeMinutes,
     this.fixedDangerBeforeMinutes,
+    this.stateAnchorDate,
     this.stateExpectedAfterMinutes,
     this.stateWarningAfterMinutes,
     this.stateDangerAfterMinutes,
@@ -1202,6 +1229,9 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       map['fixed_danger_before_minutes'] = Variable<int>(
         fixedDangerBeforeMinutes,
       );
+    }
+    if (!nullToAbsent || stateAnchorDate != null) {
+      map['state_anchor_date'] = Variable<int>(stateAnchorDate);
     }
     if (!nullToAbsent || stateExpectedAfterMinutes != null) {
       map['state_expected_after_minutes'] = Variable<int>(
@@ -1283,6 +1313,9 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       fixedDangerBeforeMinutes: fixedDangerBeforeMinutes == null && nullToAbsent
           ? const Value.absent()
           : Value(fixedDangerBeforeMinutes),
+      stateAnchorDate: stateAnchorDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stateAnchorDate),
       stateExpectedAfterMinutes:
           stateExpectedAfterMinutes == null && nullToAbsent
           ? const Value.absent()
@@ -1348,6 +1381,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       fixedDangerBeforeMinutes: serializer.fromJson<int?>(
         json['fixedDangerBeforeMinutes'],
       ),
+      stateAnchorDate: serializer.fromJson<int?>(json['stateAnchorDate']),
       stateExpectedAfterMinutes: serializer.fromJson<int?>(
         json['stateExpectedAfterMinutes'],
       ),
@@ -1399,6 +1433,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       'fixedDangerBeforeMinutes': serializer.toJson<int?>(
         fixedDangerBeforeMinutes,
       ),
+      'stateAnchorDate': serializer.toJson<int?>(stateAnchorDate),
       'stateExpectedAfterMinutes': serializer.toJson<int?>(
         stateExpectedAfterMinutes,
       ),
@@ -1440,6 +1475,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     Value<int?> fixedExpectedBeforeMinutes = const Value.absent(),
     Value<int?> fixedWarningBeforeMinutes = const Value.absent(),
     Value<int?> fixedDangerBeforeMinutes = const Value.absent(),
+    Value<int?> stateAnchorDate = const Value.absent(),
     Value<int?> stateExpectedAfterMinutes = const Value.absent(),
     Value<int?> stateWarningAfterMinutes = const Value.absent(),
     Value<int?> stateDangerAfterMinutes = const Value.absent(),
@@ -1480,6 +1516,9 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     fixedDangerBeforeMinutes: fixedDangerBeforeMinutes.present
         ? fixedDangerBeforeMinutes.value
         : this.fixedDangerBeforeMinutes,
+    stateAnchorDate: stateAnchorDate.present
+        ? stateAnchorDate.value
+        : this.stateAnchorDate,
     stateExpectedAfterMinutes: stateExpectedAfterMinutes.present
         ? stateExpectedAfterMinutes.value
         : this.stateExpectedAfterMinutes,
@@ -1542,6 +1581,9 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       fixedDangerBeforeMinutes: data.fixedDangerBeforeMinutes.present
           ? data.fixedDangerBeforeMinutes.value
           : this.fixedDangerBeforeMinutes,
+      stateAnchorDate: data.stateAnchorDate.present
+          ? data.stateAnchorDate.value
+          : this.stateAnchorDate,
       stateExpectedAfterMinutes: data.stateExpectedAfterMinutes.present
           ? data.stateExpectedAfterMinutes.value
           : this.stateExpectedAfterMinutes,
@@ -1591,6 +1633,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
           ..write('fixedExpectedBeforeMinutes: $fixedExpectedBeforeMinutes, ')
           ..write('fixedWarningBeforeMinutes: $fixedWarningBeforeMinutes, ')
           ..write('fixedDangerBeforeMinutes: $fixedDangerBeforeMinutes, ')
+          ..write('stateAnchorDate: $stateAnchorDate, ')
           ..write('stateExpectedAfterMinutes: $stateExpectedAfterMinutes, ')
           ..write('stateWarningAfterMinutes: $stateWarningAfterMinutes, ')
           ..write('stateDangerAfterMinutes: $stateDangerAfterMinutes, ')
@@ -1622,6 +1665,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     fixedExpectedBeforeMinutes,
     fixedWarningBeforeMinutes,
     fixedDangerBeforeMinutes,
+    stateAnchorDate,
     stateExpectedAfterMinutes,
     stateWarningAfterMinutes,
     stateDangerAfterMinutes,
@@ -1652,6 +1696,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
           other.fixedExpectedBeforeMinutes == this.fixedExpectedBeforeMinutes &&
           other.fixedWarningBeforeMinutes == this.fixedWarningBeforeMinutes &&
           other.fixedDangerBeforeMinutes == this.fixedDangerBeforeMinutes &&
+          other.stateAnchorDate == this.stateAnchorDate &&
           other.stateExpectedAfterMinutes == this.stateExpectedAfterMinutes &&
           other.stateWarningAfterMinutes == this.stateWarningAfterMinutes &&
           other.stateDangerAfterMinutes == this.stateDangerAfterMinutes &&
@@ -1680,6 +1725,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
   final Value<int?> fixedExpectedBeforeMinutes;
   final Value<int?> fixedWarningBeforeMinutes;
   final Value<int?> fixedDangerBeforeMinutes;
+  final Value<int?> stateAnchorDate;
   final Value<int?> stateExpectedAfterMinutes;
   final Value<int?> stateWarningAfterMinutes;
   final Value<int?> stateDangerAfterMinutes;
@@ -1706,6 +1752,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     this.fixedExpectedBeforeMinutes = const Value.absent(),
     this.fixedWarningBeforeMinutes = const Value.absent(),
     this.fixedDangerBeforeMinutes = const Value.absent(),
+    this.stateAnchorDate = const Value.absent(),
     this.stateExpectedAfterMinutes = const Value.absent(),
     this.stateWarningAfterMinutes = const Value.absent(),
     this.stateDangerAfterMinutes = const Value.absent(),
@@ -1733,6 +1780,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     this.fixedExpectedBeforeMinutes = const Value.absent(),
     this.fixedWarningBeforeMinutes = const Value.absent(),
     this.fixedDangerBeforeMinutes = const Value.absent(),
+    this.stateAnchorDate = const Value.absent(),
     this.stateExpectedAfterMinutes = const Value.absent(),
     this.stateWarningAfterMinutes = const Value.absent(),
     this.stateDangerAfterMinutes = const Value.absent(),
@@ -1764,6 +1812,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     Expression<int>? fixedExpectedBeforeMinutes,
     Expression<int>? fixedWarningBeforeMinutes,
     Expression<int>? fixedDangerBeforeMinutes,
+    Expression<int>? stateAnchorDate,
     Expression<int>? stateExpectedAfterMinutes,
     Expression<int>? stateWarningAfterMinutes,
     Expression<int>? stateDangerAfterMinutes,
@@ -1795,6 +1844,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
         'fixed_warning_before_minutes': fixedWarningBeforeMinutes,
       if (fixedDangerBeforeMinutes != null)
         'fixed_danger_before_minutes': fixedDangerBeforeMinutes,
+      if (stateAnchorDate != null) 'state_anchor_date': stateAnchorDate,
       if (stateExpectedAfterMinutes != null)
         'state_expected_after_minutes': stateExpectedAfterMinutes,
       if (stateWarningAfterMinutes != null)
@@ -1832,6 +1882,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     Value<int?>? fixedExpectedBeforeMinutes,
     Value<int?>? fixedWarningBeforeMinutes,
     Value<int?>? fixedDangerBeforeMinutes,
+    Value<int?>? stateAnchorDate,
     Value<int?>? stateExpectedAfterMinutes,
     Value<int?>? stateWarningAfterMinutes,
     Value<int?>? stateDangerAfterMinutes,
@@ -1862,6 +1913,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
           fixedWarningBeforeMinutes ?? this.fixedWarningBeforeMinutes,
       fixedDangerBeforeMinutes:
           fixedDangerBeforeMinutes ?? this.fixedDangerBeforeMinutes,
+      stateAnchorDate: stateAnchorDate ?? this.stateAnchorDate,
       stateExpectedAfterMinutes:
           stateExpectedAfterMinutes ?? this.stateExpectedAfterMinutes,
       stateWarningAfterMinutes:
@@ -1933,6 +1985,9 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
         fixedDangerBeforeMinutes.value,
       );
     }
+    if (stateAnchorDate.present) {
+      map['state_anchor_date'] = Variable<int>(stateAnchorDate.value);
+    }
     if (stateExpectedAfterMinutes.present) {
       map['state_expected_after_minutes'] = Variable<int>(
         stateExpectedAfterMinutes.value,
@@ -1998,6 +2053,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
           ..write('fixedExpectedBeforeMinutes: $fixedExpectedBeforeMinutes, ')
           ..write('fixedWarningBeforeMinutes: $fixedWarningBeforeMinutes, ')
           ..write('fixedDangerBeforeMinutes: $fixedDangerBeforeMinutes, ')
+          ..write('stateAnchorDate: $stateAnchorDate, ')
           ..write('stateExpectedAfterMinutes: $stateExpectedAfterMinutes, ')
           ..write('stateWarningAfterMinutes: $stateWarningAfterMinutes, ')
           ..write('stateDangerAfterMinutes: $stateDangerAfterMinutes, ')
@@ -4605,6 +4661,7 @@ typedef $$ItemsTableCreateCompanionBuilder =
       Value<int?> fixedExpectedBeforeMinutes,
       Value<int?> fixedWarningBeforeMinutes,
       Value<int?> fixedDangerBeforeMinutes,
+      Value<int?> stateAnchorDate,
       Value<int?> stateExpectedAfterMinutes,
       Value<int?> stateWarningAfterMinutes,
       Value<int?> stateDangerAfterMinutes,
@@ -4633,6 +4690,7 @@ typedef $$ItemsTableUpdateCompanionBuilder =
       Value<int?> fixedExpectedBeforeMinutes,
       Value<int?> fixedWarningBeforeMinutes,
       Value<int?> fixedDangerBeforeMinutes,
+      Value<int?> stateAnchorDate,
       Value<int?> stateExpectedAfterMinutes,
       Value<int?> stateWarningAfterMinutes,
       Value<int?> stateDangerAfterMinutes,
@@ -4762,6 +4820,11 @@ class $$ItemsTableFilterComposer extends Composer<_$AppDatabase, $ItemsTable> {
 
   ColumnFilters<int> get fixedDangerBeforeMinutes => $composableBuilder(
     column: $table.fixedDangerBeforeMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get stateAnchorDate => $composableBuilder(
+    column: $table.stateAnchorDate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4943,6 +5006,11 @@ class $$ItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get stateAnchorDate => $composableBuilder(
+    column: $table.stateAnchorDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get stateExpectedAfterMinutes => $composableBuilder(
     column: $table.stateExpectedAfterMinutes,
     builder: (column) => ColumnOrderings(column),
@@ -5085,6 +5153,11 @@ class $$ItemsTableAnnotationComposer
 
   GeneratedColumn<int> get fixedDangerBeforeMinutes => $composableBuilder(
     column: $table.fixedDangerBeforeMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get stateAnchorDate => $composableBuilder(
+    column: $table.stateAnchorDate,
     builder: (column) => column,
   );
 
@@ -5231,6 +5304,7 @@ class $$ItemsTableTableManager
                 Value<int?> fixedExpectedBeforeMinutes = const Value.absent(),
                 Value<int?> fixedWarningBeforeMinutes = const Value.absent(),
                 Value<int?> fixedDangerBeforeMinutes = const Value.absent(),
+                Value<int?> stateAnchorDate = const Value.absent(),
                 Value<int?> stateExpectedAfterMinutes = const Value.absent(),
                 Value<int?> stateWarningAfterMinutes = const Value.absent(),
                 Value<int?> stateDangerAfterMinutes = const Value.absent(),
@@ -5257,6 +5331,7 @@ class $$ItemsTableTableManager
                 fixedExpectedBeforeMinutes: fixedExpectedBeforeMinutes,
                 fixedWarningBeforeMinutes: fixedWarningBeforeMinutes,
                 fixedDangerBeforeMinutes: fixedDangerBeforeMinutes,
+                stateAnchorDate: stateAnchorDate,
                 stateExpectedAfterMinutes: stateExpectedAfterMinutes,
                 stateWarningAfterMinutes: stateWarningAfterMinutes,
                 stateDangerAfterMinutes: stateDangerAfterMinutes,
@@ -5285,6 +5360,7 @@ class $$ItemsTableTableManager
                 Value<int?> fixedExpectedBeforeMinutes = const Value.absent(),
                 Value<int?> fixedWarningBeforeMinutes = const Value.absent(),
                 Value<int?> fixedDangerBeforeMinutes = const Value.absent(),
+                Value<int?> stateAnchorDate = const Value.absent(),
                 Value<int?> stateExpectedAfterMinutes = const Value.absent(),
                 Value<int?> stateWarningAfterMinutes = const Value.absent(),
                 Value<int?> stateDangerAfterMinutes = const Value.absent(),
@@ -5311,6 +5387,7 @@ class $$ItemsTableTableManager
                 fixedExpectedBeforeMinutes: fixedExpectedBeforeMinutes,
                 fixedWarningBeforeMinutes: fixedWarningBeforeMinutes,
                 fixedDangerBeforeMinutes: fixedDangerBeforeMinutes,
+                stateAnchorDate: stateAnchorDate,
                 stateExpectedAfterMinutes: stateExpectedAfterMinutes,
                 stateWarningAfterMinutes: stateWarningAfterMinutes,
                 stateDangerAfterMinutes: stateDangerAfterMinutes,

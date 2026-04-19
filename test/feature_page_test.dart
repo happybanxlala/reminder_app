@@ -418,7 +418,7 @@ void main() {
   });
 
   testWidgets(
-    'items management complete action writes preview date into lastDoneAt',
+    'items management complete action forwards preview date for state baseline',
     (tester) async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
@@ -456,6 +456,54 @@ void main() {
 
       expect(repository.recordedItemId, itemId);
       expect(repository.recordedDoneAt, previewDate);
+    },
+  );
+
+  testWidgets(
+    'items management hides skip for resource items and requires added days',
+    (tester) async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = _RecordingItemRepository(db.itemTimelineDao);
+      final previewDate = DateTime(2026, 4, 11);
+      const itemId = 3;
+      final container = ProviderContainer(
+        overrides: [
+          itemRepositoryProvider.overrideWith((ref) => repository),
+          activeItemPacksProvider.overrideWith(
+            (ref) => Stream.value([
+              _pack(1, title: 'Default Item Pack', isSystemDefault: true),
+            ]),
+          ),
+          itemsProvider.overrideWith(
+            (ref) =>
+                Stream.value([_itemBundle(itemId, ItemType.resourceBased)]),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(developerDateOverrideProvider.notifier).state =
+          previewDate;
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: ItemsManagementPage()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(Key('item-skip-$itemId')), findsNothing);
+
+      await tester.tap(find.byKey(Key('item-done-$itemId')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).last, '12');
+      await tester.tap(find.text(ReminderUiText.saveAction));
+      await tester.pumpAndSettle();
+
+      expect(repository.recordedItemId, itemId);
+      expect(repository.recordedDoneAt, previewDate);
+      expect(repository.recordedAddedDays, 12);
     },
   );
 
@@ -654,7 +702,8 @@ ItemBundle _itemBundle(
   ItemLifecycleStatus lifecycleStatus = ItemLifecycleStatus.active,
 }) {
   final config = switch (type) {
-    ItemType.stateBased => const StateBasedItemConfig(
+    ItemType.stateBased => StateBasedItemConfig(
+      anchorDate: DateTime(2026, 4, 10),
       expectedInterval: Duration(days: 7),
       warningAfter: Duration(days: 7),
       dangerAfter: Duration(days: 14),
@@ -678,7 +727,6 @@ ItemBundle _itemBundle(
       status: lifecycleStatus,
       type: type,
       config: config,
-      lastDoneAt: DateTime(2026, 4, 10),
       createdAt: DateTime(2026, 4, 1),
       updatedAt: DateTime(2026, 4, 1),
     ),
@@ -702,6 +750,7 @@ class _RecordingItemRepository extends ItemRepository {
 
   int? recordedItemId;
   DateTime? recordedDoneAt;
+  int? recordedAddedDays;
 
   @override
   Future<bool> markDone(
@@ -714,6 +763,7 @@ class _RecordingItemRepository extends ItemRepository {
   }) async {
     recordedItemId = id;
     recordedDoneAt = doneAt;
+    recordedAddedDays = addedDays;
     return true;
   }
 }

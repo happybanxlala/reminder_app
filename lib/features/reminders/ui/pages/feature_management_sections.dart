@@ -118,6 +118,7 @@ class DefaultItemsManagementContent extends ConsumerWidget {
               child: _ItemCard(
                 bundle: item,
                 status: repository.statusFor(item.item, now: previewDate),
+                previewDate: previewDate,
               ),
             ),
           ),
@@ -429,6 +430,7 @@ class _ItemPackSummaryCard extends ConsumerWidget {
                   child: _PackItemRow(
                     bundle: item,
                     status: repository.statusFor(item.item, now: previewDate),
+                    previewDate: previewDate,
                   ),
                 ),
               ),
@@ -440,10 +442,15 @@ class _ItemPackSummaryCard extends ConsumerWidget {
 }
 
 class _PackItemRow extends ConsumerWidget {
-  const _PackItemRow({required this.bundle, required this.status});
+  const _PackItemRow({
+    required this.bundle,
+    required this.status,
+    required this.previewDate,
+  });
 
   final ItemBundle bundle;
   final ItemStatus status;
+  final DateTime previewDate;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -469,7 +476,9 @@ class _PackItemRow extends ConsumerWidget {
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                   const SizedBox(height: 4),
-                  Text(ReminderFormatters.itemSummary(bundle)),
+                  Text(
+                    ReminderFormatters.itemSummary(bundle, now: previewDate),
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     lifecycle == ItemLifecycleStatus.active
@@ -531,14 +540,18 @@ class _PackItemRow extends ConsumerWidget {
 }
 
 class _ItemCard extends ConsumerWidget {
-  const _ItemCard({required this.bundle, required this.status});
+  const _ItemCard({
+    required this.bundle,
+    required this.status,
+    required this.previewDate,
+  });
 
   final ItemBundle bundle;
   final ItemStatus status;
+  final DateTime previewDate;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final previewDate = ref.watch(effectivePreviewDateProvider);
     return DecoratedBox(
       decoration: BoxDecoration(
         border: Border.all(color: Theme.of(context).dividerColor),
@@ -561,7 +574,12 @@ class _ItemCard extends ConsumerWidget {
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 4),
-                      Text(ReminderFormatters.itemSummary(bundle)),
+                      Text(
+                        ReminderFormatters.itemSummary(
+                          bundle,
+                          now: previewDate,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -587,21 +605,38 @@ class _ItemCard extends ConsumerWidget {
                 OutlinedButton(
                   key: Key('item-done-${bundle.item.id}'),
                   onPressed: () async {
+                    final addedDays = bundle.item.type == ItemType.resourceBased
+                        ? await _showResourceAddedDaysDialog(
+                            context,
+                            initialValue:
+                                (bundle.item.config as ResourceBasedItemConfig)
+                                    .durationDays,
+                          )
+                        : null;
+                    if (bundle.item.type == ItemType.resourceBased &&
+                        addedDays == null) {
+                      return;
+                    }
                     await ref
                         .read(itemRepositoryProvider)
-                        .markDone(bundle.item.id, doneAt: previewDate);
+                        .markDone(
+                          bundle.item.id,
+                          doneAt: previewDate,
+                          addedDays: addedDays,
+                        );
                   },
                   child: const Text(ReminderUiText.completeAction),
                 ),
-                OutlinedButton(
-                  key: Key('item-skip-${bundle.item.id}'),
-                  onPressed: () async {
-                    await ref
-                        .read(itemRepositoryProvider)
-                        .skip(bundle.item.id, actionAt: previewDate);
-                  },
-                  child: const Text(ReminderUiText.skipAction),
-                ),
+                if (bundle.item.type != ItemType.resourceBased)
+                  OutlinedButton(
+                    key: Key('item-skip-${bundle.item.id}'),
+                    onPressed: () async {
+                      await ref
+                          .read(itemRepositoryProvider)
+                          .skip(bundle.item.id, actionAt: previewDate);
+                    },
+                    child: const Text(ReminderUiText.skipAction),
+                  ),
                 if (bundle.item.type == ItemType.fixed)
                   OutlinedButton(
                     key: Key('item-defer-${bundle.item.id}'),
@@ -610,11 +645,13 @@ class _ItemCard extends ConsumerWidget {
                       if (deferDays == null) {
                         return;
                       }
-                      await ref.read(itemRepositoryProvider).defer(
-                        bundle.item.id,
-                        deferDays: deferDays,
-                        actionAt: previewDate,
-                      );
+                      await ref
+                          .read(itemRepositoryProvider)
+                          .defer(
+                            bundle.item.id,
+                            deferDays: deferDays,
+                            actionAt: previewDate,
+                          );
                     },
                     child: const Text(ReminderUiText.deferAction),
                   ),
@@ -665,6 +702,54 @@ Future<int?> _showDeferDialog(BuildContext context) async {
     ),
   );
   controller.dispose();
+  return result;
+}
+
+Future<int?> _showResourceAddedDaysDialog(
+  BuildContext context, {
+  required int initialValue,
+}) async {
+  var inputValue = '$initialValue';
+  String? errorText;
+  final result = await showDialog<int>(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) => AlertDialog(
+        title: const Text(ReminderUiText.completeAction),
+        content: TextFormField(
+          autofocus: true,
+          initialValue: inputValue,
+          keyboardType: TextInputType.number,
+          onChanged: (value) {
+            inputValue = value;
+          },
+          decoration: InputDecoration(
+            labelText: '補充 addedDays',
+            errorText: errorText,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = int.tryParse(inputValue.trim());
+              if (value == null || value <= 0) {
+                setState(() {
+                  errorText = '請輸入 1 或以上整數';
+                });
+                return;
+              }
+              Navigator.of(context).pop(value);
+            },
+            child: const Text(ReminderUiText.saveAction),
+          ),
+        ],
+      ),
+    ),
+  );
   return result;
 }
 

@@ -24,23 +24,29 @@ class ItemStatusService {
         now: current,
       ),
       StateBasedItemConfig config => _classifyStateBased(
-        item.lastDoneAt,
+        config.anchorDate,
         config,
         now: current,
       ),
-      ResourceBasedItemConfig config => _classifyResourceBased(config, now: current),
+      ResourceBasedItemConfig config => _classifyResourceBased(
+        config,
+        now: current,
+      ),
       _ => ItemStatus.unknown,
     };
   }
 
   Duration? elapsedSinceLastDone(Item item, {DateTime? now}) {
-    final lastDoneAt = item.lastDoneAt;
-    if (lastDoneAt == null) {
+    final baseline = switch (item.config) {
+      StateBasedItemConfig config => config.anchorDate,
+      _ => item.lastDoneAt,
+    };
+    if (baseline == null) {
       return null;
     }
     return _normalizeDate(
       now ?? DateTime.now(),
-    ).difference(_normalizeDate(lastDoneAt));
+    ).difference(_normalizeDate(baseline));
   }
 
   FixedCycleWindow? currentFixedCycle(Item item, {DateTime? now}) {
@@ -71,7 +77,7 @@ class ItemStatusService {
       );
     }
 
-    if (config.scheduleType == FixedScheduleType.custom) {
+    if (config.scheduleType == FixedScheduleType.oneTime) {
       return FixedCycleWindow(
         anchorDate: anchorDate,
         dueDate: dueDate,
@@ -136,7 +142,7 @@ class ItemStatusService {
     }
 
     final elapsedDays = now.difference(anchorDate).inDays;
-    final remainingDays = config.durationDays - elapsedDays;
+    final remainingDays = config.durationDays - elapsedDays - 1;
     if (remainingDays <= config.dangerBefore) {
       return ItemStatus.danger;
     }
@@ -144,6 +150,16 @@ class ItemStatusService {
       return ItemStatus.warning;
     }
     return ItemStatus.normal;
+  }
+
+  DateTime? stateBaseline(Item item) {
+    final config = item.config;
+    if (config is! StateBasedItemConfig) {
+      return item.lastDoneAt;
+    }
+    return config.anchorDate == null
+        ? null
+        : _normalizeDate(config.anchorDate!);
   }
 
   ItemStatus _classifyFixed(
@@ -177,7 +193,10 @@ class ItemStatusService {
     return ItemStatus.normal;
   }
 
-  DateTime nextFixedCycleAnchor(FixedCycleWindow cycle, FixedItemConfig config) {
+  DateTime nextFixedCycleAnchor(
+    FixedCycleWindow cycle,
+    FixedItemConfig config,
+  ) {
     return _advanceDate(cycle.anchorDate, config.scheduleType);
   }
 
@@ -194,10 +213,7 @@ class ItemStatusService {
     return _normalizeDate(value.add(Duration(days: delayDays)));
   }
 
-  bool _isCompletedWithinCycle(
-    DateTime? completedAt,
-    FixedCycleWindow cycle,
-  ) {
+  bool _isCompletedWithinCycle(DateTime? completedAt, FixedCycleWindow cycle) {
     if (completedAt == null) {
       return false;
     }
@@ -213,7 +229,7 @@ class ItemStatusService {
     return switch (scheduleType) {
       FixedScheduleType.daily => value.add(const Duration(days: 1)),
       FixedScheduleType.weekly => value.add(const Duration(days: 7)),
-      FixedScheduleType.custom => value.add(
+      FixedScheduleType.oneTime => value.add(
         Duration(days: (fallbackDays ?? 0) + 1),
       ),
     };

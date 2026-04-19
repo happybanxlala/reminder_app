@@ -9,12 +9,12 @@ import 'package:sqlite3/sqlite3.dart';
 
 void main() {
   test(
-    'database uses schema version 14 and item pack/item plus timeline tables are writable',
+    'database uses schema version 16 and item pack/item plus timeline tables are writable',
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
 
-      expect(db.schemaVersion, 14);
+      expect(db.schemaVersion, 16);
 
       final packId = await db
           .into(db.itemPacks)
@@ -45,6 +45,7 @@ void main() {
               fixedExpectedBeforeMinutes: const Value.absent(),
               fixedWarningBeforeMinutes: const Value.absent(),
               fixedDangerBeforeMinutes: const Value.absent(),
+              stateAnchorDate: const Value.absent(),
               stateExpectedAfterMinutes: const Value(2880),
               stateWarningAfterMinutes: const Value(2880),
               stateDangerAfterMinutes: const Value(5760),
@@ -248,7 +249,7 @@ void main() {
           )
           .get();
 
-      expect(db.schemaVersion, 14);
+      expect(db.schemaVersion, 16);
       expect(packs, hasLength(1));
       expect(packs.single.title, AppDatabase.systemDefaultPackTitle);
       expect(packs.single.status, 'active');
@@ -369,7 +370,7 @@ void main() {
       final packs = await db.select(db.itemPacks).get();
       final items = await db.select(db.items).get();
 
-      expect(db.schemaVersion, 14);
+      expect(db.schemaVersion, 16);
       expect(packs, hasLength(1));
       expect(packs.single.status, 'active');
       expect(packs.single.isSystemDefault, isTrue);

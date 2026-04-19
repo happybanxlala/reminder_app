@@ -42,6 +42,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
   late final TextEditingController _fixedExpectedBeforeController;
   late final TextEditingController _fixedWarningBeforeController;
   late final TextEditingController _fixedDangerBeforeController;
+  late final TextEditingController _stateAnchorDateController;
   late final TextEditingController _stateExpectedAfterController;
   late final TextEditingController _warningAfterController;
   late final TextEditingController _dangerAfterController;
@@ -56,6 +57,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
   ItemOverduePolicy _overduePolicy = ItemOverduePolicy.autoAdvance;
   DateTime _selectedFixedAnchorDate = DateTime.now();
   DateTime _selectedFixedDueDate = DateTime.now();
+  DateTime _selectedStateAnchorDate = DateTime.now();
   DateTime _selectedResourceAnchorDate = DateTime.now();
   int? _selectedPackId;
   bool _initialized = false;
@@ -73,6 +75,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     _fixedExpectedBeforeController = TextEditingController(text: '3');
     _fixedWarningBeforeController = TextEditingController(text: '1');
     _fixedDangerBeforeController = TextEditingController(text: '0');
+    _stateAnchorDateController = TextEditingController();
     _stateExpectedAfterController = TextEditingController(text: '7');
     _warningAfterController = TextEditingController(text: '7');
     _dangerAfterController = TextEditingController(text: '14');
@@ -92,6 +95,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     _fixedExpectedBeforeController.dispose();
     _fixedWarningBeforeController.dispose();
     _fixedDangerBeforeController.dispose();
+    _stateAnchorDateController.dispose();
     _stateExpectedAfterController.dispose();
     _warningAfterController.dispose();
     _dangerAfterController.dispose();
@@ -162,10 +166,8 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
               decoration: const InputDecoration(labelText: 'Item Type'),
               items: ItemType.values
                   .map(
-                    (value) => DropdownMenuItem(
-                      value: value,
-                      child: Text(value.name),
-                    ),
+                    (value) =>
+                        DropdownMenuItem(value: value, child: Text(value.name)),
                   )
                   .toList(growable: false),
               onChanged: (value) {
@@ -180,7 +182,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
             const SizedBox(height: 12),
             ...switch (_type) {
               ItemType.fixed => _buildFixedFields(context),
-              ItemType.stateBased => _buildStateBasedFields(),
+              ItemType.stateBased => _buildStateBasedFields(context),
               ItemType.resourceBased => _buildResourceBasedFields(context),
             },
             const SizedBox(height: 24),
@@ -221,25 +223,21 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
           _selectedFixedDueDate = config.dueDate ?? _selectedFixedDueDate;
           _fixedExpectedBeforeController.text =
               '${config.expectedBefore.inDays}';
-          _fixedWarningBeforeController.text =
-              '${config.warningBefore.inDays}';
-          _fixedDangerBeforeController.text =
-              '${config.dangerBefore.inDays}';
+          _fixedWarningBeforeController.text = '${config.warningBefore.inDays}';
+          _fixedDangerBeforeController.text = '${config.dangerBefore.inDays}';
         case StateBasedItemConfig config:
-          _stateExpectedAfterController.text =
-              '${config.expectedAfter.inDays}';
+          _selectedStateAnchorDate =
+              config.anchorDate ?? _selectedStateAnchorDate;
+          _stateExpectedAfterController.text = '${config.expectedAfter.inDays}';
           _warningAfterController.text = '${config.warningAfter.inDays}';
           _dangerAfterController.text = '${config.dangerAfter.inDays}';
         case ResourceBasedItemConfig config:
           _selectedResourceAnchorDate =
               config.anchorDate ?? _selectedResourceAnchorDate;
           _resourceDurationController.text = '${config.durationDays}';
-          _resourceExpectedBeforeController.text =
-              '${config.expectedBefore}';
-          _resourceWarningBeforeController.text =
-              '${config.warningBefore}';
-          _resourceDangerBeforeController.text =
-              '${config.dangerBefore}';
+          _resourceExpectedBeforeController.text = '${config.expectedBefore}';
+          _resourceWarningBeforeController.text = '${config.warningBefore}';
+          _resourceDangerBeforeController.text = '${config.dangerBefore}';
       }
       _syncDateControllers();
     }
@@ -255,7 +253,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
             .map(
               (value) => DropdownMenuItem(
                 value: value,
-                child: Text(value.name),
+                child: Text(_fixedScheduleLabel(value)),
               ),
             )
             .toList(growable: false),
@@ -274,10 +272,8 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
         decoration: const InputDecoration(labelText: 'Overdue Policy'),
         items: ItemOverduePolicy.values
             .map(
-              (value) => DropdownMenuItem(
-                value: value,
-                child: Text(value.name),
-              ),
+              (value) =>
+                  DropdownMenuItem(value: value, child: Text(value.name)),
             )
             .toList(growable: false),
         onChanged: (value) {
@@ -336,8 +332,22 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     ];
   }
 
-  List<Widget> _buildStateBasedFields() {
+  List<Widget> _buildStateBasedFields(BuildContext context) {
     return [
+      EditorDateField(
+        key: const Key('state-anchor-date-field'),
+        controller: _stateAnchorDateController,
+        label: 'Anchor Date',
+        onPickDate: () => _pickDate(
+          context,
+          initialDate: _selectedStateAnchorDate,
+          onSelected: (value) {
+            _selectedStateAnchorDate = value;
+            _syncDateControllers();
+          },
+        ),
+      ),
+      const SizedBox(height: 12),
       _DaysField(
         key: const Key('expected-interval-field'),
         controller: _stateExpectedAfterController,
@@ -460,11 +470,16 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
         anchorDate: _selectedFixedAnchorDate,
         dueDate: _selectedFixedDueDate,
         overduePolicy: _overduePolicy,
-        expectedBefore: Duration(days: _parseDays(_fixedExpectedBeforeController)),
-        warningBefore: Duration(days: _parseDays(_fixedWarningBeforeController)),
+        expectedBefore: Duration(
+          days: _parseDays(_fixedExpectedBeforeController),
+        ),
+        warningBefore: Duration(
+          days: _parseDays(_fixedWarningBeforeController),
+        ),
         dangerBefore: Duration(days: _parseDays(_fixedDangerBeforeController)),
       ),
       ItemType.stateBased => StateBasedItemConfig(
+        anchorDate: _selectedStateAnchorDate,
         expectedAfter: Duration(
           days: _parseDays(_stateExpectedAfterController),
         ),
@@ -489,10 +504,23 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     _fixedAnchorDateController.text = ReminderFormatters.date(
       _selectedFixedAnchorDate,
     );
-    _fixedDueDateController.text = ReminderFormatters.date(_selectedFixedDueDate);
+    _fixedDueDateController.text = ReminderFormatters.date(
+      _selectedFixedDueDate,
+    );
+    _stateAnchorDateController.text = ReminderFormatters.date(
+      _selectedStateAnchorDate,
+    );
     _resourceAnchorDateController.text = ReminderFormatters.date(
       _selectedResourceAnchorDate,
     );
+  }
+
+  String _fixedScheduleLabel(FixedScheduleType value) {
+    return switch (value) {
+      FixedScheduleType.daily => 'daily',
+      FixedScheduleType.weekly => 'weekly',
+      FixedScheduleType.oneTime => 'ONETIME',
+    };
   }
 
   List<_PackOption> _packOptions(
@@ -565,11 +593,7 @@ class _PackOption {
 }
 
 class _DaysField extends StatelessWidget {
-  const _DaysField({
-    super.key,
-    required this.controller,
-    required this.label,
-  });
+  const _DaysField({super.key, required this.controller, required this.label});
 
   final TextEditingController controller;
   final String label;

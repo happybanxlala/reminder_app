@@ -548,7 +548,9 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
     return switch (type) {
       ItemType.fixed => FixedItemConfig(
         scheduleType: FixedScheduleType.values.byName(
-          row.fixedScheduleType ?? FixedScheduleType.custom.name,
+          _fixedScheduleTypeFromRow(
+            row.fixedScheduleType ?? FixedScheduleType.oneTime.name,
+          ),
         ),
         anchorDate: row.fixedAnchorDate == null
             ? null
@@ -571,6 +573,9 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
         ),
       ),
       ItemType.stateBased => StateBasedItemConfig(
+        anchorDate: row.stateAnchorDate == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch(row.stateAnchorDate!),
         expectedAfter: Duration(
           minutes: row.stateExpectedAfterMinutes ?? 0,
         ),
@@ -666,6 +671,13 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
     return switch (value) {
       'fixedTime' => ItemType.fixed,
       _ => ItemType.values.byName(value),
+    };
+  }
+
+  String _fixedScheduleTypeFromRow(String value) {
+    return switch (value) {
+      'custom' => FixedScheduleType.oneTime.name,
+      _ => value,
     };
   }
 

@@ -99,8 +99,9 @@ Item {
 
 - item 屬於一個 pack
 - item 的 lifecycle 與 attention status 分離
-- item 以 `type + config + lastDoneAt` 推導 attention status
+- item 以 `type + config` 為主推導 attention status；部分類型會輔以 `lastDoneAt`
 - `lastDoneAt` 是快照欄位與查詢優化欄位，不等於完整歷史
+- `STATE_BASED` 不再以 `lastDoneAt` 作為主要基準，改以 `config.anchorDate`
 - item side 不建立 `TaskTemplate + Task instance`
 
 ### 3.3 ItemActionRecord
@@ -227,7 +228,7 @@ enum ItemType {
 
 ```ts
 config = {
-  scheduleType: "daily" | "weekly" | "custom"
+  scheduleType: "daily" | "weekly" | "oneTime"
   anchorDate?: DateTime
   dueDate?: DateTime
   timeOfDay?: "HH:mm"
@@ -251,12 +252,15 @@ config = {
 - 差異不在 top-level type，而在 `overduePolicy`
 - `anchorDate` 是固定排程的基準日
 - `dueDate` 是當前週期的到期點
+- `oneTime` 類型顯示文案使用 `ONETIME`
 - `timeOfDay` 目前只作為摘要顯示欄位，不參與狀態判斷
+- `autoAdvance` item 在 preview date 或實際 today 超過 `dueDate` 時，status 與摘要都必須反映 resolved next cycle
 
 ### 4.2 STATE_BASED
 
 ```ts
 config = {
+  anchorDate?: DateTime
   expectedAfter: Duration
   warningAfter: Duration
   dangerAfter: Duration
@@ -266,6 +270,13 @@ config = {
 用途：
 
 - 需要依「距離上次處理多久」來判斷是否變糟的責任
+
+規則：
+
+- `anchorDate` 是 `STATE_BASED` 的主要 baseline
+- 建立 item 時，system 以 `anchorDate` 作為初始 baseline 推導狀態
+- 使用者完成 item 時，system 直接更新 `anchorDate`
+- `lastDoneAt` 在 `STATE_BASED` 上視為棄用欄位，不再參與狀態判斷
 
 ### 4.3 RESOURCE_BASED
 
@@ -288,9 +299,14 @@ config = {
 規則：
 
 - `anchorDate` 表示目前這批資源開始被消耗的日期
-- `durationDays` 表示依目前估算可持續多久
+- `durationDays` 表示依目前估算可持續多久，且包含 `anchorDate` 當天
 - `expectedBefore / warningBefore / dangerBefore` 以剩餘天數做判斷
-- 補貨行為透過 action record 的 `addedDays` 表示，並同步更新 item snapshot
+- depletion day 本身視為已進入 danger boundary
+- 完成時必須要求使用者輸入 `addedDays`
+- 補貨 / 完成行為透過 action record 的 `addedDays` 表示，並同步更新 item snapshot
+- snapshot 更新公式為：`durationDays = durationDays - (today - anchorDate + 1) + addedDays`
+- 若已逾期完成，新的 `anchorDate` 重設為完成當天，`durationDays` 以 `addedDays` 重新起算
+- `RESOURCE_BASED` 不允許 `skip`
 
 ---
 
@@ -332,11 +348,11 @@ enum ItemStatus {
 ### 5.3 STATE_BASED 計算規則
 
 ```ts
-elapsed = now - lastDoneAt
+elapsed = now - anchorDate
 normalBoundary = max(expectedAfter, warningAfter)
 dangerBoundary = max(dangerAfter, normalBoundary)
 
-if lastDoneAt == null:
+if anchorDate == null:
     status = UNKNOWN
 elif elapsed < normalBoundary:
     status = NORMAL
@@ -349,7 +365,7 @@ else:
 補充：
 
 - `unknown` 代表尚未建立 baseline
-- `StateBased` 的第一筆 baseline 來自 `lastDoneAt`
+- `StateBased` 的 baseline 由 `anchorDate` 單一承擔
 - `expectedAfter` 與 `warningAfter` 不形成兩段獨立門檻；目前以較大值作為 `NORMAL` 截止點
 
 ### 5.4 FIXED 計算規則
@@ -452,7 +468,7 @@ onDefer(item, deferDays):
 ### 6.3 History 與 snapshot 邊界
 
 - item history 由 `ItemActionRecord` 提供
-- `lastDoneAt` 保留為快照欄位與查詢優化欄位
+- `lastDoneAt` 保留為快照欄位與查詢優化欄位，但 `STATE_BASED` 不再依賴它
 - 首頁與列表查詢不要求回放完整 history 才能顯示狀態
 
 ### 6.4 不產生 instance

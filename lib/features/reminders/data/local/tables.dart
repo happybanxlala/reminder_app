@@ -34,6 +34,7 @@ class Items extends Table {
   IntColumn get fixedExpectedBeforeMinutes => integer().nullable()();
   IntColumn get fixedWarningBeforeMinutes => integer().nullable()();
   IntColumn get fixedDangerBeforeMinutes => integer().nullable()();
+  IntColumn get stateAnchorDate => integer().nullable()();
   IntColumn get stateExpectedAfterMinutes => integer().nullable()();
   IntColumn get stateWarningAfterMinutes => integer().nullable()();
   IntColumn get stateDangerAfterMinutes => integer().nullable()();

@@ -10,11 +10,11 @@ class ItemCardViewModel {
     required this.status,
   });
 
-  factory ItemCardViewModel.fromEntry(ItemHomeEntry entry) {
+  factory ItemCardViewModel.fromEntry(ItemHomeEntry entry, {DateTime? now}) {
     return ItemCardViewModel(
       id: entry.bundle.item.id,
       title: entry.bundle.item.title,
-      subtitle: ReminderFormatters.itemHomeSummary(entry),
+      subtitle: ReminderFormatters.itemHomeSummary(entry, now: now),
       status: ReminderFormatters.itemStatus(entry.status),
     );
   }

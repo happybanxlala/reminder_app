@@ -4,7 +4,7 @@ enum ItemStatus { normal, warning, danger, unknown }
 
 enum ItemLifecycleStatus { active, paused, archived }
 
-enum FixedScheduleType { daily, weekly, custom }
+enum FixedScheduleType { daily, weekly, oneTime }
 
 enum ItemOverduePolicy { autoAdvance, waitForAction }
 
@@ -46,12 +46,14 @@ class FixedItemConfig extends ItemConfig {
 
 class StateBasedItemConfig extends ItemConfig {
   const StateBasedItemConfig({
+    this.anchorDate,
     Duration? expectedAfter,
     Duration? expectedInterval,
     required this.warningAfter,
     required this.dangerAfter,
   }) : expectedAfter = expectedAfter ?? expectedInterval ?? Duration.zero;
 
+  final DateTime? anchorDate;
   final Duration expectedAfter;
   final Duration warningAfter;
   final Duration dangerAfter;

@@ -260,7 +260,7 @@ void main() {
     },
   );
 
-  testWidgets('home complete action writes preview date into lastDoneAt', (
+  testWidgets('home complete action forwards preview date for state baseline', (
     tester,
   ) async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -280,12 +280,12 @@ void main() {
                   packId: 1,
                   title: 'Clean litter box',
                   type: ItemType.stateBased,
-                  config: const StateBasedItemConfig(
+                  config: StateBasedItemConfig(
+                    anchorDate: DateTime(2026, 4, 8),
                     expectedInterval: Duration(days: 1),
                     warningAfter: Duration(days: 1),
                     dangerAfter: Duration(days: 2),
                   ),
-                  lastDoneAt: DateTime(2026, 4, 8),
                   createdAt: DateTime(2026, 4, 1),
                   updatedAt: DateTime(2026, 4, 1),
                 ),
@@ -329,6 +329,80 @@ void main() {
     expect(itemRepository.recordedItemId, itemId);
     expect(itemRepository.recordedDoneAt, previewDate);
   });
+
+  testWidgets('home hides skip for resource items and requires added days', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final itemRepository = _RecordingItemRepository(db.itemTimelineDao);
+    final previewDate = DateTime(2026, 4, 11);
+    const itemId = 102;
+    final container = ProviderContainer(
+      overrides: [
+        itemRepositoryProvider.overrideWith((ref) => itemRepository),
+        dangerHomeEntriesProvider.overrideWith(
+          (ref) => Stream.value([
+            ItemHomeEntry(
+              bundle: ItemBundle(
+                item: Item(
+                  id: itemId,
+                  packId: 1,
+                  title: 'Cat food',
+                  type: ItemType.resourceBased,
+                  config: ResourceBasedItemConfig(
+                    anchorDate: DateTime(2026, 4, 1),
+                    durationDays: 5,
+                    warningBefore: 1,
+                  ),
+                  createdAt: DateTime(2026, 4, 1),
+                  updatedAt: DateTime(2026, 4, 1),
+                ),
+                pack: ItemPack(
+                  id: 1,
+                  title: 'Default Item Pack',
+                  status: ItemPackStatus.active,
+                  isSystemDefault: true,
+                  createdAt: DateTime(2026, 4, 1),
+                  updatedAt: DateTime(2026, 4, 1),
+                ),
+              ),
+              status: ItemStatus.danger,
+              elapsed: null,
+            ),
+          ]),
+        ),
+        warningHomeEntriesProvider.overrideWith(
+          (ref) => Stream.value(const <ItemHomeEntry>[]),
+        ),
+        upcomingTimelineMilestonesProvider.overrideWith(
+          (ref) => Stream.value(const <TimelineMilestoneOccurrence>[]),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(developerDateOverrideProvider.notifier).state = previewDate;
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: HomePage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(ReminderUiText.skipAction), findsNothing);
+
+    await tester.tap(find.text(ReminderUiText.completeAction).first);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).last, '8');
+    await tester.tap(find.text(ReminderUiText.saveAction));
+    await tester.pumpAndSettle();
+
+    expect(itemRepository.recordedItemId, itemId);
+    expect(itemRepository.recordedDoneAt, previewDate);
+    expect(itemRepository.recordedAddedDays, 8);
+  });
 }
 
 ItemHomeEntry _itemEntry({required String title, required ItemStatus status}) {
@@ -340,12 +414,12 @@ ItemHomeEntry _itemEntry({required String title, required ItemStatus status}) {
         packId: 1,
         title: title,
         type: ItemType.stateBased,
-        config: const StateBasedItemConfig(
+        config: StateBasedItemConfig(
+          anchorDate: DateTime(2026, 4, 10),
           expectedInterval: Duration(days: 1),
           warningAfter: Duration(days: 1),
           dangerAfter: Duration(days: 2),
         ),
-        lastDoneAt: DateTime(2026, 4, 10),
         createdAt: DateTime(2026, 4, 1),
         updatedAt: DateTime(2026, 4, 1),
       ),
@@ -395,6 +469,7 @@ class _RecordingItemRepository extends ItemRepository {
 
   int? recordedItemId;
   DateTime? recordedDoneAt;
+  int? recordedAddedDays;
 
   @override
   Future<bool> markDone(
@@ -407,6 +482,7 @@ class _RecordingItemRepository extends ItemRepository {
   }) async {
     recordedItemId = id;
     recordedDoneAt = doneAt;
+    recordedAddedDays = addedDays;
     return true;
   }
 }

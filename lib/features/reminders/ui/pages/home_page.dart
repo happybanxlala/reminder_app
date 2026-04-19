@@ -127,7 +127,7 @@ class _ItemList extends ConsumerWidget {
       itemCount: items.length,
       itemBuilder: (context, index) {
         final item = items[index];
-        final viewModel = ItemCardViewModel.fromEntry(item);
+        final viewModel = ItemCardViewModel.fromEntry(item, now: previewDate);
         return Card(
           child: Column(
             children: [
@@ -141,20 +141,39 @@ class _ItemList extends ConsumerWidget {
                 children: [
                   TextButton(
                     onPressed: () async {
+                      final addedDays =
+                          item.bundle.item.type == ItemType.resourceBased
+                          ? await _pickResourceAddedDays(
+                              context,
+                              initialValue:
+                                  (item.bundle.item.config
+                                          as ResourceBasedItemConfig)
+                                      .durationDays,
+                            )
+                          : null;
+                      if (item.bundle.item.type == ItemType.resourceBased &&
+                          addedDays == null) {
+                        return;
+                      }
                       await ref
                           .read(itemRepositoryProvider)
-                          .markDone(viewModel.id, doneAt: previewDate);
+                          .markDone(
+                            viewModel.id,
+                            doneAt: previewDate,
+                            addedDays: addedDays,
+                          );
                     },
                     child: const Text(ReminderUiText.completeAction),
                   ),
-                  TextButton(
-                    onPressed: () async {
-                      await ref
-                          .read(itemRepositoryProvider)
-                          .skip(viewModel.id, actionAt: previewDate);
-                    },
-                    child: const Text(ReminderUiText.skipAction),
-                  ),
+                  if (item.bundle.item.type != ItemType.resourceBased)
+                    TextButton(
+                      onPressed: () async {
+                        await ref
+                            .read(itemRepositoryProvider)
+                            .skip(viewModel.id, actionAt: previewDate);
+                      },
+                      child: const Text(ReminderUiText.skipAction),
+                    ),
                   if (item.bundle.item.type == ItemType.fixed)
                     TextButton(
                       onPressed: () async {
@@ -162,11 +181,13 @@ class _ItemList extends ConsumerWidget {
                         if (deferDays == null) {
                           return;
                         }
-                        await ref.read(itemRepositoryProvider).defer(
-                          viewModel.id,
-                          deferDays: deferDays,
-                          actionAt: previewDate,
-                        );
+                        await ref
+                            .read(itemRepositoryProvider)
+                            .defer(
+                              viewModel.id,
+                              deferDays: deferDays,
+                              actionAt: previewDate,
+                            );
                       },
                       child: const Text(ReminderUiText.deferAction),
                     ),
@@ -217,6 +238,54 @@ Future<int?> _pickDeferDays(BuildContext context) async {
     ),
   );
   controller.dispose();
+  return result;
+}
+
+Future<int?> _pickResourceAddedDays(
+  BuildContext context, {
+  required int initialValue,
+}) async {
+  var inputValue = '$initialValue';
+  String? errorText;
+  final result = await showDialog<int>(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) => AlertDialog(
+        title: const Text(ReminderUiText.completeAction),
+        content: TextFormField(
+          autofocus: true,
+          initialValue: inputValue,
+          keyboardType: TextInputType.number,
+          onChanged: (value) {
+            inputValue = value;
+          },
+          decoration: InputDecoration(
+            labelText: '補充 addedDays',
+            errorText: errorText,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = int.tryParse(inputValue.trim());
+              if (value == null || value <= 0) {
+                setState(() {
+                  errorText = '請輸入 1 或以上整數';
+                });
+                return;
+              }
+              Navigator.of(context).pop(value);
+            },
+            child: const Text(ReminderUiText.saveAction),
+          ),
+        ],
+      ),
+    ),
+  );
   return result;
 }
 

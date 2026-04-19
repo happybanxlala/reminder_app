@@ -42,7 +42,34 @@ void main() {
     },
   );
 
-  test('markDone updates lastDoneAt and clears danger state', () async {
+  test('state-based anchor date seeds initial baseline snapshot', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = ItemRepository(db.itemTimelineDao);
+
+    final itemId = await repository.createItem(
+      ItemInput(
+        title: 'Replace filter',
+        type: ItemType.stateBased,
+        config: StateBasedItemConfig(
+          anchorDate: DateTime(2026, 4, 1),
+          expectedAfter: const Duration(days: 7),
+          warningAfter: const Duration(days: 7),
+          dangerAfter: const Duration(days: 14),
+        ),
+      ),
+    );
+
+    final item = await repository.getItemById(itemId);
+    expect(item, isNotNull);
+    expect(item!.item.lastDoneAt, isNull);
+    expect(
+      (item.item.config as StateBasedItemConfig).anchorDate,
+      DateTime(2026, 4, 1),
+    );
+  });
+
+  test('markDone updates state anchor date and clears danger state', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
     final repository = ItemRepository(db.itemTimelineDao);
@@ -68,7 +95,11 @@ void main() {
     await repository.markDone(itemId, doneAt: DateTime(2026, 4, 14));
 
     final after = (await repository.watchItems().first).single;
-    expect(after.item.lastDoneAt, DateTime(2026, 4, 14));
+    expect(after.item.lastDoneAt, isNull);
+    expect(
+      (after.item.config as StateBasedItemConfig).anchorDate,
+      DateTime(2026, 4, 14),
+    );
     expect(
       repository.statusFor(after.item, now: DateTime(2026, 4, 15)),
       ItemStatus.warning,
@@ -76,7 +107,7 @@ void main() {
   });
 
   test(
-    'markDone uses preview date for lastDoneAt and real time for updatedAt',
+    'markDone uses preview date for state anchor date and real time for updatedAt',
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
@@ -101,7 +132,11 @@ void main() {
       final after = await repository.getItemById(itemId);
       expect(before, isNotNull);
       expect(after, isNotNull);
-      expect(after!.item.lastDoneAt, DateTime(2026, 4, 14));
+      expect(after!.item.lastDoneAt, isNull);
+      expect(
+        (after.item.config as StateBasedItemConfig).anchorDate,
+        DateTime(2026, 4, 14),
+      );
       expect(after.item.updatedAt, isNot(DateTime(2026, 4, 14)));
       expect(after.item.updatedAt.isBefore(before!.item.updatedAt), isFalse);
     },
@@ -155,6 +190,72 @@ void main() {
 
     expect(danger.map((item) => item.item.title), ['Change pee pad']);
     expect(warning.map((item) => item.item.title), ['Brush cat']);
+  });
+
+  test('resource-based completion requires added days', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = ItemRepository(db.itemTimelineDao);
+
+    final itemId = await repository.createItem(
+      ItemInput(
+        title: 'Cat food',
+        type: ItemType.resourceBased,
+        config: ResourceBasedItemConfig(
+          anchorDate: DateTime(2026, 4, 1),
+          durationDays: 5,
+          warningBefore: 1,
+        ),
+      ),
+    );
+
+    expect(
+      await repository.markDone(itemId, doneAt: DateTime(2026, 4, 5)),
+      isFalse,
+    );
+    expect(
+      await repository.markDone(
+        itemId,
+        doneAt: DateTime(2026, 4, 5),
+        addedDays: 9,
+      ),
+      isTrue,
+    );
+
+    final item = await repository.getItemById(itemId);
+    final history = await repository.listActionHistory(itemId);
+    expect(item, isNotNull);
+    expect(item!.item.lastDoneAt, DateTime(2026, 4, 5));
+    expect(
+      (item.item.config as ResourceBasedItemConfig).anchorDate,
+      DateTime(2026, 4, 6),
+    );
+    expect((item.item.config as ResourceBasedItemConfig).durationDays, 9);
+    expect(history.single.payload?['addedDays'], 9);
+  });
+
+  test('resource-based items cannot be skipped', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = ItemRepository(db.itemTimelineDao);
+
+    final itemId = await repository.createItem(
+      ItemInput(
+        title: 'Cat food',
+        type: ItemType.resourceBased,
+        config: ResourceBasedItemConfig(
+          anchorDate: DateTime(2026, 4, 1),
+          durationDays: 5,
+          warningBefore: 1,
+        ),
+      ),
+    );
+
+    expect(
+      await repository.skip(itemId, actionAt: DateTime(2026, 4, 5)),
+      isFalse,
+    );
+    expect(await repository.listActionHistory(itemId), isEmpty);
   });
 
   test(

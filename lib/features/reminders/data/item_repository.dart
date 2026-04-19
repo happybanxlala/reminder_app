@@ -99,6 +99,7 @@ class ItemRepository {
         stateExpectedAfterMinutes: Value(
           _durationMinutes(_stateExpectedAfter(input.config)),
         ),
+        stateAnchorDate: Value(_stateAnchorDate(input.config)),
         stateWarningAfterMinutes: Value(
           _durationMinutes(_stateWarningAfter(input.config)),
         ),
@@ -107,10 +108,12 @@ class ItemRepository {
         ),
         resourceAnchorDate: Value(_resourceAnchorDate(input.config)),
         resourceDurationDays: Value(_resourceDurationDays(input.config)),
-        resourceExpectedBeforeDays: Value(_resourceExpectedBefore(input.config)),
+        resourceExpectedBeforeDays: Value(
+          _resourceExpectedBefore(input.config),
+        ),
         resourceWarningBeforeDays: Value(_resourceWarningBefore(input.config)),
         resourceDangerBeforeDays: Value(_resourceDangerBefore(input.config)),
-        lastDoneAt: const Value.absent(),
+        lastDoneAt: Value(_snapshotLastDoneAtForCreate(input.config)),
         createdAt: now.millisecondsSinceEpoch,
         updatedAt: now.millisecondsSinceEpoch,
       ),
@@ -124,6 +127,7 @@ class ItemRepository {
     }
     final now = DateTime.now();
     final packId = input.packId ?? existing.item.packId;
+    final lastDoneAt = _updatedLastDoneAtForSave(existing.item, input.config);
     await _assertPackCanAcceptItems(packId, existingItem: existing.item);
     return _dao.updateItemRecord(
       ItemRow(
@@ -150,6 +154,7 @@ class ItemRepository {
         stateExpectedAfterMinutes: _durationMinutes(
           _stateExpectedAfter(input.config),
         ),
+        stateAnchorDate: _stateAnchorDate(input.config),
         stateWarningAfterMinutes: _durationMinutes(
           _stateWarningAfter(input.config),
         ),
@@ -161,7 +166,7 @@ class ItemRepository {
         resourceExpectedBeforeDays: _resourceExpectedBefore(input.config),
         resourceWarningBeforeDays: _resourceWarningBefore(input.config),
         resourceDangerBeforeDays: _resourceDangerBefore(input.config),
-        lastDoneAt: existing.item.lastDoneAt?.millisecondsSinceEpoch,
+        lastDoneAt: lastDoneAt?.millisecondsSinceEpoch,
         createdAt: existing.item.createdAt.millisecondsSinceEpoch,
         updatedAt: now.millisecondsSinceEpoch,
       ),
@@ -175,11 +180,20 @@ class ItemRepository {
     int? addedDays,
     ItemNextCycleStrategy nextCycleStrategy =
         ItemNextCycleStrategy.keepSchedule,
-  }) {
+  }) async {
+    final existing = await getItemById(id);
+    if (existing == null) {
+      return false;
+    }
     final payload = <String, Object?>{
       'nextCycleStrategy': nextCycleStrategy.name,
     };
-    if (addedDays != null) {
+    if (existing.item.type == ItemType.resourceBased) {
+      if (addedDays == null || addedDays <= 0) {
+        return false;
+      }
+      payload['addedDays'] = addedDays;
+    } else if (addedDays != null) {
       payload['addedDays'] = addedDays;
     }
     return _recordAction(
@@ -197,7 +211,11 @@ class ItemRepository {
     String? remark,
     ItemNextCycleStrategy nextCycleStrategy =
         ItemNextCycleStrategy.keepSchedule,
-  }) {
+  }) async {
+    final existing = await getItemById(id);
+    if (existing == null || existing.item.type == ItemType.resourceBased) {
+      return false;
+    }
     return _recordAction(
       id,
       actionType: ItemActionType.skipped,
@@ -383,7 +401,8 @@ class ItemRepository {
         payload: payload,
         updatedAt: updatedAt,
       ),
-      StateBasedItemConfig _ => _updateStateBasedSnapshot(
+      StateBasedItemConfig config => _updateStateBasedSnapshot(
+        config,
         actionType: actionType,
         actionDate: actionDate,
         updatedAt: updatedAt,
@@ -395,9 +414,7 @@ class ItemRepository {
         payload: payload,
         updatedAt: updatedAt,
       ),
-      _ => ItemsCompanion(
-        updatedAt: Value(updatedAt.millisecondsSinceEpoch),
-      ),
+      _ => ItemsCompanion(updatedAt: Value(updatedAt.millisecondsSinceEpoch)),
     };
   }
 
@@ -426,7 +443,8 @@ class ItemRepository {
       if (dueDate != null) {
         dueDate = dueDate.add(Duration(days: deferDays));
       }
-    } else if (cycle != null && config.scheduleType != FixedScheduleType.custom) {
+    } else if (cycle != null &&
+        config.scheduleType != FixedScheduleType.oneTime) {
       anchorDate = _statusService.nextFixedCycleAnchor(cycle, config);
       dueDate = _statusService.nextFixedCycleDue(cycle, config);
       if (config.overduePolicy == ItemOverduePolicy.waitForAction &&
@@ -450,15 +468,17 @@ class ItemRepository {
     );
   }
 
-  ItemsCompanion _updateStateBasedSnapshot({
+  ItemsCompanion _updateStateBasedSnapshot(
+    StateBasedItemConfig config, {
     required ItemActionType actionType,
     required DateTime actionDate,
     required DateTime updatedAt,
   }) {
     return ItemsCompanion(
-      lastDoneAt: actionType == ItemActionType.done
+      stateAnchorDate: actionType == ItemActionType.done
           ? Value(actionDate.millisecondsSinceEpoch)
-          : const Value.absent(),
+          : Value(config.anchorDate?.millisecondsSinceEpoch),
+      lastDoneAt: const Value(null),
       updatedAt: Value(updatedAt.millisecondsSinceEpoch),
     );
   }
@@ -475,19 +495,21 @@ class ItemRepository {
     int? lastDoneAt;
 
     if (actionType == ItemActionType.done) {
-      final addedDays = (payload?['addedDays'] as num?)?.toInt() ?? durationDays;
+      final nextAddedDays =
+          (payload?['addedDays'] as num?)?.toInt() ?? durationDays;
       if (anchorDate == null || durationDays <= 0) {
         anchorDate = actionDate;
-        durationDays = addedDays;
+        durationDays = nextAddedDays;
       } else {
-        final depletionDate = anchorDate.add(Duration(days: durationDays));
+        final depletionDate = anchorDate.add(Duration(days: durationDays - 1));
         if (actionDate.isAfter(depletionDate)) {
           anchorDate = actionDate;
-          durationDays = addedDays;
+          durationDays = nextAddedDays;
         } else {
           final consumedDays = actionDate.difference(anchorDate).inDays + 1;
           final remainingDays = durationDays - consumedDays;
-          durationDays = (remainingDays < 0 ? 0 : remainingDays) + addedDays;
+          durationDays =
+              (remainingDays < 0 ? 0 : remainingDays) + nextAddedDays;
           anchorDate = actionDate.add(const Duration(days: 1));
         }
       }
@@ -497,9 +519,7 @@ class ItemRepository {
     return ItemsCompanion(
       resourceAnchorDate: Value(anchorDate?.millisecondsSinceEpoch),
       resourceDurationDays: Value(durationDays),
-      lastDoneAt: lastDoneAt == null
-          ? const Value.absent()
-          : Value(lastDoneAt),
+      lastDoneAt: lastDoneAt == null ? const Value.absent() : Value(lastDoneAt),
       updatedAt: Value(updatedAt.millisecondsSinceEpoch),
     );
   }
@@ -603,6 +623,13 @@ class ItemRepository {
     };
   }
 
+  int? _stateAnchorDate(ItemConfig config) {
+    return switch (config) {
+      StateBasedItemConfig state => state.anchorDate?.millisecondsSinceEpoch,
+      _ => null,
+    };
+  }
+
   Duration? _stateWarningAfter(ItemConfig config) {
     return switch (config) {
       StateBasedItemConfig state => state.warningAfter,
@@ -619,7 +646,8 @@ class ItemRepository {
 
   int? _resourceAnchorDate(ItemConfig config) {
     return switch (config) {
-      ResourceBasedItemConfig resource => resource.anchorDate?.millisecondsSinceEpoch,
+      ResourceBasedItemConfig resource =>
+        resource.anchorDate?.millisecondsSinceEpoch,
       _ => null,
     };
   }
@@ -654,6 +682,20 @@ class ItemRepository {
 
   int? _durationMinutes(Duration? value) {
     return value?.inMinutes;
+  }
+
+  int? _snapshotLastDoneAtForCreate(ItemConfig config) {
+    return switch (config) {
+      StateBasedItemConfig _ => null,
+      _ => null,
+    };
+  }
+
+  DateTime? _updatedLastDoneAtForSave(Item existing, ItemConfig nextConfig) {
+    if (nextConfig is! StateBasedItemConfig) {
+      return existing.lastDoneAt;
+    }
+    return null;
   }
 
   DateTime _normalizeDate(DateTime value) {
