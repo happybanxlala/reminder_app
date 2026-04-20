@@ -39,16 +39,13 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
   late final TextEditingController _descriptionController;
   late final TextEditingController _fixedAnchorDateController;
   late final TextEditingController _fixedDueDateController;
-  late final TextEditingController _fixedExpectedBeforeController;
   late final TextEditingController _fixedWarningBeforeController;
   late final TextEditingController _fixedDangerBeforeController;
   late final TextEditingController _stateAnchorDateController;
-  late final TextEditingController _stateExpectedAfterController;
   late final TextEditingController _warningAfterController;
   late final TextEditingController _dangerAfterController;
   late final TextEditingController _resourceAnchorDateController;
   late final TextEditingController _resourceDurationController;
-  late final TextEditingController _resourceExpectedBeforeController;
   late final TextEditingController _resourceWarningBeforeController;
   late final TextEditingController _resourceDangerBeforeController;
 
@@ -59,6 +56,9 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
   DateTime _selectedFixedDueDate = DateTime.now();
   DateTime _selectedStateAnchorDate = DateTime.now();
   DateTime _selectedResourceAnchorDate = DateTime.now();
+  Duration _fixedInfoBefore = Duration.zero;
+  Duration _stateInfoAfter = Duration.zero;
+  int _resourceInfoBefore = 0;
   int? _selectedPackId;
   bool _initialized = false;
 
@@ -72,16 +72,13 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     _descriptionController = TextEditingController();
     _fixedAnchorDateController = TextEditingController();
     _fixedDueDateController = TextEditingController();
-    _fixedExpectedBeforeController = TextEditingController(text: '3');
     _fixedWarningBeforeController = TextEditingController(text: '1');
     _fixedDangerBeforeController = TextEditingController(text: '0');
     _stateAnchorDateController = TextEditingController();
-    _stateExpectedAfterController = TextEditingController(text: '7');
     _warningAfterController = TextEditingController(text: '7');
     _dangerAfterController = TextEditingController(text: '14');
     _resourceAnchorDateController = TextEditingController();
     _resourceDurationController = TextEditingController(text: '30');
-    _resourceExpectedBeforeController = TextEditingController(text: '7');
     _resourceWarningBeforeController = TextEditingController(text: '3');
     _resourceDangerBeforeController = TextEditingController(text: '0');
   }
@@ -92,16 +89,13 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     _descriptionController.dispose();
     _fixedAnchorDateController.dispose();
     _fixedDueDateController.dispose();
-    _fixedExpectedBeforeController.dispose();
     _fixedWarningBeforeController.dispose();
     _fixedDangerBeforeController.dispose();
     _stateAnchorDateController.dispose();
-    _stateExpectedAfterController.dispose();
     _warningAfterController.dispose();
     _dangerAfterController.dispose();
     _resourceAnchorDateController.dispose();
     _resourceDurationController.dispose();
-    _resourceExpectedBeforeController.dispose();
     _resourceWarningBeforeController.dispose();
     _resourceDangerBeforeController.dispose();
     super.dispose();
@@ -221,21 +215,20 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
           _selectedFixedAnchorDate =
               config.anchorDate ?? _selectedFixedAnchorDate;
           _selectedFixedDueDate = config.dueDate ?? _selectedFixedDueDate;
-          _fixedExpectedBeforeController.text =
-              '${config.expectedBefore.inDays}';
+          _fixedInfoBefore = config.infoBefore;
           _fixedWarningBeforeController.text = '${config.warningBefore.inDays}';
           _fixedDangerBeforeController.text = '${config.dangerBefore.inDays}';
         case StateBasedItemConfig config:
           _selectedStateAnchorDate =
               config.anchorDate ?? _selectedStateAnchorDate;
-          _stateExpectedAfterController.text = '${config.expectedAfter.inDays}';
+          _stateInfoAfter = config.infoAfter;
           _warningAfterController.text = '${config.warningAfter.inDays}';
           _dangerAfterController.text = '${config.dangerAfter.inDays}';
         case ResourceBasedItemConfig config:
           _selectedResourceAnchorDate =
               config.anchorDate ?? _selectedResourceAnchorDate;
           _resourceDurationController.text = '${config.durationDays}';
-          _resourceExpectedBeforeController.text = '${config.expectedBefore}';
+          _resourceInfoBefore = config.infoBefore;
           _resourceWarningBeforeController.text = '${config.warningBefore}';
           _resourceDangerBeforeController.text = '${config.dangerBefore}';
       }
@@ -313,12 +306,6 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       ),
       const SizedBox(height: 12),
       _DaysField(
-        key: const Key('fixed-expected-before-field'),
-        controller: _fixedExpectedBeforeController,
-        label: 'Expected Before (days)',
-      ),
-      const SizedBox(height: 12),
-      _DaysField(
         key: const Key('fixed-warning-before-field'),
         controller: _fixedWarningBeforeController,
         label: 'Warning Before (days)',
@@ -346,12 +333,6 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
             _syncDateControllers();
           },
         ),
-      ),
-      const SizedBox(height: 12),
-      _DaysField(
-        key: const Key('expected-interval-field'),
-        controller: _stateExpectedAfterController,
-        label: 'Expected After (days)',
       ),
       const SizedBox(height: 12),
       _DaysField(
@@ -387,12 +368,6 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
         key: const Key('estimated-duration-field'),
         controller: _resourceDurationController,
         label: 'Duration Days',
-      ),
-      const SizedBox(height: 12),
-      _DaysField(
-        key: const Key('resource-expected-before-field'),
-        controller: _resourceExpectedBeforeController,
-        label: 'Expected Before (days)',
       ),
       const SizedBox(height: 12),
       _DaysField(
@@ -470,9 +445,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
         anchorDate: _selectedFixedAnchorDate,
         dueDate: _selectedFixedDueDate,
         overduePolicy: _overduePolicy,
-        expectedBefore: Duration(
-          days: _parseDays(_fixedExpectedBeforeController),
-        ),
+        infoBefore: _fixedInfoBefore,
         warningBefore: Duration(
           days: _parseDays(_fixedWarningBeforeController),
         ),
@@ -480,16 +453,14 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       ),
       ItemType.stateBased => StateBasedItemConfig(
         anchorDate: _selectedStateAnchorDate,
-        expectedAfter: Duration(
-          days: _parseDays(_stateExpectedAfterController),
-        ),
+        infoAfter: _stateInfoAfter,
         warningAfter: Duration(days: _parseDays(_warningAfterController)),
         dangerAfter: Duration(days: _parseDays(_dangerAfterController)),
       ),
       ItemType.resourceBased => ResourceBasedItemConfig(
         anchorDate: _selectedResourceAnchorDate,
         durationDays: _parseDays(_resourceDurationController),
-        expectedBefore: _parseDays(_resourceExpectedBeforeController),
+        infoBefore: _resourceInfoBefore,
         warningBefore: _parseDays(_resourceWarningBeforeController),
         dangerBefore: _parseDays(_resourceDangerBeforeController),
       ),

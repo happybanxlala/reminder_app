@@ -704,7 +704,7 @@ ItemBundle _itemBundle(
   final config = switch (type) {
     ItemType.stateBased => StateBasedItemConfig(
       anchorDate: DateTime(2026, 4, 10),
-      expectedInterval: Duration(days: 7),
+      infoAfter: Duration(days: 7),
       warningAfter: Duration(days: 7),
       dangerAfter: Duration(days: 14),
     ),

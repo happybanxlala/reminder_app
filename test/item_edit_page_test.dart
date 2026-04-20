@@ -44,7 +44,7 @@ void main() {
     await tester.pump();
 
     expect(find.byKey(const Key('state-anchor-date-field')), findsOneWidget);
-    expect(find.byKey(const Key('expected-interval-field')), findsOneWidget);
+    expect(find.byKey(const Key('warning-after-field')), findsOneWidget);
     expect(find.byKey(const Key('estimated-duration-field')), findsNothing);
     expect(find.byKey(const Key('pack-field')), findsOneWidget);
 
@@ -53,7 +53,7 @@ void main() {
     await tester.tap(find.text(ItemType.resourceBased.name).last);
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('expected-interval-field')), findsNothing);
+    expect(find.byKey(const Key('warning-after-field')), findsNothing);
     expect(find.byKey(const Key('estimated-duration-field')), findsOneWidget);
   });
 
@@ -84,7 +84,7 @@ void main() {
                   type: ItemType.stateBased,
                   config: StateBasedItemConfig(
                     anchorDate: DateTime(2026, 4, 1),
-                    expectedInterval: Duration(days: 7),
+                    infoAfter: Duration(days: 7),
                     warningAfter: Duration(days: 7),
                     dangerAfter: Duration(days: 14),
                   ),
@@ -274,7 +274,7 @@ void main() {
                   type: ItemType.stateBased,
                   config: StateBasedItemConfig(
                     anchorDate: DateTime(2026, 4, 1),
-                    expectedInterval: Duration(days: 7),
+                    infoAfter: Duration(days: 7),
                     warningAfter: Duration(days: 7),
                     dangerAfter: Duration(days: 14),
                   ),

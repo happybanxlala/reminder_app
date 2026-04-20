@@ -19,7 +19,7 @@ void main() {
           description: 'Cat hygiene',
           type: ItemType.stateBased,
           config: const StateBasedItemConfig(
-            expectedInterval: Duration(days: 2),
+            infoAfter: Duration(days: 2),
             warningAfter: Duration(days: 2),
             dangerAfter: Duration(days: 4),
           ),
@@ -53,7 +53,7 @@ void main() {
         type: ItemType.stateBased,
         config: StateBasedItemConfig(
           anchorDate: DateTime(2026, 4, 1),
-          expectedAfter: const Duration(days: 7),
+          infoAfter: const Duration(days: 7),
           warningAfter: const Duration(days: 7),
           dangerAfter: const Duration(days: 14),
         ),
@@ -79,7 +79,7 @@ void main() {
         title: 'Refill water fountain',
         type: ItemType.stateBased,
         config: const StateBasedItemConfig(
-          expectedInterval: Duration(days: 1),
+          infoAfter: Duration(days: 1),
           warningAfter: Duration(days: 1),
           dangerAfter: Duration(days: 2),
         ),
@@ -118,7 +118,7 @@ void main() {
           title: 'Preview-safe completion',
           type: ItemType.stateBased,
           config: const StateBasedItemConfig(
-            expectedInterval: Duration(days: 1),
+            infoAfter: Duration(days: 1),
             warningAfter: Duration(days: 1),
             dangerAfter: Duration(days: 2),
           ),
@@ -152,7 +152,7 @@ void main() {
         title: 'Change pee pad',
         type: ItemType.stateBased,
         config: const StateBasedItemConfig(
-          expectedInterval: Duration(days: 1),
+          infoAfter: Duration(days: 1),
           warningAfter: Duration(days: 1),
           dangerAfter: Duration(days: 2),
         ),
@@ -163,7 +163,7 @@ void main() {
         title: 'Brush cat',
         type: ItemType.stateBased,
         config: const StateBasedItemConfig(
-          expectedInterval: Duration(days: 3),
+          infoAfter: Duration(days: 3),
           warningAfter: Duration(days: 3),
           dangerAfter: Duration(days: 6),
         ),
@@ -333,7 +333,7 @@ void main() {
           title: 'Active item',
           type: ItemType.stateBased,
           config: const StateBasedItemConfig(
-            expectedInterval: Duration(days: 1),
+            infoAfter: Duration(days: 1),
             warningAfter: Duration(days: 1),
             dangerAfter: Duration(days: 2),
           ),
@@ -344,7 +344,7 @@ void main() {
           title: 'Paused item',
           type: ItemType.stateBased,
           config: const StateBasedItemConfig(
-            expectedInterval: Duration(days: 1),
+            infoAfter: Duration(days: 1),
             warningAfter: Duration(days: 1),
             dangerAfter: Duration(days: 2),
           ),
@@ -355,7 +355,7 @@ void main() {
           title: 'Archived item',
           type: ItemType.stateBased,
           config: const StateBasedItemConfig(
-            expectedInterval: Duration(days: 1),
+            infoAfter: Duration(days: 1),
             warningAfter: Duration(days: 1),
             dangerAfter: Duration(days: 2),
           ),
@@ -390,7 +390,7 @@ void main() {
         title: 'Refill bowls',
         type: ItemType.stateBased,
         config: const StateBasedItemConfig(
-          expectedInterval: Duration(days: 1),
+          infoAfter: Duration(days: 1),
           warningAfter: Duration(days: 1),
           dangerAfter: Duration(days: 2),
         ),
@@ -402,7 +402,7 @@ void main() {
         title: 'Clean storage',
         type: ItemType.stateBased,
         config: const StateBasedItemConfig(
-          expectedInterval: Duration(days: 1),
+          infoAfter: Duration(days: 1),
           warningAfter: Duration(days: 1),
           dangerAfter: Duration(days: 2),
         ),

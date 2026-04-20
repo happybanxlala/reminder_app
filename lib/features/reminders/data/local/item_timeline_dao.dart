@@ -78,8 +78,9 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
   }
 
   Future<bool> updateItemFields(int id, ItemsCompanion entry) async {
-    final updatedRows = await (update(items)..where((t) => t.id.equals(id)))
-        .write(entry);
+    final updatedRows = await (update(
+      items,
+    )..where((t) => t.id.equals(id))).write(entry);
     return updatedRows > 0;
   }
 
@@ -162,7 +163,9 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
-  Future<List<ItemActionRecord>> listItemActionRecordsForItem(int itemId) async {
+  Future<List<ItemActionRecord>> listItemActionRecordsForItem(
+    int itemId,
+  ) async {
     final rows =
         await (select(itemActionRecords)
               ..where((t) => t.itemId.equals(itemId))
@@ -562,23 +565,15 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
         overduePolicy: ItemOverduePolicy.values.byName(
           row.fixedOverduePolicy ?? ItemOverduePolicy.autoAdvance.name,
         ),
-        expectedBefore: Duration(
-          minutes: row.fixedExpectedBeforeMinutes ?? 0,
-        ),
-        warningBefore: Duration(
-          minutes: row.fixedWarningBeforeMinutes ?? 0,
-        ),
-        dangerBefore: Duration(
-          minutes: row.fixedDangerBeforeMinutes ?? 0,
-        ),
+        infoBefore: Duration(minutes: row.fixedExpectedBeforeMinutes ?? 0),
+        warningBefore: Duration(minutes: row.fixedWarningBeforeMinutes ?? 0),
+        dangerBefore: Duration(minutes: row.fixedDangerBeforeMinutes ?? 0),
       ),
       ItemType.stateBased => StateBasedItemConfig(
         anchorDate: row.stateAnchorDate == null
             ? null
             : DateTime.fromMillisecondsSinceEpoch(row.stateAnchorDate!),
-        expectedAfter: Duration(
-          minutes: row.stateExpectedAfterMinutes ?? 0,
-        ),
+        infoAfter: Duration(minutes: row.stateExpectedAfterMinutes ?? 0),
         warningAfter: Duration(minutes: row.stateWarningAfterMinutes ?? 0),
         dangerAfter: Duration(minutes: row.stateDangerAfterMinutes ?? 0),
       ),
@@ -587,7 +582,7 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
             ? null
             : DateTime.fromMillisecondsSinceEpoch(row.resourceAnchorDate!),
         durationDays: row.resourceDurationDays ?? 0,
-        expectedBefore: row.resourceExpectedBeforeDays ?? 0,
+        infoBefore: row.resourceExpectedBeforeDays ?? 0,
         warningBefore: row.resourceWarningBeforeDays ?? 0,
         dangerBefore: row.resourceDangerBeforeDays ?? 0,
       ),

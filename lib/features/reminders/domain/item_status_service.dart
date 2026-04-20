@@ -115,10 +115,7 @@ class ItemStatusService {
     }
 
     final elapsed = now.difference(_normalizeDate(lastDoneAt));
-    final normalBoundary = _maxDuration(
-      config.expectedAfter,
-      config.warningAfter,
-    );
+    final normalBoundary = config.warningAfter;
     final dangerBoundary = _maxDuration(config.dangerAfter, normalBoundary);
 
     if (elapsed < normalBoundary) {

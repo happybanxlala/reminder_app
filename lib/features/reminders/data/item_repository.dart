@@ -88,7 +88,7 @@ class ItemRepository {
         fixedTimeOfDay: Value(_fixedTimeOfDay(input.config)),
         fixedOverduePolicy: Value(_fixedOverduePolicy(input.config)),
         fixedExpectedBeforeMinutes: Value(
-          _durationMinutes(_fixedExpectedBefore(input.config)),
+          _durationMinutes(_fixedInfoBefore(input.config)),
         ),
         fixedWarningBeforeMinutes: Value(
           _durationMinutes(_fixedWarningBefore(input.config)),
@@ -97,7 +97,7 @@ class ItemRepository {
           _durationMinutes(_fixedDangerBefore(input.config)),
         ),
         stateExpectedAfterMinutes: Value(
-          _durationMinutes(_stateExpectedAfter(input.config)),
+          _durationMinutes(_stateInfoAfter(input.config)),
         ),
         stateAnchorDate: Value(_stateAnchorDate(input.config)),
         stateWarningAfterMinutes: Value(
@@ -108,9 +108,7 @@ class ItemRepository {
         ),
         resourceAnchorDate: Value(_resourceAnchorDate(input.config)),
         resourceDurationDays: Value(_resourceDurationDays(input.config)),
-        resourceExpectedBeforeDays: Value(
-          _resourceExpectedBefore(input.config),
-        ),
+        resourceExpectedBeforeDays: Value(_resourceInfoBefore(input.config)),
         resourceWarningBeforeDays: Value(_resourceWarningBefore(input.config)),
         resourceDangerBeforeDays: Value(_resourceDangerBefore(input.config)),
         lastDoneAt: Value(_snapshotLastDoneAtForCreate(input.config)),
@@ -143,7 +141,7 @@ class ItemRepository {
         fixedTimeOfDay: _fixedTimeOfDay(input.config),
         fixedOverduePolicy: _fixedOverduePolicy(input.config),
         fixedExpectedBeforeMinutes: _durationMinutes(
-          _fixedExpectedBefore(input.config),
+          _fixedInfoBefore(input.config),
         ),
         fixedWarningBeforeMinutes: _durationMinutes(
           _fixedWarningBefore(input.config),
@@ -152,7 +150,7 @@ class ItemRepository {
           _fixedDangerBefore(input.config),
         ),
         stateExpectedAfterMinutes: _durationMinutes(
-          _stateExpectedAfter(input.config),
+          _stateInfoAfter(input.config),
         ),
         stateAnchorDate: _stateAnchorDate(input.config),
         stateWarningAfterMinutes: _durationMinutes(
@@ -163,7 +161,7 @@ class ItemRepository {
         ),
         resourceAnchorDate: _resourceAnchorDate(input.config),
         resourceDurationDays: _resourceDurationDays(input.config),
-        resourceExpectedBeforeDays: _resourceExpectedBefore(input.config),
+        resourceExpectedBeforeDays: _resourceInfoBefore(input.config),
         resourceWarningBeforeDays: _resourceWarningBefore(input.config),
         resourceDangerBeforeDays: _resourceDangerBefore(input.config),
         lastDoneAt: lastDoneAt?.millisecondsSinceEpoch,
@@ -595,9 +593,9 @@ class ItemRepository {
     };
   }
 
-  Duration? _fixedExpectedBefore(ItemConfig config) {
+  Duration? _fixedInfoBefore(ItemConfig config) {
     return switch (config) {
-      FixedItemConfig fixed => fixed.expectedBefore,
+      FixedItemConfig fixed => fixed.infoBefore,
       _ => null,
     };
   }
@@ -616,9 +614,9 @@ class ItemRepository {
     };
   }
 
-  Duration? _stateExpectedAfter(ItemConfig config) {
+  Duration? _stateInfoAfter(ItemConfig config) {
     return switch (config) {
-      StateBasedItemConfig state => state.expectedAfter,
+      StateBasedItemConfig state => state.infoAfter,
       _ => null,
     };
   }
@@ -659,9 +657,9 @@ class ItemRepository {
     };
   }
 
-  int? _resourceExpectedBefore(ItemConfig config) {
+  int? _resourceInfoBefore(ItemConfig config) {
     return switch (config) {
-      ResourceBasedItemConfig resource => resource.expectedBefore,
+      ResourceBasedItemConfig resource => resource.infoBefore,
       _ => null,
     };
   }

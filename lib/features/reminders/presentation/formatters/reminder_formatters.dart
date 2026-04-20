@@ -218,7 +218,6 @@ class ReminderFormatters {
     if (config.anchorDate != null) {
       parts.add('起點 ${date(config.anchorDate!)}');
     }
-    parts.add('基準 ${config.expectedAfter.inDays} 天');
     parts.add('留意 ${config.warningAfter.inDays} 天');
     parts.add('變糟 ${config.dangerAfter.inDays} 天');
     return parts.join(' • ');

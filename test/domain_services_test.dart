@@ -17,7 +17,7 @@ void main() {
       type: ItemType.stateBased,
       config: StateBasedItemConfig(
         anchorDate: DateTime(2026, 4, 1),
-        expectedInterval: Duration(days: 7),
+        infoAfter: Duration(days: 7),
         warningAfter: Duration(days: 7),
         dangerAfter: Duration(days: 14),
       ),
@@ -48,7 +48,7 @@ void main() {
       type: ItemType.stateBased,
       config: StateBasedItemConfig(
         anchorDate: DateTime(2026, 4, 1),
-        expectedAfter: const Duration(days: 7),
+        infoAfter: const Duration(days: 7),
         warningAfter: const Duration(days: 7),
         dangerAfter: const Duration(days: 14),
       ),

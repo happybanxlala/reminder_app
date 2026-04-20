@@ -26,7 +26,7 @@ class FixedItemConfig extends ItemConfig {
     this.dueDate,
     this.timeOfDay,
     this.overduePolicy = ItemOverduePolicy.autoAdvance,
-    this.expectedBefore = Duration.zero,
+    this.infoBefore = Duration.zero,
     this.warningBefore = Duration.zero,
     this.dangerBefore = Duration.zero,
   });
@@ -36,7 +36,7 @@ class FixedItemConfig extends ItemConfig {
   final DateTime? dueDate;
   final String? timeOfDay;
   final ItemOverduePolicy overduePolicy;
-  final Duration expectedBefore;
+  final Duration infoBefore;
   final Duration warningBefore;
   final Duration dangerBefore;
 
@@ -47,18 +47,15 @@ class FixedItemConfig extends ItemConfig {
 class StateBasedItemConfig extends ItemConfig {
   const StateBasedItemConfig({
     this.anchorDate,
-    Duration? expectedAfter,
-    Duration? expectedInterval,
+    Duration? infoAfter,
     required this.warningAfter,
     required this.dangerAfter,
-  }) : expectedAfter = expectedAfter ?? expectedInterval ?? Duration.zero;
+  }) : infoAfter = infoAfter ?? Duration.zero;
 
   final DateTime? anchorDate;
-  final Duration expectedAfter;
+  final Duration infoAfter;
   final Duration warningAfter;
   final Duration dangerAfter;
-
-  Duration get expectedInterval => expectedAfter;
 
   @override
   ItemType get type => ItemType.stateBased;
@@ -68,14 +65,14 @@ class ResourceBasedItemConfig extends ItemConfig {
   const ResourceBasedItemConfig({
     this.anchorDate,
     required this.durationDays,
-    this.expectedBefore = 0,
+    this.infoBefore = 0,
     this.warningBefore = 0,
     this.dangerBefore = 0,
   });
 
   final DateTime? anchorDate;
   final int durationDays;
-  final int expectedBefore;
+  final int infoBefore;
   final int warningBefore;
   final int dangerBefore;
 

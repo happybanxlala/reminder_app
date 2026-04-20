@@ -282,7 +282,7 @@ void main() {
                   type: ItemType.stateBased,
                   config: StateBasedItemConfig(
                     anchorDate: DateTime(2026, 4, 8),
-                    expectedInterval: Duration(days: 1),
+                    infoAfter: Duration(days: 1),
                     warningAfter: Duration(days: 1),
                     dangerAfter: Duration(days: 2),
                   ),
@@ -416,7 +416,7 @@ ItemHomeEntry _itemEntry({required String title, required ItemStatus status}) {
         type: ItemType.stateBased,
         config: StateBasedItemConfig(
           anchorDate: DateTime(2026, 4, 10),
-          expectedInterval: Duration(days: 1),
+          infoAfter: Duration(days: 1),
           warningAfter: Duration(days: 1),
           dangerAfter: Duration(days: 2),
         ),
