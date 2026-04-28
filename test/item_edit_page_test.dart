@@ -9,6 +9,7 @@ import 'package:reminder_app/features/reminders/data/local/item_timeline_dao.dar
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
+import 'package:reminder_app/features/reminders/providers/developer_settings_providers.dart';
 import 'package:reminder_app/features/reminders/providers/item_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/item_edit_page.dart';
 
@@ -303,6 +304,143 @@ void main() {
     expect(find.byKey(const Key('pack-field')), findsNothing);
     expect(find.text('Weekly grooming'), findsOneWidget);
     expect(find.text('Brush and trim'), findsOneWidget);
+  });
+
+  testWidgets('editor resolves fixed cycle dates from preview snapshot', (
+    tester,
+  ) async {
+    final container = ProviderContainer(
+      overrides: [
+        activeItemPacksProvider.overrideWith(
+          (ref) => Stream.value([
+            ItemPack(
+              id: 1,
+              title: 'Default Item Pack',
+              status: ItemPackStatus.active,
+              isSystemDefault: true,
+              createdAt: DateTime(2026, 4, 1),
+              updatedAt: DateTime(2026, 4, 2),
+            ),
+          ]),
+        ),
+        itemProvider(10).overrideWith(
+          (ref) => Future.value(
+            ItemBundle(
+              item: Item(
+                id: 10,
+                packId: 1,
+                title: 'Daily task',
+                type: ItemType.fixed,
+                config: FixedItemConfig(
+                  scheduleType: FixedScheduleType.daily,
+                  anchorDate: DateTime(2026, 4, 1),
+                  dueDate: DateTime(2026, 4, 1),
+                  overduePolicy: ItemOverduePolicy.autoAdvance,
+                ),
+                createdAt: DateTime(2026, 4, 1),
+                updatedAt: DateTime(2026, 4, 2),
+              ),
+              pack: ItemPack(
+                id: 1,
+                title: 'Default Item Pack',
+                status: ItemPackStatus.active,
+                isSystemDefault: true,
+                createdAt: DateTime(2026, 4, 1),
+                updatedAt: DateTime(2026, 4, 2),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(developerDateOverrideProvider.notifier).state = DateTime(
+      2026,
+      4,
+      3,
+    );
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          home: ItemEditPage(mode: ItemEditMode.edit, id: 10),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('2026/04/03'), findsNWidgets(2));
+    expect(find.text('2026/04/01'), findsNothing);
+  });
+
+  testWidgets('locked fixed item edit also uses preview snapshot dates', (
+    tester,
+  ) async {
+    final container = ProviderContainer(
+      overrides: [
+        activeItemPacksProvider.overrideWith(
+          (ref) => Stream.value([
+            ItemPack(
+              id: 1,
+              title: 'Default Item Pack',
+              status: ItemPackStatus.active,
+              isSystemDefault: true,
+              createdAt: DateTime(2026, 4, 1),
+              updatedAt: DateTime(2026, 4, 2),
+            ),
+          ]),
+        ),
+        itemProvider(11).overrideWith(
+          (ref) => Future.value(
+            ItemBundle(
+              item: Item(
+                id: 11,
+                packId: 1,
+                title: 'Locked daily task',
+                type: ItemType.fixed,
+                config: FixedItemConfig(
+                  scheduleType: FixedScheduleType.daily,
+                  anchorDate: DateTime(2026, 4, 1),
+                  dueDate: DateTime(2026, 4, 1),
+                  overduePolicy: ItemOverduePolicy.autoAdvance,
+                ),
+                createdAt: DateTime(2026, 4, 1),
+                updatedAt: DateTime(2026, 4, 2),
+              ),
+              pack: ItemPack(
+                id: 1,
+                title: 'Default Item Pack',
+                status: ItemPackStatus.active,
+                isSystemDefault: true,
+                createdAt: DateTime(2026, 4, 1),
+                updatedAt: DateTime(2026, 4, 2),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(developerDateOverrideProvider.notifier).state = DateTime(
+      2026,
+      4,
+      3,
+    );
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          home: ItemEditPage(mode: ItemEditMode.edit, id: 11, lockedPackId: 1),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('pack-field')), findsNothing);
+    expect(find.text('2026/04/03'), findsNWidgets(2));
+    expect(find.text('2026/04/01'), findsNothing);
   });
 
   testWidgets('edit page still renders when target item no longer exists', (

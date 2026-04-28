@@ -44,9 +44,12 @@ class ItemStatusService {
     if (baseline == null) {
       return null;
     }
-    return _normalizeDate(
-      now ?? DateTime.now(),
-    ).difference(_normalizeDate(baseline));
+    final current = _normalizeDate(now ?? DateTime.now());
+    final normalizedBaseline = _normalizeDate(baseline);
+    if (item.config is StateBasedItemConfig) {
+      return Duration(days: _stateDayIndex(normalizedBaseline, current));
+    }
+    return current.difference(normalizedBaseline);
   }
 
   FixedCycleWindow? currentFixedCycle(Item item, {DateTime? now}) {
@@ -113,33 +116,28 @@ class ItemStatusService {
     if (lastDoneAt == null) {
       return ItemStatus.unknown;
     }
+    final normalizedBaseline = _normalizeDate(lastDoneAt);
+    final dayIndex = _stateDayIndex(normalizedBaseline, now);
+    final warningDay = _maxStateBoundary(config.warningAfter);
+    final dangerDay = _maxStateBoundary(config.dangerAfter);
 
-    final elapsed = now.difference(_normalizeDate(lastDoneAt));
-    final normalBoundary = config.warningAfter;
-    final dangerBoundary = _maxDuration(config.dangerAfter, normalBoundary);
-
-    if (elapsed < normalBoundary) {
-      return ItemStatus.normal;
+    if (dayIndex >= dangerDay) {
+      return ItemStatus.danger;
     }
-    if (elapsed < dangerBoundary) {
+    if (dayIndex >= warningDay) {
       return ItemStatus.warning;
     }
-    return ItemStatus.danger;
+    return ItemStatus.normal;
   }
 
   ItemStatus _classifyResourceBased(
     ResourceBasedItemConfig config, {
     required DateTime now,
   }) {
-    final anchorDate = config.anchorDate == null
-        ? null
-        : _normalizeDate(config.anchorDate!);
-    if (anchorDate == null || config.durationDays <= 0) {
+    final remainingDays = resourceRemainingDays(config, now: now);
+    if (remainingDays == null) {
       return ItemStatus.unknown;
     }
-
-    final elapsedDays = now.difference(anchorDate).inDays;
-    final remainingDays = config.durationDays - elapsedDays - 1;
     if (remainingDays <= config.dangerBefore) {
       return ItemStatus.danger;
     }
@@ -157,6 +155,18 @@ class ItemStatusService {
     return config.anchorDate == null
         ? null
         : _normalizeDate(config.anchorDate!);
+  }
+
+  int? resourceRemainingDays(ResourceBasedItemConfig config, {DateTime? now}) {
+    final anchorDate = config.anchorDate == null
+        ? null
+        : _normalizeDate(config.anchorDate!);
+    if (anchorDate == null || config.durationDays <= 0) {
+      return null;
+    }
+    final current = _normalizeDate(now ?? DateTime.now());
+    final elapsedDays = current.difference(anchorDate).inDays;
+    return config.durationDays - elapsedDays - 1;
   }
 
   ItemStatus _classifyFixed(
@@ -236,7 +246,22 @@ class ItemStatusService {
     return DateTime(value.year, value.month, value.day);
   }
 
-  Duration _maxDuration(Duration left, Duration right) {
-    return left >= right ? left : right;
+  int stateDayIndex(Item item, {DateTime? now}) {
+    final baseline = stateBaseline(item);
+    if (baseline == null) {
+      return 0;
+    }
+    return _stateDayIndex(
+      _normalizeDate(baseline),
+      _normalizeDate(now ?? DateTime.now()),
+    );
+  }
+
+  int _stateDayIndex(DateTime baseline, DateTime now) {
+    return now.difference(baseline).inDays + 1;
+  }
+
+  int _maxStateBoundary(Duration value) {
+    return value.inDays <= 0 ? 1 : value.inDays;
   }
 }

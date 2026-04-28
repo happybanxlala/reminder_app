@@ -504,11 +504,11 @@ class ItemRepository {
           anchorDate = actionDate;
           durationDays = nextAddedDays;
         } else {
-          final consumedDays = actionDate.difference(anchorDate).inDays + 1;
-          final remainingDays = durationDays - consumedDays;
+          final remainingCarryDays =
+              depletionDate.difference(actionDate).inDays + 1;
           durationDays =
-              (remainingDays < 0 ? 0 : remainingDays) + nextAddedDays;
-          anchorDate = actionDate.add(const Duration(days: 1));
+              (remainingCarryDays < 0 ? 0 : remainingCarryDays) + nextAddedDays;
+          anchorDate = actionDate;
         }
       }
       lastDoneAt = actionDate.millisecondsSinceEpoch;

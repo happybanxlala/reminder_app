@@ -126,88 +126,261 @@ class _ItemList extends ConsumerWidget {
     return ListView.builder(
       itemCount: items.length,
       itemBuilder: (context, index) {
-        final item = items[index];
-        final viewModel = ItemCardViewModel.fromEntry(item, now: previewDate);
-        return Card(
-          child: Column(
-            children: [
-              ListTile(
-                key: Key('item-${viewModel.id}'),
-                title: Text(viewModel.title),
-                subtitle: Text(viewModel.subtitle),
-                trailing: Text(viewModel.status),
-              ),
-              OverflowBar(
-                children: [
-                  TextButton(
-                    onPressed: () async {
-                      final addedDays =
-                          item.bundle.item.type == ItemType.resourceBased
-                          ? await _pickResourceAddedDays(
-                              context,
-                              initialValue:
-                                  (item.bundle.item.config
-                                          as ResourceBasedItemConfig)
-                                      .durationDays,
-                            )
-                          : null;
-                      if (item.bundle.item.type == ItemType.resourceBased &&
-                          addedDays == null) {
-                        return;
-                      }
-                      await ref
-                          .read(itemRepositoryProvider)
-                          .markDone(
-                            viewModel.id,
-                            doneAt: previewDate,
-                            addedDays: addedDays,
-                          );
-                    },
-                    child: const Text(ReminderUiText.completeAction),
-                  ),
-                  if (item.bundle.item.type != ItemType.resourceBased)
-                    TextButton(
-                      onPressed: () async {
-                        await ref
-                            .read(itemRepositoryProvider)
-                            .skip(viewModel.id, actionAt: previewDate);
-                      },
-                      child: const Text(ReminderUiText.skipAction),
-                    ),
-                  if (item.bundle.item.type == ItemType.fixed)
-                    TextButton(
-                      onPressed: () async {
-                        final deferDays = await _pickDeferDays(context);
-                        if (deferDays == null) {
-                          return;
-                        }
-                        await ref
-                            .read(itemRepositoryProvider)
-                            .defer(
-                              viewModel.id,
-                              deferDays: deferDays,
-                              actionAt: previewDate,
-                            );
-                      },
-                      child: const Text(ReminderUiText.deferAction),
-                    ),
-                  TextButton(
-                    onPressed: () {
-                      context.pushNamed(
-                        ItemHistoryPage.routeName,
-                        pathParameters: {'id': viewModel.id.toString()},
-                      );
-                    },
-                    child: const Text(ReminderUiText.viewAllAction),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
+        return _ItemCard(entry: items[index], previewDate: previewDate);
       },
     );
   }
+}
+
+class _ItemCard extends ConsumerStatefulWidget {
+  const _ItemCard({required this.entry, required this.previewDate});
+
+  final ItemHomeEntry entry;
+  final DateTime previewDate;
+
+  @override
+  ConsumerState<_ItemCard> createState() => _ItemCardState();
+}
+
+class _ItemCardState extends ConsumerState<_ItemCard> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final baseViewModel = ItemCardViewModel.fromEntry(
+      widget.entry,
+      now: widget.previewDate,
+    );
+    final viewModel = baseViewModel.copyWith(isExpanded: _isExpanded);
+
+    return Card(
+      key: Key('item-card-${viewModel.id}'),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            key: Key('item-header-${viewModel.id}'),
+            color: _headerColor(viewModel.displayState),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Checkbox(
+                  key: Key('item-checkbox-${viewModel.id}'),
+                  value: false,
+                  onChanged: viewModel.canComplete
+                      ? (_) => _handleComplete(viewModel)
+                      : null,
+                ),
+                Expanded(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          viewModel.title,
+                          key: Key('item-${viewModel.id}'),
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _ItemTypeBadge(
+                        label: viewModel.badgeLabel,
+                        key: Key('item-badge-${viewModel.id}'),
+                      ),
+                    ],
+                  ),
+                ),
+                if (viewModel.trailingLabel != null) ...[
+                  const SizedBox(width: 16),
+                  Text(
+                    viewModel.trailingLabel!,
+                    key: Key('item-tail-${viewModel.id}'),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+                IconButton(
+                  key: Key('item-expand-${viewModel.id}'),
+                  onPressed: () {
+                    setState(() {
+                      _isExpanded = !_isExpanded;
+                    });
+                  },
+                  tooltip: _isExpanded ? ReminderUiText.collapseAction : '展開',
+                  icon: Icon(
+                    _isExpanded ? Icons.expand_less : Icons.expand_more,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 180),
+            child: viewModel.isExpanded
+                ? Container(
+                    key: Key('item-content-${viewModel.id}'),
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _ItemDetailRow(
+                          label: 'Pack',
+                          value: viewModel.packTitle,
+                        ),
+                        if (viewModel.note != null)
+                          _ItemDetailRow(label: 'Note', value: viewModel.note!),
+                        if (viewModel.anchorDateLabel != null)
+                          _ItemDetailRow(
+                            label: '開始日期',
+                            value: viewModel.anchorDateLabel!,
+                          ),
+                        if (viewModel.dueDateLabel != null)
+                          _ItemDetailRow(
+                            label: '到期日期',
+                            value: viewModel.dueDateLabel!,
+                          ),
+                        if (viewModel.overduePolicyLabel != null)
+                          _ItemDetailRow(
+                            label: '逾期策略',
+                            value: viewModel.overduePolicyLabel!,
+                          ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            if (viewModel.canSkip)
+                              TextButton(
+                                key: Key('item-skip-${viewModel.id}'),
+                                onPressed: () async {
+                                  await ref
+                                      .read(itemRepositoryProvider)
+                                      .skip(
+                                        viewModel.id,
+                                        actionAt: widget.previewDate,
+                                      );
+                                },
+                                child: const Text(ReminderUiText.skipAction),
+                              ),
+                            if (viewModel.canDefer)
+                              TextButton(
+                                key: Key('item-defer-${viewModel.id}'),
+                                onPressed: () async {
+                                  final deferDays = await _pickDeferDays(
+                                    context,
+                                  );
+                                  if (deferDays == null) {
+                                    return;
+                                  }
+                                  await ref
+                                      .read(itemRepositoryProvider)
+                                      .defer(
+                                        viewModel.id,
+                                        deferDays: deferDays,
+                                        actionAt: widget.previewDate,
+                                      );
+                                },
+                                child: const Text(ReminderUiText.deferAction),
+                              ),
+                            TextButton(
+                              key: Key('item-history-${viewModel.id}'),
+                              onPressed: () {
+                                context.pushNamed(
+                                  ItemHistoryPage.routeName,
+                                  pathParameters: {
+                                    'id': viewModel.id.toString(),
+                                  },
+                                );
+                              },
+                              child: const Text(ReminderUiText.viewAllAction),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleComplete(ItemCardViewModel viewModel) async {
+    final item = widget.entry.bundle.item;
+    final addedDays = item.type == ItemType.resourceBased
+        ? await _pickResourceAddedDays(
+            context,
+            initialValue: (item.config as ResourceBasedItemConfig).durationDays,
+          )
+        : null;
+    if (item.type == ItemType.resourceBased && addedDays == null) {
+      return;
+    }
+    await ref
+        .read(itemRepositoryProvider)
+        .markDone(
+          viewModel.id,
+          doneAt: widget.previewDate,
+          addedDays: addedDays,
+        );
+  }
+}
+
+class _ItemTypeBadge extends StatelessWidget {
+  const _ItemTypeBadge({required this.label, super.key});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        border: Border.all(color: Theme.of(context).dividerColor),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(label, style: Theme.of(context).textTheme.labelMedium),
+    );
+  }
+}
+
+class _ItemDetailRow extends StatelessWidget {
+  const _ItemDetailRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Wrap(
+        spacing: 4,
+        children: [
+          Text(
+            '$label：',
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          Text(value, style: Theme.of(context).textTheme.bodyMedium),
+        ],
+      ),
+    );
+  }
+}
+
+Color _headerColor(ItemCardDisplayState state) {
+  return switch (state) {
+    ItemCardDisplayState.normal => const Color(0xFFE8F5E9),
+    ItemCardDisplayState.warning => const Color(0xFFFFF8E1),
+    ItemCardDisplayState.danger => const Color(0xFFFFEBEE),
+    ItemCardDisplayState.overdue => const Color(0xFFEF9A9A),
+    ItemCardDisplayState.notStarted => Colors.white,
+    ItemCardDisplayState.unknown => const Color(0xFFF5F5F5),
+  };
 }
 
 Future<int?> _pickDeferDays(BuildContext context) async {

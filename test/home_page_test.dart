@@ -59,6 +59,419 @@ void main() {
     expect(find.byKey(const Key('home-add-item-fab')), findsOneWidget);
   });
 
+  testWidgets('home item card is collapsed by default and expands', (
+    tester,
+  ) async {
+    const itemId = 201;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          dangerHomeEntriesProvider.overrideWith(
+            (ref) => Stream.value([
+              ItemHomeEntry(
+                bundle: ItemBundle(
+                  item: Item(
+                    id: itemId,
+                    packId: 1,
+                    title: 'Clean litter box',
+                    description: '每日清理一次',
+                    type: ItemType.stateBased,
+                    config: StateBasedItemConfig(
+                      anchorDate: DateTime(2026, 4, 8),
+                      infoAfter: Duration.zero,
+                      warningAfter: Duration(days: 1),
+                      dangerAfter: Duration(days: 2),
+                    ),
+                    createdAt: DateTime(2026, 4, 1),
+                    updatedAt: DateTime(2026, 4, 1),
+                  ),
+                  pack: ItemPack(
+                    id: 1,
+                    title: 'Home Pack',
+                    status: ItemPackStatus.active,
+                    isSystemDefault: true,
+                    createdAt: DateTime(2026, 4, 1),
+                    updatedAt: DateTime(2026, 4, 1),
+                  ),
+                ),
+                status: ItemStatus.danger,
+                elapsed: const Duration(days: 3),
+              ),
+            ]),
+          ),
+          warningHomeEntriesProvider.overrideWith(
+            (ref) => Stream.value(const <ItemHomeEntry>[]),
+          ),
+          upcomingTimelineMilestonesProvider.overrideWith(
+            (ref) => Stream.value(const <TimelineMilestoneOccurrence>[]),
+          ),
+        ],
+        child: const MaterialApp(home: HomePage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('item-content-201')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('item-expand-201')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('item-content-201')), findsOneWidget);
+    expect(find.text('Home Pack'), findsOneWidget);
+    expect(find.text('每日清理一次'), findsOneWidget);
+    expect(find.text('2026/04/08'), findsOneWidget);
+  });
+
+  testWidgets(
+    'home item card shows badges, tails, and skip visibility by type',
+    (tester) async {
+      final entries = [
+        ItemHomeEntry(
+          bundle: ItemBundle(
+            item: Item(
+              id: 202,
+              packId: 1,
+              title: 'Pay rent',
+              type: ItemType.fixed,
+              config: FixedItemConfig(
+                scheduleType: FixedScheduleType.weekly,
+                anchorDate: DateTime(2026, 4, 1),
+                dueDate: DateTime(2026, 4, 12),
+              ),
+              createdAt: DateTime(2026, 4, 1),
+              updatedAt: DateTime(2026, 4, 1),
+            ),
+            pack: _defaultPack(),
+          ),
+          status: ItemStatus.warning,
+          elapsed: null,
+        ),
+        ItemHomeEntry(
+          bundle: ItemBundle(
+            item: Item(
+              id: 203,
+              packId: 1,
+              title: 'Clean litter box',
+              type: ItemType.stateBased,
+              config: StateBasedItemConfig(
+                anchorDate: DateTime(2026, 4, 8),
+                infoAfter: Duration.zero,
+                warningAfter: Duration(days: 1),
+                dangerAfter: Duration(days: 2),
+              ),
+              createdAt: DateTime(2026, 4, 1),
+              updatedAt: DateTime(2026, 4, 1),
+            ),
+            pack: _defaultPack(),
+          ),
+          status: ItemStatus.danger,
+          elapsed: const Duration(days: 3),
+        ),
+        ItemHomeEntry(
+          bundle: ItemBundle(
+            item: Item(
+              id: 204,
+              packId: 1,
+              title: 'Cat food',
+              type: ItemType.resourceBased,
+              config: ResourceBasedItemConfig(
+                anchorDate: DateTime(2026, 4, 1),
+                durationDays: 5,
+                warningBefore: 1,
+              ),
+              createdAt: DateTime(2026, 4, 1),
+              updatedAt: DateTime(2026, 4, 1),
+            ),
+            pack: _defaultPack(),
+          ),
+          status: ItemStatus.danger,
+          elapsed: null,
+        ),
+      ];
+
+      final container = ProviderContainer(
+        overrides: [
+          dangerHomeEntriesProvider.overrideWith(
+            (ref) => Stream.value(entries),
+          ),
+          warningHomeEntriesProvider.overrideWith(
+            (ref) => Stream.value(const <ItemHomeEntry>[]),
+          ),
+          upcomingTimelineMilestonesProvider.overrideWith(
+            (ref) => Stream.value(const <TimelineMilestoneOccurrence>[]),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(developerDateOverrideProvider.notifier).state = DateTime(
+        2026,
+        4,
+        11,
+      );
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: HomePage()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('item-badge-202')),
+          matching: find.text('每週'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('item-badge-203')),
+          matching: find.text('待辦'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('item-badge-204')),
+          matching: find.text('資源'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('item-tail-202')), findsOneWidget);
+      expect(find.byKey(const Key('item-tail-203')), findsOneWidget);
+      expect(find.byKey(const Key('item-tail-204')), findsOneWidget);
+      expect(find.text('剩餘1日'), findsOneWidget);
+      expect(find.text('已持續4日'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('item-expand-202')));
+      await tester.tap(find.byKey(const Key('item-expand-203')));
+      await tester.tap(find.byKey(const Key('item-expand-204')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('item-skip-202')), findsOneWidget);
+      expect(find.byKey(const Key('item-skip-203')), findsOneWidget);
+      expect(find.byKey(const Key('item-skip-204')), findsNothing);
+    },
+  );
+
+  testWidgets('home fixed item tail shows today due and overdue states', (
+    tester,
+  ) async {
+    final entries = [
+      ItemHomeEntry(
+        bundle: ItemBundle(
+          item: Item(
+            id: 207,
+            packId: 1,
+            title: 'Due today',
+            type: ItemType.fixed,
+            config: FixedItemConfig(
+              scheduleType: FixedScheduleType.oneTime,
+              anchorDate: DateTime(2026, 4, 1),
+              dueDate: DateTime(2026, 4, 12),
+            ),
+            createdAt: DateTime(2026, 4, 1),
+            updatedAt: DateTime(2026, 4, 1),
+          ),
+          pack: _defaultPack(),
+        ),
+        status: ItemStatus.danger,
+        elapsed: null,
+      ),
+      ItemHomeEntry(
+        bundle: ItemBundle(
+          item: Item(
+            id: 208,
+            packId: 1,
+            title: 'Overdue',
+            type: ItemType.fixed,
+            config: FixedItemConfig(
+              scheduleType: FixedScheduleType.oneTime,
+              anchorDate: DateTime(2026, 4, 1),
+              dueDate: DateTime(2026, 4, 12),
+              overduePolicy: ItemOverduePolicy.waitForAction,
+            ),
+            createdAt: DateTime(2026, 4, 1),
+            updatedAt: DateTime(2026, 4, 1),
+          ),
+          pack: _defaultPack(),
+        ),
+        status: ItemStatus.danger,
+        elapsed: null,
+      ),
+    ];
+    final container = ProviderContainer(
+      overrides: [
+        dangerHomeEntriesProvider.overrideWith((ref) => Stream.value(entries)),
+        warningHomeEntriesProvider.overrideWith(
+          (ref) => Stream.value(const <ItemHomeEntry>[]),
+        ),
+        upcomingTimelineMilestonesProvider.overrideWith(
+          (ref) => Stream.value(const <TimelineMilestoneOccurrence>[]),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    container.read(developerDateOverrideProvider.notifier).state = DateTime(
+      2026,
+      4,
+      12,
+    );
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: HomePage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final todayTail = tester.widget<Text>(
+      find.byKey(const Key('item-tail-207')),
+    );
+    expect(todayTail.data, '今天到期');
+
+    container.read(developerDateOverrideProvider.notifier).state = DateTime(
+      2026,
+      4,
+      13,
+    );
+    await tester.pumpAndSettle();
+    final overdueTail = tester.widget<Text>(
+      find.byKey(const Key('item-tail-208')),
+    );
+    expect(overdueTail.data, '過期');
+  });
+
+  testWidgets('home item card disables completion when item is not started', (
+    tester,
+  ) async {
+    const itemId = 205;
+    final container = ProviderContainer(
+      overrides: [
+        dangerHomeEntriesProvider.overrideWith(
+          (ref) => Stream.value([
+            ItemHomeEntry(
+              bundle: ItemBundle(
+                item: Item(
+                  id: itemId,
+                  packId: 1,
+                  title: 'Future task',
+                  type: ItemType.stateBased,
+                  config: StateBasedItemConfig(
+                    anchorDate: DateTime(2026, 4, 30),
+                    infoAfter: Duration.zero,
+                    warningAfter: Duration(days: 1),
+                    dangerAfter: Duration(days: 2),
+                  ),
+                  createdAt: DateTime(2026, 4, 1),
+                  updatedAt: DateTime(2026, 4, 1),
+                ),
+                pack: _defaultPack(),
+              ),
+              status: ItemStatus.warning,
+              elapsed: null,
+            ),
+          ]),
+        ),
+        warningHomeEntriesProvider.overrideWith(
+          (ref) => Stream.value(const <ItemHomeEntry>[]),
+        ),
+        upcomingTimelineMilestonesProvider.overrideWith(
+          (ref) => Stream.value(const <TimelineMilestoneOccurrence>[]),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(developerDateOverrideProvider.notifier).state = DateTime(
+      2026,
+      4,
+      21,
+    );
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: HomePage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final checkbox = tester.widget<Checkbox>(
+      find.byKey(const Key('item-checkbox-205')),
+    );
+    final header = tester.widget<Container>(
+      find.byKey(const Key('item-header-205')),
+    );
+
+    expect(checkbox.onChanged, isNull);
+    expect(header.color, Colors.white);
+    expect(find.byKey(const Key('item-tail-205')), findsNothing);
+  });
+
+  testWidgets('home item card shows overdue styling for fixed waitForAction', (
+    tester,
+  ) async {
+    const itemId = 206;
+    final container = ProviderContainer(
+      overrides: [
+        dangerHomeEntriesProvider.overrideWith(
+          (ref) => Stream.value([
+            ItemHomeEntry(
+              bundle: ItemBundle(
+                item: Item(
+                  id: itemId,
+                  packId: 1,
+                  title: 'Submit form',
+                  type: ItemType.fixed,
+                  config: FixedItemConfig(
+                    scheduleType: FixedScheduleType.oneTime,
+                    anchorDate: DateTime(2026, 4, 10),
+                    dueDate: DateTime(2026, 4, 15),
+                    overduePolicy: ItemOverduePolicy.waitForAction,
+                  ),
+                  createdAt: DateTime(2026, 4, 1),
+                  updatedAt: DateTime(2026, 4, 1),
+                ),
+                pack: _defaultPack(),
+              ),
+              status: ItemStatus.danger,
+              elapsed: null,
+            ),
+          ]),
+        ),
+        warningHomeEntriesProvider.overrideWith(
+          (ref) => Stream.value(const <ItemHomeEntry>[]),
+        ),
+        upcomingTimelineMilestonesProvider.overrideWith(
+          (ref) => Stream.value(const <TimelineMilestoneOccurrence>[]),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(developerDateOverrideProvider.notifier).state = DateTime(
+      2026,
+      4,
+      21,
+    );
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: HomePage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final header = tester.widget<Container>(
+      find.byKey(const Key('item-header-206')),
+    );
+    final tail = tester.widget<Text>(find.byKey(const Key('item-tail-206')));
+
+    expect(header.color, const Color(0xFFEF9A9A));
+    expect(tail.data, '過期');
+  });
+
   testWidgets('timeline tab only renders timeline milestone items', (
     tester,
   ) async {
@@ -322,7 +735,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text(ReminderUiText.completeAction).first);
+    await tester.tap(find.byKey(const Key('item-checkbox-101')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 
@@ -391,9 +804,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text(ReminderUiText.skipAction), findsNothing);
+    expect(find.text('剩餘0日'), findsOneWidget);
 
-    await tester.tap(find.text(ReminderUiText.completeAction).first);
+    await tester.tap(find.byKey(const Key('item-expand-102')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('item-skip-102')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('item-checkbox-102')));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField).last, '8');
     await tester.tap(find.text(ReminderUiText.saveAction));
@@ -434,6 +852,17 @@ ItemHomeEntry _itemEntry({required String title, required ItemStatus status}) {
     ),
     status: status,
     elapsed: const Duration(days: 5),
+  );
+}
+
+ItemPack _defaultPack() {
+  return ItemPack(
+    id: 1,
+    title: 'Default Item Pack',
+    status: ItemPackStatus.active,
+    isSystemDefault: true,
+    createdAt: DateTime(2026, 4, 1),
+    updatedAt: DateTime(2026, 4, 1),
   );
 }
 

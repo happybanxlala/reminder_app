@@ -5,8 +5,10 @@ import '../../data/item_repository.dart';
 import '../../data/local/item_timeline_dao.dart';
 import '../../domain/item.dart';
 import '../../domain/item_pack.dart';
+import '../../domain/item_status_service.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
+import '../../providers/developer_settings_providers.dart';
 import '../../providers/item_providers.dart';
 import '../widgets/editor_common_fields.dart';
 
@@ -35,6 +37,7 @@ class ItemEditPage extends ConsumerStatefulWidget {
 
 class _ItemEditPageState extends ConsumerState<ItemEditPage> {
   final _formKey = GlobalKey<FormState>();
+  final _statusService = const ItemStatusService();
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
   late final TextEditingController _fixedAnchorDateController;
@@ -117,7 +120,8 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
 
     final bundle = itemAsync.valueOrNull;
     final activePacks = activePacksAsync.valueOrNull ?? const <ItemPack>[];
-    _initializeIfNeeded(bundle);
+    final previewDate = ref.watch(effectivePreviewDateProvider);
+    _initializeIfNeeded(bundle, previewDate);
     final packOptions = _packOptions(activePacks, bundle?.pack);
 
     return Scaffold(
@@ -196,7 +200,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     ItemEditMode.edit => ReminderUiText.editItem,
   };
 
-  void _initializeIfNeeded(ItemBundle? bundle) {
+  void _initializeIfNeeded(ItemBundle? bundle, DateTime previewDate) {
     if (_initialized) {
       return;
     }
@@ -210,11 +214,18 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       _type = item.type;
       switch (item.config) {
         case FixedItemConfig config:
+          final resolvedCycle = _statusService.resolveFixedCycle(
+            config,
+            now: previewDate,
+          );
           _scheduleType = config.scheduleType;
           _overduePolicy = config.overduePolicy;
           _selectedFixedAnchorDate =
-              config.anchorDate ?? _selectedFixedAnchorDate;
-          _selectedFixedDueDate = config.dueDate ?? _selectedFixedDueDate;
+              resolvedCycle?.anchorDate ??
+              config.anchorDate ??
+              _selectedFixedAnchorDate;
+          _selectedFixedDueDate =
+              resolvedCycle?.dueDate ?? config.dueDate ?? _selectedFixedDueDate;
           _fixedInfoBefore = config.infoBefore;
           _fixedWarningBeforeController.text = '${config.warningBefore.inDays}';
           _fixedDangerBeforeController.text = '${config.dangerBefore.inDays}';

@@ -180,11 +180,7 @@ class ReminderFormatters {
     DateTime? now,
     required ItemStatusService statusService,
   }) {
-    final scheduleLabel = switch (config.scheduleType) {
-      FixedScheduleType.daily => '每天',
-      FixedScheduleType.weekly => '每週',
-      FixedScheduleType.oneTime => 'ONETIME',
-    };
+    final scheduleLabel = fixedScheduleTypeLabel(config.scheduleType);
     final resolvedCycle = statusService.resolveFixedCycle(config, now: now);
     final anchorLabel = resolvedCycle == null
         ? (config.anchorDate == null ? null : date(config.anchorDate!))
@@ -192,10 +188,7 @@ class ReminderFormatters {
     final dueLabel = resolvedCycle == null
         ? (config.dueDate == null ? null : date(config.dueDate!))
         : date(resolvedCycle.dueDate);
-    final overdueLabel = switch (config.overduePolicy) {
-      ItemOverduePolicy.autoAdvance => '逾期自動進下一輪',
-      ItemOverduePolicy.waitForAction => '逾期等待處理',
-    };
+    final overdueLabel = itemOverduePolicy(config.overduePolicy);
     final parts = <String>[scheduleLabel];
     if (anchorLabel != null) {
       parts.add('起點 $anchorLabel');
@@ -226,5 +219,29 @@ class ReminderFormatters {
   static String _resourceBasedSummary(ResourceBasedItemConfig config) {
     final anchor = config.anchorDate == null ? '未建立' : date(config.anchorDate!);
     return '起點 $anchor • 可維持 ${config.durationDays} 天（含起點） • 留意前 ${config.warningBefore} 天';
+  }
+
+  static String fixedScheduleTypeLabel(FixedScheduleType value) {
+    return switch (value) {
+      FixedScheduleType.daily => '每天',
+      FixedScheduleType.weekly => '每週',
+      FixedScheduleType.oneTime => '一次',
+    };
+  }
+
+  static String itemCardBadge(ItemConfig config) {
+    return switch (config) {
+      FixedItemConfig fixed => fixedScheduleTypeLabel(fixed.scheduleType),
+      StateBasedItemConfig _ => '待辦',
+      ResourceBasedItemConfig _ => '資源',
+      _ => '未知',
+    };
+  }
+
+  static String itemOverduePolicy(ItemOverduePolicy value) {
+    return switch (value) {
+      ItemOverduePolicy.autoAdvance => '逾期自動進下一輪',
+      ItemOverduePolicy.waitForAction => '逾期等待處理',
+    };
   }
 }

@@ -62,6 +62,40 @@ void main() {
     );
   });
 
+  test(
+    'state-based warning and danger boundaries are inclusive by day index',
+    () {
+      const service = ItemStatusService();
+      final item = Item(
+        id: 11,
+        packId: 1,
+        title: 'Replace filter',
+        type: ItemType.stateBased,
+        config: StateBasedItemConfig(
+          anchorDate: DateTime(2026, 4, 1),
+          infoAfter: Duration.zero,
+          warningAfter: Duration(days: 4),
+          dangerAfter: Duration(days: 10),
+        ),
+        createdAt: DateTime(2026, 4, 1),
+        updatedAt: DateTime(2026, 4, 1),
+      );
+
+      expect(
+        service.classify(item, now: DateTime(2026, 4, 3)),
+        ItemStatus.normal,
+      );
+      expect(
+        service.classify(item, now: DateTime(2026, 4, 4)),
+        ItemStatus.warning,
+      );
+      expect(
+        service.classify(item, now: DateTime(2026, 4, 10)),
+        ItemStatus.danger,
+      );
+    },
+  );
+
   test('fixed auto-advance resolves preview cycle to next round', () {
     const service = ItemStatusService();
     final cycle = service.resolveFixedCycle(
