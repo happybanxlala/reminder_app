@@ -123,9 +123,11 @@ class ItemRepository {
     if (existing == null) {
       return false;
     }
+    if (input.type != existing.item.type) {
+      return false;
+    }
     final now = DateTime.now();
     final packId = input.packId ?? existing.item.packId;
-    final lastDoneAt = _updatedLastDoneAtForSave(existing.item, input.config);
     await _assertPackCanAcceptItems(packId, existingItem: existing.item);
     return _dao.updateItemRecord(
       ItemRow(
@@ -164,7 +166,7 @@ class ItemRepository {
         resourceExpectedBeforeDays: _resourceInfoBefore(input.config),
         resourceWarningBeforeDays: _resourceWarningBefore(input.config),
         resourceDangerBeforeDays: _resourceDangerBefore(input.config),
-        lastDoneAt: lastDoneAt?.millisecondsSinceEpoch,
+        lastDoneAt: existing.item.lastDoneAt?.millisecondsSinceEpoch,
         createdAt: existing.item.createdAt.millisecondsSinceEpoch,
         updatedAt: now.millisecondsSinceEpoch,
       ),
@@ -228,14 +230,8 @@ class ItemRepository {
     required int deferDays,
     DateTime? actionAt,
     String? remark,
-  }) {
-    return _recordAction(
-      id,
-      actionType: ItemActionType.deferred,
-      actionDate: actionAt,
-      remark: remark,
-      payload: {'deferDays': deferDays},
-    );
+  }) async {
+    return false;
   }
 
   Future<int> createPack(ItemPackInput input) async {
@@ -687,13 +683,6 @@ class ItemRepository {
       StateBasedItemConfig _ => null,
       _ => null,
     };
-  }
-
-  DateTime? _updatedLastDoneAtForSave(Item existing, ItemConfig nextConfig) {
-    if (nextConfig is! StateBasedItemConfig) {
-      return existing.lastDoneAt;
-    }
-    return null;
   }
 
   DateTime _normalizeDate(DateTime value) {

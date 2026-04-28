@@ -252,6 +252,9 @@ void main() {
       expect(find.byKey(const Key('item-skip-202')), findsOneWidget);
       expect(find.byKey(const Key('item-skip-203')), findsOneWidget);
       expect(find.byKey(const Key('item-skip-204')), findsNothing);
+      expect(find.byKey(const Key('item-defer-202')), findsNothing);
+      expect(find.byKey(const Key('item-defer-203')), findsNothing);
+      expect(find.byKey(const Key('item-defer-204')), findsNothing);
     },
   );
 

@@ -263,26 +263,6 @@ class _ItemCardState extends ConsumerState<_ItemCard> {
                                 },
                                 child: const Text(ReminderUiText.skipAction),
                               ),
-                            if (viewModel.canDefer)
-                              TextButton(
-                                key: Key('item-defer-${viewModel.id}'),
-                                onPressed: () async {
-                                  final deferDays = await _pickDeferDays(
-                                    context,
-                                  );
-                                  if (deferDays == null) {
-                                    return;
-                                  }
-                                  await ref
-                                      .read(itemRepositoryProvider)
-                                      .defer(
-                                        viewModel.id,
-                                        deferDays: deferDays,
-                                        actionAt: widget.previewDate,
-                                      );
-                                },
-                                child: const Text(ReminderUiText.deferAction),
-                              ),
                             TextButton(
                               key: Key('item-history-${viewModel.id}'),
                               onPressed: () {
@@ -381,37 +361,6 @@ Color _headerColor(ItemCardDisplayState state) {
     ItemCardDisplayState.notStarted => Colors.white,
     ItemCardDisplayState.unknown => const Color(0xFFF5F5F5),
   };
-}
-
-Future<int?> _pickDeferDays(BuildContext context) async {
-  final controller = TextEditingController(text: '1');
-  final result = await showDialog<int>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text(ReminderUiText.deferAction),
-      content: TextField(
-        controller: controller,
-        keyboardType: TextInputType.number,
-        decoration: const InputDecoration(labelText: '延期天數'),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('取消'),
-        ),
-        FilledButton(
-          onPressed: () {
-            Navigator.of(
-              context,
-            ).pop(int.tryParse(controller.text.trim()) ?? 1);
-          },
-          child: const Text(ReminderUiText.saveAction),
-        ),
-      ],
-    ),
-  );
-  controller.dispose();
-  return result;
 }
 
 Future<int?> _pickResourceAddedDays(

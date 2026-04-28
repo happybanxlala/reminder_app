@@ -337,6 +337,142 @@ void main() {
     expect(await repository.listActionHistory(itemId), isEmpty);
   });
 
+  test('defer is disabled and does not write action history', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = ItemRepository(db.itemTimelineDao);
+
+    final itemId = await repository.createItem(
+      ItemInput(
+        title: 'Pay rent',
+        type: ItemType.fixed,
+        config: FixedItemConfig(
+          scheduleType: FixedScheduleType.weekly,
+          anchorDate: DateTime(2026, 4, 1),
+          dueDate: DateTime(2026, 4, 7),
+        ),
+      ),
+    );
+
+    final before = await repository.getItemById(itemId);
+    expect(
+      await repository.defer(
+        itemId,
+        deferDays: 3,
+        actionAt: DateTime(2026, 4, 5),
+      ),
+      isFalse,
+    );
+
+    final after = await repository.getItemById(itemId);
+    expect(after, isNotNull);
+    expect(
+      (after!.item.config as FixedItemConfig).anchorDate,
+      (before!.item.config as FixedItemConfig).anchorDate,
+    );
+    expect(
+      (after.item.config as FixedItemConfig).dueDate,
+      (before.item.config as FixedItemConfig).dueDate,
+    );
+    expect(await repository.listActionHistory(itemId), isEmpty);
+  });
+
+  test(
+    'updateItem rejects item type changes and preserves existing item',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = ItemRepository(db.itemTimelineDao);
+
+      final itemId = await repository.createItem(
+        ItemInput(
+          title: 'Cat food',
+          type: ItemType.resourceBased,
+          config: ResourceBasedItemConfig(
+            anchorDate: DateTime(2026, 4, 1),
+            durationDays: 5,
+            warningBefore: 1,
+          ),
+        ),
+      );
+
+      expect(
+        await repository.updateItem(
+          itemId,
+          ItemInput(
+            title: 'Changed type',
+            type: ItemType.fixed,
+            config: FixedItemConfig(
+              scheduleType: FixedScheduleType.oneTime,
+              anchorDate: DateTime(2026, 4, 2),
+              dueDate: DateTime(2026, 4, 3),
+            ),
+          ),
+        ),
+        isFalse,
+      );
+
+      final after = await repository.getItemById(itemId);
+      expect(after, isNotNull);
+      expect(after!.item.title, 'Cat food');
+      expect(after.item.type, ItemType.resourceBased);
+    },
+  );
+
+  test(
+    'updateItem preserves fixed stored dates when editing non-schedule fields',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = ItemRepository(db.itemTimelineDao);
+
+      final itemId = await repository.createItem(
+        ItemInput(
+          title: 'Pay rent',
+          description: 'old note',
+          type: ItemType.fixed,
+          config: FixedItemConfig(
+            scheduleType: FixedScheduleType.daily,
+            anchorDate: DateTime(2026, 4, 1),
+            dueDate: DateTime(2026, 4, 1),
+            overduePolicy: ItemOverduePolicy.autoAdvance,
+          ),
+        ),
+      );
+
+      expect(
+        await repository.updateItem(
+          itemId,
+          ItemInput(
+            title: 'Pay rent updated',
+            description: 'new note',
+            type: ItemType.fixed,
+            config: FixedItemConfig(
+              scheduleType: FixedScheduleType.daily,
+              anchorDate: DateTime(2026, 4, 1),
+              dueDate: DateTime(2026, 4, 1),
+              overduePolicy: ItemOverduePolicy.autoAdvance,
+            ),
+          ),
+        ),
+        isTrue,
+      );
+
+      final after = await repository.getItemById(itemId);
+      expect(after, isNotNull);
+      expect(after!.item.title, 'Pay rent updated');
+      expect(after.item.description, 'new note');
+      expect(
+        (after.item.config as FixedItemConfig).anchorDate,
+        DateTime(2026, 4, 1),
+      );
+      expect(
+        (after.item.config as FixedItemConfig).dueDate,
+        DateTime(2026, 4, 1),
+      );
+    },
+  );
+
   test(
     'create, update, and archive pack round-trip with visibility rules',
     () async {

@@ -122,9 +122,10 @@ ItemActionRecord {
 規則：
 
 - `ItemActionRecord` 是 history layer，不是 item attention status 的唯一來源
-- `payload` 用來保存操作附加資訊，例如：`addedDays`、`deferDays`、`nextCycleStrategy`
+- `payload` 用來保存操作附加資訊，例如：`addedDays`、`nextCycleStrategy`
 - `未處理` 不持久化成 record status；以缺少該輪 action 表示
 - item 操作寫入 record 後，仍需同步更新 item snapshot 欄位
+- `deferred` action type 保留給既有資料相容與未來功能恢復；目前 MVP 不會建立新的 deferred record
 
 ### 3.4 Timeline
 
@@ -274,9 +275,12 @@ config = {
 規則：
 
 - `anchorDate` 是 `STATE_BASED` 的主要 baseline
+- `anchorDate` 當天視為第 `1` 天
 - 建立 item 時，system 以 `anchorDate` 作為初始 baseline 推導狀態
 - 使用者完成 item 時，system 直接更新 `anchorDate`
 - `lastDoneAt` 在 `STATE_BASED` 上視為棄用欄位，不再參與狀態判斷
+- `warningAfter` 與 `dangerAfter` 都是「第 N 天當天生效」的 inclusive 門檻
+- `expectedAfter` 保留作為資訊層設定，不單獨形成 attention status 邊界
 
 ### 4.3 RESOURCE_BASED
 
@@ -304,8 +308,13 @@ config = {
 - depletion day 本身視為已進入 danger boundary
 - 完成時必須要求使用者輸入 `addedDays`
 - 補貨 / 完成行為透過 action record 的 `addedDays` 表示，並同步更新 item snapshot
-- snapshot 更新公式為：`durationDays = durationDays - (today - anchorDate + 1) + addedDays`
-- 若已逾期完成，新的 `anchorDate` 重設為完成當天，`durationDays` 以 `addedDays` 重新起算
+- 完成後新的 `anchorDate` 一律重設為完成當天
+- 若完成日尚未超過 depletion date，需保留「完成當天起仍可沿用」的剩餘天數，再加上 `addedDays`
+- snapshot 更新公式為：
+  - `depletionDate = anchorDate + durationDays - 1`
+  - `remainingCarryDays = max(0, depletionDate - actionDate + 1)`
+  - `newDurationDays = remainingCarryDays + addedDays`
+- 若完成日已晚於 depletion date，則 `remainingCarryDays = 0`，等價於 `newDurationDays = addedDays`
 - `RESOURCE_BASED` 不允許 `skip`
 
 ---
@@ -348,25 +357,27 @@ enum ItemStatus {
 ### 5.3 STATE_BASED 計算規則
 
 ```ts
-elapsed = now - anchorDate
-normalBoundary = max(expectedAfter, warningAfter)
-dangerBoundary = max(dangerAfter, normalBoundary)
+dayIndex = (now - anchorDate) + 1
 
 if anchorDate == null:
     status = UNKNOWN
-elif elapsed < normalBoundary:
-    status = NORMAL
-elif elapsed < dangerBoundary:
+elif dayIndex >= dangerAfter:
+    status = DANGER
+elif dayIndex >= warningAfter:
     status = WARNING
 else:
-    status = DANGER
+    status = NORMAL
 ```
 
 補充：
 
 - `unknown` 代表尚未建立 baseline
 - `StateBased` 的 baseline 由 `anchorDate` 單一承擔
-- `expectedAfter` 與 `warningAfter` 不形成兩段獨立門檻；目前以較大值作為 `NORMAL` 截止點
+- `anchorDate` 當天是第 `1` 天，不是第 `0` 天
+- `warningAfter = 4` 代表第 4 天當天起進入 `WARNING`
+- `dangerAfter = 10` 代表第 10 天當天起進入 `DANGER`
+- 若 `dangerAfter < warningAfter`，仍以 `DANGER` 優先
+- `expectedAfter` 不參與 attention status 邊界，只保留為資訊層設定
 
 ### 5.4 FIXED 計算規則
 
@@ -402,8 +413,8 @@ else:
 if anchorDate == null or durationDays <= 0:
     status = UNKNOWN
 
-elapsedDays = now - anchorDate
-remainingDays = durationDays - elapsedDays
+depletionDate = anchorDate + durationDays - 1
+remainingDays = depletionDate - now
 
 if remainingDays <= dangerBefore:
     status = DANGER
@@ -417,6 +428,7 @@ else:
 
 - `RESOURCE_BASED` 以剩餘天數心智運作，不以 `lastDoneAt` 作為主要狀態基準
 - `lastDoneAt` 仍保留為最近一次完成/補貨快照
+- `remainingDays` 表示「今天之後還剩幾天」；因此 depletion day 會顯示 `0`
 
 ### 5.6 UI 感受對應
 
@@ -455,15 +467,16 @@ onSkip(item):
     sync item snapshot
 
 onDefer(item, deferDays):
-    create ItemActionRecord(actionType="deferred", payload={deferDays})
-    shift current cycle snapshot
+    return disabled
 ```
 
 規則：
 
-- `skip` 與 `defer` 是 item 的正式操作
+- `skip` 是 item 的正式操作
 - `skip` 不等於刪除或封存 item
-- `defer` 目前主要作用在 `FIXED` item
+- `defer` 目前為停用狀態
+- UI 不提供 defer 入口
+- repository / data layer 也必須拒絕 defer 呼叫，不更新 snapshot，也不建立 `ItemActionRecord`
 
 ### 6.3 History 與 snapshot 邊界
 
@@ -538,12 +551,41 @@ Home 是唯一核心畫面。
 
 `normal` 可隱藏。
 
-每個 item 必須可顯示：
+首頁 item card 使用三段式中的兩段：
 
+- 標題列
+- 可展開的內容列
+
+首頁不再顯示獨立提示列。
+
+標題列必須可顯示：
+
+- 完成 checkbox
 - title
-- item summary
-- status
+- 緊貼 title 的 item type badge
+- 與 title / badge 拉開的尾欄狀態文字
+- 展開 / 收合按鈕
+
+內容列展開後必須可顯示：
+
 - pack title
+- note（item description；若空則隱藏）
+- 開始日期
+- 到期日期（如有）
+- overdue policy（僅 `FIXED`）
+
+尾欄狀態文字規則：
+
+- `FIXED`：`剩餘N日` / `今天到期` / `過期`
+- `STATE_BASED`：`已持續N日`
+- `RESOURCE_BASED`：`剩餘N日`
+
+補充：
+
+- `RESOURCE_BASED` 的尾欄剩餘天數最小顯示為 `0`
+- `skip` 只在展開後提供給 `FIXED` 與 `STATE_BASED`
+- `RESOURCE_BASED` 在首頁不提供 `skip`
+- `notStarted / overdue` 為首頁 item card 的 presentation state，不是 core `ItemStatus` 欄位
 
 ### 8.2 Timeline 區塊
 
@@ -567,10 +609,30 @@ Home 的 AppBar 保留主要日常操作入口，並提供一個 `功能` 入口
 
 ### 9.1 Item 編輯流程
 
+建立 item：
+
 1. 輸入內容
 2. 選擇 pack
 3. 選擇 item type
 4. 設定對應 config
+
+編輯既有 item：
+
+1. 輸入內容
+2. 選擇 pack
+3. 檢視既有 item type（唯讀，不可修改）
+4. 調整對應 config
+
+規則：
+
+- item type 只可在建立時選擇；既有 item 不允許變更 type
+- UI 必須在 edit mode 鎖住 type
+- repository / data layer 也必須拒絕任何跨 type 的更新請求
+- 編輯 `FIXED` item 時，日期欄位必須反映目前生效中的 cycle snapshot
+- 若 `FIXED` item 為 `autoAdvance` 且 preview date 已推進到下一輪，edit 頁必須顯示 resolved cycle 的 `anchorDate / dueDate`
+- 若無法解析 resolved cycle，才退回實際儲存的 `anchorDate / dueDate`
+- `STATE_BASED` 與 `RESOURCE_BASED` 的 edit 頁日期欄位仍直接反映目前儲存的 snapshot
+- preview date 不可污染存檔 payload；它只影響 `FIXED` edit 頁的預填顯示與狀態/操作計算
 
 ### 9.2 Timeline 編輯流程
 
@@ -593,7 +655,6 @@ Home 的 AppBar 保留主要日常操作入口，並提供一個 `功能` 入口
   - 編輯 item
   - 完成 item
   - 跳過 item
-  - 延期 fixed item
   - 查看 item history
 
 #### 9.3.2 Item Packs 管理
@@ -636,13 +697,18 @@ Home 的 AppBar 保留主要日常操作入口，並提供一個 `功能` 入口
 
 - Home 的 `danger / warning / upcoming timeline` 計算
 - `Items 管理` 中 item derived status 的顯示
-- Home / `Items 管理` 的 item `完成 / 跳過 / 延期` 操作
+- Home / `Items 管理` 的 item `完成 / 跳過` 操作
 - `Timeline 管理` 中 next / upcoming milestone 的顯示
 
 不影響：
 
 - `createdAt / updatedAt / actedAt / notifiedAt`
-- item / timeline 編輯頁的預設日期欄位
+- timeline 編輯頁的預設日期欄位
+- item 建立頁的預設日期欄位
+
+例外：
+
+- `FIXED` item 編輯頁的日期欄位必須依 preview date 反映目前生效 cycle 的 snapshot
 
 ---
 
@@ -759,7 +825,7 @@ Home 的 AppBar 保留主要日常操作入口，並提供一個 `功能` 入口
 - `FIXED` 的 overdue policy
 - item 狀態計算
 - Home 顯示（warning / danger）
-- item `完成 / 跳過 / 延期`
+- item `完成 / 跳過`
 - timeline milestone rule / record 基本流
 
 ### 可延後

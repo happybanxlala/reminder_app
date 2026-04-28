@@ -494,6 +494,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(Key('item-skip-$itemId')), findsNothing);
+      expect(find.byKey(Key('item-defer-$itemId')), findsNothing);
 
       await tester.tap(find.byKey(Key('item-done-$itemId')));
       await tester.pumpAndSettle();
@@ -506,6 +507,43 @@ void main() {
       expect(repository.recordedAddedDays, 12);
     },
   );
+
+  testWidgets('items management does not show defer for fixed items', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = _RecordingItemRepository(db.itemTimelineDao);
+    final container = ProviderContainer(
+      overrides: [
+        itemRepositoryProvider.overrideWith((ref) => repository),
+        activeItemPacksProvider.overrideWith(
+          (ref) => Stream.value([
+            _pack(1, title: 'Default Item Pack', isSystemDefault: true),
+          ]),
+        ),
+        itemsProvider.overrideWith(
+          (ref) => Stream.value([_itemBundle(8, ItemType.fixed)]),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(developerDateOverrideProvider.notifier).state = DateTime(
+      2026,
+      4,
+      11,
+    );
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: ItemsManagementPage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('item-defer-8')), findsNothing);
+  });
 
   testWidgets('items management routes add and edit into locked pack editor', (
     tester,

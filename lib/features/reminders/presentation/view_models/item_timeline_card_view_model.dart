@@ -22,7 +22,6 @@ class ItemCardViewModel {
     required this.displayState,
     required this.canComplete,
     required this.canSkip,
-    required this.canDefer,
     this.trailingLabel,
     this.note,
     this.anchorDateLabel,
@@ -81,7 +80,6 @@ class ItemCardViewModel {
       displayState: displayState,
       canComplete: displayState != ItemCardDisplayState.notStarted,
       canSkip: item.type != ItemType.resourceBased,
-      canDefer: item.type == ItemType.fixed,
     );
   }
 
@@ -98,7 +96,6 @@ class ItemCardViewModel {
   final bool isExpanded;
   final bool canComplete;
   final bool canSkip;
-  final bool canDefer;
 
   ItemCardViewModel copyWith({bool? isExpanded}) {
     return ItemCardViewModel(
@@ -115,7 +112,6 @@ class ItemCardViewModel {
       isExpanded: isExpanded ?? this.isExpanded,
       canComplete: canComplete,
       canSkip: canSkip,
-      canDefer: canDefer,
     );
   }
 
@@ -192,7 +188,7 @@ class ItemCardViewModel {
       }
       final remainingDays = dueDate.difference(now).inDays;
       if (remainingDays > 0) {
-        return '剩餘${remainingDays}日';
+        return '剩餘$remainingDays日';
       }
       if (remainingDays == 0) {
         return '今天到期';
@@ -204,7 +200,7 @@ class ItemCardViewModel {
       if (dayIndex <= 0) {
         return null;
       }
-      return '已持續${dayIndex}日';
+      return '已持續$dayIndex日';
     }
     if (config is! ResourceBasedItemConfig) {
       return null;
@@ -214,7 +210,7 @@ class ItemCardViewModel {
       return null;
     }
     final safeRemainingDays = remainingDays < 0 ? 0 : remainingDays;
-    return '剩餘${safeRemainingDays}日';
+    return '剩餘$safeRemainingDays日';
   }
 
   static bool _completedWithinWindow(
