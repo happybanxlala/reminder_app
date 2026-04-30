@@ -7,6 +7,7 @@ import 'package:reminder_app/features/reminders/data/timeline_models.dart';
 import 'package:reminder_app/features/reminders/data/timeline_repository.dart';
 import 'package:reminder_app/features/reminders/domain/timeline.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_rule.dart';
+import 'package:reminder_app/features/reminders/presentation/formatters/reminder_formatters.dart';
 import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
 import 'package:reminder_app/features/reminders/providers/timeline_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/timeline_edit_page.dart';
@@ -24,41 +25,63 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Milestone Rules'), findsOneWidget);
-    expect(
-      find.text('Timeline 持有的是 milestone rule；milestone 是規則推導出的時間事件。'),
-      findsOneWidget,
-    );
-    expect(find.text('尚未設定 milestone rule。'), findsOneWidget);
+    expect(find.text(ReminderUiText.milestoneRulesTitle), findsOneWidget);
+    expect(find.text(ReminderUiText.timelineRuleExplanation), findsOneWidget);
+    expect(find.text(ReminderUiText.timelineRuleEmptyHint), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('add-rule-button')));
     await tester.pumpAndSettle();
 
     expect(
-      find.text(TimelineMilestoneRuleType.everyNDays.name),
+      find.text(
+        ReminderFormatters.timelineMilestoneRuleType(
+          TimelineMilestoneRuleType.everyNDays,
+        ),
+      ),
       findsOneWidget,
     );
     expect(find.text('第 {value}{unit}'), findsOneWidget);
-    expect(find.text('Reminder Offset Days'), findsOneWidget);
+    expect(
+      find.text(ReminderUiText.timelineRuleReminderOffsetFieldLabel),
+      findsOneWidget,
+    );
     expect(find.text('次數'), findsOneWidget);
     expect(find.text('累積值'), findsOneWidget);
     expect(find.text('單位'), findsOneWidget);
     expect(find.text('預覽：第 1天'), findsOneWidget);
-    expect(find.textContaining('下一筆：第 1天 • '), findsOneWidget);
+    expect(find.textContaining('下一個：第 1天 • '), findsOneWidget);
 
-    await tester.tap(find.text(TimelineMilestoneRuleType.everyNDays.name).last);
+    await tester.tap(
+      find
+          .text(
+            ReminderFormatters.timelineMilestoneRuleType(
+              TimelineMilestoneRuleType.everyNDays,
+            ),
+          )
+          .last,
+    );
     await tester.pumpAndSettle();
     await tester.tap(
-      find.text(TimelineMilestoneRuleType.everyNWeeks.name).last,
+      find
+          .text(
+            ReminderFormatters.timelineMilestoneRuleType(
+              TimelineMilestoneRuleType.everyNWeeks,
+            ),
+          )
+          .last,
     );
     await tester.pumpAndSettle();
 
     expect(
-      find.text(TimelineMilestoneRuleType.everyNWeeks.name),
+      find.text(
+        ReminderFormatters.timelineMilestoneRuleType(
+          TimelineMilestoneRuleType.everyNWeeks,
+        ),
+      ),
       findsOneWidget,
     );
     expect(find.text('預覽：第 1週'), findsOneWidget);
-    expect(find.textContaining('下一筆：第 1週 • '), findsOneWidget);
+    expect(find.textContaining('下一個：第 1週 • '), findsOneWidget);
 
     await tester.ensureVisible(find.widgetWithText(OutlinedButton, '次數'));
     await tester.pumpAndSettle();
@@ -84,15 +107,21 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('預覽：第 1天'), findsOneWidget);
-    expect(find.textContaining('下一筆：第 1天 • '), findsOneWidget);
+    expect(find.textContaining('下一個：第 1天 • '), findsOneWidget);
 
     await tester.ensureVisible(find.byType(Switch));
     await tester.pumpAndSettle();
     await tester.tap(find.byType(Switch));
     await tester.pumpAndSettle();
 
-    expect(find.text('預覽：目前無法產生下一筆 milestone'), findsOneWidget);
-    expect(find.text('下一筆：目前無法產生 upcoming milestone'), findsOneWidget);
+    expect(
+      find.text(ReminderUiText.timelineRulePreviewUnavailable),
+      findsOneWidget,
+    );
+    expect(
+      find.text(ReminderUiText.timelineRuleUpcomingUnavailable),
+      findsOneWidget,
+    );
   });
 
   testWidgets('timeline editor loads current milestone rules', (tester) async {
@@ -133,13 +162,17 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text(TimelineMilestoneRuleType.everyNMonths.name),
+      find.text(
+        ReminderFormatters.timelineMilestoneRuleType(
+          TimelineMilestoneRuleType.everyNMonths,
+        ),
+      ),
       findsOneWidget,
     );
     expect(find.text('5'), findsWidgets);
     expect(find.text('第 {value}{unit}'), findsOneWidget);
     expect(find.text('預覽：第 2個月'), findsOneWidget);
-    expect(find.textContaining('下一筆：第 2個月 • '), findsOneWidget);
+    expect(find.textContaining('下一個：第 2個月 • '), findsOneWidget);
   });
 
   testWidgets('paused milestone rule loads switch off', (tester) async {
@@ -183,7 +216,10 @@ void main() {
       find.byKey(const Key('rule-active-91')),
     );
     expect(switchTile.value, isFalse);
-    expect(find.text('預覽：目前無法產生下一筆 milestone'), findsOneWidget);
+    expect(
+      find.text(ReminderUiText.timelineRulePreviewUnavailable),
+      findsOneWidget,
+    );
   });
 
   testWidgets('edit keeps page open when target timeline no longer exists', (

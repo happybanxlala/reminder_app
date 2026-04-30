@@ -414,7 +414,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('快變糟'), findsOneWidget);
+    expect(find.text(ReminderUiText.dangerTab), findsOneWidget);
   });
 
   testWidgets(

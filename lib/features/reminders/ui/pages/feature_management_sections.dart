@@ -666,7 +666,7 @@ Future<int?> _showResourceAddedDaysDialog(
     context: context,
     builder: (context) => StatefulBuilder(
       builder: (context, setState) => AlertDialog(
-        title: const Text(ReminderUiText.completeAction),
+        title: const Text(ReminderUiText.resourceCompletionDialogTitle),
         content: TextFormField(
           autofocus: true,
           initialValue: inputValue,
@@ -675,7 +675,8 @@ Future<int?> _showResourceAddedDaysDialog(
             inputValue = value;
           },
           decoration: InputDecoration(
-            labelText: '補充 addedDays',
+            labelText: ReminderUiText.resourceCompletionDialogLabel,
+            helperText: ReminderUiText.resourceCompletionDialogHelper,
             errorText: errorText,
           ),
         ),
@@ -689,7 +690,7 @@ Future<int?> _showResourceAddedDaysDialog(
               final value = int.tryParse(inputValue.trim());
               if (value == null || value <= 0) {
                 setState(() {
-                  errorText = '請輸入 1 或以上整數';
+                  errorText = ReminderUiText.resourceCompletionDialogError;
                 });
                 return;
               }
@@ -779,7 +780,7 @@ class _PackFormDialogState extends State<_PackFormDialog> {
               ),
               validator: (value) {
                 if ((value ?? '').trim().isEmpty) {
-                  return '請輸入 Pack Title';
+                  return '請輸入責任包名稱';
                 }
                 return null;
               },
@@ -867,7 +868,7 @@ class _TimelineCard extends ConsumerWidget {
               data: (detail) {
                 final ruleDetails = detail?.milestoneRuleDetails ?? const [];
                 if (ruleDetails.isEmpty) {
-                  return const Text('尚未建立 milestone rule。');
+                  return const Text(ReminderUiText.timelineRuleMissingMessage);
                 }
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -887,8 +888,8 @@ class _TimelineCard extends ConsumerWidget {
                         ),
                         subtitle: Text(
                           item.nextMilestone == null
-                              ? '下一筆：目前無法產生 milestone'
-                              : '下一筆：${ReminderFormatters.milestoneSummary(item.nextMilestone!)}',
+                              ? ReminderUiText.timelineRuleUpcomingUnavailable
+                              : '${ReminderUiText.timelineRuleNextLabel}：${ReminderFormatters.milestoneSummary(item.nextMilestone!)}',
                         ),
                         trailing: Text(
                           ReminderFormatters.timelineMilestoneRuleStatus(
@@ -900,7 +901,8 @@ class _TimelineCard extends ConsumerWidget {
                   ],
                 );
               },
-              error: (error, stack) => const Text('讀取 milestone rule 失敗。'),
+              error: (error, stack) =>
+                  const Text(ReminderUiText.timelineRuleLoadFailedMessage),
               loading: () => const Padding(
                 padding: EdgeInsets.symmetric(vertical: 8),
                 child: SizedBox(
@@ -939,7 +941,8 @@ class _TimelineCard extends ConsumerWidget {
                   ],
                 );
               },
-              error: (error, stack) => const Text('讀取 upcoming milestone 失敗。'),
+              error: (error, stack) =>
+                  const Text(ReminderUiText.upcomingMilestoneLoadFailedMessage),
               loading: () => const Padding(
                 padding: EdgeInsets.symmetric(vertical: 8),
                 child: SizedBox(

@@ -157,19 +157,26 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
             const SizedBox(height: 12),
             if (_isEdit)
               InputDecorator(
-                decoration: const InputDecoration(labelText: 'Item Type'),
-                child: Text(_type.name, key: const Key('item-type-readonly')),
+                decoration: const InputDecoration(
+                  labelText: ReminderUiText.itemTypeFieldLabel,
+                ),
+                child: Text(
+                  ReminderFormatters.itemType(_type),
+                  key: const Key('item-type-readonly'),
+                ),
               )
             else
               DropdownButtonFormField<ItemType>(
                 key: const Key('item-type-field'),
                 initialValue: _type,
-                decoration: const InputDecoration(labelText: 'Item Type'),
+                decoration: const InputDecoration(
+                  labelText: ReminderUiText.itemTypeFieldLabel,
+                ),
                 items: ItemType.values
                     .map(
                       (value) => DropdownMenuItem(
                         value: value,
-                        child: Text(value.name),
+                        child: Text(ReminderFormatters.itemType(value)),
                       ),
                     )
                     .toList(growable: false),
@@ -250,7 +257,9 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     return [
       DropdownButtonFormField<FixedScheduleType>(
         initialValue: _scheduleType,
-        decoration: const InputDecoration(labelText: 'Schedule Type'),
+        decoration: const InputDecoration(
+          labelText: ReminderUiText.scheduleTypeFieldLabel,
+        ),
         items: FixedScheduleType.values
             .map(
               (value) => DropdownMenuItem(
@@ -271,11 +280,15 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       const SizedBox(height: 12),
       DropdownButtonFormField<ItemOverduePolicy>(
         initialValue: _overduePolicy,
-        decoration: const InputDecoration(labelText: 'Overdue Policy'),
+        decoration: const InputDecoration(
+          labelText: ReminderUiText.overduePolicyFieldLabel,
+        ),
         items: ItemOverduePolicy.values
             .map(
-              (value) =>
-                  DropdownMenuItem(value: value, child: Text(value.name)),
+              (value) => DropdownMenuItem(
+                value: value,
+                child: Text(ReminderFormatters.itemOverduePolicy(value)),
+              ),
             )
             .toList(growable: false),
         onChanged: (value) {
@@ -290,7 +303,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       const SizedBox(height: 12),
       EditorDateField(
         controller: _fixedAnchorDateController,
-        label: 'Anchor Date',
+        label: ReminderUiText.fixedAnchorDateFieldLabel,
         onPickDate: () => _pickDate(
           context,
           initialDate: _selectedFixedAnchorDate,
@@ -303,7 +316,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       const SizedBox(height: 12),
       EditorDateField(
         controller: _fixedDueDateController,
-        label: 'Due Date',
+        label: ReminderUiText.fixedDueDateFieldLabel,
         onPickDate: () => _pickDate(
           context,
           initialDate: _selectedFixedDueDate,
@@ -317,13 +330,13 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       _DaysField(
         key: const Key('fixed-warning-before-field'),
         controller: _fixedWarningBeforeController,
-        label: 'Warning Before (days)',
+        label: ReminderUiText.warningBeforeDaysFieldLabel,
       ),
       const SizedBox(height: 12),
       _DaysField(
         key: const Key('fixed-danger-before-field'),
         controller: _fixedDangerBeforeController,
-        label: 'Danger Before (days)',
+        label: ReminderUiText.dangerBeforeDaysFieldLabel,
       ),
     ];
   }
@@ -333,7 +346,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       EditorDateField(
         key: const Key('state-anchor-date-field'),
         controller: _stateAnchorDateController,
-        label: 'Anchor Date',
+        label: ReminderUiText.stateAnchorDateFieldLabel,
         onPickDate: () => _pickDate(
           context,
           initialDate: _selectedStateAnchorDate,
@@ -347,13 +360,13 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       _DaysField(
         key: const Key('warning-after-field'),
         controller: _warningAfterController,
-        label: 'Warning After (days)',
+        label: ReminderUiText.warningAfterDaysFieldLabel,
       ),
       const SizedBox(height: 12),
       _DaysField(
         key: const Key('danger-after-field'),
         controller: _dangerAfterController,
-        label: 'Danger After (days)',
+        label: ReminderUiText.dangerAfterDaysFieldLabel,
       ),
     ];
   }
@@ -362,7 +375,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     return [
       EditorDateField(
         controller: _resourceAnchorDateController,
-        label: 'Resource Anchor Date',
+        label: ReminderUiText.resourceAnchorDateFieldLabel,
         onPickDate: () => _pickDate(
           context,
           initialDate: _selectedResourceAnchorDate,
@@ -376,19 +389,19 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       _DaysField(
         key: const Key('estimated-duration-field'),
         controller: _resourceDurationController,
-        label: 'Duration Days',
+        label: ReminderUiText.durationDaysFieldLabel,
       ),
       const SizedBox(height: 12),
       _DaysField(
         key: const Key('warning-before-depletion-field'),
         controller: _resourceWarningBeforeController,
-        label: 'Warning Before (days)',
+        label: ReminderUiText.warningBeforeDaysFieldLabel,
       ),
       const SizedBox(height: 12),
       _DaysField(
         key: const Key('resource-danger-before-field'),
         controller: _resourceDangerBeforeController,
-        label: 'Danger Before (days)',
+        label: ReminderUiText.dangerBeforeDaysFieldLabel,
       ),
     ];
   }
@@ -496,11 +509,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
   }
 
   String _fixedScheduleLabel(FixedScheduleType value) {
-    return switch (value) {
-      FixedScheduleType.daily => 'daily',
-      FixedScheduleType.weekly => 'weekly',
-      FixedScheduleType.oneTime => 'ONETIME',
-    };
+    return ReminderFormatters.fixedScheduleTypeLabel(value);
   }
 
   List<_PackOption> _packOptions(

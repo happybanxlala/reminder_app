@@ -24,7 +24,9 @@ import 'package:reminder_app/features/reminders/ui/pages/home_page.dart';
 import 'package:reminder_app/features/reminders/ui/pages/item_edit_page.dart';
 
 void main() {
-  testWidgets('home shows danger warning and timeline tabs', (tester) async {
+  testWidgets('home shows danger warning and upcoming sections', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -50,9 +52,9 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Danger'), findsOneWidget);
-    expect(find.text('Warning'), findsOneWidget);
-    expect(find.text('Timeline'), findsOneWidget);
+    expect(find.text(ReminderUiText.dangerTab), findsOneWidget);
+    expect(find.text(ReminderUiText.warningTab), findsOneWidget);
+    expect(find.text(ReminderUiText.upcomingSectionTitle), findsOneWidget);
     expect(find.text('Clean litter box'), findsOneWidget);
     expect(find.byKey(const Key('history-button')), findsNothing);
     expect(find.byKey(const Key('quick-add-item-button')), findsNothing);
@@ -220,21 +222,21 @@ void main() {
       expect(
         find.descendant(
           of: find.byKey(const Key('item-badge-202')),
-          matching: find.text('每週'),
+          matching: find.text(ReminderUiText.fixedTypeLabel),
         ),
         findsOneWidget,
       );
       expect(
         find.descendant(
           of: find.byKey(const Key('item-badge-203')),
-          matching: find.text('待辦'),
+          matching: find.text(ReminderUiText.stateBasedTypeLabel),
         ),
         findsOneWidget,
       );
       expect(
         find.descendant(
           of: find.byKey(const Key('item-badge-204')),
-          matching: find.text('資源'),
+          matching: find.text(ReminderUiText.resourceBasedTypeLabel),
         ),
         findsOneWidget,
       );
@@ -475,7 +477,7 @@ void main() {
     expect(tail.data, '過期');
   });
 
-  testWidgets('timeline tab only renders timeline milestone items', (
+  testWidgets('home upcoming section renders timeline milestone items', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -496,11 +498,8 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.text('Timeline', skipOffstage: false).last);
-    await tester.pumpAndSettle();
-
     expect(find.text('No sugar'), findsOneWidget);
-    expect(find.text('Milestone'), findsOneWidget);
+    expect(find.text(ReminderUiText.milestoneLabel), findsOneWidget);
     expect(find.text('已看過'), findsOneWidget);
     expect(find.text('跳過'), findsOneWidget);
   });

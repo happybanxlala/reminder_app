@@ -81,7 +81,7 @@ class _TimelineEditPageState extends ConsumerState<TimelineEditPage> {
             const SizedBox(height: 12),
             EditorDateField(
               controller: _dateController,
-              label: 'Start Date',
+              label: ReminderUiText.timelineStartDateFieldLabel,
               onPickDate: () => _pickDate(
                 initial: _selectedDate,
                 onPicked: (value) {
@@ -96,11 +96,15 @@ class _TimelineEditPageState extends ConsumerState<TimelineEditPage> {
             DropdownButtonFormField<TimelineDisplayUnit>(
               key: const Key('display-unit-field'),
               initialValue: _displayUnit,
-              decoration: const InputDecoration(labelText: 'Display Unit'),
+              decoration: const InputDecoration(
+                labelText: ReminderUiText.timelineDisplayUnitFieldLabel,
+              ),
               items: TimelineDisplayUnit.values
                   .map(
-                    (value) =>
-                        DropdownMenuItem(value: value, child: Text(value.name)),
+                    (value) => DropdownMenuItem(
+                      value: value,
+                      child: Text(ReminderFormatters.displayUnitLabel(value)),
+                    ),
                   )
                   .toList(growable: false),
               onChanged: (value) {
@@ -129,10 +133,10 @@ class _TimelineEditPageState extends ConsumerState<TimelineEditPage> {
               ],
             ),
             const SizedBox(height: 8),
-            const Text('Timeline 持有的是 milestone rule；milestone 是規則推導出的時間事件。'),
+            const Text(ReminderUiText.timelineRuleExplanation),
             const SizedBox(height: 12),
             if (_ruleDrafts.isEmpty)
-              const Text('尚未設定 milestone rule。')
+              const Text(ReminderUiText.timelineRuleEmptyHint)
             else
               ..._ruleDrafts.map(
                 (draft) => TimelineMilestoneRuleFormCard(
@@ -301,7 +305,7 @@ class _TimelineEditPageState extends ConsumerState<TimelineEditPage> {
       Timeline(
         id: widget.id ?? 0,
         title: _titleController.text.trim().isEmpty
-            ? 'Timeline'
+            ? ReminderUiText.timelineLabel
             : _titleController.text.trim(),
         startDate: _selectedDate,
         displayUnit: _displayUnit,

@@ -70,7 +70,7 @@ void main() {
   });
 
   test(
-    'markDone updates state anchor date and resets day index from day 1',
+    'markDone(stateBased) updates stateAnchorDate and resets day index from day 1',
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
@@ -110,11 +110,12 @@ void main() {
   );
 
   test(
-    'markDone uses preview date for state anchor date and real time for updatedAt',
+    'preview date actions use preview actionDate but real updatedAt',
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = ItemRepository(db.itemTimelineDao);
+      var now = DateTime(2026, 4, 1, 9, 0);
+      final repository = ItemRepository(db.itemTimelineDao, clock: () => now);
 
       final itemId = await repository.createItem(
         ItemInput(
@@ -129,19 +130,25 @@ void main() {
       );
       final before = await repository.getItemById(itemId);
       final previewDate = DateTime(2026, 4, 14, 15, 30);
+      now = DateTime(2026, 4, 20, 10, 45);
 
       await repository.markDone(itemId, doneAt: previewDate);
 
       final after = await repository.getItemById(itemId);
+      final history = await repository.listActionHistory(itemId);
       expect(before, isNotNull);
       expect(after, isNotNull);
+      expect(history, hasLength(1));
       expect(after!.item.lastDoneAt, isNull);
       expect(
         (after.item.config as StateBasedItemConfig).anchorDate,
         DateTime(2026, 4, 14),
       );
-      expect(after.item.updatedAt, isNot(DateTime(2026, 4, 14)));
+      expect(after.item.updatedAt, now);
       expect(after.item.updatedAt.isBefore(before!.item.updatedAt), isFalse);
+      expect(history.single.actionDate, DateTime(2026, 4, 14));
+      expect(history.single.updatedAt, now);
+      expect(history.single.createdAt, now);
     },
   );
 
@@ -195,7 +202,7 @@ void main() {
     expect(warning.map((item) => item.item.title), ['Brush cat']);
   });
 
-  test('resource-based completion requires added days', () async {
+  test('markDone(resourceBased, addedDays) updates refill snapshot', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
     final repository = ItemRepository(db.itemTimelineDao);
@@ -313,7 +320,7 @@ void main() {
     },
   );
 
-  test('resource-based items cannot be skipped', () async {
+  test('skip(resourceBased) must fail', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
     final repository = ItemRepository(db.itemTimelineDao);
@@ -592,7 +599,7 @@ void main() {
     },
   );
 
-  test('archiving a pack cascades items to archived', () async {
+  test('archivePack archives items inside the pack', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
     final repository = ItemRepository(db.itemTimelineDao);

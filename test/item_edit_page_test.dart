@@ -8,6 +8,7 @@ import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/local/item_timeline_dao.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
+import 'package:reminder_app/features/reminders/presentation/formatters/reminder_formatters.dart';
 import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
 import 'package:reminder_app/features/reminders/providers/item_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/item_edit_page.dart';
@@ -49,9 +50,13 @@ void main() {
     expect(find.byKey(const Key('estimated-duration-field')), findsNothing);
     expect(find.byKey(const Key('pack-field')), findsOneWidget);
 
-    await tester.tap(find.text(ItemType.stateBased.name));
+    await tester.tap(
+      find.text(ReminderFormatters.itemType(ItemType.stateBased)),
+    );
     await tester.pumpAndSettle();
-    await tester.tap(find.text(ItemType.resourceBased.name).last);
+    await tester.tap(
+      find.text(ReminderFormatters.itemType(ItemType.resourceBased)).last,
+    );
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('warning-after-field')), findsNothing);
@@ -172,7 +177,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Archived Pack (archived)'), findsOneWidget);
+    expect(
+      find.text('Archived Pack (${ReminderUiText.archivedPackSuffix})'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('locked pack mode hides pack field and saves into locked pack', (

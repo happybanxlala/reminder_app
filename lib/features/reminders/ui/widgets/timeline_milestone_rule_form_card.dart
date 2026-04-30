@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../data/timeline_models.dart';
 import '../../domain/timeline.dart';
 import '../../domain/timeline_milestone_rule.dart';
+import '../../presentation/formatters/reminder_formatters.dart';
+import '../../presentation/text/reminder_ui_text.dart';
 
 class TimelineMilestoneRuleDraft {
   const TimelineMilestoneRuleDraft({
@@ -206,12 +208,18 @@ class _TimelineMilestoneRuleFormCardState
                   child: DropdownButtonFormField<TimelineMilestoneRuleType>(
                     key: Key('rule-type-${widget.draft.localId}'),
                     initialValue: widget.draft.type,
-                    decoration: const InputDecoration(labelText: 'Rule Type'),
+                    decoration: const InputDecoration(
+                      labelText: ReminderUiText.timelineRuleTypeFieldLabel,
+                    ),
                     items: TimelineMilestoneRuleType.values
                         .map(
                           (value) => DropdownMenuItem(
                             value: value,
-                            child: Text(value.name),
+                            child: Text(
+                              ReminderFormatters.timelineMilestoneRuleType(
+                                value,
+                              ),
+                            ),
                           ),
                         )
                         .toList(growable: false),
@@ -249,7 +257,9 @@ class _TimelineMilestoneRuleFormCardState
               key: Key('rule-interval-${widget.draft.localId}'),
               initialValue: widget.draft.intervalValue,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Interval Value'),
+              decoration: const InputDecoration(
+                labelText: ReminderUiText.timelineRuleIntervalValueFieldLabel,
+              ),
               validator: widget.validatePositiveInt,
               onChanged: (value) =>
                   widget.onChanged(widget.draft.copyWith(intervalValue: value)),
@@ -258,7 +268,9 @@ class _TimelineMilestoneRuleFormCardState
             TextFormField(
               key: Key('rule-label-${widget.draft.localId}'),
               controller: _labelController,
-              decoration: const InputDecoration(labelText: 'Label Template'),
+              decoration: const InputDecoration(
+                labelText: ReminderUiText.timelineRuleLabelTemplateFieldLabel,
+              ),
               onChanged: (value) =>
                   widget.onChanged(widget.draft.copyWith(labelTemplate: value)),
             ),
@@ -289,7 +301,7 @@ class _TimelineMilestoneRuleFormCardState
               alignment: Alignment.centerLeft,
               child: Text(
                 widget.previewLabel == null
-                    ? '預覽：目前無法產生下一筆 milestone'
+                    ? ReminderUiText.timelineRulePreviewUnavailable
                     : '預覽：${widget.previewLabel}',
                 key: Key('rule-preview-${widget.draft.localId}'),
               ),
@@ -299,8 +311,8 @@ class _TimelineMilestoneRuleFormCardState
               alignment: Alignment.centerLeft,
               child: Text(
                 widget.upcomingSummary == null
-                    ? '下一筆：目前無法產生 upcoming milestone'
-                    : '下一筆：${widget.upcomingSummary}',
+                    ? ReminderUiText.timelineRuleUpcomingUnavailable
+                    : '${ReminderUiText.timelineRuleNextLabel}：${widget.upcomingSummary}',
                 key: Key('rule-next-occurrence-${widget.draft.localId}'),
               ),
             ),
@@ -310,7 +322,7 @@ class _TimelineMilestoneRuleFormCardState
               initialValue: widget.draft.reminderOffsetDays,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                labelText: 'Reminder Offset Days',
+                labelText: ReminderUiText.timelineRuleReminderOffsetFieldLabel,
               ),
               validator: widget.validateOffsetDays,
               onChanged: (value) => widget.onChanged(
@@ -321,7 +333,7 @@ class _TimelineMilestoneRuleFormCardState
               key: Key('rule-active-${widget.draft.localId}'),
               contentPadding: EdgeInsets.zero,
               value: widget.draft.status == TimelineMilestoneRuleStatus.active,
-              title: const Text('Active'),
+              title: const Text(ReminderUiText.timelineRuleActiveLabel),
               onChanged: (value) => widget.onChanged(
                 widget.draft.copyWith(
                   status: value

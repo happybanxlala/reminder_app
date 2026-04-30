@@ -6,6 +6,7 @@ import 'package:reminder_app/features/reminders/data/timeline_models.dart';
 import 'package:reminder_app/features/reminders/domain/timeline.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_record.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_rule.dart';
+import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
 import 'package:reminder_app/features/reminders/providers/timeline_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/timeline_milestone_history_page.dart';
 
@@ -42,10 +43,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('No sugar · Milestone History'), findsOneWidget);
+      expect(
+        find.text('No sugar · ${ReminderUiText.milestoneHistoryTitle}'),
+        findsOneWidget,
+      );
       expect(find.byKey(const Key('timeline-history-9')), findsOneWidget);
-      expect(find.textContaining('noticed'), findsOneWidget);
-      expect(find.text('Upcoming Milestones'), findsNothing);
+      expect(find.textContaining('已看過'), findsOneWidget);
+      expect(find.text(ReminderUiText.upcomingMilestonesTitle), findsNothing);
     },
   );
 
@@ -81,7 +85,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('此 Timeline 目前沒有 milestone history。'), findsOneWidget);
+    expect(
+      find.text(ReminderUiText.noTimelineMilestoneHistory),
+      findsOneWidget,
+    );
   });
 }
 

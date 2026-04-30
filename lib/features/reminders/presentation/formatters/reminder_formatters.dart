@@ -76,7 +76,7 @@ class ReminderFormatters {
       bundle.rule,
       bundle.record.occurrenceIndex,
     );
-    return '${bundle.record.status.name} • $label • ${date(bundle.record.targetDate)}';
+    return '${milestoneStatus(bundle.record.status)} • $label • ${date(bundle.record.targetDate)}';
   }
 
   static String milestoneHistoryUpdatedAt(
@@ -99,9 +99,9 @@ class ReminderFormatters {
     TimelineMilestoneRuleStatus status,
   ) {
     return switch (status) {
-      TimelineMilestoneRuleStatus.active => 'active',
-      TimelineMilestoneRuleStatus.paused => 'paused',
-      TimelineMilestoneRuleStatus.archived => 'archived',
+      TimelineMilestoneRuleStatus.active => '啟用中',
+      TimelineMilestoneRuleStatus.paused => '已暫停',
+      TimelineMilestoneRuleStatus.archived => '已封存',
     };
   }
 
@@ -111,8 +111,8 @@ class ReminderFormatters {
 
   static String timelineStatus(TimelineStatus status) {
     return switch (status) {
-      TimelineStatus.active => 'active',
-      TimelineStatus.archived => 'archived',
+      TimelineStatus.active => '啟用中',
+      TimelineStatus.archived => '已封存',
     };
   }
 
@@ -127,33 +127,33 @@ class ReminderFormatters {
 
   static String milestoneStatus(TimelineMilestoneRecordStatus value) {
     return switch (value) {
-      TimelineMilestoneRecordStatus.upcoming => 'upcoming',
-      TimelineMilestoneRecordStatus.noticed => 'noticed',
-      TimelineMilestoneRecordStatus.skipped => 'skipped',
+      TimelineMilestoneRecordStatus.upcoming => '即將到來',
+      TimelineMilestoneRecordStatus.noticed => '已看過',
+      TimelineMilestoneRecordStatus.skipped => '已跳過',
     };
   }
 
   static String itemStatus(ItemStatus status) {
     return switch (status) {
       ItemStatus.normal => '穩定',
-      ItemStatus.warning => '需留意',
-      ItemStatus.danger => '快變糟',
+      ItemStatus.warning => ReminderUiText.warningTab,
+      ItemStatus.danger => ReminderUiText.dangerTab,
       ItemStatus.unknown => '未建立基準',
     };
   }
 
   static String itemLifecycleStatus(ItemLifecycleStatus status) {
     return switch (status) {
-      ItemLifecycleStatus.active => 'active',
-      ItemLifecycleStatus.paused => 'paused',
-      ItemLifecycleStatus.archived => 'archived',
+      ItemLifecycleStatus.active => '啟用中',
+      ItemLifecycleStatus.paused => '已暫停',
+      ItemLifecycleStatus.archived => '已封存',
     };
   }
 
   static String itemPackStatus(ItemPackStatus status) {
     return switch (status) {
-      ItemPackStatus.active => 'active',
-      ItemPackStatus.archived => 'archived',
+      ItemPackStatus.active => '啟用中',
+      ItemPackStatus.archived => '已封存',
     };
   }
 
@@ -231,9 +231,9 @@ class ReminderFormatters {
 
   static String itemCardBadge(ItemConfig config) {
     return switch (config) {
-      FixedItemConfig fixed => fixedScheduleTypeLabel(fixed.scheduleType),
-      StateBasedItemConfig _ => '待辦',
-      ResourceBasedItemConfig _ => '資源',
+      FixedItemConfig _ => ReminderUiText.fixedTypeLabel,
+      StateBasedItemConfig _ => ReminderUiText.stateBasedTypeLabel,
+      ResourceBasedItemConfig _ => ReminderUiText.resourceBasedTypeLabel,
       _ => '未知',
     };
   }
@@ -242,6 +242,23 @@ class ReminderFormatters {
     return switch (value) {
       ItemOverduePolicy.autoAdvance => '逾期自動進下一輪',
       ItemOverduePolicy.waitForAction => '逾期等待處理',
+    };
+  }
+
+  static String itemType(ItemType value) {
+    return switch (value) {
+      ItemType.fixed => ReminderUiText.fixedTypeLabel,
+      ItemType.stateBased => ReminderUiText.stateBasedTypeLabel,
+      ItemType.resourceBased => ReminderUiText.resourceBasedTypeLabel,
+    };
+  }
+
+  static String timelineMilestoneRuleType(TimelineMilestoneRuleType value) {
+    return switch (value) {
+      TimelineMilestoneRuleType.everyNDays => '每 N 天',
+      TimelineMilestoneRuleType.everyNWeeks => '每 N 週',
+      TimelineMilestoneRuleType.everyNMonths => '每 N 個月',
+      TimelineMilestoneRuleType.everyNYears => '每 N 年',
     };
   }
 }

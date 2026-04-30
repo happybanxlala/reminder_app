@@ -1,8 +1,10 @@
 import 'package:drift/drift.dart';
 
-import '../domain/item_action_record.dart';
 import '../domain/item.dart';
+import '../domain/item_action_record.dart';
+import '../domain/item_action_service.dart';
 import '../domain/item_pack.dart';
+import '../domain/item_snapshot_update_service.dart';
 import '../domain/item_status_service.dart';
 import 'local/app_database.dart';
 import 'local/item_timeline_dao.dart';
@@ -24,8 +26,18 @@ class ItemInput {
 }
 
 class ItemRepository {
-  ItemRepository(this._dao, {ItemStatusService? statusService})
-    : _statusService = statusService ?? const ItemStatusService();
+  ItemRepository(
+    this._dao, {
+    ItemStatusService? statusService,
+    ItemActionService? actionService,
+    ItemSnapshotUpdateService? snapshotUpdateService,
+    DateTime Function()? clock,
+  }) : _statusService = statusService ?? const ItemStatusService(),
+       _actionService = actionService ?? const ItemActionService(),
+       _snapshotUpdateService =
+           snapshotUpdateService ??
+           ItemSnapshotUpdateService(statusService: statusService),
+       _clock = clock ?? DateTime.now;
 
   static const managedItemStatuses = {
     ItemLifecycleStatus.active,
@@ -34,6 +46,9 @@ class ItemRepository {
 
   final ItemTimelineDao _dao;
   final ItemStatusService _statusService;
+  final ItemActionService _actionService;
+  final ItemSnapshotUpdateService _snapshotUpdateService;
+  final DateTime Function() _clock;
 
   Stream<List<ItemPack>> watchPacks({bool includeArchived = false}) =>
       _dao.watchItemPacks(includeArchived: includeArchived);
@@ -48,7 +63,7 @@ class ItemRepository {
     ItemStatus status, {
     DateTime? now,
   }) {
-    final current = now ?? DateTime.now();
+    final current = now ?? _clock();
     return watchItems().map(
       (items) => items
           .where(
@@ -72,7 +87,7 @@ class ItemRepository {
   Future<ItemPack?> getPackById(int id) => _dao.getItemPackById(id);
 
   Future<int> createItem(ItemInput input) async {
-    final now = DateTime.now();
+    final now = _clock();
     final packId = input.packId ?? await _ensureDefaultPackId(now);
     await _assertPackCanAcceptItems(packId);
     return _dao.insertItem(
@@ -126,7 +141,7 @@ class ItemRepository {
     if (input.type != existing.item.type) {
       return false;
     }
-    final now = DateTime.now();
+    final now = _clock();
     final packId = input.packId ?? existing.item.packId;
     await _assertPackCanAcceptItems(packId, existingItem: existing.item);
     return _dao.updateItemRecord(
@@ -185,24 +200,18 @@ class ItemRepository {
     if (existing == null) {
       return false;
     }
-    final payload = <String, Object?>{
-      'nextCycleStrategy': nextCycleStrategy.name,
-    };
-    if (existing.item.type == ItemType.resourceBased) {
-      if (addedDays == null || addedDays <= 0) {
-        return false;
-      }
-      payload['addedDays'] = addedDays;
-    } else if (addedDays != null) {
-      payload['addedDays'] = addedDays;
-    }
-    return _recordAction(
-      id,
-      actionType: ItemActionType.done,
-      actionDate: doneAt,
+    final action = _actionService.planDone(
+      existing.item,
+      doneAt: doneAt,
+      fallbackNow: _clock(),
       remark: remark,
-      payload: payload,
+      addedDays: addedDays,
+      nextCycleStrategy: nextCycleStrategy,
     );
+    if (action == null) {
+      return false;
+    }
+    return _recordAction(id, action: action);
   }
 
   Future<bool> skip(
@@ -213,16 +222,20 @@ class ItemRepository {
         ItemNextCycleStrategy.keepSchedule,
   }) async {
     final existing = await getItemById(id);
-    if (existing == null || existing.item.type == ItemType.resourceBased) {
+    if (existing == null) {
       return false;
     }
-    return _recordAction(
-      id,
-      actionType: ItemActionType.skipped,
-      actionDate: actionAt,
+    final action = _actionService.planSkip(
+      existing.item,
+      actionAt: actionAt,
+      fallbackNow: _clock(),
       remark: remark,
-      payload: {'nextCycleStrategy': nextCycleStrategy.name},
+      nextCycleStrategy: nextCycleStrategy,
     );
+    if (action == null) {
+      return false;
+    }
+    return _recordAction(id, action: action);
   }
 
   Future<bool> defer(
@@ -235,7 +248,7 @@ class ItemRepository {
   }
 
   Future<int> createPack(ItemPackInput input) async {
-    final now = DateTime.now();
+    final now = _clock();
     return _dao.insertItemPack(
       ItemPacksCompanion.insert(
         title: input.title,
@@ -255,7 +268,7 @@ class ItemRepository {
         existing.status == ItemPackStatus.archived) {
       return false;
     }
-    final now = DateTime.now();
+    final now = _clock();
     return _dao.updateItemPackRecord(
       ItemPackRow(
         id: existing.id,
@@ -285,7 +298,7 @@ class ItemRepository {
     if (existing == null || !await canArchivePack(id)) {
       return false;
     }
-    final now = DateTime.now();
+    final now = _clock();
     final updated = await _dao.updateItemPackRecord(
       ItemPackRow(
         id: existing.id,
@@ -341,36 +354,33 @@ class ItemRepository {
 
   Future<bool> _recordAction(
     int id, {
-    required ItemActionType actionType,
-    DateTime? actionDate,
-    String? remark,
-    Map<String, Object?>? payload,
+    required PlannedItemAction action,
   }) async {
     final existing = await getItemById(id);
     if (existing == null) {
       return false;
     }
-    final normalizedActionDate = _normalizeDate(actionDate ?? DateTime.now());
-    final now = DateTime.now();
+    final now = _clock();
     return _dao.attachedDatabase.transaction(() async {
-      final companion = _updatedItemSnapshot(
+      final snapshot = _snapshotUpdateService.build(
         existing.item,
-        actionType: actionType,
-        actionDate: normalizedActionDate,
-        payload: payload,
+        action: action,
         updatedAt: now,
       );
-      final updated = await _dao.updateItemFields(id, companion);
+      final updated = await _dao.updateItemFields(
+        id,
+        _companionForSnapshotUpdate(snapshot),
+      );
       if (!updated) {
         return false;
       }
       await _dao.insertItemActionRecord(
         ItemActionRecordsCompanion.insert(
           itemId: id,
-          actionType: actionType.name,
-          actionDate: normalizedActionDate.millisecondsSinceEpoch,
-          remark: Value(remark),
-          payload: Value(ItemActionRecord.encodePayload(payload)),
+          actionType: action.type.name,
+          actionDate: action.actionDate.millisecondsSinceEpoch,
+          remark: Value(action.remark),
+          payload: Value(ItemActionRecord.encodePayload(action.payload)),
           createdAt: now.millisecondsSinceEpoch,
           updatedAt: now.millisecondsSinceEpoch,
         ),
@@ -379,142 +389,15 @@ class ItemRepository {
     });
   }
 
-  ItemsCompanion _updatedItemSnapshot(
-    Item item, {
-    required ItemActionType actionType,
-    required DateTime actionDate,
-    required Map<String, Object?>? payload,
-    required DateTime updatedAt,
-  }) {
-    return switch (item.config) {
-      FixedItemConfig config => _updateFixedItemSnapshot(
-        item,
-        config,
-        actionType: actionType,
-        actionDate: actionDate,
-        payload: payload,
-        updatedAt: updatedAt,
-      ),
-      StateBasedItemConfig config => _updateStateBasedSnapshot(
-        config,
-        actionType: actionType,
-        actionDate: actionDate,
-        updatedAt: updatedAt,
-      ),
-      ResourceBasedItemConfig config => _updateResourceSnapshot(
-        config,
-        actionType: actionType,
-        actionDate: actionDate,
-        payload: payload,
-        updatedAt: updatedAt,
-      ),
-      _ => ItemsCompanion(updatedAt: Value(updatedAt.millisecondsSinceEpoch)),
-    };
-  }
-
-  ItemsCompanion _updateFixedItemSnapshot(
-    Item item,
-    FixedItemConfig config, {
-    required ItemActionType actionType,
-    required DateTime actionDate,
-    required Map<String, Object?>? payload,
-    required DateTime updatedAt,
-  }) {
-    final cycle = _statusService.resolveFixedCycle(config, now: actionDate);
-    final nextCycleStrategy = ItemNextCycleStrategy.values.byName(
-      (payload?['nextCycleStrategy'] as String?) ??
-          ItemNextCycleStrategy.keepSchedule.name,
-    );
-    var anchorDate = config.anchorDate;
-    var dueDate = config.dueDate;
-    var lastDoneAt = item.lastDoneAt;
-
-    if (actionType == ItemActionType.deferred) {
-      final deferDays = (payload?['deferDays'] as num?)?.toInt() ?? 0;
-      if (anchorDate != null) {
-        anchorDate = anchorDate.add(Duration(days: deferDays));
-      }
-      if (dueDate != null) {
-        dueDate = dueDate.add(Duration(days: deferDays));
-      }
-    } else if (cycle != null &&
-        config.scheduleType != FixedScheduleType.oneTime) {
-      anchorDate = _statusService.nextFixedCycleAnchor(cycle, config);
-      dueDate = _statusService.nextFixedCycleDue(cycle, config);
-      if (config.overduePolicy == ItemOverduePolicy.waitForAction &&
-          actionDate.isAfter(cycle.dueDate) &&
-          nextCycleStrategy == ItemNextCycleStrategy.shiftByDelay) {
-        final delayDays = actionDate.difference(cycle.dueDate).inDays;
-        anchorDate = _statusService.shiftDateByDelay(anchorDate, delayDays);
-        dueDate = _statusService.shiftDateByDelay(dueDate, delayDays);
-      }
-    }
-
-    if (actionType == ItemActionType.done) {
-      lastDoneAt = actionDate;
-    }
-
+  ItemsCompanion _companionForSnapshotUpdate(ItemSnapshotUpdate snapshot) {
     return ItemsCompanion(
-      fixedAnchorDate: Value(anchorDate?.millisecondsSinceEpoch),
-      fixedDueDate: Value(dueDate?.millisecondsSinceEpoch),
-      lastDoneAt: Value(lastDoneAt?.millisecondsSinceEpoch),
-      updatedAt: Value(updatedAt.millisecondsSinceEpoch),
-    );
-  }
-
-  ItemsCompanion _updateStateBasedSnapshot(
-    StateBasedItemConfig config, {
-    required ItemActionType actionType,
-    required DateTime actionDate,
-    required DateTime updatedAt,
-  }) {
-    return ItemsCompanion(
-      stateAnchorDate: actionType == ItemActionType.done
-          ? Value(actionDate.millisecondsSinceEpoch)
-          : Value(config.anchorDate?.millisecondsSinceEpoch),
-      lastDoneAt: const Value(null),
-      updatedAt: Value(updatedAt.millisecondsSinceEpoch),
-    );
-  }
-
-  ItemsCompanion _updateResourceSnapshot(
-    ResourceBasedItemConfig config, {
-    required ItemActionType actionType,
-    required DateTime actionDate,
-    required Map<String, Object?>? payload,
-    required DateTime updatedAt,
-  }) {
-    var anchorDate = config.anchorDate;
-    var durationDays = config.durationDays;
-    int? lastDoneAt;
-
-    if (actionType == ItemActionType.done) {
-      final nextAddedDays =
-          (payload?['addedDays'] as num?)?.toInt() ?? durationDays;
-      if (anchorDate == null || durationDays <= 0) {
-        anchorDate = actionDate;
-        durationDays = nextAddedDays;
-      } else {
-        final depletionDate = anchorDate.add(Duration(days: durationDays - 1));
-        if (actionDate.isAfter(depletionDate)) {
-          anchorDate = actionDate;
-          durationDays = nextAddedDays;
-        } else {
-          final remainingCarryDays =
-              depletionDate.difference(actionDate).inDays + 1;
-          durationDays =
-              (remainingCarryDays < 0 ? 0 : remainingCarryDays) + nextAddedDays;
-          anchorDate = actionDate;
-        }
-      }
-      lastDoneAt = actionDate.millisecondsSinceEpoch;
-    }
-
-    return ItemsCompanion(
-      resourceAnchorDate: Value(anchorDate?.millisecondsSinceEpoch),
-      resourceDurationDays: Value(durationDays),
-      lastDoneAt: lastDoneAt == null ? const Value.absent() : Value(lastDoneAt),
-      updatedAt: Value(updatedAt.millisecondsSinceEpoch),
+      fixedAnchorDate: _dateValue(snapshot.fixedAnchorDate),
+      fixedDueDate: _dateValue(snapshot.fixedDueDate),
+      stateAnchorDate: _dateValue(snapshot.stateAnchorDate),
+      resourceAnchorDate: _dateValue(snapshot.resourceAnchorDate),
+      resourceDurationDays: _intValue(snapshot.resourceDurationDays),
+      lastDoneAt: _dateValue(snapshot.lastDoneAt),
+      updatedAt: Value(snapshot.updatedAt.millisecondsSinceEpoch),
     );
   }
 
@@ -685,7 +568,17 @@ class ItemRepository {
     };
   }
 
-  DateTime _normalizeDate(DateTime value) {
-    return DateTime(value.year, value.month, value.day);
+  Value<int?> _dateValue(SnapshotValue<DateTime> value) {
+    if (!value.present) {
+      return const Value.absent();
+    }
+    return Value(value.value?.millisecondsSinceEpoch);
+  }
+
+  Value<int?> _intValue(SnapshotValue<int> value) {
+    if (!value.present) {
+      return const Value.absent();
+    }
+    return Value(value.value);
   }
 }

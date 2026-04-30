@@ -17,6 +17,11 @@ Milestone 模型採 rule-first：
 - occurrence 於 Home / Timeline detail 動態計算
 - `timeline_milestone_records` 只在 noticed / skipped / notified 時持久化
 
+## Drift Schema Note
+
+- 早期開發期 migration（包含舊 `task` / `responsibility` cutover）已清理。
+- 目前 repository 只保留乾淨的 Drift schema 定義，不再維護早期 migration 鏈。
+
 ## Setup
 
 ```bash

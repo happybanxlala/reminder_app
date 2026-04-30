@@ -28,7 +28,7 @@ class TimelineMilestoneHistoryPage extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             children: [
               if (detail == null)
-                const Text('讀取失敗：找不到 Timeline。')
+                const Text(ReminderUiText.timelineMissingMessage)
               else if (detail.milestoneHistory.isEmpty)
                 const Text(ReminderUiText.noTimelineMilestoneHistory)
               else

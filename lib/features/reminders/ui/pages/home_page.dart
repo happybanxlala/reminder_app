@@ -15,39 +15,14 @@ import 'feature_page.dart';
 import 'item_edit_page.dart';
 import 'item_history_page.dart';
 
-class HomePage extends ConsumerStatefulWidget {
+class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
   static const routeName = 'home';
   static const routePath = '/';
 
   @override
-  ConsumerState<HomePage> createState() => _HomePageState();
-}
-
-class _HomePageState extends ConsumerState<HomePage>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(() {
-      if (mounted) {
-        setState(() {});
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final dangerAsync = ref.watch(dangerHomeEntriesProvider);
     final warningAsync = ref.watch(warningHomeEntriesProvider);
     final timelineAsync = ref.watch(upcomingTimelineMilestonesProvider);
@@ -63,41 +38,44 @@ class _HomePageState extends ConsumerState<HomePage>
             tooltip: ReminderUiText.featureAction,
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: ReminderUiText.dangerTab),
-            Tab(text: ReminderUiText.warningTab),
-            Tab(text: ReminderUiText.timelineTab),
-          ],
-        ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: ListView(
+        padding: const EdgeInsets.all(16),
         children: [
-          dangerAsync.when(
-            data: (items) => _ItemList(
-              items: items,
-              emptyMessage: ReminderUiText.noDangerItems,
+          _HomeSection(
+            title: ReminderUiText.dangerTab,
+            child: dangerAsync.when(
+              data: (items) => _ItemList(
+                items: items,
+                emptyMessage: ReminderUiText.noDangerItems,
+              ),
+              error: (error, stack) => Text('讀取失敗: $error'),
+              loading: () => const Center(child: CircularProgressIndicator()),
             ),
-            error: (error, stack) => Text('讀取失敗: $error'),
-            loading: () => const Center(child: CircularProgressIndicator()),
           ),
-          warningAsync.when(
-            data: (items) => _ItemList(
-              items: items,
-              emptyMessage: ReminderUiText.noWarningItems,
+          const SizedBox(height: 16),
+          _HomeSection(
+            title: ReminderUiText.warningTab,
+            child: warningAsync.when(
+              data: (items) => _ItemList(
+                items: items,
+                emptyMessage: ReminderUiText.noWarningItems,
+              ),
+              error: (error, stack) => Text('讀取失敗: $error'),
+              loading: () => const Center(child: CircularProgressIndicator()),
             ),
-            error: (error, stack) => Text('讀取失敗: $error'),
-            loading: () => const Center(child: CircularProgressIndicator()),
           ),
-          timelineAsync.when(
-            data: (items) => _TimelineMilestoneList(
-              items: items,
-              emptyMessage: ReminderUiText.noUpcomingTimelineItems,
+          const SizedBox(height: 16),
+          _HomeSection(
+            title: ReminderUiText.upcomingSectionTitle,
+            child: timelineAsync.when(
+              data: (items) => _TimelineMilestoneList(
+                items: items,
+                emptyMessage: ReminderUiText.noUpcomingTimelineItems,
+              ),
+              error: (error, stack) => Text('讀取失敗: $error'),
+              loading: () => const Center(child: CircularProgressIndicator()),
             ),
-            error: (error, stack) => Text('讀取失敗: $error'),
-            loading: () => const Center(child: CircularProgressIndicator()),
           ),
         ],
       ),
@@ -120,14 +98,16 @@ class _ItemList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
-      return Center(child: Text(emptyMessage));
+      return Text(emptyMessage);
     }
     final previewDate = ref.watch(effectivePreviewDateProvider);
-    return ListView.builder(
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        return _ItemCard(entry: items[index], previewDate: previewDate);
-      },
+    return Column(
+      children: [
+        for (var index = 0; index < items.length; index++) ...[
+          if (index > 0) const SizedBox(height: 12),
+          _ItemCard(entry: items[index], previewDate: previewDate),
+        ],
+      ],
     );
   }
 }
@@ -207,7 +187,9 @@ class _ItemCardState extends ConsumerState<_ItemCard> {
                       _isExpanded = !_isExpanded;
                     });
                   },
-                  tooltip: _isExpanded ? ReminderUiText.collapseAction : '展開',
+                  tooltip: _isExpanded
+                      ? ReminderUiText.collapseAction
+                      : ReminderUiText.expandAction,
                   icon: Icon(
                     _isExpanded ? Icons.expand_less : Icons.expand_more,
                   ),
@@ -373,7 +355,7 @@ Future<int?> _pickResourceAddedDays(
     context: context,
     builder: (context) => StatefulBuilder(
       builder: (context, setState) => AlertDialog(
-        title: const Text(ReminderUiText.completeAction),
+        title: const Text(ReminderUiText.resourceCompletionDialogTitle),
         content: TextFormField(
           autofocus: true,
           initialValue: inputValue,
@@ -382,7 +364,8 @@ Future<int?> _pickResourceAddedDays(
             inputValue = value;
           },
           decoration: InputDecoration(
-            labelText: '補充 addedDays',
+            labelText: ReminderUiText.resourceCompletionDialogLabel,
+            helperText: ReminderUiText.resourceCompletionDialogHelper,
             errorText: errorText,
           ),
         ),
@@ -396,7 +379,7 @@ Future<int?> _pickResourceAddedDays(
               final value = int.tryParse(inputValue.trim());
               if (value == null || value <= 0) {
                 setState(() {
-                  errorText = '請輸入 1 或以上整數';
+                  errorText = ReminderUiText.resourceCompletionDialogError;
                 });
                 return;
               }
@@ -423,46 +406,78 @@ class _TimelineMilestoneList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
-      return Center(child: Text(emptyMessage));
+      return Text(emptyMessage);
     }
-    return ListView.builder(
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final occurrence = items[index];
-        final viewModel = MilestoneCardViewModel.fromOccurrence(occurrence);
-        return Card(
-          child: Column(
-            children: [
-              ListTile(
-                key: Key('milestone-item-${viewModel.id}'),
-                title: Text(viewModel.title),
-                subtitle: Text(viewModel.subtitle),
-                trailing: const Text('Milestone'),
-              ),
-              OverflowBar(
-                children: [
-                  TextButton(
-                    onPressed: () async {
-                      await ref
-                          .read(timelineRepositoryProvider)
-                          .noticeOccurrence(occurrence);
-                    },
-                    child: const Text(ReminderUiText.noticedAction),
-                  ),
-                  TextButton(
-                    onPressed: () async {
-                      await ref
-                          .read(timelineRepositoryProvider)
-                          .skipOccurrence(occurrence);
-                    },
-                    child: const Text(ReminderUiText.skipAction),
-                  ),
-                ],
-              ),
-            ],
+    return Column(
+      children: [
+        for (var index = 0; index < items.length; index++) ...[
+          if (index > 0) const SizedBox(height: 12),
+          Builder(
+            builder: (context) {
+              final occurrence = items[index];
+              final viewModel = MilestoneCardViewModel.fromOccurrence(
+                occurrence,
+              );
+              return Card(
+                child: Column(
+                  children: [
+                    ListTile(
+                      key: Key('milestone-item-${viewModel.id}'),
+                      title: Text(viewModel.title),
+                      subtitle: Text(viewModel.subtitle),
+                      trailing: const Text(ReminderUiText.milestoneLabel),
+                    ),
+                    OverflowBar(
+                      children: [
+                        TextButton(
+                          onPressed: () async {
+                            await ref
+                                .read(timelineRepositoryProvider)
+                                .noticeOccurrence(occurrence);
+                          },
+                          child: const Text(ReminderUiText.noticedAction),
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            await ref
+                                .read(timelineRepositoryProvider)
+                                .skipOccurrence(occurrence);
+                          },
+                          child: const Text(ReminderUiText.skipAction),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
-        );
-      },
+        ],
+      ],
+    );
+  }
+}
+
+class _HomeSection extends StatelessWidget {
+  const _HomeSection({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 12),
+            child,
+          ],
+        ),
+      ),
     );
   }
 }
