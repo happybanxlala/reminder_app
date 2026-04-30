@@ -159,6 +159,7 @@ class ReminderFormatters {
 
   static String itemActionType(ItemActionType actionType) {
     return switch (actionType) {
+      ItemActionType.created => '新增',
       ItemActionType.done => '完成',
       ItemActionType.skipped => '跳過',
       ItemActionType.deferred => '延期',

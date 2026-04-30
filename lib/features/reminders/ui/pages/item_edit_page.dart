@@ -9,6 +9,7 @@ import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
 import '../../providers/item_providers.dart';
 import '../widgets/editor_common_fields.dart';
+import '../widgets/item_config_form_section.dart';
 
 enum ItemEditMode { create, edit }
 
@@ -37,28 +38,8 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
-  late final TextEditingController _fixedAnchorDateController;
-  late final TextEditingController _fixedDueDateController;
-  late final TextEditingController _fixedWarningBeforeController;
-  late final TextEditingController _fixedDangerBeforeController;
-  late final TextEditingController _stateAnchorDateController;
-  late final TextEditingController _warningAfterController;
-  late final TextEditingController _dangerAfterController;
-  late final TextEditingController _resourceAnchorDateController;
-  late final TextEditingController _resourceDurationController;
-  late final TextEditingController _resourceWarningBeforeController;
-  late final TextEditingController _resourceDangerBeforeController;
+  late final ItemConfigFormController _configController;
 
-  ItemType _type = ItemType.stateBased;
-  FixedScheduleType _scheduleType = FixedScheduleType.daily;
-  ItemOverduePolicy _overduePolicy = ItemOverduePolicy.autoAdvance;
-  DateTime _selectedFixedAnchorDate = DateTime.now();
-  DateTime _selectedFixedDueDate = DateTime.now();
-  DateTime _selectedStateAnchorDate = DateTime.now();
-  DateTime _selectedResourceAnchorDate = DateTime.now();
-  Duration _fixedInfoBefore = Duration.zero;
-  Duration _stateInfoAfter = Duration.zero;
-  int _resourceInfoBefore = 0;
   int? _selectedPackId;
   bool _initialized = false;
 
@@ -70,34 +51,14 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     super.initState();
     _titleController = TextEditingController();
     _descriptionController = TextEditingController();
-    _fixedAnchorDateController = TextEditingController();
-    _fixedDueDateController = TextEditingController();
-    _fixedWarningBeforeController = TextEditingController(text: '1');
-    _fixedDangerBeforeController = TextEditingController(text: '0');
-    _stateAnchorDateController = TextEditingController();
-    _warningAfterController = TextEditingController(text: '7');
-    _dangerAfterController = TextEditingController(text: '14');
-    _resourceAnchorDateController = TextEditingController();
-    _resourceDurationController = TextEditingController(text: '30');
-    _resourceWarningBeforeController = TextEditingController(text: '3');
-    _resourceDangerBeforeController = TextEditingController(text: '0');
+    _configController = ItemConfigFormController();
   }
 
   @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
-    _fixedAnchorDateController.dispose();
-    _fixedDueDateController.dispose();
-    _fixedWarningBeforeController.dispose();
-    _fixedDangerBeforeController.dispose();
-    _stateAnchorDateController.dispose();
-    _warningAfterController.dispose();
-    _dangerAfterController.dispose();
-    _resourceAnchorDateController.dispose();
-    _resourceDurationController.dispose();
-    _resourceWarningBeforeController.dispose();
-    _resourceDangerBeforeController.dispose();
+    _configController.dispose();
     super.dispose();
   }
 
@@ -161,14 +122,14 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
                   labelText: ReminderUiText.itemTypeFieldLabel,
                 ),
                 child: Text(
-                  ReminderFormatters.itemType(_type),
+                  ReminderFormatters.itemType(_configController.type),
                   key: const Key('item-type-readonly'),
                 ),
               )
             else
               DropdownButtonFormField<ItemType>(
                 key: const Key('item-type-field'),
-                initialValue: _type,
+                initialValue: _configController.type,
                 decoration: const InputDecoration(
                   labelText: ReminderUiText.itemTypeFieldLabel,
                 ),
@@ -185,16 +146,15 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
                     return;
                   }
                   setState(() {
-                    _type = value;
+                    _configController.type = value;
                   });
                 },
               ),
             const SizedBox(height: 12),
-            ...switch (_type) {
-              ItemType.fixed => _buildFixedFields(context),
-              ItemType.stateBased => _buildStateBasedFields(context),
-              ItemType.resourceBased => _buildResourceBasedFields(context),
-            },
+            ItemConfigFormSection(
+              controller: _configController,
+              onChanged: () => setState(() {}),
+            ),
             const SizedBox(height: 24),
             FilledButton(
               key: const Key('save-button'),
@@ -217,212 +177,14 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       return;
     }
     _selectedPackId = widget.lockedPackId;
-    _syncDateControllers();
     if (bundle != null) {
       final item = bundle.item;
       _titleController.text = item.title;
       _descriptionController.text = item.description ?? '';
       _selectedPackId = widget.lockedPackId ?? item.packId;
-      _type = item.type;
-      switch (item.config) {
-        case FixedItemConfig config:
-          _scheduleType = config.scheduleType;
-          _overduePolicy = config.overduePolicy;
-          _selectedFixedAnchorDate =
-              config.anchorDate ?? _selectedFixedAnchorDate;
-          _selectedFixedDueDate = config.dueDate ?? _selectedFixedDueDate;
-          _fixedInfoBefore = config.infoBefore;
-          _fixedWarningBeforeController.text = '${config.warningBefore.inDays}';
-          _fixedDangerBeforeController.text = '${config.dangerBefore.inDays}';
-        case StateBasedItemConfig config:
-          _selectedStateAnchorDate =
-              config.anchorDate ?? _selectedStateAnchorDate;
-          _stateInfoAfter = config.infoAfter;
-          _warningAfterController.text = '${config.warningAfter.inDays}';
-          _dangerAfterController.text = '${config.dangerAfter.inDays}';
-        case ResourceBasedItemConfig config:
-          _selectedResourceAnchorDate =
-              config.anchorDate ?? _selectedResourceAnchorDate;
-          _resourceDurationController.text = '${config.durationDays}';
-          _resourceInfoBefore = config.infoBefore;
-          _resourceWarningBeforeController.text = '${config.warningBefore}';
-          _resourceDangerBeforeController.text = '${config.dangerBefore}';
-      }
-      _syncDateControllers();
+      _configController.load(item.config);
     }
     _initialized = true;
-  }
-
-  List<Widget> _buildFixedFields(BuildContext context) {
-    return [
-      DropdownButtonFormField<FixedScheduleType>(
-        initialValue: _scheduleType,
-        decoration: const InputDecoration(
-          labelText: ReminderUiText.scheduleTypeFieldLabel,
-        ),
-        items: FixedScheduleType.values
-            .map(
-              (value) => DropdownMenuItem(
-                value: value,
-                child: Text(_fixedScheduleLabel(value)),
-              ),
-            )
-            .toList(growable: false),
-        onChanged: (value) {
-          if (value == null) {
-            return;
-          }
-          setState(() {
-            _scheduleType = value;
-          });
-        },
-      ),
-      const SizedBox(height: 12),
-      DropdownButtonFormField<ItemOverduePolicy>(
-        initialValue: _overduePolicy,
-        decoration: const InputDecoration(
-          labelText: ReminderUiText.overduePolicyFieldLabel,
-        ),
-        items: ItemOverduePolicy.values
-            .map(
-              (value) => DropdownMenuItem(
-                value: value,
-                child: Text(ReminderFormatters.itemOverduePolicy(value)),
-              ),
-            )
-            .toList(growable: false),
-        onChanged: (value) {
-          if (value == null) {
-            return;
-          }
-          setState(() {
-            _overduePolicy = value;
-          });
-        },
-      ),
-      const SizedBox(height: 12),
-      EditorDateField(
-        controller: _fixedAnchorDateController,
-        label: ReminderUiText.fixedAnchorDateFieldLabel,
-        onPickDate: () => _pickDate(
-          context,
-          initialDate: _selectedFixedAnchorDate,
-          onSelected: (value) {
-            _selectedFixedAnchorDate = value;
-            _syncDateControllers();
-          },
-        ),
-      ),
-      const SizedBox(height: 12),
-      EditorDateField(
-        controller: _fixedDueDateController,
-        label: ReminderUiText.fixedDueDateFieldLabel,
-        onPickDate: () => _pickDate(
-          context,
-          initialDate: _selectedFixedDueDate,
-          onSelected: (value) {
-            _selectedFixedDueDate = value;
-            _syncDateControllers();
-          },
-        ),
-      ),
-      const SizedBox(height: 12),
-      _DaysField(
-        key: const Key('fixed-warning-before-field'),
-        controller: _fixedWarningBeforeController,
-        label: ReminderUiText.warningBeforeDaysFieldLabel,
-      ),
-      const SizedBox(height: 12),
-      _DaysField(
-        key: const Key('fixed-danger-before-field'),
-        controller: _fixedDangerBeforeController,
-        label: ReminderUiText.dangerBeforeDaysFieldLabel,
-      ),
-    ];
-  }
-
-  List<Widget> _buildStateBasedFields(BuildContext context) {
-    return [
-      EditorDateField(
-        key: const Key('state-anchor-date-field'),
-        controller: _stateAnchorDateController,
-        label: ReminderUiText.stateAnchorDateFieldLabel,
-        onPickDate: () => _pickDate(
-          context,
-          initialDate: _selectedStateAnchorDate,
-          onSelected: (value) {
-            _selectedStateAnchorDate = value;
-            _syncDateControllers();
-          },
-        ),
-      ),
-      const SizedBox(height: 12),
-      _DaysField(
-        key: const Key('warning-after-field'),
-        controller: _warningAfterController,
-        label: ReminderUiText.warningAfterDaysFieldLabel,
-      ),
-      const SizedBox(height: 12),
-      _DaysField(
-        key: const Key('danger-after-field'),
-        controller: _dangerAfterController,
-        label: ReminderUiText.dangerAfterDaysFieldLabel,
-      ),
-    ];
-  }
-
-  List<Widget> _buildResourceBasedFields(BuildContext context) {
-    return [
-      EditorDateField(
-        controller: _resourceAnchorDateController,
-        label: ReminderUiText.resourceAnchorDateFieldLabel,
-        onPickDate: () => _pickDate(
-          context,
-          initialDate: _selectedResourceAnchorDate,
-          onSelected: (value) {
-            _selectedResourceAnchorDate = value;
-            _syncDateControllers();
-          },
-        ),
-      ),
-      const SizedBox(height: 12),
-      _DaysField(
-        key: const Key('estimated-duration-field'),
-        controller: _resourceDurationController,
-        label: ReminderUiText.durationDaysFieldLabel,
-      ),
-      const SizedBox(height: 12),
-      _DaysField(
-        key: const Key('warning-before-depletion-field'),
-        controller: _resourceWarningBeforeController,
-        label: ReminderUiText.warningBeforeDaysFieldLabel,
-      ),
-      const SizedBox(height: 12),
-      _DaysField(
-        key: const Key('resource-danger-before-field'),
-        controller: _resourceDangerBeforeController,
-        label: ReminderUiText.dangerBeforeDaysFieldLabel,
-      ),
-    ];
-  }
-
-  Future<void> _pickDate(
-    BuildContext context, {
-    required DateTime initialDate,
-    required ValueChanged<DateTime> onSelected,
-  }) async {
-    final result = await showDatePicker(
-      context: context,
-      initialDate: initialDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2035),
-    );
-    if (result == null) {
-      return;
-    }
-    setState(() {
-      onSelected(DateTime(result.year, result.month, result.day));
-    });
   }
 
   Future<void> _save() async {
@@ -434,8 +196,8 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     final input = ItemInput(
       title: _titleController.text.trim(),
       description: _normalizeOptionalText(_descriptionController.text),
-      type: _type,
-      config: _buildConfig(),
+      type: _configController.type,
+      config: _configController.buildConfig(),
       packId: widget.lockedPackId ?? _selectedPackId,
     );
 
@@ -458,58 +220,6 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     if (mounted) {
       Navigator.of(context).pop();
     }
-  }
-
-  ItemConfig _buildConfig() {
-    return switch (_type) {
-      ItemType.fixed => FixedItemConfig(
-        scheduleType: _scheduleType,
-        anchorDate: _selectedFixedAnchorDate,
-        dueDate: _selectedFixedDueDate,
-        overduePolicy: _overduePolicy,
-        infoBefore: _fixedInfoBefore,
-        warningBefore: Duration(
-          days: _parseDays(_fixedWarningBeforeController),
-        ),
-        dangerBefore: Duration(days: _parseDays(_fixedDangerBeforeController)),
-      ),
-      ItemType.stateBased => StateBasedItemConfig(
-        anchorDate: _selectedStateAnchorDate,
-        infoAfter: _stateInfoAfter,
-        warningAfter: Duration(days: _parseDays(_warningAfterController)),
-        dangerAfter: Duration(days: _parseDays(_dangerAfterController)),
-      ),
-      ItemType.resourceBased => ResourceBasedItemConfig(
-        anchorDate: _selectedResourceAnchorDate,
-        durationDays: _parseDays(_resourceDurationController),
-        infoBefore: _resourceInfoBefore,
-        warningBefore: _parseDays(_resourceWarningBeforeController),
-        dangerBefore: _parseDays(_resourceDangerBeforeController),
-      ),
-    };
-  }
-
-  int _parseDays(TextEditingController controller) {
-    return int.tryParse(controller.text.trim()) ?? 1;
-  }
-
-  void _syncDateControllers() {
-    _fixedAnchorDateController.text = ReminderFormatters.date(
-      _selectedFixedAnchorDate,
-    );
-    _fixedDueDateController.text = ReminderFormatters.date(
-      _selectedFixedDueDate,
-    );
-    _stateAnchorDateController.text = ReminderFormatters.date(
-      _selectedStateAnchorDate,
-    );
-    _resourceAnchorDateController.text = ReminderFormatters.date(
-      _selectedResourceAnchorDate,
-    );
-  }
-
-  String _fixedScheduleLabel(FixedScheduleType value) {
-    return ReminderFormatters.fixedScheduleTypeLabel(value);
   }
 
   List<_PackOption> _packOptions(
@@ -579,27 +289,4 @@ class _PackOption {
   final int? id;
   final String label;
   final bool enabled;
-}
-
-class _DaysField extends StatelessWidget {
-  const _DaysField({super.key, required this.controller, required this.label});
-
-  final TextEditingController controller;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: TextInputType.number,
-      decoration: InputDecoration(labelText: label),
-      validator: (value) {
-        final parsed = int.tryParse((value ?? '').trim());
-        if (parsed == null || parsed < 0) {
-          return '請輸入 0 或以上整數';
-        }
-        return null;
-      },
-    );
-  }
 }

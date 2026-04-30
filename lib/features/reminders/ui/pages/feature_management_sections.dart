@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../data/item_repository.dart';
 import '../../data/local/item_timeline_dao.dart';
 import '../../domain/item.dart';
 import '../../domain/item_pack.dart';
@@ -9,6 +10,7 @@ import '../../domain/timeline.dart';
 import '../../domain/timeline_milestone_occurrence.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
+import '../../presentation/view_models/management_item_card_view_model.dart';
 import '../../providers/developer_settings_providers.dart';
 import '../../providers/item_providers.dart';
 import '../../providers/timeline_providers.dart';
@@ -16,183 +18,95 @@ import 'item_edit_page.dart';
 import 'item_history_page.dart';
 import 'timeline_edit_page.dart';
 import 'timeline_milestone_history_page.dart';
+import '../widgets/editor_common_fields.dart';
+import '../widgets/item_config_form_section.dart';
+import '../widgets/item_summary_dialog.dart';
 
-class DefaultItemsManagementContent extends ConsumerWidget {
-  const DefaultItemsManagementContent({super.key});
+class ItemsManagementContent extends ConsumerStatefulWidget {
+  const ItemsManagementContent({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final packsAsync = ref.watch(activeItemPacksProvider);
-    final itemsAsync = ref.watch(itemsProvider);
+  ConsumerState<ItemsManagementContent> createState() =>
+      _ItemsManagementContentState();
+}
+
+class _ItemsManagementContentState
+    extends ConsumerState<ItemsManagementContent> {
+  final Set<int> _expandedPackIds = <int>{};
+
+  @override
+  Widget build(BuildContext context) {
+    final groupsAsync = ref.watch(itemManagementGroupsProvider);
     final previewDate = ref.watch(effectivePreviewDateProvider);
 
-    if (packsAsync.hasError) {
-      return Center(child: Text('讀取失敗: ${packsAsync.error}'));
-    }
-    if (itemsAsync.hasError) {
-      return Center(child: Text('讀取失敗: ${itemsAsync.error}'));
-    }
-    if (packsAsync.isLoading || itemsAsync.isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    final defaultPack = packsAsync.requireValue.cast<ItemPack?>().firstWhere(
-      (pack) => pack?.isSystemDefault ?? false,
-      orElse: () => null,
-    );
-    if (defaultPack == null) {
-      return const Center(child: Text(ReminderUiText.noDefaultItemPack));
-    }
-
-    final defaultItems = itemsAsync.requireValue
-        .where((item) => item.pack.isSystemDefault)
-        .toList(growable: false);
-    final repository = ref.read(itemRepositoryProvider);
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _SectionHeader(
-          title: ReminderUiText.itemsManagementFeatureTitle,
-          actions: [
-            FilledButton(
-              key: const Key('add-item-button'),
-              onPressed: () {
-                context.pushNamed(
-                  ItemEditPage.createRouteName,
-                  extra: defaultPack.id,
-                );
-              },
-              child: const Text(ReminderUiText.addItem),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Card(
-          key: Key('default-pack-${defaultPack.id}'),
-          child: Padding(
+    return groupsAsync.when(
+      data: (groups) {
+        if (groups.isEmpty) {
+          return ListView(
             padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(
-                      defaultPack.title,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    Container(
-                      key: Key('pack-system-default-${defaultPack.id}'),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.secondaryContainer,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: const Text(ReminderUiText.systemDefaultPackLabel),
-                    ),
-                  ],
-                ),
-                if ((defaultPack.description ?? '').trim().isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(defaultPack.description!.trim()),
+            children: [
+              _SectionHeader(
+                title: ReminderUiText.itemsManagementFeatureTitle,
+                actions: [
+                  FilledButton(
+                    key: const Key('add-item-button'),
+                    onPressed: () => _showCreateItemDialog(context, ref),
+                    child: const Text(ReminderUiText.addItem),
+                  ),
                 ],
-                const SizedBox(height: 4),
-                Text('${defaultItems.length} ${ReminderUiText.itemCountLabel}'),
+              ),
+              const SizedBox(height: 12),
+              const Text(ReminderUiText.noDefaultItemPack),
+            ],
+          );
+        }
+
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _SectionHeader(
+              title: ReminderUiText.itemsManagementFeatureTitle,
+              actions: [
+                FilledButton(
+                  key: const Key('add-item-button'),
+                  onPressed: () => _showCreateItemDialog(context, ref),
+                  child: const Text(ReminderUiText.addItem),
+                ),
               ],
             ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        if (defaultItems.isEmpty)
-          const Text(ReminderUiText.noItems)
-        else
-          ...defaultItems.map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _ItemCard(
-                bundle: item,
-                status: repository.statusFor(item.item, now: previewDate),
-                previewDate: previewDate,
+            const SizedBox(height: 12),
+            ...groups.map(
+              (group) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _ItemManagementGroupCard(
+                  group: group,
+                  previewDate: previewDate,
+                  expanded: _expandedPackIds.contains(group.pack.id),
+                  onToggle: () {
+                    setState(() {
+                      if (!_expandedPackIds.add(group.pack.id)) {
+                        _expandedPackIds.remove(group.pack.id);
+                      }
+                    });
+                  },
+                ),
               ),
             ),
-          ),
-      ],
+          ],
+        );
+      },
+      error: (error, stack) => Center(child: Text('讀取失敗: $error')),
+      loading: () => const Center(child: CircularProgressIndicator()),
     );
   }
 }
 
-class ItemPacksManagementContent extends ConsumerWidget {
+class ItemPacksManagementContent extends StatelessWidget {
   const ItemPacksManagementContent({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final packsAsync = ref.watch(activeItemPacksProvider);
-    final itemsAsync = ref.watch(packManagementItemsProvider);
-    final previewDate = ref.watch(effectivePreviewDateProvider);
-
-    if (packsAsync.hasError) {
-      return Center(child: Text('讀取失敗: ${packsAsync.error}'));
-    }
-    if (itemsAsync.hasError) {
-      return Center(child: Text('讀取失敗: ${itemsAsync.error}'));
-    }
-    if (packsAsync.isLoading || itemsAsync.isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    final packs = packsAsync.requireValue;
-    final items = itemsAsync.requireValue;
-    if (packs.isEmpty) {
-      return ListView(
-        padding: const EdgeInsets.all(16),
-        children: const [
-          _SectionHeader(
-            title: ReminderUiText.itemPacksManagementFeatureTitle,
-            actions: [],
-          ),
-          SizedBox(height: 12),
-          Text(ReminderUiText.noItemPacks),
-        ],
-      );
-    }
-
-    final itemsByPackId = <int, List<ItemBundle>>{};
-    for (final item in items) {
-      itemsByPackId.putIfAbsent(item.pack.id, () => []).add(item);
-    }
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _SectionHeader(
-          title: ReminderUiText.itemPacksManagementFeatureTitle,
-          actions: [
-            FilledButton(
-              key: const Key('add-pack-button'),
-              onPressed: () => _showPackDialog(context, ref),
-              child: const Text(ReminderUiText.addItemPack),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        ...packs.map(
-          (pack) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _ItemPackSummaryCard(
-              pack: pack,
-              items: itemsByPackId[pack.id] ?? const <ItemBundle>[],
-              previewDate: previewDate,
-            ),
-          ),
-        ),
-      ],
-    );
+  Widget build(BuildContext context) {
+    return const ItemsManagementContent();
   }
 }
 
@@ -243,6 +157,17 @@ class TimelineManagementContent extends ConsumerWidget {
   }
 }
 
+Future<void> _showCreateItemDialog(
+  BuildContext context,
+  WidgetRef ref, {
+  int? initialPackId,
+}) async {
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) => _CreateItemDialog(initialPackId: initialPackId),
+  );
+}
+
 Future<void> _showPackDialog(
   BuildContext context,
   WidgetRef ref, {
@@ -273,20 +198,25 @@ Future<void> _showPackDialog(
   }
 }
 
-class _ItemPackSummaryCard extends ConsumerWidget {
-  const _ItemPackSummaryCard({
-    required this.pack,
-    required this.items,
+class _ItemManagementGroupCard extends ConsumerWidget {
+  const _ItemManagementGroupCard({
+    required this.group,
     required this.previewDate,
+    required this.expanded,
+    required this.onToggle,
   });
 
-  final ItemPack pack;
-  final List<ItemBundle> items;
+  final ItemManagementGroup group;
   final DateTime previewDate;
+  final bool expanded;
+  final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final repository = ref.read(itemRepositoryProvider);
+    final pack = group.pack;
+    final items = group.items;
+    final isUnassigned = group.isUnassigned;
 
     return Card(
       key: Key('pack-section-${pack.id}'),
@@ -308,29 +238,15 @@ class _ItemPackSummaryCard extends ConsumerWidget {
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           Text(
-                            pack.title,
+                            isUnassigned
+                                ? ReminderUiText.unassignedPackTitle
+                                : pack.title,
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
-                          if (pack.isSystemDefault)
-                            Container(
-                              key: Key('pack-system-default-${pack.id}'),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.secondaryContainer,
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: const Text(
-                                ReminderUiText.systemDefaultPackLabel,
-                              ),
-                            ),
                         ],
                       ),
-                      if ((pack.description ?? '').trim().isNotEmpty) ...[
+                      if (!isUnassigned &&
+                          (pack.description ?? '').trim().isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(pack.description!.trim()),
                       ],
@@ -345,16 +261,15 @@ class _ItemPackSummaryCard extends ConsumerWidget {
                   children: [
                     IconButton(
                       key: Key('pack-add-item-${pack.id}'),
-                      onPressed: () {
-                        context.pushNamed(
-                          ItemEditPage.createRouteName,
-                          extra: pack.id,
-                        );
-                      },
+                      onPressed: () => _showCreateItemDialog(
+                        context,
+                        ref,
+                        initialPackId: isUnassigned ? null : pack.id,
+                      ),
                       tooltip: ReminderUiText.addItem,
                       icon: const Icon(Icons.add),
                     ),
-                    if (!pack.isSystemDefault)
+                    if (!isUnassigned)
                       IconButton(
                         key: Key('pack-edit-${pack.id}'),
                         onPressed: () =>
@@ -416,24 +331,37 @@ class _ItemPackSummaryCard extends ConsumerWidget {
                         tooltip: ReminderUiText.archiveAction,
                         icon: const Icon(Icons.archive_outlined),
                       ),
+                    IconButton(
+                      key: Key('pack-toggle-${pack.id}'),
+                      onPressed: onToggle,
+                      tooltip: expanded
+                          ? ReminderUiText.collapseAction
+                          : ReminderUiText.expandAction,
+                      icon: Icon(
+                        expanded
+                            ? Icons.expand_less_outlined
+                            : Icons.expand_more_outlined,
+                      ),
+                    ),
                   ],
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            if (items.isEmpty)
-              const Text(ReminderUiText.emptyPackHint)
-            else
-              ...items.map(
-                (item) => Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: _PackItemRow(
-                    bundle: item,
-                    status: repository.statusFor(item.item, now: previewDate),
-                    previewDate: previewDate,
+            if (expanded) ...[
+              const SizedBox(height: 12),
+              if (items.isEmpty)
+                const Text(ReminderUiText.emptyPackHint)
+              else
+                ...items.map(
+                  (item) => Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: _ManagedItemCard(
+                      bundle: item,
+                      previewDate: previewDate,
+                    ),
                   ),
                 ),
-              ),
+            ],
           ],
         ),
       ),
@@ -441,219 +369,646 @@ class _ItemPackSummaryCard extends ConsumerWidget {
   }
 }
 
-class _PackItemRow extends ConsumerWidget {
-  const _PackItemRow({
-    required this.bundle,
-    required this.status,
-    required this.previewDate,
-  });
+class _ManagedItemCard extends ConsumerWidget {
+  const _ManagedItemCard({required this.bundle, required this.previewDate});
 
   final ItemBundle bundle;
-  final ItemStatus status;
   final DateTime previewDate;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final repository = ref.read(itemRepositoryProvider);
-    final lifecycle = bundle.item.status;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).dividerColor),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    bundle.item.title,
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    ReminderFormatters.itemSummary(bundle, now: previewDate),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    lifecycle == ItemLifecycleStatus.active
-                        ? ReminderFormatters.itemStatus(status)
-                        : '${ReminderFormatters.itemStatus(status)} • ${ReminderFormatters.itemLifecycleStatus(lifecycle)}',
-                  ),
-                ],
-              ),
-            ),
-            Wrap(
-              spacing: 4,
-              runSpacing: 4,
-              children: [
-                IconButton(
-                  key: Key('pack-item-edit-${bundle.item.id}'),
-                  onPressed: () {
-                    context.pushNamed(
-                      ItemEditPage.editRouteName,
-                      pathParameters: {'id': bundle.item.id.toString()},
-                      extra: bundle.pack.id,
-                    );
-                  },
-                  tooltip: ReminderUiText.editAction,
-                  icon: const Icon(Icons.edit_outlined),
-                ),
-                if (lifecycle == ItemLifecycleStatus.active)
-                  IconButton(
-                    key: Key('pack-item-pause-${bundle.item.id}'),
-                    onPressed: () async {
-                      await repository.pauseItem(bundle.item.id);
-                    },
-                    tooltip: ReminderUiText.pauseAction,
-                    icon: const Icon(Icons.pause_circle_outline),
-                  ),
-                if (lifecycle == ItemLifecycleStatus.paused)
-                  IconButton(
-                    key: Key('pack-item-resume-${bundle.item.id}'),
-                    onPressed: () async {
-                      await repository.resumeItem(bundle.item.id);
-                    },
-                    tooltip: ReminderUiText.resumeAction,
-                    icon: const Icon(Icons.play_circle_outline),
-                  ),
-                IconButton(
-                  key: Key('pack-item-archive-${bundle.item.id}'),
-                  onPressed: () async {
-                    await repository.archiveItem(bundle.item.id);
-                  },
-                  tooltip: ReminderUiText.archiveAction,
-                  icon: const Icon(Icons.archive_outlined),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+    final viewModel = ManagementItemCardViewModel.fromBundle(
+      bundle,
+      now: previewDate,
     );
-  }
-}
 
-class _ItemCard extends ConsumerWidget {
-  const _ItemCard({
-    required this.bundle,
-    required this.status,
-    required this.previewDate,
-  });
-
-  final ItemBundle bundle;
-  final ItemStatus status;
-  final DateTime previewDate;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).dividerColor),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        bundle.item.title,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        ReminderFormatters.itemSummary(
-                          bundle,
-                          now: previewDate,
+    return Card(
+      key: Key('item-card-${bundle.item.id}'),
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () =>
+            showItemSummaryDialog(context, bundle, previewDate: previewDate),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          viewModel.typeIcon,
+                          key: Key('item-type-icon-${bundle.item.id}'),
+                          size: 20,
                         ),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            bundle.item.title,
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (viewModel.isPaused) ...[
+                          const Icon(
+                            Icons.pause_circle_outline,
+                            size: 16,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(width: 4),
+                        ],
+                        Expanded(
+                          child: Text(
+                            viewModel.status.label,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: viewModel.status.color),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                Text(ReminderFormatters.itemStatus(status)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                OutlinedButton(
-                  key: Key('item-edit-${bundle.item.id}'),
-                  onPressed: () {
-                    context.pushNamed(
-                      ItemEditPage.editRouteName,
-                      pathParameters: {'id': bundle.item.id.toString()},
-                      extra: bundle.pack.id,
-                    );
-                  },
-                  child: const Text(ReminderUiText.editAction),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                key: Key('item-edit-${bundle.item.id}'),
+                onPressed: () {
+                  context.pushNamed(
+                    ItemEditPage.editRouteName,
+                    pathParameters: {'id': bundle.item.id.toString()},
+                  );
+                },
+                tooltip: ReminderUiText.editAction,
+                icon: const Icon(Icons.edit_outlined),
+              ),
+              IconButton(
+                key: Key('item-overflow-${bundle.item.id}'),
+                onPressed: () => _showManagedItemActionSheet(
+                  context,
+                  ref,
+                  bundle,
+                  previewDate,
+                  viewModel,
                 ),
-                OutlinedButton(
-                  key: Key('item-done-${bundle.item.id}'),
-                  onPressed: () async {
-                    final addedDays = bundle.item.type == ItemType.resourceBased
-                        ? await _showResourceAddedDaysDialog(
-                            context,
-                            initialValue:
-                                (bundle.item.config as ResourceBasedItemConfig)
-                                    .durationDays,
-                          )
-                        : null;
-                    if (bundle.item.type == ItemType.resourceBased &&
-                        addedDays == null) {
-                      return;
-                    }
-                    await ref
-                        .read(itemRepositoryProvider)
-                        .markDone(
-                          bundle.item.id,
-                          doneAt: previewDate,
-                          addedDays: addedDays,
-                        );
-                  },
-                  child: const Text(ReminderUiText.completeAction),
-                ),
-                if (bundle.item.type != ItemType.resourceBased)
-                  OutlinedButton(
-                    key: Key('item-skip-${bundle.item.id}'),
-                    onPressed: () async {
-                      await ref
-                          .read(itemRepositoryProvider)
-                          .skip(bundle.item.id, actionAt: previewDate);
-                    },
-                    child: const Text(ReminderUiText.skipAction),
-                  ),
-                OutlinedButton(
-                  key: Key('item-history-${bundle.item.id}'),
-                  onPressed: () {
-                    context.pushNamed(
-                      ItemHistoryPage.routeName,
-                      pathParameters: {'id': bundle.item.id.toString()},
-                    );
-                  },
-                  child: const Text(ReminderUiText.viewAllAction),
-                ),
-              ],
-            ),
-          ],
+                tooltip: ReminderUiText.itemActionMenuTitle,
+                icon: const Icon(Icons.more_vert),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+enum _ManagedItemMenuAction {
+  complete,
+  skip,
+  details,
+  history,
+  pause,
+  resume,
+  archive,
+}
+
+Future<void> _showManagedItemActionSheet(
+  BuildContext context,
+  WidgetRef ref,
+  ItemBundle bundle,
+  DateTime previewDate,
+  ManagementItemCardViewModel viewModel,
+) async {
+  final selected = await showModalBottomSheet<_ManagedItemMenuAction>(
+    context: context,
+    showDragHandle: true,
+    builder: (sheetContext) => SafeArea(
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        ReminderUiText.itemActionMenuTitle,
+                        style: Theme.of(sheetContext).textTheme.titleMedium,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _ItemActionSheetTile(
+                key: Key('item-menu-complete-${bundle.item.id}'),
+                label: ReminderUiText.completeAction,
+                enabled: viewModel.canComplete,
+                onTap: () => Navigator.of(
+                  sheetContext,
+                ).pop(_ManagedItemMenuAction.complete),
+              ),
+              _ItemActionSheetTile(
+                key: Key('item-menu-skip-${bundle.item.id}'),
+                label: ReminderUiText.skipAction,
+                enabled: viewModel.canSkip,
+                onTap: () =>
+                    Navigator.of(sheetContext).pop(_ManagedItemMenuAction.skip),
+              ),
+              const Divider(height: 16),
+              _ItemActionSheetTile(
+                key: Key('item-menu-details-${bundle.item.id}'),
+                label: ReminderUiText.itemDetailAction,
+                onTap: () => Navigator.of(
+                  sheetContext,
+                ).pop(_ManagedItemMenuAction.details),
+              ),
+              _ItemActionSheetTile(
+                key: Key('item-menu-history-${bundle.item.id}'),
+                label: ReminderUiText.itemHistoryAction,
+                onTap: () => Navigator.of(
+                  sheetContext,
+                ).pop(_ManagedItemMenuAction.history),
+              ),
+              const Divider(height: 16),
+              _ItemActionSheetTile(
+                key: Key(
+                  viewModel.canResume
+                      ? 'item-menu-resume-${bundle.item.id}'
+                      : 'item-menu-pause-${bundle.item.id}',
+                ),
+                label: viewModel.canResume
+                    ? ReminderUiText.resumeAction
+                    : ReminderUiText.pauseAction,
+                enabled: viewModel.canResume || viewModel.canPause,
+                onTap: () => Navigator.of(sheetContext).pop(
+                  viewModel.canResume
+                      ? _ManagedItemMenuAction.resume
+                      : _ManagedItemMenuAction.pause,
+                ),
+              ),
+              _ItemActionSheetTile(
+                key: Key('item-menu-archive-${bundle.item.id}'),
+                label: ReminderUiText.archiveAction,
+                isDestructive: true,
+                enabled: viewModel.canArchive,
+                onTap: () => Navigator.of(
+                  sheetContext,
+                ).pop(_ManagedItemMenuAction.archive),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+
+  if (selected == null || !context.mounted) {
+    return;
+  }
+
+  final repository = ref.read(itemRepositoryProvider);
+  switch (selected) {
+    case _ManagedItemMenuAction.complete:
+      await _handleManagedItemComplete(
+        context,
+        repository,
+        bundle,
+        previewDate,
+        viewModel,
+      );
+      return;
+    case _ManagedItemMenuAction.skip:
+      if (!viewModel.canSkip) {
+        return;
+      }
+      await repository.skip(bundle.item.id, actionAt: previewDate);
+      return;
+    case _ManagedItemMenuAction.details:
+      await showItemSummaryDialog(context, bundle, previewDate: previewDate);
+      return;
+    case _ManagedItemMenuAction.history:
+      context.pushNamed(
+        ItemHistoryPage.routeName,
+        pathParameters: {'id': bundle.item.id.toString()},
+      );
+      return;
+    case _ManagedItemMenuAction.pause:
+      final confirmed = await _showItemActionConfirmation(
+        context,
+        title: ReminderUiText.pauseItemConfirmTitle,
+        message: ReminderUiText.pauseItemConfirmMessage,
+        confirmLabel: ReminderUiText.pauseAction,
+      );
+      if (confirmed == true) {
+        await repository.pauseItem(bundle.item.id);
+      }
+      return;
+    case _ManagedItemMenuAction.resume:
+      await repository.resumeItem(bundle.item.id);
+      return;
+    case _ManagedItemMenuAction.archive:
+      final confirmed = await _showItemActionConfirmation(
+        context,
+        title: ReminderUiText.archiveItemConfirmTitle,
+        message: ReminderUiText.archiveItemConfirmMessage,
+        confirmLabel: ReminderUiText.archiveAction,
+        isDestructive: true,
+      );
+      if (confirmed == true) {
+        await repository.archiveItem(bundle.item.id);
+      }
+      return;
+  }
+}
+
+Future<void> _handleManagedItemComplete(
+  BuildContext context,
+  ItemRepository repository,
+  ItemBundle bundle,
+  DateTime previewDate,
+  ManagementItemCardViewModel viewModel,
+) async {
+  if (!viewModel.canComplete) {
+    return;
+  }
+
+  if (viewModel.requireCompletionConfirmation) {
+    final confirmed = await _showItemActionConfirmation(
+      context,
+      title: ReminderUiText.stateCompleteConfirmTitle,
+      message: ReminderUiText.stateCompleteConfirmMessage,
+      confirmLabel: ReminderUiText.completeAction,
+    );
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
+  }
+
+  final addedDays = bundle.item.type == ItemType.resourceBased
+      ? await _showResourceAddedDaysDialog(
+          context,
+          initialValue:
+              (bundle.item.config as ResourceBasedItemConfig).durationDays,
+        )
+      : null;
+  if (bundle.item.type == ItemType.resourceBased && addedDays == null) {
+    return;
+  }
+
+  await repository.markDone(
+    bundle.item.id,
+    doneAt: previewDate,
+    addedDays: addedDays,
+  );
+}
+
+Future<bool?> _showItemActionConfirmation(
+  BuildContext context, {
+  required String title,
+  required String message,
+  required String confirmLabel,
+  bool isDestructive = false,
+}) {
+  return showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: Text(title),
+      content: Text(message),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: Text(
+            MaterialLocalizations.of(dialogContext).cancelButtonLabel,
+          ),
+        ),
+        FilledButton(
+          style: isDestructive
+              ? FilledButton.styleFrom(
+                  backgroundColor: Theme.of(dialogContext).colorScheme.error,
+                  foregroundColor: Theme.of(dialogContext).colorScheme.onError,
+                )
+              : null,
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: Text(confirmLabel),
+        ),
+      ],
+    ),
+  );
+}
+
+class _ItemActionSheetTile extends StatelessWidget {
+  const _ItemActionSheetTile({
+    super.key,
+    required this.label,
+    required this.onTap,
+    this.enabled = true,
+    this.isDestructive = false,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+  final bool enabled;
+  final bool isDestructive;
+
+  @override
+  Widget build(BuildContext context) {
+    final destructiveColor = Theme.of(context).colorScheme.error;
+    final effectiveTextColor = !enabled
+        ? Theme.of(context).disabledColor
+        : isDestructive
+        ? destructiveColor
+        : null;
+    return ListTile(
+      enabled: enabled,
+      textColor: effectiveTextColor,
+      onTap: enabled ? onTap : null,
+      title: Text(label),
+    );
+  }
+}
+
+class _CreateItemDialog extends ConsumerStatefulWidget {
+  const _CreateItemDialog({this.initialPackId});
+
+  final int? initialPackId;
+
+  @override
+  ConsumerState<_CreateItemDialog> createState() => _CreateItemDialogState();
+}
+
+class _CreateItemDialogState extends ConsumerState<_CreateItemDialog> {
+  static const _unassignedPackValue = 'unassigned';
+  static const _newPackValue = 'new-pack';
+
+  final _stepOneFormKey = GlobalKey<FormState>();
+  final _stepTwoFormKey = GlobalKey<FormState>();
+  late final TextEditingController _titleController;
+  late final ItemConfigFormController _configController;
+
+  int _stepIndex = 0;
+  late String _selectedPackValue;
+  ItemPackInput? _pendingPack;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController();
+    _configController = ItemConfigFormController();
+    _selectedPackValue = widget.initialPackId == null
+        ? _unassignedPackValue
+        : _packValue(widget.initialPackId!);
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _configController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final activePacksAsync = ref.watch(activeItemPacksProvider);
+    return AlertDialog(
+      title: Text(
+        _stepIndex == 0 ? ReminderUiText.addItem : ReminderUiText.confirmAction,
+      ),
+      content: SizedBox(
+        width: 480,
+        child: activePacksAsync.when(
+          data: (packs) => SingleChildScrollView(
+            child: Form(
+              key: _stepIndex == 0 ? _stepOneFormKey : _stepTwoFormKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: _stepIndex == 0
+                    ? _buildStepOne(context, packs)
+                    : _buildStepTwo(),
+              ),
+            ),
+          ),
+          error: (error, stack) => Text('讀取失敗: $error'),
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+        ),
+      ),
+      actions: _buildActions(context),
+    );
+  }
+
+  List<Widget> _buildStepOne(BuildContext context, List<ItemPack> packs) {
+    final packOptions = <DropdownMenuItem<String>>[
+      const DropdownMenuItem<String>(
+        value: _unassignedPackValue,
+        child: Text(ReminderUiText.unassignedPackOption),
+      ),
+      ...packs
+          .where((pack) => !pack.isSystemDefault)
+          .map(
+            (pack) => DropdownMenuItem<String>(
+              value: _packValue(pack.id),
+              child: Text(pack.title),
+            ),
+          ),
+      if (_pendingPack != null)
+        DropdownMenuItem<String>(
+          value: _newPackValue,
+          child: Text(
+            '${_pendingPack!.title} (${ReminderUiText.pendingPackSuffix})',
+          ),
+        ),
+    ];
+
+    return [
+      EditorTitleField(controller: _titleController),
+      const SizedBox(height: 12),
+      DropdownButtonFormField<ItemType>(
+        key: const Key('create-item-type-field'),
+        initialValue: _configController.type,
+        decoration: const InputDecoration(
+          labelText: ReminderUiText.itemTypeFieldLabel,
+        ),
+        items: ItemType.values
+            .map(
+              (value) => DropdownMenuItem(
+                value: value,
+                child: Text(ReminderFormatters.itemType(value)),
+              ),
+            )
+            .toList(growable: false),
+        onChanged: (value) {
+          if (value == null) {
+            return;
+          }
+          setState(() {
+            _configController.type = value;
+          });
+        },
+      ),
+      const SizedBox(height: 12),
+      DropdownButtonFormField<String>(
+        key: const Key('create-pack-field'),
+        initialValue: _selectedPackValue,
+        decoration: const InputDecoration(
+          labelText: ReminderUiText.packFieldLabel,
+        ),
+        items: packOptions,
+        onChanged: (value) {
+          if (value == null) {
+            return;
+          }
+          setState(() {
+            _selectedPackValue = value;
+          });
+        },
+      ),
+      const SizedBox(height: 12),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: OutlinedButton(
+          key: const Key('create-item-add-pack-button'),
+          onPressed: () async {
+            final input = await showDialog<ItemPackInput>(
+              context: context,
+              builder: (dialogContext) => const _PackFormDialog(),
+            );
+            if (input == null) {
+              return;
+            }
+            setState(() {
+              _pendingPack = input;
+              _selectedPackValue = _newPackValue;
+            });
+          },
+          child: const Text(ReminderUiText.addItemPack),
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _buildStepTwo() {
+    return [
+      Text(
+        _titleController.text.trim(),
+        style: Theme.of(context).textTheme.titleMedium,
+      ),
+      const SizedBox(height: 4),
+      Text(ReminderFormatters.itemType(_configController.type)),
+      const SizedBox(height: 12),
+      ItemConfigFormSection(
+        controller: _configController,
+        onChanged: () => setState(() {}),
+      ),
+    ];
+  }
+
+  List<Widget> _buildActions(BuildContext context) {
+    if (_stepIndex == 0) {
+      return [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+        ),
+        FilledButton(
+          key: const Key('create-item-next-button'),
+          onPressed: () {
+            if (!_stepOneFormKey.currentState!.validate()) {
+              return;
+            }
+            setState(() {
+              _stepIndex = 1;
+            });
+          },
+          child: const Text(ReminderUiText.nextStepAction),
+        ),
+      ];
+    }
+
+    return [
+      TextButton(
+        onPressed: _isSaving
+            ? null
+            : () {
+                setState(() {
+                  _stepIndex = 0;
+                });
+              },
+        child: const Text(ReminderUiText.previousPageAction),
+      ),
+      TextButton(
+        onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+        child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+      ),
+      FilledButton(
+        key: const Key('create-item-confirm-button'),
+        onPressed: _isSaving ? null : _submit,
+        child: const Text(ReminderUiText.confirmAction),
+      ),
+    ];
+  }
+
+  Future<void> _submit() async {
+    if (!_stepTwoFormKey.currentState!.validate()) {
+      return;
+    }
+
+    final repository = ref.read(itemRepositoryProvider);
+    final newPack = _selectedPackValue == _newPackValue ? _pendingPack : null;
+    final packId = switch (_selectedPackValue) {
+      _unassignedPackValue => null,
+      _newPackValue => null,
+      _ => int.tryParse(_selectedPackValue.replaceFirst('pack-', '')),
+    };
+
+    setState(() {
+      _isSaving = true;
+    });
+    try {
+      await repository.createItemWithOptionalNewPack(
+        item: ItemInput(
+          title: _titleController.text.trim(),
+          type: _configController.type,
+          config: _configController.buildConfig(),
+          packId: packId,
+        ),
+        newPack: newPack,
+      );
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } on StateError catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message.toString())));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
+  }
+
+  String _packValue(int id) => 'pack-$id';
 }
 
 Future<int?> _showResourceAddedDaysDialog(

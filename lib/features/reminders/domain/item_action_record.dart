@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-enum ItemActionType { done, skipped, deferred }
+enum ItemActionType { created, done, skipped, deferred }
 
 class ItemActionRecord {
   const ItemActionRecord({

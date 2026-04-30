@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../data/local/item_timeline_dao.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
 import '../../providers/developer_settings_providers.dart';
+import '../../providers/item_providers.dart';
 import 'feature_management_sections.dart';
+import '../widgets/item_summary_dialog.dart';
 
 typedef PreviewDatePicker =
     Future<DateTime?> Function(BuildContext context, DateTime initialDate);
@@ -38,13 +41,6 @@ class FeaturePage extends StatelessWidget {
           ),
           SizedBox(height: 12),
           _FeatureEntryCard(
-            itemKey: 'item-packs-management',
-            title: ReminderUiText.itemPacksManagementFeatureTitle,
-            icon: Icons.inventory_2_outlined,
-            routeName: ItemPacksManagementPage.routeName,
-          ),
-          SizedBox(height: 12),
-          _FeatureEntryCard(
             itemKey: 'timeline-management',
             title: ReminderUiText.timelineManagementFeatureTitle,
             icon: Icons.timeline_outlined,
@@ -70,17 +66,166 @@ class FeaturePage extends StatelessWidget {
   }
 }
 
-class ItemActivityPage extends StatelessWidget {
+class ItemActivityPage extends ConsumerStatefulWidget {
   const ItemActivityPage({super.key});
 
   static const routeName = 'item-activity';
   static const routePath = '/feature/item-activity';
 
   @override
+  ConsumerState<ItemActivityPage> createState() => _ItemActivityPageState();
+}
+
+class _ItemActivityPageState extends ConsumerState<ItemActivityPage> {
+  late final TextEditingController _searchController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const _FeaturePlaceholderPage(
-      title: ReminderUiText.itemActivityFeatureTitle,
-      message: ReminderUiText.itemActivityPlaceholderMessage,
+    final previewDate = ref.watch(effectivePreviewDateProvider);
+    final state = ref.watch(itemActivityFeedControllerProvider);
+
+    if (_searchController.text != state.query) {
+      _searchController.value = _searchController.value.copyWith(
+        text: state.query,
+        selection: TextSelection.collapsed(offset: state.query.length),
+        composing: TextRange.empty,
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(ReminderUiText.itemActivityFeatureTitle),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          TextField(
+            key: const Key('item-activity-search-field'),
+            controller: _searchController,
+            onChanged: (value) {
+              ref
+                  .read(itemActivityFeedControllerProvider.notifier)
+                  .setQuery(value);
+            },
+            decoration: InputDecoration(
+              hintText: ReminderUiText.itemActivitySearchHint,
+              prefixIcon: const Icon(Icons.search_outlined),
+              suffixIcon: state.query.trim().isEmpty
+                  ? null
+                  : IconButton(
+                      key: const Key('item-activity-search-clear'),
+                      onPressed: () {
+                        ref
+                            .read(itemActivityFeedControllerProvider.notifier)
+                            .setQuery('');
+                      },
+                      icon: const Icon(Icons.clear),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (state.isLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (state.errorMessage != null && state.items.isEmpty)
+            Text(state.errorMessage!)
+          else if (state.items.isEmpty)
+            Text(
+              state.isSearching
+                  ? ReminderUiText.noActivitySearchResults
+                  : ReminderUiText.noRecentActivity,
+            )
+          else ...[
+            ...state.items.map(
+              (entry) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _ActivityEntryCard(
+                  entry: entry,
+                  previewDate: previewDate,
+                ),
+              ),
+            ),
+            if (state.errorMessage != null) ...[
+              const SizedBox(height: 8),
+              Text(state.errorMessage!),
+            ],
+            if (state.canLoadMoreAttempt) ...[
+              const SizedBox(height: 4),
+              Center(
+                child: state.isLoadingMore
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: CircularProgressIndicator(),
+                      )
+                    : OutlinedButton(
+                        key: const Key('item-activity-load-more'),
+                        onPressed: () {
+                          ref
+                              .read(itemActivityFeedControllerProvider.notifier)
+                              .loadMore();
+                        },
+                        child: const Text(ReminderUiText.loadMoreAction),
+                      ),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ActivityEntryCard extends StatelessWidget {
+  const _ActivityEntryCard({required this.entry, required this.previewDate});
+
+  final ItemActivityEntry entry;
+  final DateTime previewDate;
+
+  @override
+  Widget build(BuildContext context) {
+    final packTitle = entry.pack.isSystemDefault
+        ? ReminderUiText.unassignedPackTitle
+        : entry.pack.title;
+    final actionLabel = ReminderFormatters.itemActionType(
+      entry.record.actionType,
+    );
+
+    return Card(
+      child: ListTile(
+        key: Key('item-activity-entry-${entry.record.id}'),
+        onTap: () => showItemSummaryDialog(
+          context,
+          entry.bundle,
+          previewDate: previewDate,
+        ),
+        title: Text(entry.itemTitle),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 4),
+            Text(actionLabel),
+            Text(
+              '${ReminderUiText.itemActivityTimeLabel}：${ReminderFormatters.dateTime(entry.record.updatedAt)}',
+            ),
+            Text('${ReminderUiText.itemActivityPackLabel}：$packTitle'),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -97,7 +242,7 @@ class ItemsManagementPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text(ReminderUiText.itemsManagementFeatureTitle),
       ),
-      body: const DefaultItemsManagementContent(),
+      body: const ItemsManagementContent(),
     );
   }
 }
@@ -112,9 +257,9 @@ class ItemPacksManagementPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(ReminderUiText.itemPacksManagementFeatureTitle),
+        title: const Text(ReminderUiText.itemsManagementFeatureTitle),
       ),
-      body: const ItemPacksManagementContent(),
+      body: const ItemsManagementContent(),
     );
   }
 }

@@ -43,6 +43,11 @@ class ItemRepository {
     ItemLifecycleStatus.active,
     ItemLifecycleStatus.paused,
   };
+  static const majorActivityActionTypes = {
+    ItemActionType.created,
+    ItemActionType.done,
+    ItemActionType.skipped,
+  };
 
   final ItemTimelineDao _dao;
   final ItemStatusService _statusService;
@@ -82,55 +87,64 @@ class ItemRepository {
     return _dao.listItemActionRecordsForItem(itemId);
   }
 
+  Future<List<ItemActivityEntry>> listActivityFeed({
+    int limit = 20,
+    int offset = 0,
+    String? query,
+    int? recentDays,
+    DateTime? now,
+    DateTime? actionDateBefore,
+    bool majorActionsOnly = true,
+  }) {
+    final current = _normalizeDate(now ?? _clock());
+    final actionDateFrom = recentDays == null
+        ? null
+        : current.subtract(Duration(days: recentDays - 1));
+    return _dao.listItemActivityEntries(
+      actionTypes: majorActionsOnly ? majorActivityActionTypes : null,
+      limit: limit,
+      offset: offset,
+      query: query,
+      actionDateFrom: actionDateFrom,
+      actionDateBefore: actionDateBefore == null
+          ? null
+          : _normalizeDate(actionDateBefore),
+    );
+  }
+
   Future<ItemBundle?> getItemById(int id) => _dao.getItemBundleById(id);
 
   Future<ItemPack?> getPackById(int id) => _dao.getItemPackById(id);
 
   Future<int> createItem(ItemInput input) async {
     final now = _clock();
-    final packId = input.packId ?? await _ensureDefaultPackId(now);
-    await _assertPackCanAcceptItems(packId);
-    return _dao.insertItem(
-      ItemsCompanion.insert(
-        packId: packId,
-        title: input.title,
-        description: Value(input.description),
-        status: const Value('active'),
-        type: input.type.name,
-        fixedScheduleType: Value(_fixedScheduleType(input.config)),
-        fixedAnchorDate: Value(_fixedAnchorDate(input.config)),
-        fixedDueDate: Value(_fixedDueDate(input.config)),
-        fixedTimeOfDay: Value(_fixedTimeOfDay(input.config)),
-        fixedOverduePolicy: Value(_fixedOverduePolicy(input.config)),
-        fixedExpectedBeforeMinutes: Value(
-          _durationMinutes(_fixedInfoBefore(input.config)),
-        ),
-        fixedWarningBeforeMinutes: Value(
-          _durationMinutes(_fixedWarningBefore(input.config)),
-        ),
-        fixedDangerBeforeMinutes: Value(
-          _durationMinutes(_fixedDangerBefore(input.config)),
-        ),
-        stateExpectedAfterMinutes: Value(
-          _durationMinutes(_stateInfoAfter(input.config)),
-        ),
-        stateAnchorDate: Value(_stateAnchorDate(input.config)),
-        stateWarningAfterMinutes: Value(
-          _durationMinutes(_stateWarningAfter(input.config)),
-        ),
-        stateDangerAfterMinutes: Value(
-          _durationMinutes(_stateDangerAfter(input.config)),
-        ),
-        resourceAnchorDate: Value(_resourceAnchorDate(input.config)),
-        resourceDurationDays: Value(_resourceDurationDays(input.config)),
-        resourceExpectedBeforeDays: Value(_resourceInfoBefore(input.config)),
-        resourceWarningBeforeDays: Value(_resourceWarningBefore(input.config)),
-        resourceDangerBeforeDays: Value(_resourceDangerBefore(input.config)),
-        lastDoneAt: Value(_snapshotLastDoneAtForCreate(input.config)),
-        createdAt: now.millisecondsSinceEpoch,
-        updatedAt: now.millisecondsSinceEpoch,
-      ),
-    );
+    return _dao.attachedDatabase.transaction(() async {
+      final itemId = await _createItemRecord(input, now: now);
+      await _insertCreatedAction(itemId, now: now);
+      return itemId;
+    });
+  }
+
+  Future<int> createItemWithOptionalNewPack({
+    required ItemInput item,
+    ItemPackInput? newPack,
+  }) async {
+    final now = _clock();
+    return _dao.attachedDatabase.transaction(() async {
+      final createdPackId = newPack == null
+          ? null
+          : await _dao.insertItemPack(_packCompanion(newPack, now: now));
+      final resolvedInput = ItemInput(
+        title: item.title,
+        description: item.description,
+        type: item.type,
+        config: item.config,
+        packId: createdPackId ?? item.packId,
+      );
+      final itemId = await _createItemRecord(resolvedInput, now: now);
+      await _insertCreatedAction(itemId, now: now);
+      return itemId;
+    });
   }
 
   Future<bool> updateItem(int id, ItemInput input) async {
@@ -249,16 +263,7 @@ class ItemRepository {
 
   Future<int> createPack(ItemPackInput input) async {
     final now = _clock();
-    return _dao.insertItemPack(
-      ItemPacksCompanion.insert(
-        title: input.title,
-        description: Value(input.description),
-        status: const Value('active'),
-        isSystemDefault: const Value(false),
-        createdAt: now.millisecondsSinceEpoch,
-        updatedAt: now.millisecondsSinceEpoch,
-      ),
-    );
+    return _dao.insertItemPack(_packCompanion(input, now: now));
   }
 
   Future<bool> updatePack(int id, ItemPackInput input) async {
@@ -389,6 +394,19 @@ class ItemRepository {
     });
   }
 
+  Future<void> _insertCreatedAction(int itemId, {required DateTime now}) {
+    final actionDate = _normalizeDate(now);
+    return _dao.insertItemActionRecord(
+      ItemActionRecordsCompanion.insert(
+        itemId: itemId,
+        actionType: ItemActionType.created.name,
+        actionDate: actionDate.millisecondsSinceEpoch,
+        createdAt: now.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
+      ),
+    );
+  }
+
   ItemsCompanion _companionForSnapshotUpdate(ItemSnapshotUpdate snapshot) {
     return ItemsCompanion(
       fixedAnchorDate: _dateValue(snapshot.fixedAnchorDate),
@@ -398,6 +416,75 @@ class ItemRepository {
       resourceDurationDays: _intValue(snapshot.resourceDurationDays),
       lastDoneAt: _dateValue(snapshot.lastDoneAt),
       updatedAt: Value(snapshot.updatedAt.millisecondsSinceEpoch),
+    );
+  }
+
+  Future<int> _createItemRecord(
+    ItemInput input, {
+    required DateTime now,
+  }) async {
+    final packId = input.packId ?? await _ensureDefaultPackId(now);
+    await _assertPackCanAcceptItems(packId);
+    return _dao.insertItem(_itemCompanion(input, packId: packId, now: now));
+  }
+
+  ItemsCompanion _itemCompanion(
+    ItemInput input, {
+    required int packId,
+    required DateTime now,
+  }) {
+    return ItemsCompanion.insert(
+      packId: packId,
+      title: input.title,
+      description: Value(input.description),
+      status: const Value('active'),
+      type: input.type.name,
+      fixedScheduleType: Value(_fixedScheduleType(input.config)),
+      fixedAnchorDate: Value(_fixedAnchorDate(input.config)),
+      fixedDueDate: Value(_fixedDueDate(input.config)),
+      fixedTimeOfDay: Value(_fixedTimeOfDay(input.config)),
+      fixedOverduePolicy: Value(_fixedOverduePolicy(input.config)),
+      fixedExpectedBeforeMinutes: Value(
+        _durationMinutes(_fixedInfoBefore(input.config)),
+      ),
+      fixedWarningBeforeMinutes: Value(
+        _durationMinutes(_fixedWarningBefore(input.config)),
+      ),
+      fixedDangerBeforeMinutes: Value(
+        _durationMinutes(_fixedDangerBefore(input.config)),
+      ),
+      stateExpectedAfterMinutes: Value(
+        _durationMinutes(_stateInfoAfter(input.config)),
+      ),
+      stateAnchorDate: Value(_stateAnchorDate(input.config)),
+      stateWarningAfterMinutes: Value(
+        _durationMinutes(_stateWarningAfter(input.config)),
+      ),
+      stateDangerAfterMinutes: Value(
+        _durationMinutes(_stateDangerAfter(input.config)),
+      ),
+      resourceAnchorDate: Value(_resourceAnchorDate(input.config)),
+      resourceDurationDays: Value(_resourceDurationDays(input.config)),
+      resourceExpectedBeforeDays: Value(_resourceInfoBefore(input.config)),
+      resourceWarningBeforeDays: Value(_resourceWarningBefore(input.config)),
+      resourceDangerBeforeDays: Value(_resourceDangerBefore(input.config)),
+      lastDoneAt: Value(_snapshotLastDoneAtForCreate(input.config)),
+      createdAt: now.millisecondsSinceEpoch,
+      updatedAt: now.millisecondsSinceEpoch,
+    );
+  }
+
+  ItemPacksCompanion _packCompanion(
+    ItemPackInput input, {
+    required DateTime now,
+  }) {
+    return ItemPacksCompanion.insert(
+      title: input.title,
+      description: Value(input.description),
+      status: const Value('active'),
+      isSystemDefault: const Value(false),
+      createdAt: now.millisecondsSinceEpoch,
+      updatedAt: now.millisecondsSinceEpoch,
     );
   }
 
@@ -442,6 +529,10 @@ class ItemRepository {
       FixedItemConfig fixed => fixed.scheduleType.name,
       _ => null,
     };
+  }
+
+  DateTime _normalizeDate(DateTime value) {
+    return DateTime(value.year, value.month, value.day);
   }
 
   int? _fixedAnchorDate(ItemConfig config) {

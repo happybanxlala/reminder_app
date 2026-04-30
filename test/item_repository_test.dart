@@ -2,6 +2,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/item_repository.dart';
+import 'package:reminder_app/features/reminders/domain/item_action_record.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 
@@ -28,6 +29,7 @@ void main() {
 
       final item = await repository.getItemById(itemId);
       final packs = await repository.watchPacks().first;
+      final history = await repository.listActionHistory(itemId);
 
       expect(item, isNotNull);
       expect(packs, hasLength(1));
@@ -39,6 +41,8 @@ void main() {
       expect(item.item.status, ItemLifecycleStatus.active);
       expect(item.item.type, ItemType.stateBased);
       expect(item.item.config, isA<StateBasedItemConfig>());
+      expect(history, hasLength(1));
+      expect(history.single.actionType, ItemActionType.created);
     },
   );
 
@@ -138,7 +142,10 @@ void main() {
       final history = await repository.listActionHistory(itemId);
       expect(before, isNotNull);
       expect(after, isNotNull);
-      expect(history, hasLength(1));
+      expect(history, hasLength(2));
+      final doneRecord = history.firstWhere(
+        (record) => record.actionType == ItemActionType.done,
+      );
       expect(after!.item.lastDoneAt, isNull);
       expect(
         (after.item.config as StateBasedItemConfig).anchorDate,
@@ -146,9 +153,9 @@ void main() {
       );
       expect(after.item.updatedAt, now);
       expect(after.item.updatedAt.isBefore(before!.item.updatedAt), isFalse);
-      expect(history.single.actionDate, DateTime(2026, 4, 14));
-      expect(history.single.updatedAt, now);
-      expect(history.single.createdAt, now);
+      expect(doneRecord.actionDate, DateTime(2026, 4, 14));
+      expect(doneRecord.updatedAt, now);
+      expect(doneRecord.createdAt, now);
     },
   );
 
@@ -241,7 +248,10 @@ void main() {
       DateTime(2026, 4, 5),
     );
     expect((item.item.config as ResourceBasedItemConfig).durationDays, 10);
-    expect(history.single.payload?['addedDays'], 9);
+    final doneRecord = history.firstWhere(
+      (record) => record.actionType == ItemActionType.done,
+    );
+    expect(doneRecord.payload?['addedDays'], 9);
   });
 
   test(
@@ -341,7 +351,12 @@ void main() {
       await repository.skip(itemId, actionAt: DateTime(2026, 4, 5)),
       isFalse,
     );
-    expect(await repository.listActionHistory(itemId), isEmpty);
+    expect(
+      (await repository.listActionHistory(
+        itemId,
+      )).where((record) => record.actionType != ItemActionType.created),
+      isEmpty,
+    );
   });
 
   test('defer is disabled and does not write action history', () async {
@@ -381,7 +396,12 @@ void main() {
       (after.item.config as FixedItemConfig).dueDate,
       (before.item.config as FixedItemConfig).dueDate,
     );
-    expect(await repository.listActionHistory(itemId), isEmpty);
+    expect(
+      (await repository.listActionHistory(
+        itemId,
+      )).where((record) => record.actionType != ItemActionType.created),
+      isEmpty,
+    );
   });
 
   test(
@@ -522,6 +542,68 @@ void main() {
     },
   );
 
+  test(
+    'createItemWithOptionalNewPack creates pack and item in one call',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = ItemRepository(db.itemTimelineDao);
+
+      final itemId = await repository.createItemWithOptionalNewPack(
+        item: ItemInput(
+          title: 'Sweep floor',
+          type: ItemType.stateBased,
+          config: const StateBasedItemConfig(
+            infoAfter: Duration(days: 1),
+            warningAfter: Duration(days: 1),
+            dangerAfter: Duration(days: 2),
+          ),
+        ),
+        newPack: const ItemPackInput(title: 'Housework'),
+      );
+
+      final item = await repository.getItemById(itemId);
+      final packs = await repository.watchPacks(includeArchived: true).first;
+      final history = await repository.listActionHistory(itemId);
+      expect(item, isNotNull);
+      expect(item!.pack.title, 'Housework');
+      expect(packs.where((pack) => pack.title == 'Housework'), hasLength(1));
+      expect(history.single.actionType, ItemActionType.created);
+    },
+  );
+
+  test(
+    'createItemWithOptionalNewPack uses existing pack when no new pack is passed',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = ItemRepository(db.itemTimelineDao);
+
+      final packId = await repository.createPack(
+        const ItemPackInput(title: 'Cat Care'),
+      );
+      final itemId = await repository.createItemWithOptionalNewPack(
+        item: ItemInput(
+          title: 'Clean bowl',
+          type: ItemType.stateBased,
+          config: const StateBasedItemConfig(
+            infoAfter: Duration(days: 1),
+            warningAfter: Duration(days: 1),
+            dangerAfter: Duration(days: 2),
+          ),
+          packId: packId,
+        ),
+      );
+
+      final item = await repository.getItemById(itemId);
+      final history = await repository.listActionHistory(itemId);
+      expect(item, isNotNull);
+      expect(item!.pack.id, packId);
+      expect(item.pack.title, 'Cat Care');
+      expect(history.single.actionType, ItemActionType.created);
+    },
+  );
+
   test('system default pack cannot be edited or archived', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
@@ -648,4 +730,111 @@ void main() {
     expect(archivedActive!.item.status, ItemLifecycleStatus.archived);
     expect(archivedPaused!.item.status, ItemLifecycleStatus.archived);
   });
+
+  test(
+    'activity feed returns recent and older major actions with search',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      var now = DateTime(2026, 4, 1, 9, 0);
+      final repository = ItemRepository(db.itemTimelineDao, clock: () => now);
+
+      final packId = await repository.createPack(
+        const ItemPackInput(title: 'Cat Care'),
+      );
+      final foodId = await repository.createItem(
+        ItemInput(
+          title: 'Cat food',
+          type: ItemType.resourceBased,
+          packId: packId,
+          config: ResourceBasedItemConfig(
+            anchorDate: DateTime(2026, 4, 1),
+            durationDays: 5,
+            warningBefore: 1,
+          ),
+        ),
+      );
+
+      now = DateTime(2026, 4, 2, 9, 0);
+      final litterId = await repository.createItem(
+        ItemInput(
+          title: 'Clean litter',
+          type: ItemType.stateBased,
+          config: const StateBasedItemConfig(
+            infoAfter: Duration(days: 1),
+            warningAfter: Duration(days: 1),
+            dangerAfter: Duration(days: 2),
+          ),
+        ),
+      );
+
+      await repository.markDone(litterId, doneAt: DateTime(2026, 4, 10));
+      await repository.skip(litterId, actionAt: DateTime(2026, 4, 20));
+
+      now = DateTime(2026, 5, 1, 9, 0);
+      await repository.markDone(
+        foodId,
+        doneAt: DateTime(2026, 5, 1),
+        addedDays: 3,
+      );
+
+      final recentFeed = await repository.listActivityFeed(
+        now: DateTime(2026, 5, 1),
+        recentDays: 30,
+      );
+      final olderFeed = await repository.listActivityFeed(
+        now: DateTime(2026, 5, 1),
+        actionDateBefore: DateTime(2026, 4, 2),
+      );
+      final packSearch = await repository.listActivityFeed(
+        now: DateTime(2026, 5, 1),
+        recentDays: 30,
+        query: 'Cat Care',
+      );
+      final actionSearch = await repository.listActivityFeed(
+        now: DateTime(2026, 5, 1),
+        recentDays: 30,
+        query: '跳過',
+      );
+      final itemSearch = await repository.listActivityFeed(
+        now: DateTime(2026, 5, 1),
+        recentDays: 30,
+        query: 'litter',
+      );
+
+      expect(
+        recentFeed.map((entry) => entry.record.actionType),
+        everyElement(isIn(ItemRepository.majorActivityActionTypes)),
+      );
+      expect(recentFeed.map((entry) => entry.itemTitle), contains('Cat food'));
+      expect(recentFeed.map((entry) => entry.packTitle), contains('Cat Care'));
+      expect(
+        recentFeed.any(
+          (entry) =>
+              entry.record.actionType == ItemActionType.skipped &&
+              entry.record.actionDate == DateTime(2026, 4, 20),
+        ),
+        isTrue,
+      );
+      expect(
+        recentFeed.any(
+          (entry) => entry.record.actionDate == DateTime(2026, 4, 1),
+        ),
+        isFalse,
+      );
+      expect(
+        olderFeed.any(
+          (entry) => entry.record.actionDate == DateTime(2026, 4, 1),
+        ),
+        isTrue,
+      );
+      expect(packSearch.map((entry) => entry.packTitle).toSet(), {'Cat Care'});
+      expect(actionSearch.map((entry) => entry.record.actionType).toSet(), {
+        ItemActionType.skipped,
+      });
+      expect(itemSearch.map((entry) => entry.itemTitle).toSet(), {
+        'Clean litter',
+      });
+    },
+  );
 }

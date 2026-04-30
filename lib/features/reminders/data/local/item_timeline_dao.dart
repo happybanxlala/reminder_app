@@ -19,6 +19,26 @@ class ItemBundle {
   final ItemPack pack;
 }
 
+class ItemActivityEntry {
+  const ItemActivityEntry({
+    required this.record,
+    required this.item,
+    required this.pack,
+  });
+
+  final ItemActionRecord record;
+  final Item item;
+  final ItemPack pack;
+
+  int get itemId => item.id;
+  int get packId => pack.id;
+  ItemType get itemType => item.type;
+  String get itemTitle => item.title;
+  String get packTitle => pack.title;
+
+  ItemBundle get bundle => ItemBundle(item: item, pack: pack);
+}
+
 class TimelineMilestoneRecordBundle {
   const TimelineMilestoneRecordBundle({
     required this.record,
@@ -175,6 +195,25 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
               ]))
             .get();
     return rows.map(_toItemActionRecord).toList(growable: false);
+  }
+
+  Future<List<ItemActivityEntry>> listItemActivityEntries({
+    Set<ItemActionType>? actionTypes,
+    int limit = 20,
+    int offset = 0,
+    String? query,
+    DateTime? actionDateFrom,
+    DateTime? actionDateBefore,
+  }) async {
+    final rows = await _itemActivityEntryQuery(
+      actionTypes: actionTypes,
+      query: query,
+      actionDateFrom: actionDateFrom,
+      actionDateBefore: actionDateBefore,
+      limit: limit,
+      offset: offset,
+    ).get();
+    return rows.map(_mapItemActivityEntry).toList(growable: false);
   }
 
   Future<bool> updateItemStatus(int id, ItemLifecycleStatus status) async {
@@ -488,8 +527,72 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
     return query;
   }
 
+  JoinedSelectStatement<HasResultSet, dynamic> _itemActivityEntryQuery({
+    Set<ItemActionType>? actionTypes,
+    String? query,
+    DateTime? actionDateFrom,
+    DateTime? actionDateBefore,
+    int? limit,
+    int offset = 0,
+  }) {
+    final activityQuery = select(itemActionRecords).join([
+      innerJoin(items, items.id.equalsExp(itemActionRecords.itemId)),
+      innerJoin(itemPacks, itemPacks.id.equalsExp(items.packId)),
+    ]);
+
+    if (actionTypes != null && actionTypes.isNotEmpty) {
+      activityQuery.where(
+        itemActionRecords.actionType.isIn(actionTypes.map((item) => item.name)),
+      );
+    }
+    if (actionDateFrom != null) {
+      activityQuery.where(
+        itemActionRecords.actionDate.isBiggerOrEqualValue(
+          actionDateFrom.millisecondsSinceEpoch,
+        ),
+      );
+    }
+    if (actionDateBefore != null) {
+      activityQuery.where(
+        itemActionRecords.actionDate.isSmallerThanValue(
+          actionDateBefore.millisecondsSinceEpoch,
+        ),
+      );
+    }
+
+    final trimmedQuery = query?.trim();
+    if (trimmedQuery != null && trimmedQuery.isNotEmpty) {
+      final pattern = '%$trimmedQuery%';
+      final actionNames = _matchingActionTypeNames(trimmedQuery);
+      activityQuery.where(
+        items.title.like(pattern) |
+            itemPacks.title.like(pattern) |
+            (actionNames.isEmpty
+                ? const Constant(false)
+                : itemActionRecords.actionType.isIn(actionNames)),
+      );
+    }
+
+    activityQuery.orderBy([
+      OrderingTerm.desc(itemActionRecords.actionDate),
+      OrderingTerm.desc(itemActionRecords.id),
+    ]);
+    if (limit != null) {
+      activityQuery.limit(limit, offset: offset);
+    }
+    return activityQuery;
+  }
+
   ItemBundle _mapItemBundle(TypedResult row) {
     return ItemBundle(
+      item: _toItem(row.readTable(items)),
+      pack: _toItemPack(row.readTable(itemPacks)),
+    );
+  }
+
+  ItemActivityEntry _mapItemActivityEntry(TypedResult row) {
+    return ItemActivityEntry(
+      record: _toItemActionRecord(row.readTable(itemActionRecords)),
       item: _toItem(row.readTable(items)),
       pack: _toItemPack(row.readTable(itemPacks)),
     );
@@ -515,6 +618,29 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
       rule: _toTimelineMilestoneRule(row.readTable(timelineMilestoneRules)),
       timeline: _toTimeline(row.readTable(timelines)),
     );
+  }
+
+  List<String> _matchingActionTypeNames(String query) {
+    final normalized = query.trim().toLowerCase();
+    if (normalized.isEmpty) {
+      return const <String>[];
+    }
+
+    final matches = <String>[];
+    void maybeAdd(ItemActionType type, List<String> keywords) {
+      if (keywords.any(
+        (keyword) =>
+            keyword.contains(normalized) || normalized.contains(keyword),
+      )) {
+        matches.add(type.name);
+      }
+    }
+
+    maybeAdd(ItemActionType.created, ['created', 'create', '新增']);
+    maybeAdd(ItemActionType.done, ['done', 'complete', '完成']);
+    maybeAdd(ItemActionType.skipped, ['skipped', 'skip', '跳過']);
+    maybeAdd(ItemActionType.deferred, ['deferred', 'defer', '延期']);
+    return matches;
   }
 
   ItemPack _toItemPack(ItemPackRow row) {
