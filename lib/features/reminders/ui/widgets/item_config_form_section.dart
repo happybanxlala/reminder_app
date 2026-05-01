@@ -9,6 +9,8 @@ class ItemConfigFormController {
   ItemConfigFormController() {
     fixedAnchorDateController = TextEditingController();
     fixedDueDateController = TextEditingController();
+    fixedScheduleIntervalController = TextEditingController(text: '1');
+    fixedMonthlyDayController = TextEditingController(text: '1');
     fixedWarningBeforeController = TextEditingController(text: '1');
     fixedDangerBeforeController = TextEditingController(text: '0');
     stateAnchorDateController = TextEditingController();
@@ -23,6 +25,8 @@ class ItemConfigFormController {
 
   late final TextEditingController fixedAnchorDateController;
   late final TextEditingController fixedDueDateController;
+  late final TextEditingController fixedScheduleIntervalController;
+  late final TextEditingController fixedMonthlyDayController;
   late final TextEditingController fixedWarningBeforeController;
   late final TextEditingController fixedDangerBeforeController;
   late final TextEditingController stateAnchorDateController;
@@ -47,6 +51,8 @@ class ItemConfigFormController {
   void dispose() {
     fixedAnchorDateController.dispose();
     fixedDueDateController.dispose();
+    fixedScheduleIntervalController.dispose();
+    fixedMonthlyDayController.dispose();
     fixedWarningBeforeController.dispose();
     fixedDangerBeforeController.dispose();
     stateAnchorDateController.dispose();
@@ -63,6 +69,9 @@ class ItemConfigFormController {
     switch (config) {
       case FixedItemConfig fixed:
         scheduleType = fixed.scheduleType;
+        fixedScheduleIntervalController.text = '${fixed.scheduleInterval}';
+        fixedMonthlyDayController.text =
+            '${fixed.monthlyDay ?? fixed.dueDate?.day ?? 1}';
         overduePolicy = fixed.overduePolicy;
         selectedFixedAnchorDate = fixed.anchorDate ?? selectedFixedAnchorDate;
         selectedFixedDueDate = fixed.dueDate ?? selectedFixedDueDate;
@@ -102,6 +111,12 @@ class ItemConfigFormController {
     return switch (type) {
       ItemType.fixed => FixedItemConfig(
         scheduleType: scheduleType,
+        scheduleInterval: _usesScheduleInterval(scheduleType)
+            ? parsePositiveDays(fixedScheduleIntervalController)
+            : 1,
+        monthlyDay: scheduleType == FixedScheduleType.monthly
+            ? parseMonthlyDay(fixedMonthlyDayController)
+            : null,
         anchorDate: selectedFixedAnchorDate,
         dueDate: selectedFixedDueDate,
         overduePolicy: overduePolicy,
@@ -127,6 +142,28 @@ class ItemConfigFormController {
 
   int parseDays(TextEditingController controller) {
     return int.tryParse(controller.text.trim()) ?? 1;
+  }
+
+  int parsePositiveDays(TextEditingController controller) {
+    final parsed = int.tryParse(controller.text.trim());
+    if (parsed == null || parsed < 1) {
+      return 1;
+    }
+    return parsed;
+  }
+
+  int parseMonthlyDay(TextEditingController controller) {
+    final parsed = int.tryParse(controller.text.trim());
+    if (parsed == null) {
+      return 1;
+    }
+    return parsed.clamp(1, 31);
+  }
+
+  bool _usesScheduleInterval(FixedScheduleType type) {
+    return type == FixedScheduleType.everyXDays ||
+        type == FixedScheduleType.everyXWeeks ||
+        type == FixedScheduleType.monthly;
   }
 }
 
@@ -175,6 +212,25 @@ class ItemConfigFormSection extends StatelessWidget {
         },
       ),
       const SizedBox(height: 12),
+      if (_usesScheduleInterval(controller.scheduleType)) ...[
+        _DaysField(
+          key: const Key('fixed-schedule-interval-field'),
+          controller: controller.fixedScheduleIntervalController,
+          label: ReminderUiText.scheduleIntervalFieldLabel,
+          minimum: 1,
+        ),
+        const SizedBox(height: 12),
+      ],
+      if (controller.scheduleType == FixedScheduleType.monthly) ...[
+        _DaysField(
+          key: const Key('fixed-monthly-day-field'),
+          controller: controller.fixedMonthlyDayController,
+          label: ReminderUiText.monthlyDayFieldLabel,
+          minimum: 1,
+          maximum: 31,
+        ),
+        const SizedBox(height: 12),
+      ],
       DropdownButtonFormField<ItemOverduePolicy>(
         initialValue: controller.overduePolicy,
         decoration: const InputDecoration(
@@ -237,6 +293,12 @@ class ItemConfigFormSection extends StatelessWidget {
         label: ReminderUiText.dangerBeforeDaysFieldLabel,
       ),
     ];
+  }
+
+  bool _usesScheduleInterval(FixedScheduleType type) {
+    return type == FixedScheduleType.everyXDays ||
+        type == FixedScheduleType.everyXWeeks ||
+        type == FixedScheduleType.monthly;
   }
 
   List<Widget> _buildStateBasedFields(BuildContext context) {
@@ -325,10 +387,18 @@ class ItemConfigFormSection extends StatelessWidget {
 }
 
 class _DaysField extends StatelessWidget {
-  const _DaysField({super.key, required this.controller, required this.label});
+  const _DaysField({
+    super.key,
+    required this.controller,
+    required this.label,
+    this.minimum = 0,
+    this.maximum,
+  });
 
   final TextEditingController controller;
   final String label;
+  final int minimum;
+  final int? maximum;
 
   @override
   Widget build(BuildContext context) {
@@ -338,8 +408,11 @@ class _DaysField extends StatelessWidget {
       decoration: InputDecoration(labelText: label),
       validator: (value) {
         final parsed = int.tryParse((value ?? '').trim());
-        if (parsed == null || parsed < 0) {
-          return '請輸入 0 或以上整數';
+        if (parsed == null || parsed < minimum) {
+          return minimum <= 0 ? '請輸入 0 或以上整數' : '請輸入 $minimum 或以上整數';
+        }
+        if (maximum != null && parsed > maximum!) {
+          return '請輸入 $maximum 或以下整數';
         }
         return null;
       },

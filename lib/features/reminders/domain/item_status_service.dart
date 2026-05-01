@@ -93,10 +93,10 @@ class ItemStatusService {
     var resolvedDue = dueDate;
     var advanced = false;
     while (current.isAfter(resolvedDue)) {
-      resolvedAnchor = _advanceDate(resolvedAnchor, config.scheduleType);
+      resolvedAnchor = _advanceDate(resolvedAnchor, config);
       resolvedDue = _advanceDate(
         resolvedDue,
-        config.scheduleType,
+        config,
         fallbackDays: cycleLength,
       );
       advanced = true;
@@ -204,16 +204,12 @@ class ItemStatusService {
     FixedCycleWindow cycle,
     FixedItemConfig config,
   ) {
-    return _advanceDate(cycle.anchorDate, config.scheduleType);
+    return _advanceDate(cycle.anchorDate, config);
   }
 
   DateTime nextFixedCycleDue(FixedCycleWindow cycle, FixedItemConfig config) {
     final fallbackDays = cycle.dueDate.difference(cycle.anchorDate).inDays;
-    return _advanceDate(
-      cycle.dueDate,
-      config.scheduleType,
-      fallbackDays: fallbackDays,
-    );
+    return _advanceDate(cycle.dueDate, config, fallbackDays: fallbackDays);
   }
 
   DateTime shiftDateByDelay(DateTime value, int delayDays) {
@@ -230,16 +226,32 @@ class ItemStatusService {
 
   DateTime _advanceDate(
     DateTime value,
-    FixedScheduleType scheduleType, {
+    FixedItemConfig config, {
     int? fallbackDays,
   }) {
-    return switch (scheduleType) {
+    final interval = config.scheduleInterval < 1 ? 1 : config.scheduleInterval;
+    return switch (config.scheduleType) {
       FixedScheduleType.daily => value.add(const Duration(days: 1)),
       FixedScheduleType.weekly => value.add(const Duration(days: 7)),
       FixedScheduleType.oneTime => value.add(
         Duration(days: (fallbackDays ?? 0) + 1),
       ),
+      FixedScheduleType.everyXDays => value.add(Duration(days: interval)),
+      FixedScheduleType.everyXWeeks => value.add(Duration(days: interval * 7)),
+      FixedScheduleType.monthly => _addMonthsClamped(
+        value,
+        interval,
+        preferredDay: config.monthlyDay,
+      ),
     };
+  }
+
+  DateTime _addMonthsClamped(DateTime value, int months, {int? preferredDay}) {
+    final targetMonth = DateTime(value.year, value.month + months);
+    final lastDay = DateTime(targetMonth.year, targetMonth.month + 1, 0).day;
+    final rawDay = preferredDay ?? value.day;
+    final day = rawDay.clamp(1, lastDay);
+    return DateTime(targetMonth.year, targetMonth.month, day);
   }
 
   DateTime _normalizeDate(DateTime value) {

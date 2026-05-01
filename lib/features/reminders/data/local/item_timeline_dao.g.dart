@@ -6,6 +6,10 @@ part of 'item_timeline_dao.dart';
 mixin _$ItemTimelineDaoMixin on DatabaseAccessor<AppDatabase> {
   $ItemPacksTable get itemPacks => attachedDatabase.itemPacks;
   $ItemsTable get items => attachedDatabase.items;
+  $ItemPackTemplatesTable get itemPackTemplates =>
+      attachedDatabase.itemPackTemplates;
+  $ItemTemplateItemsTable get itemTemplateItems =>
+      attachedDatabase.itemTemplateItems;
   $ItemActionRecordsTable get itemActionRecords =>
       attachedDatabase.itemActionRecords;
   $TimelinesTable get timelines => attachedDatabase.timelines;
@@ -23,6 +27,16 @@ class ItemTimelineDaoManager {
       $$ItemPacksTableTableManager(_db.attachedDatabase, _db.itemPacks);
   $$ItemsTableTableManager get items =>
       $$ItemsTableTableManager(_db.attachedDatabase, _db.items);
+  $$ItemPackTemplatesTableTableManager get itemPackTemplates =>
+      $$ItemPackTemplatesTableTableManager(
+        _db.attachedDatabase,
+        _db.itemPackTemplates,
+      );
+  $$ItemTemplateItemsTableTableManager get itemTemplateItems =>
+      $$ItemTemplateItemsTableTableManager(
+        _db.attachedDatabase,
+        _db.itemTemplateItems,
+      );
   $$ItemActionRecordsTableTableManager get itemActionRecords =>
       $$ItemActionRecordsTableTableManager(
         _db.attachedDatabase,

@@ -181,7 +181,7 @@ class ReminderFormatters {
     DateTime? now,
     required ItemStatusService statusService,
   }) {
-    final scheduleLabel = fixedScheduleTypeLabel(config.scheduleType);
+    final scheduleLabel = fixedScheduleSummary(config);
     final resolvedCycle = statusService.resolveFixedCycle(config, now: now);
     final anchorLabel = resolvedCycle == null
         ? (config.anchorDate == null ? null : date(config.anchorDate!))
@@ -227,6 +227,22 @@ class ReminderFormatters {
       FixedScheduleType.daily => '每天',
       FixedScheduleType.weekly => '每週',
       FixedScheduleType.oneTime => '一次',
+      FixedScheduleType.everyXDays => '每 X 天',
+      FixedScheduleType.everyXWeeks => '每 X 週',
+      FixedScheduleType.monthly => '每月',
+    };
+  }
+
+  static String fixedScheduleSummary(FixedItemConfig config) {
+    final interval = config.scheduleInterval < 1 ? 1 : config.scheduleInterval;
+    return switch (config.scheduleType) {
+      FixedScheduleType.daily => '每天',
+      FixedScheduleType.weekly => '每週',
+      FixedScheduleType.oneTime => '一次',
+      FixedScheduleType.everyXDays => '每 $interval 天',
+      FixedScheduleType.everyXWeeks => '每 $interval 週',
+      FixedScheduleType.monthly =>
+        config.monthlyDay == null ? '每月' : '每月 ${config.monthlyDay} 日',
     };
   }
 

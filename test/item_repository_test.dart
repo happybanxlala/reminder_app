@@ -5,6 +5,7 @@ import 'package:reminder_app/features/reminders/data/item_repository.dart';
 import 'package:reminder_app/features/reminders/domain/item_action_record.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
+import 'package:reminder_app/features/reminders/domain/item_pack_template.dart';
 
 void main() {
   test(
@@ -500,6 +501,55 @@ void main() {
     },
   );
 
+  test('fixed custom schedule fields round-trip through repository', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = ItemRepository(db.itemTimelineDao);
+
+    final itemId = await repository.createItem(
+      ItemInput(
+        title: 'Water plants',
+        type: ItemType.fixed,
+        config: FixedItemConfig(
+          scheduleType: FixedScheduleType.everyXWeeks,
+          scheduleInterval: 2,
+          anchorDate: DateTime(2026, 4, 1),
+          dueDate: DateTime(2026, 4, 14),
+        ),
+      ),
+    );
+
+    final item = await repository.getItemById(itemId);
+    final config = item!.item.config as FixedItemConfig;
+    expect(config.scheduleType, FixedScheduleType.everyXWeeks);
+    expect(config.scheduleInterval, 2);
+    expect(config.anchorDate, DateTime(2026, 4, 1));
+    expect(config.dueDate, DateTime(2026, 4, 14));
+
+    expect(
+      await repository.updateItem(
+        itemId,
+        ItemInput(
+          title: 'Water plants',
+          type: ItemType.fixed,
+          config: FixedItemConfig(
+            scheduleType: FixedScheduleType.monthly,
+            scheduleInterval: 1,
+            monthlyDay: 31,
+            anchorDate: DateTime(2026, 1, 31),
+            dueDate: DateTime(2026, 1, 31),
+          ),
+        ),
+      ),
+      isTrue,
+    );
+
+    final updated = await repository.getItemById(itemId);
+    final updatedConfig = updated!.item.config as FixedItemConfig;
+    expect(updatedConfig.scheduleType, FixedScheduleType.monthly);
+    expect(updatedConfig.monthlyDay, 31);
+  });
+
   test(
     'create, update, and archive pack round-trip with visibility rules',
     () async {
@@ -601,6 +651,106 @@ void main() {
       expect(item!.pack.id, packId);
       expect(item.pack.title, 'Cat Care');
       expect(history.single.actionType, ItemActionType.created);
+    },
+  );
+
+  test(
+    'applyTemplate creates a new pack with initialized item baselines',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final now = DateTime(2026, 4, 10, 9, 0);
+      final repository = ItemRepository(db.itemTimelineDao, clock: () => now);
+
+      final template = (await repository.watchTemplates().first).firstWhere(
+        (template) => template.id == 'builtin-cat-care',
+      );
+      final packId = await repository.applyTemplate(template);
+
+      final pack = await repository.getPackById(packId);
+      final items = await repository.watchPackManagementItems().first;
+      final packItems = items
+          .where((bundle) => bundle.item.packId == packId)
+          .toList(growable: false);
+
+      expect(pack!.title, '彩月島貓奴指南(模版)');
+      expect(packItems, hasLength(template.items.length));
+      final water = packItems.firstWhere(
+        (bundle) => bundle.item.title == '飲水機加水',
+      );
+      final waterConfig = water.item.config as FixedItemConfig;
+      expect(waterConfig.scheduleType, FixedScheduleType.everyXDays);
+      expect(waterConfig.scheduleInterval, 3);
+      expect(waterConfig.anchorDate, DateTime(2026, 4, 10));
+      expect(waterConfig.dueDate, DateTime(2026, 4, 12));
+
+      final inventory = packItems.firstWhere(
+        (bundle) => bundle.item.title == '補充貓乾糧',
+      );
+      final inventoryConfig = inventory.item.config as ResourceBasedItemConfig;
+      expect(inventoryConfig.anchorDate, isNull);
+      expect(inventoryConfig.durationDays, 0);
+    },
+  );
+
+  test(
+    'savePackAsTemplate stores managed items and delete removes it',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = ItemRepository(db.itemTimelineDao);
+
+      final packId = await repository.createPack(
+        const ItemPackInput(title: 'Cat Care', description: 'Daily care'),
+      );
+      await repository.createItem(
+        ItemInput(
+          title: 'Brush teeth',
+          description: 'Weekly',
+          type: ItemType.stateBased,
+          packId: packId,
+          config: const StateBasedItemConfig(
+            warningAfter: Duration(days: 7),
+            dangerAfter: Duration(days: 10),
+          ),
+        ),
+      );
+      final archivedId = await repository.createItem(
+        ItemInput(
+          title: 'Old task',
+          type: ItemType.stateBased,
+          packId: packId,
+          config: const StateBasedItemConfig(
+            warningAfter: Duration(days: 1),
+            dangerAfter: Duration(days: 2),
+          ),
+        ),
+      );
+      await repository.archiveItem(archivedId);
+
+      final templateId = await repository.savePackAsTemplate(
+        packId,
+        const ItemPackTemplateInput(
+          name: 'My cat template',
+          category: '照料貓咪',
+          description: 'Reusable',
+        ),
+      );
+
+      expect(templateId, isNotNull);
+      final templates = await repository.watchTemplates().first;
+      final custom = templates.firstWhere(
+        (template) => template.id == 'custom-$templateId',
+      );
+      expect(custom.source, ItemPackTemplateSource.custom);
+      expect(custom.items.map((item) => item.title), ['Brush teeth']);
+
+      expect(await repository.deleteCustomTemplate(custom.id), isTrue);
+      final afterDelete = await repository.watchTemplates().first;
+      expect(
+        afterDelete.where((template) => template.id == custom.id),
+        isEmpty,
+      );
     },
   );
 

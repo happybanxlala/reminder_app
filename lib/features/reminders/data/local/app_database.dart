@@ -14,6 +14,8 @@ part 'app_database.g.dart';
   tables: [
     ItemPacks,
     Items,
+    ItemPackTemplates,
+    ItemTemplateItems,
     ItemActionRecords,
     Timelines,
     TimelineMilestoneRules,
@@ -29,11 +31,19 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.addColumn(items, items.fixedScheduleInterval);
+        await m.addColumn(items, items.fixedMonthlyDay);
+        await m.createTable(itemPackTemplates);
+        await m.createTable(itemTemplateItems);
+      }
+    },
     beforeOpen: (details) async {
       await _ensureSystemDefaultPack();
     },

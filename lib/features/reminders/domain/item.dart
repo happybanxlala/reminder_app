@@ -4,7 +4,14 @@ enum ItemStatus { normal, warning, danger, unknown }
 
 enum ItemLifecycleStatus { active, paused, archived }
 
-enum FixedScheduleType { daily, weekly, oneTime }
+enum FixedScheduleType {
+  daily,
+  weekly,
+  oneTime,
+  everyXDays,
+  everyXWeeks,
+  monthly,
+}
 
 enum ItemOverduePolicy { autoAdvance, waitForAction }
 
@@ -22,6 +29,8 @@ abstract class ItemConfig {
 class FixedItemConfig extends ItemConfig {
   const FixedItemConfig({
     required this.scheduleType,
+    this.scheduleInterval = 1,
+    this.monthlyDay,
     this.anchorDate,
     this.dueDate,
     this.timeOfDay,
@@ -32,6 +41,8 @@ class FixedItemConfig extends ItemConfig {
   });
 
   final FixedScheduleType scheduleType;
+  final int scheduleInterval;
+  final int? monthlyDay;
   final DateTime? anchorDate;
   final DateTime? dueDate;
   final String? timeOfDay;

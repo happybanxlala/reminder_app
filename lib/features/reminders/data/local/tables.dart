@@ -27,6 +27,8 @@ class Items extends Table {
   TextColumn get status => text().withDefault(const Constant('active'))();
   TextColumn get type => text()();
   TextColumn get fixedScheduleType => text().nullable()();
+  IntColumn get fixedScheduleInterval => integer().nullable()();
+  IntColumn get fixedMonthlyDay => integer().nullable()();
   IntColumn get fixedAnchorDate => integer().nullable()();
   IntColumn get fixedDueDate => integer().nullable()();
   TextColumn get fixedTimeOfDay => text().nullable()();
@@ -44,6 +46,48 @@ class Items extends Table {
   IntColumn get resourceWarningBeforeDays => integer().nullable()();
   IntColumn get resourceDangerBeforeDays => integer().nullable()();
   IntColumn get lastDoneAt => integer().nullable()();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+}
+
+@DataClassName('ItemPackTemplateRow')
+class ItemPackTemplates extends Table {
+  @override
+  String get tableName => 'item_pack_templates';
+
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text()();
+  TextColumn get category => text()();
+  TextColumn get description => text()();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+}
+
+@DataClassName('ItemTemplateItemRow')
+class ItemTemplateItems extends Table {
+  @override
+  String get tableName => 'item_template_items';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get templateId => integer().references(ItemPackTemplates, #id)();
+  TextColumn get title => text()();
+  TextColumn get description => text().nullable()();
+  TextColumn get type => text()();
+  TextColumn get fixedScheduleType => text().nullable()();
+  IntColumn get fixedScheduleInterval => integer().nullable()();
+  IntColumn get fixedMonthlyDay => integer().nullable()();
+  TextColumn get fixedTimeOfDay => text().nullable()();
+  TextColumn get fixedOverduePolicy => text().nullable()();
+  IntColumn get fixedExpectedBeforeMinutes => integer().nullable()();
+  IntColumn get fixedWarningBeforeMinutes => integer().nullable()();
+  IntColumn get fixedDangerBeforeMinutes => integer().nullable()();
+  IntColumn get stateExpectedAfterMinutes => integer().nullable()();
+  IntColumn get stateWarningAfterMinutes => integer().nullable()();
+  IntColumn get stateDangerAfterMinutes => integer().nullable()();
+  IntColumn get resourceDurationDays => integer().nullable()();
+  IntColumn get resourceExpectedBeforeDays => integer().nullable()();
+  IntColumn get resourceWarningBeforeDays => integer().nullable()();
+  IntColumn get resourceDangerBeforeDays => integer().nullable()();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 }

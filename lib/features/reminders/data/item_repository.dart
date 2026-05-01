@@ -4,8 +4,10 @@ import '../domain/item.dart';
 import '../domain/item_action_record.dart';
 import '../domain/item_action_service.dart';
 import '../domain/item_pack.dart';
+import '../domain/item_pack_template.dart';
 import '../domain/item_snapshot_update_service.dart';
 import '../domain/item_status_service.dart';
+import 'builtin_item_pack_templates.dart';
 import 'local/app_database.dart';
 import 'local/item_timeline_dao.dart';
 
@@ -57,6 +59,11 @@ class ItemRepository {
 
   Stream<List<ItemPack>> watchPacks({bool includeArchived = false}) =>
       _dao.watchItemPacks(includeArchived: includeArchived);
+
+  Stream<List<ItemPackTemplate>> watchTemplates() =>
+      _dao.watchCustomItemPackTemplates().map(
+        (customTemplates) => [...builtinItemPackTemplates, ...customTemplates],
+      );
 
   Stream<List<ItemBundle>> watchItems() =>
       _dao.watchItemBundles(statuses: const {ItemLifecycleStatus.active});
@@ -116,6 +123,19 @@ class ItemRepository {
 
   Future<ItemPack?> getPackById(int id) => _dao.getItemPackById(id);
 
+  Future<ItemPackTemplate?> getTemplateById(String id) async {
+    for (final template in builtinItemPackTemplates) {
+      if (template.id == id) {
+        return template;
+      }
+    }
+    final customId = int.tryParse(id.replaceFirst('custom-', ''));
+    if (customId == null) {
+      return null;
+    }
+    return _dao.getCustomItemPackTemplateById(customId);
+  }
+
   Future<int> createItem(ItemInput input) async {
     final now = _clock();
     return _dao.attachedDatabase.transaction(() async {
@@ -167,6 +187,8 @@ class ItemRepository {
         status: existing.item.status.name,
         type: input.type.name,
         fixedScheduleType: _fixedScheduleType(input.config),
+        fixedScheduleInterval: _fixedScheduleInterval(input.config),
+        fixedMonthlyDay: _fixedMonthlyDay(input.config),
         fixedAnchorDate: _fixedAnchorDate(input.config),
         fixedDueDate: _fixedDueDate(input.config),
         fixedTimeOfDay: _fixedTimeOfDay(input.config),
@@ -322,6 +344,76 @@ class ItemRepository {
     return true;
   }
 
+  Future<int> applyTemplate(ItemPackTemplate template) async {
+    final now = _clock();
+    final today = _normalizeDate(now);
+    return _dao.attachedDatabase.transaction(() async {
+      final packId = await _dao.insertItemPack(
+        _packCompanion(
+          ItemPackInput(
+            title: '${template.name}(模版)',
+            description: template.description,
+          ),
+          now: now,
+        ),
+      );
+      for (final templateItem in template.items) {
+        final itemId = await _createItemRecord(
+          ItemInput(
+            title: templateItem.title,
+            description: templateItem.description,
+            type: templateItem.type,
+            config: _configForTemplateApply(templateItem.config, today),
+            packId: packId,
+          ),
+          now: now,
+        );
+        await _insertCreatedAction(itemId, now: now);
+      }
+      return packId;
+    });
+  }
+
+  Future<int?> savePackAsTemplate(
+    int packId,
+    ItemPackTemplateInput input,
+  ) async {
+    final pack = await getPackById(packId);
+    if (pack == null || pack.isSystemDefault) {
+      return null;
+    }
+    final items = await _dao.listItemBundles(statuses: managedItemStatuses);
+    final packItems = items
+        .where((bundle) => bundle.item.packId == packId)
+        .toList(growable: false);
+    final now = _clock();
+    return _dao.attachedDatabase.transaction(() async {
+      final templateId = await _dao.insertItemPackTemplate(
+        ItemPackTemplatesCompanion.insert(
+          name: input.name,
+          category: input.category,
+          description: input.description,
+          createdAt: now.millisecondsSinceEpoch,
+          updatedAt: now.millisecondsSinceEpoch,
+        ),
+      );
+      for (final bundle in packItems) {
+        await _dao.insertItemTemplateItem(
+          _templateItemCompanion(bundle.item, templateId: templateId, now: now),
+        );
+      }
+      return templateId;
+    });
+  }
+
+  Future<bool> deleteCustomTemplate(String id) async {
+    final customId = int.tryParse(id.replaceFirst('custom-', ''));
+    if (customId == null) {
+      return false;
+    }
+    return await _dao.deleteItemPackTemplate(customId) > 0;
+  }
+
   Future<bool> pauseItem(int id) async {
     final existing = await getItemById(id);
     if (existing == null ||
@@ -440,6 +532,8 @@ class ItemRepository {
       status: const Value('active'),
       type: input.type.name,
       fixedScheduleType: Value(_fixedScheduleType(input.config)),
+      fixedScheduleInterval: Value(_fixedScheduleInterval(input.config)),
+      fixedMonthlyDay: Value(_fixedMonthlyDay(input.config)),
       fixedAnchorDate: Value(_fixedAnchorDate(input.config)),
       fixedDueDate: Value(_fixedDueDate(input.config)),
       fixedTimeOfDay: Value(_fixedTimeOfDay(input.config)),
@@ -488,6 +582,106 @@ class ItemRepository {
     );
   }
 
+  ItemTemplateItemsCompanion _templateItemCompanion(
+    Item item, {
+    required int templateId,
+    required DateTime now,
+  }) {
+    return ItemTemplateItemsCompanion.insert(
+      templateId: templateId,
+      title: item.title,
+      description: Value(item.description),
+      type: item.type.name,
+      fixedScheduleType: Value(_fixedScheduleType(item.config)),
+      fixedScheduleInterval: Value(_fixedScheduleInterval(item.config)),
+      fixedMonthlyDay: Value(_fixedMonthlyDay(item.config)),
+      fixedTimeOfDay: Value(_fixedTimeOfDay(item.config)),
+      fixedOverduePolicy: Value(_fixedOverduePolicy(item.config)),
+      fixedExpectedBeforeMinutes: Value(
+        _durationMinutes(_fixedInfoBefore(item.config)),
+      ),
+      fixedWarningBeforeMinutes: Value(
+        _durationMinutes(_fixedWarningBefore(item.config)),
+      ),
+      fixedDangerBeforeMinutes: Value(
+        _durationMinutes(_fixedDangerBefore(item.config)),
+      ),
+      stateExpectedAfterMinutes: Value(
+        _durationMinutes(_stateInfoAfter(item.config)),
+      ),
+      stateWarningAfterMinutes: Value(
+        _durationMinutes(_stateWarningAfter(item.config)),
+      ),
+      stateDangerAfterMinutes: Value(
+        _durationMinutes(_stateDangerAfter(item.config)),
+      ),
+      resourceDurationDays: Value(_resourceDurationDays(item.config)),
+      resourceExpectedBeforeDays: Value(_resourceInfoBefore(item.config)),
+      resourceWarningBeforeDays: Value(_resourceWarningBefore(item.config)),
+      resourceDangerBeforeDays: Value(_resourceDangerBefore(item.config)),
+      createdAt: now.millisecondsSinceEpoch,
+      updatedAt: now.millisecondsSinceEpoch,
+    );
+  }
+
+  ItemConfig _configForTemplateApply(ItemConfig config, DateTime today) {
+    return switch (config) {
+      FixedItemConfig fixed => FixedItemConfig(
+        scheduleType: fixed.scheduleType,
+        scheduleInterval: fixed.scheduleInterval,
+        monthlyDay: fixed.monthlyDay ?? today.day,
+        anchorDate: today,
+        dueDate: _templateFixedDueDate(fixed, today),
+        timeOfDay: fixed.timeOfDay,
+        overduePolicy: fixed.overduePolicy,
+        infoBefore: fixed.infoBefore,
+        warningBefore: fixed.warningBefore,
+        dangerBefore: fixed.dangerBefore,
+      ),
+      StateBasedItemConfig state => StateBasedItemConfig(
+        anchorDate: today,
+        infoAfter: state.infoAfter,
+        warningAfter: state.warningAfter,
+        dangerAfter: state.dangerAfter,
+      ),
+      ResourceBasedItemConfig resource => ResourceBasedItemConfig(
+        durationDays: resource.durationDays,
+        infoBefore: resource.infoBefore,
+        warningBefore: resource.warningBefore,
+        dangerBefore: resource.dangerBefore,
+      ),
+      _ => config,
+    };
+  }
+
+  DateTime _templateFixedDueDate(FixedItemConfig config, DateTime today) {
+    final interval = config.scheduleInterval < 1 ? 1 : config.scheduleInterval;
+    return switch (config.scheduleType) {
+      FixedScheduleType.daily || FixedScheduleType.oneTime => today,
+      FixedScheduleType.weekly => today.add(const Duration(days: 6)),
+      FixedScheduleType.everyXDays => today.add(Duration(days: interval - 1)),
+      FixedScheduleType.everyXWeeks => today.add(
+        Duration(days: interval * 7 - 1),
+      ),
+      FixedScheduleType.monthly => _addMonthsClamped(
+        today,
+        interval,
+        preferredDay: config.monthlyDay ?? today.day,
+      ).subtract(const Duration(days: 1)),
+    };
+  }
+
+  DateTime _addMonthsClamped(
+    DateTime value,
+    int months, {
+    required int preferredDay,
+  }) {
+    final targetMonth = DateTime(value.year, value.month + months);
+    final lastDay = DateTime(targetMonth.year, targetMonth.month + 1, 0).day;
+    final day = preferredDay.clamp(1, lastDay);
+    return DateTime(targetMonth.year, targetMonth.month, day);
+  }
+
   Future<int> _ensureDefaultPackId(DateTime now) async {
     final packs = await _dao.listItemPacks(includeArchived: true);
     for (final pack in packs) {
@@ -527,6 +721,20 @@ class ItemRepository {
   String? _fixedScheduleType(ItemConfig config) {
     return switch (config) {
       FixedItemConfig fixed => fixed.scheduleType.name,
+      _ => null,
+    };
+  }
+
+  int? _fixedScheduleInterval(ItemConfig config) {
+    return switch (config) {
+      FixedItemConfig fixed => fixed.scheduleInterval,
+      _ => null,
+    };
+  }
+
+  int? _fixedMonthlyDay(ItemConfig config) {
+    return switch (config) {
+      FixedItemConfig fixed => fixed.monthlyDay,
       _ => null,
     };
   }

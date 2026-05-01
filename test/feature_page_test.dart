@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:reminder_app/features/reminders/data/builtin_item_pack_templates.dart';
 import 'package:reminder_app/features/reminders/data/item_repository.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/local/item_timeline_dao.dart';
@@ -12,6 +13,7 @@ import 'package:reminder_app/features/reminders/data/timeline_models.dart';
 import 'package:reminder_app/features/reminders/data/timeline_repository.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
+import 'package:reminder_app/features/reminders/domain/item_pack_template.dart';
 import 'package:reminder_app/features/reminders/domain/timeline.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_occurrence.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_record.dart';
@@ -432,6 +434,105 @@ void main() {
     await tester.tap(find.byKey(const Key('pack-toggle-2')));
     await tester.pumpAndSettle();
     expect(find.text('Item 2'), findsOneWidget);
+  });
+
+  testWidgets('template picker applies builtin template into a new pack', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = _RecordingItemRepository(db.itemTimelineDao);
+    final container = ProviderContainer(
+      overrides: [
+        itemRepositoryProvider.overrideWith((ref) => repository),
+        systemPreviewDateProvider.overrideWith(
+          (ref) => Stream.value(DateTime(2026, 4, 10)),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: ItemsManagementPage()),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.byKey(const Key('apply-template-button')));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('彩月島貓奴指南'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('template-view-builtin-cat-care')));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text(ReminderUiText.templateItemsTitle), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('template-apply-builtin-cat-care')));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(repository.recordedTemplateId, 'builtin-cat-care');
+  });
+
+  testWidgets('pack overflow saves current pack as custom template', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = ItemRepository(db.itemTimelineDao);
+    final packId = await repository.createPack(
+      const ItemPackInput(title: 'Cat Care', description: 'Reusable'),
+    );
+    await repository.createItem(
+      ItemInput(
+        title: 'Brush teeth',
+        type: ItemType.stateBased,
+        packId: packId,
+        config: const StateBasedItemConfig(
+          warningAfter: Duration(days: 7),
+          dangerAfter: Duration(days: 10),
+        ),
+      ),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        itemRepositoryProvider.overrideWith((ref) => repository),
+        systemPreviewDateProvider.overrideWith(
+          (ref) => Stream.value(DateTime(2026, 4, 10)),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: ItemsManagementPage()),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.byKey(Key('pack-overflow-$packId')));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.byKey(Key('pack-menu-save-template-$packId')));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.text(ReminderUiText.saveAsTemplateAction), findsOneWidget);
+    final nameField = tester.widget<TextFormField>(
+      find.byKey(const Key('template-name-field')),
+    );
+    expect(nameField.controller!.text, 'Cat Care');
+
+    await tester.tap(find.byKey(const Key('template-save-button')));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(seconds: 1));
+
+    final templateRows = await db.select(db.itemPackTemplates).get();
+    expect(templateRows.single.name, 'Cat Care');
   });
 
   testWidgets('items management card tap opens details dialog', (tester) async {
@@ -896,7 +997,18 @@ class _RecordingItemRepository extends ItemRepository {
   int? recordedPauseItemId;
   int? recordedResumeItemId;
   int? recordedArchiveItemId;
+  String? recordedTemplateId;
   int markDoneCount = 0;
+
+  @override
+  Stream<List<ItemPackTemplate>> watchTemplates() =>
+      Stream.value(builtinItemPackTemplates);
+
+  @override
+  Future<int> applyTemplate(ItemPackTemplate template) async {
+    recordedTemplateId = template.id;
+    return 99;
+  }
 
   @override
   Future<bool> markDone(

@@ -114,6 +114,70 @@ void main() {
     expect(cycle.isVirtualAdvance, isTrue);
   });
 
+  test('fixed every X days advances by configured interval', () {
+    const service = ItemStatusService();
+    final cycle = service.resolveFixedCycle(
+      FixedItemConfig(
+        scheduleType: FixedScheduleType.everyXDays,
+        scheduleInterval: 3,
+        anchorDate: DateTime(2026, 4, 1),
+        dueDate: DateTime(2026, 4, 3),
+        overduePolicy: ItemOverduePolicy.autoAdvance,
+      ),
+      now: DateTime(2026, 4, 5),
+    );
+
+    expect(cycle, isNotNull);
+    expect(cycle!.anchorDate, DateTime(2026, 4, 4));
+    expect(cycle.dueDate, DateTime(2026, 4, 6));
+  });
+
+  test('fixed monthly schedule clamps missing day to month end', () {
+    const service = ItemStatusService();
+    final cycle = service.resolveFixedCycle(
+      FixedItemConfig(
+        scheduleType: FixedScheduleType.monthly,
+        monthlyDay: 31,
+        anchorDate: DateTime(2026, 1, 31),
+        dueDate: DateTime(2026, 1, 31),
+        overduePolicy: ItemOverduePolicy.autoAdvance,
+      ),
+      now: DateTime(2026, 2, 15),
+    );
+
+    expect(cycle, isNotNull);
+    expect(cycle!.anchorDate, DateTime(2026, 2, 28));
+    expect(cycle.dueDate, DateTime(2026, 2, 28));
+  });
+
+  test('fixed waitForAction does not auto-advance every X weeks', () {
+    const service = ItemStatusService();
+    final item = Item(
+      id: 12,
+      packId: 1,
+      title: 'Refill feeder',
+      type: ItemType.fixed,
+      config: FixedItemConfig(
+        scheduleType: FixedScheduleType.everyXWeeks,
+        scheduleInterval: 2,
+        anchorDate: DateTime(2026, 4, 1),
+        dueDate: DateTime(2026, 4, 14),
+        overduePolicy: ItemOverduePolicy.waitForAction,
+      ),
+      createdAt: DateTime(2026, 4, 1),
+      updatedAt: DateTime(2026, 4, 1),
+    );
+
+    expect(
+      service.classify(item, now: DateTime(2026, 4, 20)),
+      ItemStatus.danger,
+    );
+    expect(
+      service.currentFixedCycle(item, now: DateTime(2026, 4, 20))!.dueDate,
+      DateTime(2026, 4, 14),
+    );
+  });
+
   test('item status service classifies resource-based items', () {
     const service = ItemStatusService();
     final item = Item(

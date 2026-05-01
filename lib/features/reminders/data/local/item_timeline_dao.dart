@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 import '../../domain/item_action_record.dart';
 import '../../domain/item.dart';
 import '../../domain/item_pack.dart';
+import '../../domain/item_pack_template.dart';
 import '../../domain/timeline.dart';
 import '../../domain/timeline_milestone_occurrence.dart';
 import '../../domain/timeline_milestone_record.dart';
@@ -67,6 +68,8 @@ class TimelineDetailRecord {
   tables: [
     ItemPacks,
     Items,
+    ItemPackTemplates,
+    ItemTemplateItems,
     ItemActionRecords,
     Timelines,
     TimelineMilestoneRules,
@@ -89,12 +92,29 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
     return into(itemActionRecords).insert(entry);
   }
 
+  Future<int> insertItemPackTemplate(ItemPackTemplatesCompanion entry) {
+    return into(itemPackTemplates).insert(entry);
+  }
+
+  Future<int> insertItemTemplateItem(ItemTemplateItemsCompanion entry) {
+    return into(itemTemplateItems).insert(entry);
+  }
+
   Future<bool> updateItemPackRecord(ItemPackRow entry) {
     return update(itemPacks).replace(entry);
   }
 
   Future<bool> updateItemRecord(ItemRow entry) {
     return update(items).replace(entry);
+  }
+
+  Future<int> deleteItemPackTemplate(int id) {
+    return transaction(() async {
+      await (delete(
+        itemTemplateItems,
+      )..where((t) => t.templateId.equals(id))).go();
+      return (delete(itemPackTemplates)..where((t) => t.id.equals(id))).go();
+    });
   }
 
   Future<bool> updateItemFields(int id, ItemsCompanion entry) async {
@@ -130,6 +150,25 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
       itemPacks,
     )..where((t) => t.id.equals(id))).getSingleOrNull();
     return row == null ? null : _toItemPack(row);
+  }
+
+  Stream<List<ItemPackTemplate>> watchCustomItemPackTemplates() {
+    final query = select(itemPackTemplates)
+      ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]);
+    return query.watch().asyncMap((rows) async {
+      final result = <ItemPackTemplate>[];
+      for (final row in rows) {
+        result.add(await _toItemPackTemplate(row));
+      }
+      return result;
+    });
+  }
+
+  Future<ItemPackTemplate?> getCustomItemPackTemplateById(int id) async {
+    final row = await (select(
+      itemPackTemplates,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _toItemPackTemplate(row);
   }
 
   Future<int> countItemsForPack(
@@ -655,6 +694,34 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  Future<ItemPackTemplate> _toItemPackTemplate(ItemPackTemplateRow row) async {
+    final itemRows =
+        await (select(itemTemplateItems)
+              ..where((t) => t.templateId.equals(row.id))
+              ..orderBy([(t) => OrderingTerm.asc(t.id)]))
+            .get();
+    return ItemPackTemplate(
+      id: 'custom-${row.id}',
+      source: ItemPackTemplateSource.custom,
+      name: row.name,
+      category: row.category,
+      description: row.description,
+      items: itemRows.map(_toItemPackTemplateItem).toList(growable: false),
+      createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
+    );
+  }
+
+  ItemPackTemplateItem _toItemPackTemplateItem(ItemTemplateItemRow row) {
+    final itemType = _itemTypeFromRow(row.type);
+    return ItemPackTemplateItem(
+      title: row.title,
+      description: row.description,
+      type: itemType,
+      config: _toTemplateItemConfig(row, itemType),
+    );
+  }
+
   Item _toItem(ItemRow row) {
     final itemType = _itemTypeFromRow(row.type);
     return Item(
@@ -681,6 +748,8 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
             row.fixedScheduleType ?? FixedScheduleType.oneTime.name,
           ),
         ),
+        scheduleInterval: row.fixedScheduleInterval ?? 1,
+        monthlyDay: row.fixedMonthlyDay,
         anchorDate: row.fixedAnchorDate == null
             ? null
             : DateTime.fromMillisecondsSinceEpoch(row.fixedAnchorDate!),
@@ -707,6 +776,38 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
         anchorDate: row.resourceAnchorDate == null
             ? null
             : DateTime.fromMillisecondsSinceEpoch(row.resourceAnchorDate!),
+        durationDays: row.resourceDurationDays ?? 0,
+        infoBefore: row.resourceExpectedBeforeDays ?? 0,
+        warningBefore: row.resourceWarningBeforeDays ?? 0,
+        dangerBefore: row.resourceDangerBeforeDays ?? 0,
+      ),
+    };
+  }
+
+  ItemConfig _toTemplateItemConfig(ItemTemplateItemRow row, ItemType type) {
+    return switch (type) {
+      ItemType.fixed => FixedItemConfig(
+        scheduleType: FixedScheduleType.values.byName(
+          _fixedScheduleTypeFromRow(
+            row.fixedScheduleType ?? FixedScheduleType.oneTime.name,
+          ),
+        ),
+        scheduleInterval: row.fixedScheduleInterval ?? 1,
+        monthlyDay: row.fixedMonthlyDay,
+        timeOfDay: row.fixedTimeOfDay,
+        overduePolicy: ItemOverduePolicy.values.byName(
+          row.fixedOverduePolicy ?? ItemOverduePolicy.autoAdvance.name,
+        ),
+        infoBefore: Duration(minutes: row.fixedExpectedBeforeMinutes ?? 0),
+        warningBefore: Duration(minutes: row.fixedWarningBeforeMinutes ?? 0),
+        dangerBefore: Duration(minutes: row.fixedDangerBeforeMinutes ?? 0),
+      ),
+      ItemType.stateBased => StateBasedItemConfig(
+        infoAfter: Duration(minutes: row.stateExpectedAfterMinutes ?? 0),
+        warningAfter: Duration(minutes: row.stateWarningAfterMinutes ?? 0),
+        dangerAfter: Duration(minutes: row.stateDangerAfterMinutes ?? 0),
+      ),
+      ItemType.resourceBased => ResourceBasedItemConfig(
         durationDays: row.resourceDurationDays ?? 0,
         infoBefore: row.resourceExpectedBeforeDays ?? 0,
         warningBefore: row.resourceWarningBeforeDays ?? 0,
