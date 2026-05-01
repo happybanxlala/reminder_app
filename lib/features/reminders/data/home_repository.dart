@@ -10,7 +10,17 @@ import 'home_models.dart';
 import 'item_repository.dart';
 import 'timeline_repository.dart';
 
-class HomeRepository {
+abstract class HomeAttentionSource {
+  Stream<List<ItemHomeEntry>> watchDangerItems({DateTime? now});
+
+  Stream<List<ItemHomeEntry>> watchWarningItems({DateTime? now});
+
+  Stream<List<TimelineMilestoneOccurrence>> watchUpcomingTimelineMilestones({
+    DateTime? now,
+  });
+}
+
+class HomeRepository implements HomeAttentionSource {
   HomeRepository({
     required ItemRepository itemRepository,
     required TimelineRepository timelineRepository,
@@ -23,6 +33,7 @@ class HomeRepository {
   final TimelineRepository _timelineRepository;
   final TimelineMilestoneService _milestoneService;
 
+  @override
   Stream<List<ItemHomeEntry>> watchDangerItems({DateTime? now}) {
     final current = now ?? DateTime.now();
     return _itemRepository
@@ -40,6 +51,7 @@ class HomeRepository {
         );
   }
 
+  @override
   Stream<List<ItemHomeEntry>> watchWarningItems({DateTime? now}) {
     final current = now ?? DateTime.now();
     return _itemRepository
@@ -57,6 +69,7 @@ class HomeRepository {
         );
   }
 
+  @override
   Stream<List<TimelineMilestoneOccurrence>> watchUpcomingTimelineMilestones({
     DateTime? now,
   }) {

@@ -92,7 +92,7 @@ void main() {
     );
 
     expect(viewModel.displayState, ItemCardDisplayState.overdue);
-    expect(viewModel.badgeLabel, '一次');
+    expect(viewModel.badgeLabel, '固定節奏');
     expect(viewModel.dueDateLabel, '2026/04/15');
   });
 

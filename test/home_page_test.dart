@@ -11,10 +11,12 @@ import 'package:reminder_app/features/reminders/data/item_repository.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/local/item_timeline_dao.dart';
 import 'package:reminder_app/features/reminders/data/timeline_repository.dart';
+import 'package:reminder_app/features/reminders/domain/attention_summary.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_occurrence.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_record.dart';
+import 'package:reminder_app/features/reminders/providers/attention_summary_providers.dart';
 import 'package:reminder_app/features/reminders/providers/developer_settings_providers.dart';
 import 'package:reminder_app/features/reminders/providers/item_providers.dart';
 import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
@@ -30,6 +32,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          attentionSummaryProvider.overrideWith(
+            (ref) => Stream.value(_summary(totalCount: 3)),
+          ),
           dangerHomeEntriesProvider.overrideWith(
             (ref) => Stream.value([
               _itemEntry(title: 'Clean litter box', status: ItemStatus.danger),
@@ -61,6 +66,72 @@ void main() {
     expect(find.byKey(const Key('home-add-item-fab')), findsOneWidget);
   });
 
+  testWidgets('home shows attention summary breakdown when attention exists', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          attentionSummaryProvider.overrideWith(
+            (ref) => Stream.value(
+              const AttentionSummary(
+                dangerCount: 2,
+                warningCount: 1,
+                timelineUpcomingCount: 3,
+              ),
+            ),
+          ),
+          dangerHomeEntriesProvider.overrideWith(
+            (ref) => Stream.value(const <ItemHomeEntry>[]),
+          ),
+          warningHomeEntriesProvider.overrideWith(
+            (ref) => Stream.value(const <ItemHomeEntry>[]),
+          ),
+          upcomingTimelineMilestonesProvider.overrideWith(
+            (ref) => Stream.value(const <TimelineMilestoneOccurrence>[]),
+          ),
+        ],
+        child: const MaterialApp(home: HomePage()),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('今天有 6 件事需要處理'), findsOneWidget);
+    expect(find.text('快變糟 2 件・需留意 1 件・時間提醒 3 件'), findsOneWidget);
+  });
+
+  testWidgets(
+    'home shows stable attention summary when nothing needs attention',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            attentionSummaryProvider.overrideWith(
+              (ref) => Stream.value(_summary()),
+            ),
+            dangerHomeEntriesProvider.overrideWith(
+              (ref) => Stream.value(const <ItemHomeEntry>[]),
+            ),
+            warningHomeEntriesProvider.overrideWith(
+              (ref) => Stream.value(const <ItemHomeEntry>[]),
+            ),
+            upcomingTimelineMilestonesProvider.overrideWith(
+              (ref) => Stream.value(const <TimelineMilestoneOccurrence>[]),
+            ),
+          ],
+          child: const MaterialApp(home: HomePage()),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text(ReminderUiText.homeAttentionStable), findsOneWidget);
+      expect(
+        find.byKey(const Key('attention-summary-breakdown')),
+        findsNothing,
+      );
+    },
+  );
+
   testWidgets('home item card is collapsed by default and expands', (
     tester,
   ) async {
@@ -68,6 +139,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          attentionSummaryProvider.overrideWith(
+            (ref) => Stream.value(_summary(totalCount: 1)),
+          ),
           dangerHomeEntriesProvider.overrideWith(
             (ref) => Stream.value([
               ItemHomeEntry(
@@ -193,6 +267,9 @@ void main() {
 
       final container = ProviderContainer(
         overrides: [
+          attentionSummaryProvider.overrideWith(
+            (ref) => Stream.value(_summary(totalCount: 3)),
+          ),
           dangerHomeEntriesProvider.overrideWith(
             (ref) => Stream.value(entries),
           ),
@@ -308,6 +385,9 @@ void main() {
     ];
     final container = ProviderContainer(
       overrides: [
+        attentionSummaryProvider.overrideWith(
+          (ref) => Stream.value(_summary(totalCount: 2)),
+        ),
         dangerHomeEntriesProvider.overrideWith((ref) => Stream.value(entries)),
         warningHomeEntriesProvider.overrideWith(
           (ref) => Stream.value(const <ItemHomeEntry>[]),
@@ -354,6 +434,9 @@ void main() {
     const itemId = 205;
     final container = ProviderContainer(
       overrides: [
+        attentionSummaryProvider.overrideWith(
+          (ref) => Stream.value(_summary(totalCount: 1)),
+        ),
         dangerHomeEntriesProvider.overrideWith(
           (ref) => Stream.value([
             ItemHomeEntry(
@@ -420,6 +503,9 @@ void main() {
     const itemId = 206;
     final container = ProviderContainer(
       overrides: [
+        attentionSummaryProvider.overrideWith(
+          (ref) => Stream.value(_summary(totalCount: 1)),
+        ),
         dangerHomeEntriesProvider.overrideWith(
           (ref) => Stream.value([
             ItemHomeEntry(
@@ -483,6 +569,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          attentionSummaryProvider.overrideWith(
+            (ref) => Stream.value(_summary(totalCount: 1)),
+          ),
           dangerHomeEntriesProvider.overrideWith(
             (ref) => Stream.value(<ItemHomeEntry>[]),
           ),
@@ -524,6 +613,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          attentionSummaryProvider.overrideWith(
+            (ref) => Stream.value(_summary()),
+          ),
           dangerHomeEntriesProvider.overrideWith(
             (ref) => Stream.value(<ItemHomeEntry>[]),
           ),
@@ -570,6 +662,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          attentionSummaryProvider.overrideWith(
+            (ref) => Stream.value(_summary()),
+          ),
           dangerHomeEntriesProvider.overrideWith(
             (ref) => Stream.value(<ItemHomeEntry>[]),
           ),
@@ -686,6 +781,9 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         itemRepositoryProvider.overrideWith((ref) => itemRepository),
+        attentionSummaryProvider.overrideWith(
+          (ref) => Stream.value(_summary(totalCount: 1)),
+        ),
         dangerHomeEntriesProvider.overrideWith(
           (ref) => Stream.value([
             ItemHomeEntry(
@@ -756,6 +854,9 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         itemRepositoryProvider.overrideWith((ref) => itemRepository),
+        attentionSummaryProvider.overrideWith(
+          (ref) => Stream.value(_summary(totalCount: 1)),
+        ),
         dangerHomeEntriesProvider.overrideWith(
           (ref) => Stream.value([
             ItemHomeEntry(
@@ -823,6 +924,26 @@ void main() {
     expect(itemRepository.recordedDoneAt, previewDate);
     expect(itemRepository.recordedAddedDays, 8);
   });
+}
+
+AttentionSummary _summary({
+  int dangerCount = 0,
+  int warningCount = 0,
+  int timelineUpcomingCount = 0,
+  int? totalCount,
+}) {
+  if (totalCount != null) {
+    return AttentionSummary(
+      dangerCount: totalCount,
+      warningCount: 0,
+      timelineUpcomingCount: 0,
+    );
+  }
+  return AttentionSummary(
+    dangerCount: dangerCount,
+    warningCount: warningCount,
+    timelineUpcomingCount: timelineUpcomingCount,
+  );
 }
 
 ItemHomeEntry _itemEntry({required String title, required ItemStatus status}) {

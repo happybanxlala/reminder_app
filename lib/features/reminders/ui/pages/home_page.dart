@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/home_models.dart';
+import '../../domain/attention_summary.dart';
 import '../../domain/item.dart';
 import '../../domain/timeline_milestone_occurrence.dart';
 import '../../providers/developer_settings_providers.dart';
+import '../../providers/attention_summary_providers.dart';
 import '../../presentation/text/reminder_ui_text.dart';
 import '../../presentation/view_models/item_timeline_card_view_model.dart';
 import '../../providers/home_providers.dart';
@@ -23,6 +25,7 @@ class HomePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final summaryAsync = ref.watch(attentionSummaryProvider);
     final dangerAsync = ref.watch(dangerHomeEntriesProvider);
     final warningAsync = ref.watch(warningHomeEntriesProvider);
     final timelineAsync = ref.watch(upcomingTimelineMilestonesProvider);
@@ -42,6 +45,22 @@ class HomePage extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          summaryAsync.when(
+            data: (summary) => _AttentionSummaryCard(summary: summary),
+            error: (error, stack) => Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text('讀取失敗: $error'),
+              ),
+            ),
+            loading: () => const Card(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           _HomeSection(
             title: ReminderUiText.dangerTab,
             child: dangerAsync.when(
@@ -84,6 +103,73 @@ class HomePage extends ConsumerWidget {
         onPressed: () => context.pushNamed(ItemEditPage.createRouteName),
         tooltip: ReminderUiText.addItem,
         child: const Icon(Icons.add_task),
+      ),
+    );
+  }
+}
+
+class _AttentionSummaryCard extends StatelessWidget {
+  const _AttentionSummaryCard({required this.summary});
+
+  final AttentionSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final breakdown = ReminderUiText.homeAttentionBreakdownTemplate
+        .replaceFirst('{danger}', '${summary.dangerCount}')
+        .replaceFirst('{warning}', '${summary.warningCount}')
+        .replaceFirst('{timeline}', '${summary.timelineUpcomingCount}');
+
+    return Card(
+      key: const Key('attention-summary-card'),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: summary.hasAttention
+                    ? const Color(0xFFFFF3E0)
+                    : const Color(0xFFE8F5E9),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                summary.hasAttention
+                    ? Icons.notifications_active_outlined
+                    : Icons.check_circle_outline,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    summary.hasAttention
+                        ? '今天有 ${summary.totalCount} 件事需要處理'
+                        : ReminderUiText.homeAttentionStable,
+                    key: const Key('attention-summary-title'),
+                    style: theme.textTheme.titleMedium,
+                  ),
+                  if (summary.hasAttention) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      breakdown,
+                      key: const Key('attention-summary-breakdown'),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
