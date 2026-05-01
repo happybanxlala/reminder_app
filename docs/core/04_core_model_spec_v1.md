@@ -213,6 +213,37 @@ TimelineMilestoneRecord {
 - record 不產生下一筆 milestone
 - record 不進入 overdue
 
+### 3.8 ItemPackTemplate / ItemTemplateItem
+
+```ts
+ItemPackTemplate {
+  id: string
+  source: "builtin" | "custom"
+  name: string
+  category: string
+  description: string
+  items: ItemTemplateItem[]
+  createdAt?: DateTime
+  updatedAt?: DateTime
+}
+
+ItemTemplateItem {
+  title: string
+  description?: string
+  type: ItemType
+  config: ItemConfig
+}
+```
+
+規則：
+
+- `ItemPackTemplate` 與 `ItemTemplateItem` 是 pack preset，用於快速建立一組 `Item`
+- 它們不是 task instance template，也不是 recurring task template
+- template item 只在套用 preset 時轉成真實 `Item`
+- 套用 preset 後，後續狀態計算、週期解析、完成、跳過、history 都只針對建立出的 `Item`
+- `ItemPackTemplate / ItemTemplateItem` 不參與 FIXED 週期生成，不產生 instance，也不擁有 lifecycle / attention status
+- built-in templates 來自程式碼；custom templates 持久化在本機資料庫
+
 ---
 
 ## 4. ItemType
@@ -229,12 +260,14 @@ enum ItemType {
 
 ```ts
 config = {
-  scheduleType: "daily" | "weekly" | "oneTime"
+  scheduleType: "daily" | "weekly" | "oneTime" | "everyXDays" | "everyXWeeks" | "monthly"
+  scheduleInterval: number
+  monthlyDay?: number
   anchorDate?: DateTime
   dueDate?: DateTime
   timeOfDay?: "HH:mm"
   overduePolicy: "autoAdvance" | "waitForAction"
-  expectedBefore: Duration
+  infoBefore: Duration
   warningBefore: Duration
   dangerBefore: Duration
 }
@@ -253,6 +286,9 @@ config = {
 - 差異不在 top-level type，而在 `overduePolicy`
 - `anchorDate` 是固定排程的基準日
 - `dueDate` 是當前週期的到期點
+- `FixedScheduleType` 已支援 `daily`、`weekly`、`oneTime`、`everyXDays`、`everyXWeeks`、`monthly`
+- `scheduleInterval` 用於 `everyXDays` / `everyXWeeks`；未指定時視為 `1`
+- `monthlyDay` 用於 `monthly`，代表每月目標日；實作需處理短月份的日期 clamp
 - `oneTime` 類型顯示文案使用 `ONETIME`
 - `timeOfDay` 目前只作為摘要顯示欄位，不參與狀態判斷
 - `autoAdvance` item 在 preview date 或實際 today 超過 `dueDate` 時，status 與摘要都必須反映 resolved next cycle
@@ -262,7 +298,7 @@ config = {
 ```ts
 config = {
   anchorDate?: DateTime
-  expectedAfter: Duration
+  infoAfter: Duration
   warningAfter: Duration
   dangerAfter: Duration
 }
@@ -280,7 +316,7 @@ config = {
 - 使用者完成 item 時，system 直接更新 `anchorDate`
 - `lastDoneAt` 在 `STATE_BASED` 上視為棄用欄位，不再參與狀態判斷
 - `warningAfter` 與 `dangerAfter` 都是「第 N 天當天生效」的 inclusive 門檻
-- `expectedAfter` 保留作為資訊層設定，不單獨形成 attention status 邊界
+- `infoAfter` 保留作為資訊層設定，不單獨形成 attention status 邊界
 
 ### 4.3 RESOURCE_BASED
 
@@ -288,7 +324,7 @@ config = {
 config = {
   anchorDate?: DateTime
   durationDays: number
-  expectedBefore: number
+  infoBefore: number
   warningBefore: number
   dangerBefore: number
 }
@@ -304,7 +340,7 @@ config = {
 
 - `anchorDate` 表示目前這批資源開始被消耗的日期
 - `durationDays` 表示依目前估算可持續多久，且包含 `anchorDate` 當天
-- `expectedBefore / warningBefore / dangerBefore` 以剩餘天數做判斷
+- `infoBefore / warningBefore / dangerBefore` 以剩餘天數做判斷
 - depletion day 本身視為已進入 danger boundary
 - 完成時必須要求使用者輸入 `addedDays`
 - 補貨 / 完成行為透過 action record 的 `addedDays` 表示，並同步更新 item snapshot
@@ -377,7 +413,7 @@ else:
 - `warningAfter = 4` 代表第 4 天當天起進入 `WARNING`
 - `dangerAfter = 10` 代表第 10 天當天起進入 `DANGER`
 - 若 `dangerAfter < warningAfter`，仍以 `DANGER` 優先
-- `expectedAfter` 不參與 attention status 邊界，只保留為資訊層設定
+- `infoAfter` 不參與 attention status 邊界，只保留為資訊層設定
 
 ### 5.4 FIXED 計算規則
 
@@ -405,7 +441,6 @@ else:
 
 - `autoAdvance` 逾期後，系統會虛擬推進到目前應在的 cycle，再用新週期做狀態判斷
 - `waitForAction` 逾期後，不自動推進；維持待處理，直到使用者 `done / skipped`
-- `custom` 目前不自動展開下一輪
 
 ### 5.5 RESOURCE_BASED 計算規則
 
@@ -603,6 +638,33 @@ Home 是唯一核心畫面。
 
 Home 的 AppBar 保留主要日常操作入口，並提供一個 `功能` 入口導向功能頁。
 
+### 8.5 Attention Summary / App Badge / Daily Notification
+
+MVP 以 Home attention buckets 形成單一摘要：
+
+```ts
+AttentionSummary {
+  dangerCount: number
+  warningCount: number
+  timelineUpcomingCount: number
+  totalCount = dangerCount + warningCount + timelineUpcomingCount
+}
+```
+
+規則：
+
+- `dangerCount` 來自 Home danger items
+- `warningCount` 來自 Home warning items
+- `timelineUpcomingCount` 來自已進入提醒窗口的 timeline milestones
+- app badge 顯示 `totalCount`
+- 若 `totalCount == 0`，badge 更新為 `0`，並取消 daily attention notification
+- 若 `totalCount > 0`，badge 更新為 `totalCount`，並排程下一次本地時間 09:00 的 daily attention notification
+- daily notification 使用固定 id `9001`，payload 為 `home`
+- daily notification title 使用 `今天有 N 件事需要處理`
+- daily notification body 使用 `打開看看哪些事情需要留意`
+- notification tap 導回 Home
+- notification / badge 權限在初始化時請求；不支援 badge 或平台權限失敗時，不應阻斷 core reminder 流程
+
 ---
 
 ## 9. 編輯與管理流程
@@ -733,6 +795,8 @@ Home 的 AppBar 保留主要日常操作入口，並提供一個 `功能` 入口
 - `status`
 - `type`
 - `fixedScheduleType`
+- `fixedScheduleInterval`
+- `fixedMonthlyDay`
 - `fixedAnchorDate`
 - `fixedDueDate`
 - `fixedTimeOfDay`
@@ -752,7 +816,47 @@ Home 的 AppBar 保留主要日常操作入口，並提供一個 `功能` 入口
 - `createdAt`
 - `updatedAt`
 
-### 10.3 item_action_records
+說明：
+
+- domain config 名稱為 `infoBefore / infoAfter`
+- 目前 Drift 物理欄位仍沿用早期 `expected*` 欄名，例如 `fixedExpectedBeforeMinutes`、`stateExpectedAfterMinutes`、`resourceExpectedBeforeDays`
+- repository / DAO 必須將上述 storage 欄位映射為 domain 的 `infoBefore / infoAfter`
+
+### 10.3 item_pack_templates
+
+- `id`
+- `name`
+- `category`
+- `description`
+- `createdAt`
+- `updatedAt`
+
+### 10.4 item_template_items
+
+- `id`
+- `templateId`
+- `title`
+- `description`
+- `type`
+- `fixedScheduleType`
+- `fixedScheduleInterval`
+- `fixedMonthlyDay`
+- `fixedTimeOfDay`
+- `fixedOverduePolicy`
+- `fixedExpectedBeforeMinutes`
+- `fixedWarningBeforeMinutes`
+- `fixedDangerBeforeMinutes`
+- `stateExpectedAfterMinutes`
+- `stateWarningAfterMinutes`
+- `stateDangerAfterMinutes`
+- `resourceDurationDays`
+- `resourceExpectedBeforeDays`
+- `resourceWarningBeforeDays`
+- `resourceDangerBeforeDays`
+- `createdAt`
+- `updatedAt`
+
+### 10.5 item_action_records
 
 - `id`
 - `itemId`
@@ -763,7 +867,7 @@ Home 的 AppBar 保留主要日常操作入口，並提供一個 `功能` 入口
 - `createdAt`
 - `updatedAt`
 
-### 10.4 timelines
+### 10.6 timelines
 
 - `id`
 - `title`
@@ -773,7 +877,7 @@ Home 的 AppBar 保留主要日常操作入口，並提供一個 `功能` 入口
 - `createdAt`
 - `updatedAt`
 
-### 10.5 timeline_milestone_rules
+### 10.7 timeline_milestone_rules
 
 - `id`
 - `timelineId`
@@ -786,7 +890,7 @@ Home 的 AppBar 保留主要日常操作入口，並提供一個 `功能` 入口
 - `createdAt`
 - `updatedAt`
 
-### 10.6 timeline_milestone_records
+### 10.8 timeline_milestone_records
 
 - `id`
 - `timelineId`
