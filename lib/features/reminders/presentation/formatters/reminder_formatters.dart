@@ -2,6 +2,7 @@ import 'package:intl/intl.dart';
 
 import '../../data/home_models.dart';
 import '../../data/local/item_timeline_dao.dart';
+import '../../domain/attention_policy.dart';
 import '../../domain/item_action_record.dart';
 import '../../domain/item.dart';
 import '../../domain/item_pack.dart';
@@ -197,6 +198,7 @@ class ReminderFormatters {
     if (dueLabel != null) {
       parts.add('到期 $dueLabel');
     }
+    parts.add(attentionPolicySummary(config));
     if (config.timeOfDay != null && config.timeOfDay!.isNotEmpty) {
       parts.add(config.timeOfDay!);
     }
@@ -212,14 +214,64 @@ class ReminderFormatters {
     if (config.anchorDate != null) {
       parts.add('起點 ${date(config.anchorDate!)}');
     }
-    parts.add('留意 ${config.warningAfter.inDays} 天');
-    parts.add('變糟 ${config.dangerAfter.inDays} 天');
+    parts.add(attentionPolicySummary(config));
     return parts.join(' • ');
   }
 
   static String _resourceBasedSummary(ResourceBasedItemConfig config) {
     final anchor = config.anchorDate == null ? '未建立' : date(config.anchorDate!);
-    return '起點 $anchor • 可維持 ${config.durationDays} 天（含起點） • 留意前 ${config.warningBefore} 天';
+    return '起點 $anchor • 可維持 ${config.durationDays} 天（含起點） • ${attentionPolicySummary(config)}';
+  }
+
+  static String attentionPolicySummary(ItemConfig config) {
+    return switch (config) {
+      FixedItemConfig fixed => _fixedAttentionPolicySummary(fixed),
+      StateBasedItemConfig state => _stateAttentionPolicySummary(state),
+      ResourceBasedItemConfig resource => _resourceAttentionPolicySummary(
+        resource,
+      ),
+      _ => '',
+    };
+  }
+
+  static String _fixedAttentionPolicySummary(FixedItemConfig config) {
+    final warning = config.warningBefore.inDays;
+    final danger = config.dangerBefore.inDays;
+    return '${_beforeLabel(warning, fallback: '到期當天開始提醒')} • ${_beforeLabel(danger, fallback: '到期當天加強提醒', suffix: '加強提醒')}';
+  }
+
+  static String _stateAttentionPolicySummary(StateBasedItemConfig config) {
+    final warning = config.warningAfter.inDays;
+    final danger = config.dangerAfter.inDays;
+    final warningLabel = warning <= 0 ? '當天開始提醒' : '約第 $warning 天開始提醒';
+    return '$warningLabel • 第 $danger 天建議處理';
+  }
+
+  static String _resourceAttentionPolicySummary(
+    ResourceBasedItemConfig config,
+  ) {
+    if (config.anchorDate == null || config.durationDays <= 0) {
+      return '預計用完日期尚未建立';
+    }
+    final emptyDate = config.anchorDate!.add(
+      Duration(days: config.durationDays - 1),
+    );
+    final warningDate = emptyDate.subtract(
+      Duration(days: config.warningBefore),
+    );
+    final dangerDate = emptyDate.subtract(Duration(days: config.dangerBefore));
+    return '預計可用到 ${date(emptyDate)} • ${date(warningDate)} 開始提醒補貨 • ${date(dangerDate)} 加強提醒';
+  }
+
+  static String _beforeLabel(
+    int days, {
+    required String fallback,
+    String suffix = '開始提醒',
+  }) {
+    if (days <= 0) {
+      return fallback;
+    }
+    return '$days 天前$suffix';
   }
 
   static String fixedScheduleTypeLabel(FixedScheduleType value) {
@@ -267,6 +319,32 @@ class ReminderFormatters {
       ItemType.fixed => ReminderUiText.fixedTypeLabel,
       ItemType.stateBased => ReminderUiText.stateBasedTypeLabel,
       ItemType.resourceBased => ReminderUiText.resourceBasedTypeLabel,
+    };
+  }
+
+  static String usageSpeed(UsageSpeed value) {
+    return switch (value) {
+      UsageSpeed.low => '慢',
+      UsageSpeed.medium => '中等',
+      UsageSpeed.high => '快',
+    };
+  }
+
+  static String reminderTone(ReminderTone value) {
+    return switch (value) {
+      ReminderTone.gentle => ReminderUiText.reminderToneGentleLabel,
+      ReminderTone.standard => ReminderUiText.reminderToneStandardLabel,
+      ReminderTone.early => ReminderUiText.reminderToneEarlyLabel,
+      ReminderTone.urgent => ReminderUiText.reminderToneUrgentLabel,
+    };
+  }
+
+  static String reminderToneDescription(ReminderTone value) {
+    return switch (value) {
+      ReminderTone.gentle => ReminderUiText.reminderToneGentleDescription,
+      ReminderTone.standard => ReminderUiText.reminderToneStandardDescription,
+      ReminderTone.early => ReminderUiText.reminderToneEarlyDescription,
+      ReminderTone.urgent => ReminderUiText.reminderToneUrgentDescription,
     };
   }
 

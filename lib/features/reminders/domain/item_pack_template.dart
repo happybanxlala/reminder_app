@@ -1,3 +1,4 @@
+import 'attention_policy.dart';
 import 'item.dart';
 
 enum ItemPackTemplateSource { builtin, custom }
@@ -49,10 +50,12 @@ class ItemPackTemplateItem {
     this.description,
     required this.type,
     required this.config,
+    this.attentionPolicySource = AttentionPolicySource.systemDefault,
   });
 
   final String title;
   final String? description;
   final ItemType type;
   final ItemConfig config;
+  final AttentionPolicySource attentionPolicySource;
 }

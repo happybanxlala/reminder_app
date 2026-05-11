@@ -14,6 +14,7 @@ import '../../presentation/text/reminder_ui_text.dart';
 import '../../presentation/view_models/management_item_card_view_model.dart';
 import '../../providers/developer_settings_providers.dart';
 import '../../providers/item_providers.dart';
+import '../../providers/settings_providers.dart';
 import '../../providers/timeline_providers.dart';
 import 'item_edit_page.dart';
 import 'item_history_page.dart';
@@ -852,6 +853,7 @@ class _CreateItemDialogState extends ConsumerState<_CreateItemDialog> {
   @override
   Widget build(BuildContext context) {
     final activePacksAsync = ref.watch(activeItemPacksProvider);
+    _configController.reminderTone = ref.watch(reminderToneProvider);
     return AlertDialog(
       title: Text(
         _stepIndex == 0 ? ReminderUiText.addItem : ReminderUiText.confirmAction,
@@ -984,6 +986,7 @@ class _CreateItemDialogState extends ConsumerState<_CreateItemDialog> {
       ItemConfigFormSection(
         controller: _configController,
         onChanged: () => setState(() {}),
+        showAttentionFields: false,
       ),
     ];
   }
@@ -1054,7 +1057,7 @@ class _CreateItemDialogState extends ConsumerState<_CreateItemDialog> {
         item: ItemInput(
           title: _titleController.text.trim(),
           type: _configController.type,
-          config: _configController.buildConfig(),
+          config: _configController.buildConfigForCreate(),
           packId: packId,
         ),
         newPack: newPack,

@@ -2,6 +2,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/item_repository.dart';
+import 'package:reminder_app/features/reminders/domain/attention_policy.dart';
 import 'package:reminder_app/features/reminders/domain/item_action_record.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
@@ -41,6 +42,10 @@ void main() {
       expect(item.item.title, 'Clean litter box');
       expect(item.item.status, ItemLifecycleStatus.active);
       expect(item.item.type, ItemType.stateBased);
+      expect(
+        item.item.attentionPolicySource,
+        AttentionPolicySource.systemDefault,
+      );
       expect(item.item.config, isA<StateBasedItemConfig>());
       expect(history, hasLength(1));
       expect(history.single.actionType, ItemActionType.created);
@@ -501,6 +506,48 @@ void main() {
     },
   );
 
+  test('updateItem stores customized attention policy source', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = ItemRepository(db.itemTimelineDao);
+
+    final itemId = await repository.createItem(
+      ItemInput(
+        title: 'Replace filter',
+        type: ItemType.stateBased,
+        config: const StateBasedItemConfig(
+          warningAfter: Duration(days: 7),
+          dangerAfter: Duration(days: 14),
+        ),
+      ),
+    );
+
+    expect(
+      await repository.updateItem(
+        itemId,
+        ItemInput(
+          title: 'Replace filter',
+          type: ItemType.stateBased,
+          attentionPolicySource: AttentionPolicySource.userCustomized,
+          config: const StateBasedItemConfig(
+            warningAfter: Duration(days: 5),
+            dangerAfter: Duration(days: 9),
+          ),
+        ),
+      ),
+      isTrue,
+    );
+
+    final updated = await repository.getItemById(itemId);
+    expect(
+      updated!.item.attentionPolicySource,
+      AttentionPolicySource.userCustomized,
+    );
+    final config = updated.item.config as StateBasedItemConfig;
+    expect(config.warningAfter, const Duration(days: 5));
+    expect(config.dangerAfter, const Duration(days: 9));
+  });
+
   test('fixed custom schedule fields round-trip through repository', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
@@ -708,6 +755,7 @@ void main() {
           title: 'Brush teeth',
           description: 'Weekly',
           type: ItemType.stateBased,
+          attentionPolicySource: AttentionPolicySource.userCustomized,
           packId: packId,
           config: const StateBasedItemConfig(
             warningAfter: Duration(days: 7),
@@ -744,6 +792,18 @@ void main() {
       );
       expect(custom.source, ItemPackTemplateSource.custom);
       expect(custom.items.map((item) => item.title), ['Brush teeth']);
+      expect(
+        custom.items.single.attentionPolicySource,
+        AttentionPolicySource.userCustomized,
+      );
+
+      final appliedPackId = await repository.applyTemplate(custom);
+      final appliedItem = (await repository.watchPackManagementItems().first)
+          .firstWhere((bundle) => bundle.item.packId == appliedPackId);
+      expect(
+        appliedItem.item.attentionPolicySource,
+        AttentionPolicySource.userCustomized,
+      );
 
       expect(await repository.deleteCustomTemplate(custom.id), isTrue);
       final afterDelete = await repository.watchTemplates().first;

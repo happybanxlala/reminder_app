@@ -1,7 +1,9 @@
 import 'package:drift/drift.dart';
 
-import '../../domain/item_action_record.dart';
+import '../../domain/app_settings.dart';
+import '../../domain/attention_policy.dart';
 import '../../domain/item.dart';
+import '../../domain/item_action_record.dart';
 import '../../domain/item_pack.dart';
 import '../../domain/item_pack_template.dart';
 import '../../domain/timeline.dart';
@@ -74,6 +76,7 @@ class TimelineDetailRecord {
     Timelines,
     TimelineMilestoneRules,
     TimelineMilestoneRecords,
+    AppSettingsEntries,
   ],
 )
 class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
@@ -98,6 +101,33 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
 
   Future<int> insertItemTemplateItem(ItemTemplateItemsCompanion entry) {
     return into(itemTemplateItems).insert(entry);
+  }
+
+  Stream<AppSettings> watchAppSettings() {
+    return (select(
+      appSettingsEntries,
+    )..where((t) => t.id.equals(1))).watchSingleOrNull().map(
+      (row) => row == null ? _defaultAppSettings() : _toAppSettings(row),
+    );
+  }
+
+  Future<AppSettings> getAppSettings() async {
+    final row = await (select(
+      appSettingsEntries,
+    )..where((t) => t.id.equals(1))).getSingleOrNull();
+    return row == null ? _defaultAppSettings() : _toAppSettings(row);
+  }
+
+  Future<void> updateReminderTone(ReminderTone tone) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await into(appSettingsEntries).insertOnConflictUpdate(
+      AppSettingsEntriesCompanion.insert(
+        id: const Value(1),
+        reminderTone: Value(tone.name),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
   }
 
   Future<bool> updateItemPackRecord(ItemPackRow entry) {
@@ -719,6 +749,7 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
       description: row.description,
       type: itemType,
       config: _toTemplateItemConfig(row, itemType),
+      attentionPolicySource: _attentionPolicySource(row.attentionPolicySource),
     );
   }
 
@@ -732,6 +763,7 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
       status: ItemLifecycleStatus.values.byName(row.status),
       type: itemType,
       config: _toItemConfig(row, itemType),
+      attentionPolicySource: _attentionPolicySource(row.attentionPolicySource),
       lastDoneAt: row.lastDoneAt == null
           ? null
           : DateTime.fromMillisecondsSinceEpoch(row.lastDoneAt!),
@@ -877,6 +909,26 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
       createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
     );
+  }
+
+  AppSettings _toAppSettings(AppSettingsRow row) {
+    return AppSettings(
+      reminderTone: _reminderTone(row.reminderTone),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
+    );
+  }
+
+  AppSettings _defaultAppSettings() {
+    return AppSettings(updatedAt: DateTime.now());
+  }
+
+  AttentionPolicySource _attentionPolicySource(String value) {
+    return AttentionPolicySource.values.asNameMap()[value] ??
+        AttentionPolicySource.systemDefault;
+  }
+
+  ReminderTone _reminderTone(String value) {
+    return ReminderTone.values.asNameMap()[value] ?? ReminderTone.standard;
   }
 
   TimelineMilestoneRuleType _timelineMilestoneRuleType(String value) {

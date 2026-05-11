@@ -17,6 +17,8 @@ mixin _$ItemTimelineDaoMixin on DatabaseAccessor<AppDatabase> {
       attachedDatabase.timelineMilestoneRules;
   $TimelineMilestoneRecordsTable get timelineMilestoneRecords =>
       attachedDatabase.timelineMilestoneRecords;
+  $AppSettingsEntriesTable get appSettingsEntries =>
+      attachedDatabase.appSettingsEntries;
   ItemTimelineDaoManager get managers => ItemTimelineDaoManager(this);
 }
 
@@ -53,5 +55,10 @@ class ItemTimelineDaoManager {
       $$TimelineMilestoneRecordsTableTableManager(
         _db.attachedDatabase,
         _db.timelineMilestoneRecords,
+      );
+  $$AppSettingsEntriesTableTableManager get appSettingsEntries =>
+      $$AppSettingsEntriesTableTableManager(
+        _db.attachedDatabase,
+        _db.appSettingsEntries,
       );
 }

@@ -20,6 +20,7 @@ part 'app_database.g.dart';
     Timelines,
     TimelineMilestoneRules,
     TimelineMilestoneRecords,
+    AppSettingsEntries,
   ],
   daos: [ItemTimelineDao],
 )
@@ -31,7 +32,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -43,9 +44,18 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(itemPackTemplates);
         await m.createTable(itemTemplateItems);
       }
+      if (from < 3) {
+        await m.addColumn(items, items.attentionPolicySource);
+        await m.addColumn(
+          itemTemplateItems,
+          itemTemplateItems.attentionPolicySource,
+        );
+        await m.createTable(appSettingsEntries);
+      }
     },
     beforeOpen: (details) async {
       await _ensureSystemDefaultPack();
+      await _ensureAppSettings();
     },
   );
 
@@ -91,6 +101,29 @@ class AppDatabase extends _$AppDatabase {
         description: const Value(systemDefaultPackDescription),
         status: const Value('active'),
         isSystemDefault: const Value(true),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+  }
+
+  Future<void> _ensureAppSettings() async {
+    final existingSettings = await customSelect('''
+      SELECT id
+      FROM app_settings
+      WHERE id = 1
+      LIMIT 1
+      ''').getSingleOrNull();
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    if (existingSettings != null) {
+      return;
+    }
+
+    await into(appSettingsEntries).insert(
+      AppSettingsEntriesCompanion.insert(
+        id: const Value(1),
+        reminderTone: const Value('standard'),
         createdAt: now,
         updatedAt: now,
       ),

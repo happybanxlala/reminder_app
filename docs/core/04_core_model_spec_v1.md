@@ -355,6 +355,37 @@ config = {
 
 ---
 
+## 4.4 Attention Policy / Reminder Urgency Policy
+
+`warningAfter / dangerAfter / warningBefore / dangerBefore` 是內部提醒策略參數，不是主要建立流程的使用者輸入欄位。
+
+建立 item 時，系統必須根據 item type 與使用者輸入的生活語意自動推導預設 `AttentionPolicy`：
+
+- `FIXED`：由 `anchorDate / dueDate` 推導可完成窗口，再產生 `warningBefore / dangerBefore`
+- `STATE_BASED`：由「大約幾天需要處理一次」推導 `warningAfter / dangerAfter`
+- `RESOURCE_BASED`：由「可用天數」與「消耗速度」推導 `warningBefore / dangerBefore`
+
+規則：
+
+- 預設策略來源是 `systemDefault`
+- 使用者日後若在進階設定覆寫，來源應標記為 `userCustomized`
+- 已自訂的 item 不應被新的系統預設覆蓋
+- Setting Page 可提供全局提醒風格，預設為 `standard`
+- UI 應顯示生活語言，例如「3 天前開始提醒」、「第 21 天建議處理」、「5月8日開始提醒補貨」
+- UI 不應在主要建立流程中直接顯示工程欄位名稱或要求輸入 raw warning/danger 數值
+- 推導邏輯必須集中在純 domain service，例如 `AttentionPolicyResolver`，不得散落在 widget 中
+
+持久化與相容策略：
+
+- resolver 產生的 policy 會寫回既有 config 欄位
+- `AttentionPolicySource` 持久化於 item / template item 層級
+- `systemDefault` 代表目前策略由系統推導；`userCustomized` 代表使用者在進階提醒策略中覆寫過
+- 全局 `ReminderTone` 持久化於 settings，預設為 `standard`
+- 全局 `ReminderTone` 影響新建與後續編輯時的系統推導，不會批次覆蓋既有 `userCustomized` item
+- 進階提醒策略 UI 是 raw warning/danger 的唯一一般使用者入口；主要建立與編輯路徑仍使用生活語意欄位
+
+---
+
 ## 5. Item 狀態模型
 
 ### 5.1 Lifecycle 狀態集合

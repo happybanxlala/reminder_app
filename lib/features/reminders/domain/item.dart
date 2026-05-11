@@ -1,3 +1,5 @@
+import 'attention_policy.dart';
+
 enum ItemType { fixed, stateBased, resourceBased }
 
 enum ItemStatus { normal, warning, danger, unknown }
@@ -102,6 +104,7 @@ class Item {
     this.description,
     required this.type,
     required this.config,
+    this.attentionPolicySource = AttentionPolicySource.systemDefault,
     this.status = ItemLifecycleStatus.active,
     this.lastDoneAt,
     required this.createdAt,
@@ -114,6 +117,7 @@ class Item {
   final String? description;
   final ItemType type;
   final ItemConfig config;
+  final AttentionPolicySource attentionPolicySource;
   final ItemLifecycleStatus status;
   final DateTime? lastDoneAt;
   final DateTime createdAt;

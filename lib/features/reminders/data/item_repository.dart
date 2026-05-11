@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../domain/attention_policy.dart';
 import '../domain/item.dart';
 import '../domain/item_action_record.dart';
 import '../domain/item_action_service.dart';
@@ -17,6 +18,7 @@ class ItemInput {
     this.description,
     required this.type,
     required this.config,
+    this.attentionPolicySource = AttentionPolicySource.systemDefault,
     this.packId,
   });
 
@@ -24,6 +26,7 @@ class ItemInput {
   final String? description;
   final ItemType type;
   final ItemConfig config;
+  final AttentionPolicySource attentionPolicySource;
   final int? packId;
 }
 
@@ -159,6 +162,7 @@ class ItemRepository {
         description: item.description,
         type: item.type,
         config: item.config,
+        attentionPolicySource: item.attentionPolicySource,
         packId: createdPackId ?? item.packId,
       );
       final itemId = await _createItemRecord(resolvedInput, now: now);
@@ -186,6 +190,7 @@ class ItemRepository {
         description: input.description,
         status: existing.item.status.name,
         type: input.type.name,
+        attentionPolicySource: input.attentionPolicySource.name,
         fixedScheduleType: _fixedScheduleType(input.config),
         fixedScheduleInterval: _fixedScheduleInterval(input.config),
         fixedMonthlyDay: _fixedMonthlyDay(input.config),
@@ -364,6 +369,7 @@ class ItemRepository {
             description: templateItem.description,
             type: templateItem.type,
             config: _configForTemplateApply(templateItem.config, today),
+            attentionPolicySource: templateItem.attentionPolicySource,
             packId: packId,
           ),
           now: now,
@@ -531,6 +537,7 @@ class ItemRepository {
       description: Value(input.description),
       status: const Value('active'),
       type: input.type.name,
+      attentionPolicySource: Value(input.attentionPolicySource.name),
       fixedScheduleType: Value(_fixedScheduleType(input.config)),
       fixedScheduleInterval: Value(_fixedScheduleInterval(input.config)),
       fixedMonthlyDay: Value(_fixedMonthlyDay(input.config)),
@@ -592,6 +599,7 @@ class ItemRepository {
       title: item.title,
       description: Value(item.description),
       type: item.type.name,
+      attentionPolicySource: Value(item.attentionPolicySource.name),
       fixedScheduleType: Value(_fixedScheduleType(item.config)),
       fixedScheduleInterval: Value(_fixedScheduleInterval(item.config)),
       fixedMonthlyDay: Value(_fixedMonthlyDay(item.config)),

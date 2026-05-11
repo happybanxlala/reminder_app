@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 
+import '../../domain/attention_policy.dart';
 import '../../domain/item.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
 import 'editor_common_fields.dart';
 
 class ItemConfigFormController {
-  ItemConfigFormController() {
+  ItemConfigFormController({
+    AttentionPolicyResolver? attentionPolicyResolver,
+    this.reminderTone = ReminderTone.standard,
+  }) : _attentionPolicyResolver =
+           attentionPolicyResolver ?? const AttentionPolicyResolver() {
     fixedAnchorDateController = TextEditingController();
     fixedDueDateController = TextEditingController();
     fixedScheduleIntervalController = TextEditingController(text: '1');
@@ -14,6 +19,7 @@ class ItemConfigFormController {
     fixedWarningBeforeController = TextEditingController(text: '1');
     fixedDangerBeforeController = TextEditingController(text: '0');
     stateAnchorDateController = TextEditingController();
+    stateExpectedIntervalController = TextEditingController(text: '14');
     warningAfterController = TextEditingController(text: '7');
     dangerAfterController = TextEditingController(text: '14');
     resourceAnchorDateController = TextEditingController();
@@ -30,6 +36,7 @@ class ItemConfigFormController {
   late final TextEditingController fixedWarningBeforeController;
   late final TextEditingController fixedDangerBeforeController;
   late final TextEditingController stateAnchorDateController;
+  late final TextEditingController stateExpectedIntervalController;
   late final TextEditingController warningAfterController;
   late final TextEditingController dangerAfterController;
   late final TextEditingController resourceAnchorDateController;
@@ -37,9 +44,13 @@ class ItemConfigFormController {
   late final TextEditingController resourceWarningBeforeController;
   late final TextEditingController resourceDangerBeforeController;
 
+  final AttentionPolicyResolver _attentionPolicyResolver;
+  ReminderTone reminderTone;
   ItemType type = ItemType.stateBased;
   FixedScheduleType scheduleType = FixedScheduleType.daily;
   ItemOverduePolicy overduePolicy = ItemOverduePolicy.autoAdvance;
+  UsageSpeed usageSpeed = UsageSpeed.medium;
+  bool customizeAttentionPolicy = false;
   DateTime selectedFixedAnchorDate = DateTime.now();
   DateTime selectedFixedDueDate = DateTime.now();
   DateTime selectedStateAnchorDate = DateTime.now();
@@ -56,6 +67,7 @@ class ItemConfigFormController {
     fixedWarningBeforeController.dispose();
     fixedDangerBeforeController.dispose();
     stateAnchorDateController.dispose();
+    stateExpectedIntervalController.dispose();
     warningAfterController.dispose();
     dangerAfterController.dispose();
     resourceAnchorDateController.dispose();
@@ -81,6 +93,7 @@ class ItemConfigFormController {
       case StateBasedItemConfig state:
         selectedStateAnchorDate = state.anchorDate ?? selectedStateAnchorDate;
         stateInfoAfter = state.infoAfter;
+        stateExpectedIntervalController.text = '${state.dangerAfter.inDays}';
         warningAfterController.text = '${state.warningAfter.inDays}';
         dangerAfterController.text = '${state.dangerAfter.inDays}';
       case ResourceBasedItemConfig resource:
@@ -108,36 +121,136 @@ class ItemConfigFormController {
   }
 
   ItemConfig buildConfig() {
+    return buildConfigForEdit();
+  }
+
+  ItemConfig buildConfigForCreate() {
     return switch (type) {
-      ItemType.fixed => FixedItemConfig(
-        scheduleType: scheduleType,
-        scheduleInterval: _usesScheduleInterval(scheduleType)
-            ? parsePositiveDays(fixedScheduleIntervalController)
-            : 1,
-        monthlyDay: scheduleType == FixedScheduleType.monthly
-            ? parseMonthlyDay(fixedMonthlyDayController)
-            : null,
-        anchorDate: selectedFixedAnchorDate,
-        dueDate: selectedFixedDueDate,
-        overduePolicy: overduePolicy,
-        infoBefore: fixedInfoBefore,
-        warningBefore: Duration(days: parseDays(fixedWarningBeforeController)),
-        dangerBefore: Duration(days: parseDays(fixedDangerBeforeController)),
+      ItemType.fixed => _buildFixedConfig(deriveAttentionPolicy: true),
+      ItemType.stateBased => _buildStateBasedConfig(
+        deriveAttentionPolicy: true,
       ),
-      ItemType.stateBased => StateBasedItemConfig(
-        anchorDate: selectedStateAnchorDate,
-        infoAfter: stateInfoAfter,
-        warningAfter: Duration(days: parseDays(warningAfterController)),
-        dangerAfter: Duration(days: parseDays(dangerAfterController)),
-      ),
-      ItemType.resourceBased => ResourceBasedItemConfig(
-        anchorDate: selectedResourceAnchorDate,
-        durationDays: parseDays(resourceDurationController),
-        infoBefore: resourceInfoBefore,
-        warningBefore: parseDays(resourceWarningBeforeController),
-        dangerBefore: parseDays(resourceDangerBeforeController),
+      ItemType.resourceBased => _buildResourceConfig(
+        deriveAttentionPolicy: true,
       ),
     };
+  }
+
+  ItemConfig buildConfigForEdit() {
+    return switch (type) {
+      ItemType.fixed => _buildFixedConfig(deriveAttentionPolicy: false),
+      ItemType.stateBased => _buildStateBasedConfig(
+        deriveAttentionPolicy: false,
+      ),
+      ItemType.resourceBased => _buildResourceConfig(
+        deriveAttentionPolicy: false,
+      ),
+    };
+  }
+
+  ItemConfig buildConfigForCurrentPolicySource() {
+    return customizeAttentionPolicy
+        ? buildConfigForEdit()
+        : buildConfigForCreate();
+  }
+
+  void setCustomizeAttentionPolicy(bool value) {
+    if (value && !customizeAttentionPolicy) {
+      _loadRawAttentionPolicy(buildConfigForCreate());
+    }
+    customizeAttentionPolicy = value;
+  }
+
+  void _loadRawAttentionPolicy(ItemConfig config) {
+    switch (config) {
+      case FixedItemConfig fixed:
+        fixedWarningBeforeController.text = '${fixed.warningBefore.inDays}';
+        fixedDangerBeforeController.text = '${fixed.dangerBefore.inDays}';
+      case StateBasedItemConfig state:
+        warningAfterController.text = '${state.warningAfter.inDays}';
+        dangerAfterController.text = '${state.dangerAfter.inDays}';
+      case ResourceBasedItemConfig resource:
+        resourceWarningBeforeController.text = '${resource.warningBefore}';
+        resourceDangerBeforeController.text = '${resource.dangerBefore}';
+    }
+  }
+
+  FixedItemConfig _buildFixedConfig({required bool deriveAttentionPolicy}) {
+    final policy = deriveAttentionPolicy
+        ? _attentionPolicyResolver.resolveFixed(
+            anchorDate: selectedFixedAnchorDate,
+            dueDate: selectedFixedDueDate,
+            tone: reminderTone,
+          )
+        : null;
+    return FixedItemConfig(
+      scheduleType: scheduleType,
+      scheduleInterval: _usesScheduleInterval(scheduleType)
+          ? parsePositiveDays(fixedScheduleIntervalController)
+          : 1,
+      monthlyDay: scheduleType == FixedScheduleType.monthly
+          ? parseMonthlyDay(fixedMonthlyDayController)
+          : null,
+      anchorDate: selectedFixedAnchorDate,
+      dueDate: selectedFixedDueDate,
+      overduePolicy: overduePolicy,
+      infoBefore: fixedInfoBefore,
+      warningBefore: Duration(
+        days:
+            policy?.warningBeforeDays ??
+            parseDays(fixedWarningBeforeController),
+      ),
+      dangerBefore: Duration(
+        days:
+            policy?.dangerBeforeDays ?? parseDays(fixedDangerBeforeController),
+      ),
+    );
+  }
+
+  StateBasedItemConfig _buildStateBasedConfig({
+    required bool deriveAttentionPolicy,
+  }) {
+    final policy = deriveAttentionPolicy
+        ? _attentionPolicyResolver.resolveFlexible(
+            expectedIntervalDays: parsePositiveDays(
+              stateExpectedIntervalController,
+            ),
+            tone: reminderTone,
+          )
+        : null;
+    return StateBasedItemConfig(
+      anchorDate: selectedStateAnchorDate,
+      infoAfter: stateInfoAfter,
+      warningAfter: Duration(
+        days: policy?.warningAfterDays ?? parseDays(warningAfterController),
+      ),
+      dangerAfter: Duration(
+        days: policy?.dangerAfterDays ?? parseDays(dangerAfterController),
+      ),
+    );
+  }
+
+  ResourceBasedItemConfig _buildResourceConfig({
+    required bool deriveAttentionPolicy,
+  }) {
+    final durationDays = parsePositiveDays(resourceDurationController);
+    final policy = deriveAttentionPolicy
+        ? _attentionPolicyResolver.resolveStock(
+            estimatedDurationDays: durationDays,
+            usageSpeed: usageSpeed,
+            tone: reminderTone,
+          )
+        : null;
+    return ResourceBasedItemConfig(
+      anchorDate: selectedResourceAnchorDate,
+      durationDays: durationDays,
+      infoBefore: resourceInfoBefore,
+      warningBefore:
+          policy?.warningBeforeDays ??
+          parseDays(resourceWarningBeforeController),
+      dangerBefore:
+          policy?.dangerBeforeDays ?? parseDays(resourceDangerBeforeController),
+    );
   }
 
   int parseDays(TextEditingController controller) {
@@ -167,8 +280,8 @@ class ItemConfigFormController {
   }
 }
 
-class ItemConfigFormSection extends StatelessWidget {
-  const ItemConfigFormSection({
+class AttentionPolicyAdvancedSection extends StatelessWidget {
+  const AttentionPolicyAdvancedSection({
     super.key,
     required this.controller,
     required this.onChanged,
@@ -176,6 +289,93 @@ class ItemConfigFormSection extends StatelessWidget {
 
   final ItemConfigFormController controller;
   final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return ExpansionTile(
+      key: const Key('attention-policy-advanced-section'),
+      tilePadding: EdgeInsets.zero,
+      title: const Text(ReminderUiText.attentionPolicyAdvancedTitle),
+      subtitle: Text(ReminderFormatters.attentionPolicySummary(_previewConfig)),
+      children: [
+        SwitchListTile(
+          key: const Key('attention-policy-custom-switch'),
+          contentPadding: EdgeInsets.zero,
+          title: const Text(ReminderUiText.attentionPolicyCustomToggleLabel),
+          subtitle: const Text(ReminderUiText.attentionPolicyCustomToggleHelp),
+          value: controller.customizeAttentionPolicy,
+          onChanged: (value) {
+            controller.setCustomizeAttentionPolicy(value);
+            onChanged();
+          },
+        ),
+        if (controller.customizeAttentionPolicy) ...[
+          const SizedBox(height: 8),
+          ..._buildRawFields(),
+        ],
+      ],
+    );
+  }
+
+  ItemConfig get _previewConfig =>
+      controller.buildConfigForCurrentPolicySource();
+
+  List<Widget> _buildRawFields() {
+    return switch (controller.type) {
+      ItemType.fixed => [
+        _DaysField(
+          key: const Key('fixed-warning-before-field'),
+          controller: controller.fixedWarningBeforeController,
+          label: ReminderUiText.warningBeforeDaysFieldLabel,
+        ),
+        const SizedBox(height: 12),
+        _DaysField(
+          key: const Key('fixed-danger-before-field'),
+          controller: controller.fixedDangerBeforeController,
+          label: ReminderUiText.dangerBeforeDaysFieldLabel,
+        ),
+      ],
+      ItemType.stateBased => [
+        _DaysField(
+          key: const Key('warning-after-field'),
+          controller: controller.warningAfterController,
+          label: ReminderUiText.warningAfterDaysFieldLabel,
+        ),
+        const SizedBox(height: 12),
+        _DaysField(
+          key: const Key('danger-after-field'),
+          controller: controller.dangerAfterController,
+          label: ReminderUiText.dangerAfterDaysFieldLabel,
+        ),
+      ],
+      ItemType.resourceBased => [
+        _DaysField(
+          key: const Key('warning-before-depletion-field'),
+          controller: controller.resourceWarningBeforeController,
+          label: ReminderUiText.warningBeforeDaysFieldLabel,
+        ),
+        const SizedBox(height: 12),
+        _DaysField(
+          key: const Key('resource-danger-before-field'),
+          controller: controller.resourceDangerBeforeController,
+          label: ReminderUiText.dangerBeforeDaysFieldLabel,
+        ),
+      ],
+    };
+  }
+}
+
+class ItemConfigFormSection extends StatelessWidget {
+  const ItemConfigFormSection({
+    super.key,
+    required this.controller,
+    required this.onChanged,
+    this.showAttentionFields = true,
+  });
+
+  final ItemConfigFormController controller;
+  final VoidCallback onChanged;
+  final bool showAttentionFields;
 
   @override
   Widget build(BuildContext context) {
@@ -280,18 +480,23 @@ class ItemConfigFormSection extends StatelessWidget {
           },
         ),
       ),
-      const SizedBox(height: 12),
-      _DaysField(
-        key: const Key('fixed-warning-before-field'),
-        controller: controller.fixedWarningBeforeController,
-        label: ReminderUiText.warningBeforeDaysFieldLabel,
-      ),
-      const SizedBox(height: 12),
-      _DaysField(
-        key: const Key('fixed-danger-before-field'),
-        controller: controller.fixedDangerBeforeController,
-        label: ReminderUiText.dangerBeforeDaysFieldLabel,
-      ),
+      if (showAttentionFields) ...[
+        const SizedBox(height: 12),
+        _DaysField(
+          key: const Key('fixed-warning-before-field'),
+          controller: controller.fixedWarningBeforeController,
+          label: ReminderUiText.warningBeforeDaysFieldLabel,
+        ),
+        const SizedBox(height: 12),
+        _DaysField(
+          key: const Key('fixed-danger-before-field'),
+          controller: controller.fixedDangerBeforeController,
+          label: ReminderUiText.dangerBeforeDaysFieldLabel,
+        ),
+      ] else ...[
+        const SizedBox(height: 12),
+        _AttentionPolicyPreview(config: controller.buildConfigForCreate()),
+      ],
     ];
   }
 
@@ -317,18 +522,30 @@ class ItemConfigFormSection extends StatelessWidget {
           },
         ),
       ),
-      const SizedBox(height: 12),
-      _DaysField(
-        key: const Key('warning-after-field'),
-        controller: controller.warningAfterController,
-        label: ReminderUiText.warningAfterDaysFieldLabel,
-      ),
-      const SizedBox(height: 12),
-      _DaysField(
-        key: const Key('danger-after-field'),
-        controller: controller.dangerAfterController,
-        label: ReminderUiText.dangerAfterDaysFieldLabel,
-      ),
+      if (showAttentionFields) ...[
+        const SizedBox(height: 12),
+        _DaysField(
+          key: const Key('warning-after-field'),
+          controller: controller.warningAfterController,
+          label: ReminderUiText.warningAfterDaysFieldLabel,
+        ),
+        const SizedBox(height: 12),
+        _DaysField(
+          key: const Key('danger-after-field'),
+          controller: controller.dangerAfterController,
+          label: ReminderUiText.dangerAfterDaysFieldLabel,
+        ),
+      ] else ...[
+        const SizedBox(height: 12),
+        _DaysField(
+          key: const Key('expected-interval-field'),
+          controller: controller.stateExpectedIntervalController,
+          label: ReminderUiText.expectedIntervalDaysFieldLabel,
+          minimum: 1,
+        ),
+        const SizedBox(height: 12),
+        _AttentionPolicyPreview(config: controller.buildConfigForCreate()),
+      ],
     ];
   }
 
@@ -352,19 +569,48 @@ class ItemConfigFormSection extends StatelessWidget {
         key: const Key('estimated-duration-field'),
         controller: controller.resourceDurationController,
         label: ReminderUiText.durationDaysFieldLabel,
+        minimum: 1,
       ),
-      const SizedBox(height: 12),
-      _DaysField(
-        key: const Key('warning-before-depletion-field'),
-        controller: controller.resourceWarningBeforeController,
-        label: ReminderUiText.warningBeforeDaysFieldLabel,
-      ),
-      const SizedBox(height: 12),
-      _DaysField(
-        key: const Key('resource-danger-before-field'),
-        controller: controller.resourceDangerBeforeController,
-        label: ReminderUiText.dangerBeforeDaysFieldLabel,
-      ),
+      if (showAttentionFields) ...[
+        const SizedBox(height: 12),
+        _DaysField(
+          key: const Key('warning-before-depletion-field'),
+          controller: controller.resourceWarningBeforeController,
+          label: ReminderUiText.warningBeforeDaysFieldLabel,
+        ),
+        const SizedBox(height: 12),
+        _DaysField(
+          key: const Key('resource-danger-before-field'),
+          controller: controller.resourceDangerBeforeController,
+          label: ReminderUiText.dangerBeforeDaysFieldLabel,
+        ),
+      ] else ...[
+        const SizedBox(height: 12),
+        DropdownButtonFormField<UsageSpeed>(
+          key: const Key('usage-speed-field'),
+          initialValue: controller.usageSpeed,
+          decoration: const InputDecoration(
+            labelText: ReminderUiText.usageSpeedFieldLabel,
+          ),
+          items: UsageSpeed.values
+              .map(
+                (value) => DropdownMenuItem(
+                  value: value,
+                  child: Text(ReminderFormatters.usageSpeed(value)),
+                ),
+              )
+              .toList(growable: false),
+          onChanged: (value) {
+            if (value == null) {
+              return;
+            }
+            controller.usageSpeed = value;
+            onChanged();
+          },
+        ),
+        const SizedBox(height: 12),
+        _AttentionPolicyPreview(config: controller.buildConfigForCreate()),
+      ],
     ];
   }
 
@@ -383,6 +629,24 @@ class ItemConfigFormSection extends StatelessWidget {
       return;
     }
     onSelected(DateTime(result.year, result.month, result.day));
+  }
+}
+
+class _AttentionPolicyPreview extends StatelessWidget {
+  const _AttentionPolicyPreview({required this.config});
+
+  final ItemConfig config;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        ReminderFormatters.attentionPolicySummary(config),
+        key: const Key('attention-policy-preview'),
+        style: Theme.of(context).textTheme.bodyMedium,
+      ),
+    );
   }
 }
 

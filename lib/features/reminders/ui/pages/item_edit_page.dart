@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/item_repository.dart';
 import '../../data/local/item_timeline_dao.dart';
+import '../../domain/attention_policy.dart';
 import '../../domain/item.dart';
 import '../../domain/item_pack.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
 import '../../providers/item_providers.dart';
+import '../../providers/settings_providers.dart';
 import '../widgets/editor_common_fields.dart';
 import '../widgets/item_config_form_section.dart';
 
@@ -68,6 +70,8 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
         ? ref.watch(itemProvider(widget.id!))
         : const AsyncData<ItemBundle?>(null);
     final activePacksAsync = ref.watch(activeItemPacksProvider);
+    final reminderTone = ref.watch(reminderToneProvider);
+    _configController.reminderTone = reminderTone;
 
     if (itemAsync.isLoading || activePacksAsync.isLoading) {
       return Scaffold(
@@ -154,7 +158,15 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
             ItemConfigFormSection(
               controller: _configController,
               onChanged: () => setState(() {}),
+              showAttentionFields: false,
             ),
+            if (_isEdit) ...[
+              const SizedBox(height: 12),
+              AttentionPolicyAdvancedSection(
+                controller: _configController,
+                onChanged: () => setState(() {}),
+              ),
+            ],
             const SizedBox(height: 24),
             FilledButton(
               key: const Key('save-button'),
@@ -183,6 +195,8 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       _descriptionController.text = item.description ?? '';
       _selectedPackId = widget.lockedPackId ?? item.packId;
       _configController.load(item.config);
+      _configController.customizeAttentionPolicy =
+          item.attentionPolicySource == AttentionPolicySource.userCustomized;
     }
     _initialized = true;
   }
@@ -197,7 +211,13 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       title: _titleController.text.trim(),
       description: _normalizeOptionalText(_descriptionController.text),
       type: _configController.type,
-      config: _configController.buildConfig(),
+      config: _isEdit
+          ? _configController.buildConfigForCurrentPolicySource()
+          : _configController.buildConfigForCreate(),
+      attentionPolicySource:
+          _isEdit && _configController.customizeAttentionPolicy
+          ? AttentionPolicySource.userCustomized
+          : AttentionPolicySource.systemDefault,
       packId: widget.lockedPackId ?? _selectedPackId,
     );
 

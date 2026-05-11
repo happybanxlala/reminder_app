@@ -9,8 +9,11 @@ import 'package:reminder_app/features/reminders/data/builtin_item_pack_templates
 import 'package:reminder_app/features/reminders/data/item_repository.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/local/item_timeline_dao.dart';
+import 'package:reminder_app/features/reminders/data/settings_repository.dart';
 import 'package:reminder_app/features/reminders/data/timeline_models.dart';
 import 'package:reminder_app/features/reminders/data/timeline_repository.dart';
+import 'package:reminder_app/features/reminders/domain/app_settings.dart';
+import 'package:reminder_app/features/reminders/domain/attention_policy.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack_template.dart';
@@ -21,7 +24,9 @@ import 'package:reminder_app/features/reminders/domain/timeline_milestone_rule.d
 import 'package:reminder_app/features/reminders/presentation/formatters/reminder_formatters.dart';
 import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
 import 'package:reminder_app/features/reminders/providers/developer_settings_providers.dart';
+import 'package:reminder_app/features/reminders/providers/database_providers.dart';
 import 'package:reminder_app/features/reminders/providers/item_providers.dart';
+import 'package:reminder_app/features/reminders/providers/settings_providers.dart';
 import 'package:reminder_app/features/reminders/providers/timeline_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/feature_page.dart';
 
@@ -104,6 +109,16 @@ void main() {
             itemRepositoryProvider.overrideWith(
               (ref) => ItemRepository(db.itemTimelineDao),
             ),
+            appDatabaseProvider.overrideWith((ref) => db),
+            appSettingsProvider.overrideWith(
+              (ref) => Stream.value(
+                AppSettings(
+                  reminderTone: ReminderTone.standard,
+                  updatedAt: DateTime(2026, 4, 1),
+                ),
+              ),
+            ),
+            reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
             systemPreviewDateProvider.overrideWith(
               (ref) => Stream.value(DateTime(2026, 4, 11)),
             ),
@@ -165,7 +180,7 @@ void main() {
         const _FeatureRouteCase(
           key: 'settings',
           title: ReminderUiText.userSettingsFeatureTitle,
-          placeholder: ReminderUiText.userSettingsPlaceholderMessage,
+          placeholder: ReminderUiText.reminderToneStandardDescription,
         ),
         const _FeatureRouteCase(
           key: 'developer-settings',
@@ -184,6 +199,9 @@ void main() {
         await tester.pageBack();
         await tester.pumpAndSettle();
       }
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
     },
   );
 
@@ -346,6 +364,52 @@ void main() {
       find.text(ReminderUiText.developerPreviewDateOverrideDisabled),
       findsOneWidget,
     );
+  });
+
+  testWidgets('settings page updates reminder tone', (tester) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    late final StreamController<AppSettings> settingsController;
+    settingsController = StreamController<AppSettings>.broadcast();
+    addTearDown(settingsController.close);
+    final repository = _WidgetTestSettingsRepository(db, settingsController);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsRepositoryProvider.overrideWith((ref) => repository),
+        ],
+        child: const MaterialApp(home: SettingsPage()),
+      ),
+    );
+    settingsController.add(
+      AppSettings(
+        reminderTone: ReminderTone.standard,
+        updatedAt: DateTime(2026, 4, 1),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(ReminderUiText.reminderToneStandardLabel), findsOneWidget);
+    expect(
+      find.text(ReminderUiText.reminderToneStandardDescription),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text(ReminderUiText.reminderToneStandardLabel));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(ReminderUiText.reminderToneEarlyLabel).last);
+    await tester.pumpAndSettle();
+
+    final settings = await db.itemTimelineDao.getAppSettings();
+    expect(settings.reminderTone, ReminderTone.early);
+    expect(
+      find.text(ReminderUiText.reminderToneEarlyDescription),
+      findsOneWidget,
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
   });
 
   testWidgets('developer settings page follows system preview date updates', (
@@ -941,6 +1005,25 @@ ItemPack _pack(int id, {required String title, bool isSystemDefault = false}) {
     createdAt: DateTime(2026, 4, 1),
     updatedAt: DateTime(2026, 4, 1),
   );
+}
+
+class _WidgetTestSettingsRepository extends SettingsRepository {
+  _WidgetTestSettingsRepository(this._db, this._controller)
+    : super(_db.itemTimelineDao);
+
+  final AppDatabase _db;
+  final StreamController<AppSettings> _controller;
+
+  @override
+  Stream<AppSettings> watchSettings() {
+    return _controller.stream;
+  }
+
+  @override
+  Future<void> updateReminderTone(ReminderTone tone) async {
+    await _db.itemTimelineDao.updateReminderTone(tone);
+    _controller.add(AppSettings(reminderTone: tone, updatedAt: DateTime.now()));
+  }
 }
 
 TimelineDetail _timelineDetail() {

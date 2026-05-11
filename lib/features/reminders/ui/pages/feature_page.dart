@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/local/item_timeline_dao.dart';
+import '../../domain/attention_policy.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
 import '../../providers/developer_settings_providers.dart';
 import '../../providers/item_providers.dart';
+import '../../providers/settings_providers.dart';
 import 'feature_management_sections.dart';
 import '../widgets/item_summary_dialog.dart';
 
@@ -281,17 +283,63 @@ class TimelineManagementPage extends StatelessWidget {
   }
 }
 
-class SettingsPage extends StatelessWidget {
+class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
 
   static const routeName = 'settings';
   static const routePath = '/feature/settings';
 
   @override
-  Widget build(BuildContext context) {
-    return const _FeaturePlaceholderPage(
-      title: ReminderUiText.userSettingsFeatureTitle,
-      message: ReminderUiText.userSettingsPlaceholderMessage,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settingsAsync = ref.watch(appSettingsProvider);
+    final currentTone = ref.watch(reminderToneProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(ReminderUiText.userSettingsFeatureTitle),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Text(
+            ReminderUiText.reminderToneSettingsTitle,
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 8),
+          const Text(ReminderUiText.reminderToneSettingsDescription),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<ReminderTone>(
+            key: const Key('reminder-tone-field'),
+            initialValue: currentTone,
+            decoration: const InputDecoration(
+              labelText: ReminderUiText.reminderToneSettingsTitle,
+            ),
+            items: ReminderTone.values
+                .map(
+                  (tone) => DropdownMenuItem(
+                    value: tone,
+                    child: Text(ReminderFormatters.reminderTone(tone)),
+                  ),
+                )
+                .toList(growable: false),
+            onChanged: settingsAsync.isLoading
+                ? null
+                : (value) async {
+                    if (value == null) {
+                      return;
+                    }
+                    await ref
+                        .read(settingsRepositoryProvider)
+                        .updateReminderTone(value);
+                  },
+          ),
+          const SizedBox(height: 8),
+          Text(
+            ReminderFormatters.reminderToneDescription(currentTone),
+            key: const Key('reminder-tone-description'),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -439,36 +487,6 @@ class _FeatureEntryCard extends StatelessWidget {
         title: Text(title),
         trailing: const Icon(Icons.chevron_right),
         onTap: () => context.pushNamed(routeName),
-      ),
-    );
-  }
-}
-
-class _FeaturePlaceholderPage extends StatelessWidget {
-  const _FeaturePlaceholderPage({required this.title, required this.message});
-
-  final String title;
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: Theme.of(context).textTheme.headlineSmall),
-                const SizedBox(height: 12),
-                Text(message),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

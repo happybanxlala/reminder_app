@@ -26,6 +26,8 @@ class Items extends Table {
   TextColumn get description => text().nullable()();
   TextColumn get status => text().withDefault(const Constant('active'))();
   TextColumn get type => text()();
+  TextColumn get attentionPolicySource =>
+      text().withDefault(const Constant('systemDefault'))();
   TextColumn get fixedScheduleType => text().nullable()();
   IntColumn get fixedScheduleInterval => integer().nullable()();
   IntColumn get fixedMonthlyDay => integer().nullable()();
@@ -73,6 +75,8 @@ class ItemTemplateItems extends Table {
   TextColumn get title => text()();
   TextColumn get description => text().nullable()();
   TextColumn get type => text()();
+  TextColumn get attentionPolicySource =>
+      text().withDefault(const Constant('systemDefault'))();
   TextColumn get fixedScheduleType => text().nullable()();
   IntColumn get fixedScheduleInterval => integer().nullable()();
   IntColumn get fixedMonthlyDay => integer().nullable()();
@@ -159,4 +163,19 @@ class TimelineMilestoneRecords extends Table {
   IntColumn get actedAt => integer().nullable()();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
+}
+
+@DataClassName('AppSettingsRow')
+class AppSettingsEntries extends Table {
+  @override
+  String get tableName => 'app_settings';
+
+  IntColumn get id => integer().withDefault(const Constant(1))();
+  TextColumn get reminderTone =>
+      text().withDefault(const Constant('standard'))();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+
+  @override
+  Set<Column> get primaryKey => {id};
 }

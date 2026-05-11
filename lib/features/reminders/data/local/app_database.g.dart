@@ -532,6 +532,18 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _attentionPolicySourceMeta =
+      const VerificationMeta('attentionPolicySource');
+  @override
+  late final GeneratedColumn<String> attentionPolicySource =
+      GeneratedColumn<String>(
+        'attention_policy_source',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('systemDefault'),
+      );
   static const VerificationMeta _fixedScheduleTypeMeta = const VerificationMeta(
     'fixedScheduleType',
   );
@@ -780,6 +792,7 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
     description,
     status,
     type,
+    attentionPolicySource,
     fixedScheduleType,
     fixedScheduleInterval,
     fixedMonthlyDay,
@@ -856,6 +869,15 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
       );
     } else if (isInserting) {
       context.missing(_typeMeta);
+    }
+    if (data.containsKey('attention_policy_source')) {
+      context.handle(
+        _attentionPolicySourceMeta,
+        attentionPolicySource.isAcceptableOrUnknown(
+          data['attention_policy_source']!,
+          _attentionPolicySourceMeta,
+        ),
+      );
     }
     if (data.containsKey('fixed_schedule_type')) {
       context.handle(
@@ -1086,6 +1108,10 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
         DriftSqlType.string,
         data['${effectivePrefix}type'],
       )!,
+      attentionPolicySource: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}attention_policy_source'],
+      )!,
       fixedScheduleType: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}fixed_schedule_type'],
@@ -1190,6 +1216,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
   final String? description;
   final String status;
   final String type;
+  final String attentionPolicySource;
   final String? fixedScheduleType;
   final int? fixedScheduleInterval;
   final int? fixedMonthlyDay;
@@ -1219,6 +1246,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     this.description,
     required this.status,
     required this.type,
+    required this.attentionPolicySource,
     this.fixedScheduleType,
     this.fixedScheduleInterval,
     this.fixedMonthlyDay,
@@ -1253,6 +1281,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     }
     map['status'] = Variable<String>(status);
     map['type'] = Variable<String>(type);
+    map['attention_policy_source'] = Variable<String>(attentionPolicySource);
     if (!nullToAbsent || fixedScheduleType != null) {
       map['fixed_schedule_type'] = Variable<String>(fixedScheduleType);
     }
@@ -1346,6 +1375,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
           : Value(description),
       status: Value(status),
       type: Value(type),
+      attentionPolicySource: Value(attentionPolicySource),
       fixedScheduleType: fixedScheduleType == null && nullToAbsent
           ? const Value.absent()
           : Value(fixedScheduleType),
@@ -1428,6 +1458,9 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       description: serializer.fromJson<String?>(json['description']),
       status: serializer.fromJson<String>(json['status']),
       type: serializer.fromJson<String>(json['type']),
+      attentionPolicySource: serializer.fromJson<String>(
+        json['attentionPolicySource'],
+      ),
       fixedScheduleType: serializer.fromJson<String?>(
         json['fixedScheduleType'],
       ),
@@ -1488,6 +1521,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       'description': serializer.toJson<String?>(description),
       'status': serializer.toJson<String>(status),
       'type': serializer.toJson<String>(type),
+      'attentionPolicySource': serializer.toJson<String>(attentionPolicySource),
       'fixedScheduleType': serializer.toJson<String?>(fixedScheduleType),
       'fixedScheduleInterval': serializer.toJson<int?>(fixedScheduleInterval),
       'fixedMonthlyDay': serializer.toJson<int?>(fixedMonthlyDay),
@@ -1538,6 +1572,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     Value<String?> description = const Value.absent(),
     String? status,
     String? type,
+    String? attentionPolicySource,
     Value<String?> fixedScheduleType = const Value.absent(),
     Value<int?> fixedScheduleInterval = const Value.absent(),
     Value<int?> fixedMonthlyDay = const Value.absent(),
@@ -1567,6 +1602,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     description: description.present ? description.value : this.description,
     status: status ?? this.status,
     type: type ?? this.type,
+    attentionPolicySource: attentionPolicySource ?? this.attentionPolicySource,
     fixedScheduleType: fixedScheduleType.present
         ? fixedScheduleType.value
         : this.fixedScheduleType,
@@ -1636,6 +1672,9 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
           : this.description,
       status: data.status.present ? data.status.value : this.status,
       type: data.type.present ? data.type.value : this.type,
+      attentionPolicySource: data.attentionPolicySource.present
+          ? data.attentionPolicySource.value
+          : this.attentionPolicySource,
       fixedScheduleType: data.fixedScheduleType.present
           ? data.fixedScheduleType.value
           : this.fixedScheduleType,
@@ -1710,6 +1749,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
           ..write('description: $description, ')
           ..write('status: $status, ')
           ..write('type: $type, ')
+          ..write('attentionPolicySource: $attentionPolicySource, ')
           ..write('fixedScheduleType: $fixedScheduleType, ')
           ..write('fixedScheduleInterval: $fixedScheduleInterval, ')
           ..write('fixedMonthlyDay: $fixedMonthlyDay, ')
@@ -1744,6 +1784,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     description,
     status,
     type,
+    attentionPolicySource,
     fixedScheduleType,
     fixedScheduleInterval,
     fixedMonthlyDay,
@@ -1777,6 +1818,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
           other.description == this.description &&
           other.status == this.status &&
           other.type == this.type &&
+          other.attentionPolicySource == this.attentionPolicySource &&
           other.fixedScheduleType == this.fixedScheduleType &&
           other.fixedScheduleInterval == this.fixedScheduleInterval &&
           other.fixedMonthlyDay == this.fixedMonthlyDay &&
@@ -1808,6 +1850,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
   final Value<String?> description;
   final Value<String> status;
   final Value<String> type;
+  final Value<String> attentionPolicySource;
   final Value<String?> fixedScheduleType;
   final Value<int?> fixedScheduleInterval;
   final Value<int?> fixedMonthlyDay;
@@ -1837,6 +1880,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     this.description = const Value.absent(),
     this.status = const Value.absent(),
     this.type = const Value.absent(),
+    this.attentionPolicySource = const Value.absent(),
     this.fixedScheduleType = const Value.absent(),
     this.fixedScheduleInterval = const Value.absent(),
     this.fixedMonthlyDay = const Value.absent(),
@@ -1867,6 +1911,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     this.description = const Value.absent(),
     this.status = const Value.absent(),
     required String type,
+    this.attentionPolicySource = const Value.absent(),
     this.fixedScheduleType = const Value.absent(),
     this.fixedScheduleInterval = const Value.absent(),
     this.fixedMonthlyDay = const Value.absent(),
@@ -1901,6 +1946,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     Expression<String>? description,
     Expression<String>? status,
     Expression<String>? type,
+    Expression<String>? attentionPolicySource,
     Expression<String>? fixedScheduleType,
     Expression<int>? fixedScheduleInterval,
     Expression<int>? fixedMonthlyDay,
@@ -1931,6 +1977,8 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
       if (description != null) 'description': description,
       if (status != null) 'status': status,
       if (type != null) 'type': type,
+      if (attentionPolicySource != null)
+        'attention_policy_source': attentionPolicySource,
       if (fixedScheduleType != null) 'fixed_schedule_type': fixedScheduleType,
       if (fixedScheduleInterval != null)
         'fixed_schedule_interval': fixedScheduleInterval,
@@ -1976,6 +2024,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     Value<String?>? description,
     Value<String>? status,
     Value<String>? type,
+    Value<String>? attentionPolicySource,
     Value<String?>? fixedScheduleType,
     Value<int?>? fixedScheduleInterval,
     Value<int?>? fixedMonthlyDay,
@@ -2006,6 +2055,8 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
       description: description ?? this.description,
       status: status ?? this.status,
       type: type ?? this.type,
+      attentionPolicySource:
+          attentionPolicySource ?? this.attentionPolicySource,
       fixedScheduleType: fixedScheduleType ?? this.fixedScheduleType,
       fixedScheduleInterval:
           fixedScheduleInterval ?? this.fixedScheduleInterval,
@@ -2061,6 +2112,11 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     }
     if (type.present) {
       map['type'] = Variable<String>(type.value);
+    }
+    if (attentionPolicySource.present) {
+      map['attention_policy_source'] = Variable<String>(
+        attentionPolicySource.value,
+      );
     }
     if (fixedScheduleType.present) {
       map['fixed_schedule_type'] = Variable<String>(fixedScheduleType.value);
@@ -2160,6 +2216,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
           ..write('description: $description, ')
           ..write('status: $status, ')
           ..write('type: $type, ')
+          ..write('attentionPolicySource: $attentionPolicySource, ')
           ..write('fixedScheduleType: $fixedScheduleType, ')
           ..write('fixedScheduleInterval: $fixedScheduleInterval, ')
           ..write('fixedMonthlyDay: $fixedMonthlyDay, ')
@@ -2653,6 +2710,18 @@ class $ItemTemplateItemsTable extends ItemTemplateItems
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _attentionPolicySourceMeta =
+      const VerificationMeta('attentionPolicySource');
+  @override
+  late final GeneratedColumn<String> attentionPolicySource =
+      GeneratedColumn<String>(
+        'attention_policy_source',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('systemDefault'),
+      );
   static const VerificationMeta _fixedScheduleTypeMeta = const VerificationMeta(
     'fixedScheduleType',
   );
@@ -2846,6 +2915,7 @@ class $ItemTemplateItemsTable extends ItemTemplateItems
     title,
     description,
     type,
+    attentionPolicySource,
     fixedScheduleType,
     fixedScheduleInterval,
     fixedMonthlyDay,
@@ -2911,6 +2981,15 @@ class $ItemTemplateItemsTable extends ItemTemplateItems
       );
     } else if (isInserting) {
       context.missing(_typeMeta);
+    }
+    if (data.containsKey('attention_policy_source')) {
+      context.handle(
+        _attentionPolicySourceMeta,
+        attentionPolicySource.isAcceptableOrUnknown(
+          data['attention_policy_source']!,
+          _attentionPolicySourceMeta,
+        ),
+      );
     }
     if (data.containsKey('fixed_schedule_type')) {
       context.handle(
@@ -3092,6 +3171,10 @@ class $ItemTemplateItemsTable extends ItemTemplateItems
         DriftSqlType.string,
         data['${effectivePrefix}type'],
       )!,
+      attentionPolicySource: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}attention_policy_source'],
+      )!,
       fixedScheduleType: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}fixed_schedule_type'],
@@ -3176,6 +3259,7 @@ class ItemTemplateItemRow extends DataClass
   final String title;
   final String? description;
   final String type;
+  final String attentionPolicySource;
   final String? fixedScheduleType;
   final int? fixedScheduleInterval;
   final int? fixedMonthlyDay;
@@ -3199,6 +3283,7 @@ class ItemTemplateItemRow extends DataClass
     required this.title,
     this.description,
     required this.type,
+    required this.attentionPolicySource,
     this.fixedScheduleType,
     this.fixedScheduleInterval,
     this.fixedMonthlyDay,
@@ -3227,6 +3312,7 @@ class ItemTemplateItemRow extends DataClass
       map['description'] = Variable<String>(description);
     }
     map['type'] = Variable<String>(type);
+    map['attention_policy_source'] = Variable<String>(attentionPolicySource);
     if (!nullToAbsent || fixedScheduleType != null) {
       map['fixed_schedule_type'] = Variable<String>(fixedScheduleType);
     }
@@ -3304,6 +3390,7 @@ class ItemTemplateItemRow extends DataClass
           ? const Value.absent()
           : Value(description),
       type: Value(type),
+      attentionPolicySource: Value(attentionPolicySource),
       fixedScheduleType: fixedScheduleType == null && nullToAbsent
           ? const Value.absent()
           : Value(fixedScheduleType),
@@ -3370,6 +3457,9 @@ class ItemTemplateItemRow extends DataClass
       title: serializer.fromJson<String>(json['title']),
       description: serializer.fromJson<String?>(json['description']),
       type: serializer.fromJson<String>(json['type']),
+      attentionPolicySource: serializer.fromJson<String>(
+        json['attentionPolicySource'],
+      ),
       fixedScheduleType: serializer.fromJson<String?>(
         json['fixedScheduleType'],
       ),
@@ -3424,6 +3514,7 @@ class ItemTemplateItemRow extends DataClass
       'title': serializer.toJson<String>(title),
       'description': serializer.toJson<String?>(description),
       'type': serializer.toJson<String>(type),
+      'attentionPolicySource': serializer.toJson<String>(attentionPolicySource),
       'fixedScheduleType': serializer.toJson<String?>(fixedScheduleType),
       'fixedScheduleInterval': serializer.toJson<int?>(fixedScheduleInterval),
       'fixedMonthlyDay': serializer.toJson<int?>(fixedMonthlyDay),
@@ -3468,6 +3559,7 @@ class ItemTemplateItemRow extends DataClass
     String? title,
     Value<String?> description = const Value.absent(),
     String? type,
+    String? attentionPolicySource,
     Value<String?> fixedScheduleType = const Value.absent(),
     Value<int?> fixedScheduleInterval = const Value.absent(),
     Value<int?> fixedMonthlyDay = const Value.absent(),
@@ -3491,6 +3583,7 @@ class ItemTemplateItemRow extends DataClass
     title: title ?? this.title,
     description: description.present ? description.value : this.description,
     type: type ?? this.type,
+    attentionPolicySource: attentionPolicySource ?? this.attentionPolicySource,
     fixedScheduleType: fixedScheduleType.present
         ? fixedScheduleType.value
         : this.fixedScheduleType,
@@ -3550,6 +3643,9 @@ class ItemTemplateItemRow extends DataClass
           ? data.description.value
           : this.description,
       type: data.type.present ? data.type.value : this.type,
+      attentionPolicySource: data.attentionPolicySource.present
+          ? data.attentionPolicySource.value
+          : this.attentionPolicySource,
       fixedScheduleType: data.fixedScheduleType.present
           ? data.fixedScheduleType.value
           : this.fixedScheduleType,
@@ -3608,6 +3704,7 @@ class ItemTemplateItemRow extends DataClass
           ..write('title: $title, ')
           ..write('description: $description, ')
           ..write('type: $type, ')
+          ..write('attentionPolicySource: $attentionPolicySource, ')
           ..write('fixedScheduleType: $fixedScheduleType, ')
           ..write('fixedScheduleInterval: $fixedScheduleInterval, ')
           ..write('fixedMonthlyDay: $fixedMonthlyDay, ')
@@ -3636,6 +3733,7 @@ class ItemTemplateItemRow extends DataClass
     title,
     description,
     type,
+    attentionPolicySource,
     fixedScheduleType,
     fixedScheduleInterval,
     fixedMonthlyDay,
@@ -3663,6 +3761,7 @@ class ItemTemplateItemRow extends DataClass
           other.title == this.title &&
           other.description == this.description &&
           other.type == this.type &&
+          other.attentionPolicySource == this.attentionPolicySource &&
           other.fixedScheduleType == this.fixedScheduleType &&
           other.fixedScheduleInterval == this.fixedScheduleInterval &&
           other.fixedMonthlyDay == this.fixedMonthlyDay &&
@@ -3688,6 +3787,7 @@ class ItemTemplateItemsCompanion extends UpdateCompanion<ItemTemplateItemRow> {
   final Value<String> title;
   final Value<String?> description;
   final Value<String> type;
+  final Value<String> attentionPolicySource;
   final Value<String?> fixedScheduleType;
   final Value<int?> fixedScheduleInterval;
   final Value<int?> fixedMonthlyDay;
@@ -3711,6 +3811,7 @@ class ItemTemplateItemsCompanion extends UpdateCompanion<ItemTemplateItemRow> {
     this.title = const Value.absent(),
     this.description = const Value.absent(),
     this.type = const Value.absent(),
+    this.attentionPolicySource = const Value.absent(),
     this.fixedScheduleType = const Value.absent(),
     this.fixedScheduleInterval = const Value.absent(),
     this.fixedMonthlyDay = const Value.absent(),
@@ -3735,6 +3836,7 @@ class ItemTemplateItemsCompanion extends UpdateCompanion<ItemTemplateItemRow> {
     required String title,
     this.description = const Value.absent(),
     required String type,
+    this.attentionPolicySource = const Value.absent(),
     this.fixedScheduleType = const Value.absent(),
     this.fixedScheduleInterval = const Value.absent(),
     this.fixedMonthlyDay = const Value.absent(),
@@ -3763,6 +3865,7 @@ class ItemTemplateItemsCompanion extends UpdateCompanion<ItemTemplateItemRow> {
     Expression<String>? title,
     Expression<String>? description,
     Expression<String>? type,
+    Expression<String>? attentionPolicySource,
     Expression<String>? fixedScheduleType,
     Expression<int>? fixedScheduleInterval,
     Expression<int>? fixedMonthlyDay,
@@ -3787,6 +3890,8 @@ class ItemTemplateItemsCompanion extends UpdateCompanion<ItemTemplateItemRow> {
       if (title != null) 'title': title,
       if (description != null) 'description': description,
       if (type != null) 'type': type,
+      if (attentionPolicySource != null)
+        'attention_policy_source': attentionPolicySource,
       if (fixedScheduleType != null) 'fixed_schedule_type': fixedScheduleType,
       if (fixedScheduleInterval != null)
         'fixed_schedule_interval': fixedScheduleInterval,
@@ -3825,6 +3930,7 @@ class ItemTemplateItemsCompanion extends UpdateCompanion<ItemTemplateItemRow> {
     Value<String>? title,
     Value<String?>? description,
     Value<String>? type,
+    Value<String>? attentionPolicySource,
     Value<String?>? fixedScheduleType,
     Value<int?>? fixedScheduleInterval,
     Value<int?>? fixedMonthlyDay,
@@ -3849,6 +3955,8 @@ class ItemTemplateItemsCompanion extends UpdateCompanion<ItemTemplateItemRow> {
       title: title ?? this.title,
       description: description ?? this.description,
       type: type ?? this.type,
+      attentionPolicySource:
+          attentionPolicySource ?? this.attentionPolicySource,
       fixedScheduleType: fixedScheduleType ?? this.fixedScheduleType,
       fixedScheduleInterval:
           fixedScheduleInterval ?? this.fixedScheduleInterval,
@@ -3896,6 +4004,11 @@ class ItemTemplateItemsCompanion extends UpdateCompanion<ItemTemplateItemRow> {
     }
     if (type.present) {
       map['type'] = Variable<String>(type.value);
+    }
+    if (attentionPolicySource.present) {
+      map['attention_policy_source'] = Variable<String>(
+        attentionPolicySource.value,
+      );
     }
     if (fixedScheduleType.present) {
       map['fixed_schedule_type'] = Variable<String>(fixedScheduleType.value);
@@ -3979,6 +4092,7 @@ class ItemTemplateItemsCompanion extends UpdateCompanion<ItemTemplateItemRow> {
           ..write('title: $title, ')
           ..write('description: $description, ')
           ..write('type: $type, ')
+          ..write('attentionPolicySource: $attentionPolicySource, ')
           ..write('fixedScheduleType: $fixedScheduleType, ')
           ..write('fixedScheduleInterval: $fixedScheduleInterval, ')
           ..write('fixedMonthlyDay: $fixedMonthlyDay, ')
@@ -6213,6 +6327,311 @@ class TimelineMilestoneRecordsCompanion
   }
 }
 
+class $AppSettingsEntriesTable extends AppSettingsEntries
+    with TableInfo<$AppSettingsEntriesTable, AppSettingsRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AppSettingsEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _reminderToneMeta = const VerificationMeta(
+    'reminderTone',
+  );
+  @override
+  late final GeneratedColumn<String> reminderTone = GeneratedColumn<String>(
+    'reminder_tone',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('standard'),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    reminderTone,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'app_settings';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AppSettingsRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('reminder_tone')) {
+      context.handle(
+        _reminderToneMeta,
+        reminderTone.isAcceptableOrUnknown(
+          data['reminder_tone']!,
+          _reminderToneMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AppSettingsRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AppSettingsRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      reminderTone: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reminder_tone'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $AppSettingsEntriesTable createAlias(String alias) {
+    return $AppSettingsEntriesTable(attachedDatabase, alias);
+  }
+}
+
+class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
+  final int id;
+  final String reminderTone;
+  final int createdAt;
+  final int updatedAt;
+  const AppSettingsRow({
+    required this.id,
+    required this.reminderTone,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['reminder_tone'] = Variable<String>(reminderTone);
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  AppSettingsEntriesCompanion toCompanion(bool nullToAbsent) {
+    return AppSettingsEntriesCompanion(
+      id: Value(id),
+      reminderTone: Value(reminderTone),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory AppSettingsRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AppSettingsRow(
+      id: serializer.fromJson<int>(json['id']),
+      reminderTone: serializer.fromJson<String>(json['reminderTone']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'reminderTone': serializer.toJson<String>(reminderTone),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  AppSettingsRow copyWith({
+    int? id,
+    String? reminderTone,
+    int? createdAt,
+    int? updatedAt,
+  }) => AppSettingsRow(
+    id: id ?? this.id,
+    reminderTone: reminderTone ?? this.reminderTone,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  AppSettingsRow copyWithCompanion(AppSettingsEntriesCompanion data) {
+    return AppSettingsRow(
+      id: data.id.present ? data.id.value : this.id,
+      reminderTone: data.reminderTone.present
+          ? data.reminderTone.value
+          : this.reminderTone,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppSettingsRow(')
+          ..write('id: $id, ')
+          ..write('reminderTone: $reminderTone, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, reminderTone, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AppSettingsRow &&
+          other.id == this.id &&
+          other.reminderTone == this.reminderTone &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class AppSettingsEntriesCompanion extends UpdateCompanion<AppSettingsRow> {
+  final Value<int> id;
+  final Value<String> reminderTone;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  const AppSettingsEntriesCompanion({
+    this.id = const Value.absent(),
+    this.reminderTone = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  AppSettingsEntriesCompanion.insert({
+    this.id = const Value.absent(),
+    this.reminderTone = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+  }) : createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<AppSettingsRow> custom({
+    Expression<int>? id,
+    Expression<String>? reminderTone,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (reminderTone != null) 'reminder_tone': reminderTone,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  AppSettingsEntriesCompanion copyWith({
+    Value<int>? id,
+    Value<String>? reminderTone,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+  }) {
+    return AppSettingsEntriesCompanion(
+      id: id ?? this.id,
+      reminderTone: reminderTone ?? this.reminderTone,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (reminderTone.present) {
+      map['reminder_tone'] = Variable<String>(reminderTone.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppSettingsEntriesCompanion(')
+          ..write('id: $id, ')
+          ..write('reminderTone: $reminderTone, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -6229,6 +6648,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $TimelineMilestoneRulesTable(this);
   late final $TimelineMilestoneRecordsTable timelineMilestoneRecords =
       $TimelineMilestoneRecordsTable(this);
+  late final $AppSettingsEntriesTable appSettingsEntries =
+      $AppSettingsEntriesTable(this);
   late final ItemTimelineDao itemTimelineDao = ItemTimelineDao(
     this as AppDatabase,
   );
@@ -6245,6 +6666,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     timelines,
     timelineMilestoneRules,
     timelineMilestoneRecords,
+    appSettingsEntries,
   ];
 }
 
@@ -6590,6 +7012,7 @@ typedef $$ItemsTableCreateCompanionBuilder =
       Value<String?> description,
       Value<String> status,
       required String type,
+      Value<String> attentionPolicySource,
       Value<String?> fixedScheduleType,
       Value<int?> fixedScheduleInterval,
       Value<int?> fixedMonthlyDay,
@@ -6621,6 +7044,7 @@ typedef $$ItemsTableUpdateCompanionBuilder =
       Value<String?> description,
       Value<String> status,
       Value<String> type,
+      Value<String> attentionPolicySource,
       Value<String?> fixedScheduleType,
       Value<int?> fixedScheduleInterval,
       Value<int?> fixedMonthlyDay,
@@ -6721,6 +7145,11 @@ class $$ItemsTableFilterComposer extends Composer<_$AppDatabase, $ItemsTable> {
 
   ColumnFilters<String> get type => $composableBuilder(
     column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get attentionPolicySource => $composableBuilder(
+    column: $table.attentionPolicySource,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6917,6 +7346,11 @@ class $$ItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get attentionPolicySource => $composableBuilder(
+    column: $table.attentionPolicySource,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get fixedScheduleType => $composableBuilder(
     column: $table.fixedScheduleType,
     builder: (column) => ColumnOrderings(column),
@@ -7076,6 +7510,11 @@ class $$ItemsTableAnnotationComposer
 
   GeneratedColumn<String> get type =>
       $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get attentionPolicySource => $composableBuilder(
+    column: $table.attentionPolicySource,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get fixedScheduleType => $composableBuilder(
     column: $table.fixedScheduleType,
@@ -7267,6 +7706,7 @@ class $$ItemsTableTableManager
                 Value<String?> description = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<String> type = const Value.absent(),
+                Value<String> attentionPolicySource = const Value.absent(),
                 Value<String?> fixedScheduleType = const Value.absent(),
                 Value<int?> fixedScheduleInterval = const Value.absent(),
                 Value<int?> fixedMonthlyDay = const Value.absent(),
@@ -7296,6 +7736,7 @@ class $$ItemsTableTableManager
                 description: description,
                 status: status,
                 type: type,
+                attentionPolicySource: attentionPolicySource,
                 fixedScheduleType: fixedScheduleType,
                 fixedScheduleInterval: fixedScheduleInterval,
                 fixedMonthlyDay: fixedMonthlyDay,
@@ -7327,6 +7768,7 @@ class $$ItemsTableTableManager
                 Value<String?> description = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 required String type,
+                Value<String> attentionPolicySource = const Value.absent(),
                 Value<String?> fixedScheduleType = const Value.absent(),
                 Value<int?> fixedScheduleInterval = const Value.absent(),
                 Value<int?> fixedMonthlyDay = const Value.absent(),
@@ -7356,6 +7798,7 @@ class $$ItemsTableTableManager
                 description: description,
                 status: status,
                 type: type,
+                attentionPolicySource: attentionPolicySource,
                 fixedScheduleType: fixedScheduleType,
                 fixedScheduleInterval: fixedScheduleInterval,
                 fixedMonthlyDay: fixedMonthlyDay,
@@ -7815,6 +8258,7 @@ typedef $$ItemTemplateItemsTableCreateCompanionBuilder =
       required String title,
       Value<String?> description,
       required String type,
+      Value<String> attentionPolicySource,
       Value<String?> fixedScheduleType,
       Value<int?> fixedScheduleInterval,
       Value<int?> fixedMonthlyDay,
@@ -7840,6 +8284,7 @@ typedef $$ItemTemplateItemsTableUpdateCompanionBuilder =
       Value<String> title,
       Value<String?> description,
       Value<String> type,
+      Value<String> attentionPolicySource,
       Value<String?> fixedScheduleType,
       Value<int?> fixedScheduleInterval,
       Value<int?> fixedMonthlyDay,
@@ -7921,6 +8366,11 @@ class $$ItemTemplateItemsTableFilterComposer
 
   ColumnFilters<String> get type => $composableBuilder(
     column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get attentionPolicySource => $composableBuilder(
+    column: $table.attentionPolicySource,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8062,6 +8512,11 @@ class $$ItemTemplateItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get attentionPolicySource => $composableBuilder(
+    column: $table.attentionPolicySource,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get fixedScheduleType => $composableBuilder(
     column: $table.fixedScheduleType,
     builder: (column) => ColumnOrderings(column),
@@ -8193,6 +8648,11 @@ class $$ItemTemplateItemsTableAnnotationComposer
 
   GeneratedColumn<String> get type =>
       $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get attentionPolicySource => $composableBuilder(
+    column: $table.attentionPolicySource,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get fixedScheduleType => $composableBuilder(
     column: $table.fixedScheduleType,
@@ -8338,6 +8798,7 @@ class $$ItemTemplateItemsTableTableManager
                 Value<String> title = const Value.absent(),
                 Value<String?> description = const Value.absent(),
                 Value<String> type = const Value.absent(),
+                Value<String> attentionPolicySource = const Value.absent(),
                 Value<String?> fixedScheduleType = const Value.absent(),
                 Value<int?> fixedScheduleInterval = const Value.absent(),
                 Value<int?> fixedMonthlyDay = const Value.absent(),
@@ -8361,6 +8822,7 @@ class $$ItemTemplateItemsTableTableManager
                 title: title,
                 description: description,
                 type: type,
+                attentionPolicySource: attentionPolicySource,
                 fixedScheduleType: fixedScheduleType,
                 fixedScheduleInterval: fixedScheduleInterval,
                 fixedMonthlyDay: fixedMonthlyDay,
@@ -8386,6 +8848,7 @@ class $$ItemTemplateItemsTableTableManager
                 required String title,
                 Value<String?> description = const Value.absent(),
                 required String type,
+                Value<String> attentionPolicySource = const Value.absent(),
                 Value<String?> fixedScheduleType = const Value.absent(),
                 Value<int?> fixedScheduleInterval = const Value.absent(),
                 Value<int?> fixedMonthlyDay = const Value.absent(),
@@ -8409,6 +8872,7 @@ class $$ItemTemplateItemsTableTableManager
                 title: title,
                 description: description,
                 type: type,
+                attentionPolicySource: attentionPolicySource,
                 fixedScheduleType: fixedScheduleType,
                 fixedScheduleInterval: fixedScheduleInterval,
                 fixedMonthlyDay: fixedMonthlyDay,
@@ -10445,6 +10909,192 @@ typedef $$TimelineMilestoneRecordsTableProcessedTableManager =
       TimelineMilestoneRecordRow,
       PrefetchHooks Function({bool timelineId, bool ruleId})
     >;
+typedef $$AppSettingsEntriesTableCreateCompanionBuilder =
+    AppSettingsEntriesCompanion Function({
+      Value<int> id,
+      Value<String> reminderTone,
+      required int createdAt,
+      required int updatedAt,
+    });
+typedef $$AppSettingsEntriesTableUpdateCompanionBuilder =
+    AppSettingsEntriesCompanion Function({
+      Value<int> id,
+      Value<String> reminderTone,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+    });
+
+class $$AppSettingsEntriesTableFilterComposer
+    extends Composer<_$AppDatabase, $AppSettingsEntriesTable> {
+  $$AppSettingsEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reminderTone => $composableBuilder(
+    column: $table.reminderTone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AppSettingsEntriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $AppSettingsEntriesTable> {
+  $$AppSettingsEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reminderTone => $composableBuilder(
+    column: $table.reminderTone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AppSettingsEntriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AppSettingsEntriesTable> {
+  $$AppSettingsEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get reminderTone => $composableBuilder(
+    column: $table.reminderTone,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$AppSettingsEntriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AppSettingsEntriesTable,
+          AppSettingsRow,
+          $$AppSettingsEntriesTableFilterComposer,
+          $$AppSettingsEntriesTableOrderingComposer,
+          $$AppSettingsEntriesTableAnnotationComposer,
+          $$AppSettingsEntriesTableCreateCompanionBuilder,
+          $$AppSettingsEntriesTableUpdateCompanionBuilder,
+          (
+            AppSettingsRow,
+            BaseReferences<
+              _$AppDatabase,
+              $AppSettingsEntriesTable,
+              AppSettingsRow
+            >,
+          ),
+          AppSettingsRow,
+          PrefetchHooks Function()
+        > {
+  $$AppSettingsEntriesTableTableManager(
+    _$AppDatabase db,
+    $AppSettingsEntriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AppSettingsEntriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AppSettingsEntriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AppSettingsEntriesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> reminderTone = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+              }) => AppSettingsEntriesCompanion(
+                id: id,
+                reminderTone: reminderTone,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> reminderTone = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+              }) => AppSettingsEntriesCompanion.insert(
+                id: id,
+                reminderTone: reminderTone,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AppSettingsEntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AppSettingsEntriesTable,
+      AppSettingsRow,
+      $$AppSettingsEntriesTableFilterComposer,
+      $$AppSettingsEntriesTableOrderingComposer,
+      $$AppSettingsEntriesTableAnnotationComposer,
+      $$AppSettingsEntriesTableCreateCompanionBuilder,
+      $$AppSettingsEntriesTableUpdateCompanionBuilder,
+      (
+        AppSettingsRow,
+        BaseReferences<_$AppDatabase, $AppSettingsEntriesTable, AppSettingsRow>,
+      ),
+      AppSettingsRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -10471,4 +11121,6 @@ class $AppDatabaseManager {
         _db,
         _db.timelineMilestoneRecords,
       );
+  $$AppSettingsEntriesTableTableManager get appSettingsEntries =>
+      $$AppSettingsEntriesTableTableManager(_db, _db.appSettingsEntries);
 }

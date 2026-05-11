@@ -5,12 +5,12 @@ import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 
 void main() {
   test(
-    'database uses clean drift schema version 2 and core tables are writable',
+    'database uses clean drift schema version 3 and core tables are writable',
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
 
-      expect(db.schemaVersion, 2);
+      expect(db.schemaVersion, 3);
 
       final packId = await db
           .into(db.itemPacks)
@@ -33,6 +33,7 @@ void main() {
               title: 'Clean litter box',
               description: const Value('State based'),
               type: 'stateBased',
+              attentionPolicySource: const Value('systemDefault'),
               fixedScheduleType: const Value.absent(),
               fixedScheduleInterval: const Value.absent(),
               fixedMonthlyDay: const Value.absent(),
@@ -77,6 +78,7 @@ void main() {
               title: 'Refill water',
               description: const Value('Every 3 days'),
               type: 'fixed',
+              attentionPolicySource: const Value('systemDefault'),
               fixedScheduleType: const Value('everyXDays'),
               fixedScheduleInterval: const Value(3),
               fixedMonthlyDay: const Value.absent(),
@@ -149,12 +151,26 @@ void main() {
       expect(ruleId, greaterThan(0));
       expect(recordId, greaterThan(0));
 
+      await db
+          .into(db.appSettingsEntries)
+          .insertOnConflictUpdate(
+            AppSettingsEntriesCompanion.insert(
+              id: const Value(1),
+              reminderTone: const Value('early'),
+              createdAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+              updatedAt: DateTime(2026, 4, 2).millisecondsSinceEpoch,
+            ),
+          );
+
       final defaultPacks = await (db.select(
         db.itemPacks,
       )..where((t) => t.isSystemDefault.equals(true))).get();
       final items = await db.select(db.items).get();
+      final settings = await db.select(db.appSettingsEntries).get();
       expect(defaultPacks, hasLength(1));
       expect(items.single.status, 'active');
+      expect(items.single.attentionPolicySource, 'systemDefault');
+      expect(settings.single.reminderTone, 'early');
     },
   );
 }
