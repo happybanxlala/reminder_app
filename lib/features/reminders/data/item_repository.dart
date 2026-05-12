@@ -171,6 +171,34 @@ class ItemRepository {
     });
   }
 
+  Future<bool> moveItemToPack(
+    int id, {
+    int? packId,
+    ItemPackInput? newPack,
+  }) async {
+    final existing = await getItemById(id);
+    if (existing == null) {
+      return false;
+    }
+    final now = _clock();
+    return _dao.attachedDatabase.transaction(() async {
+      final resolvedPackId = newPack != null
+          ? await _dao.insertItemPack(_packCompanion(newPack, now: now))
+          : packId ?? await _ensureDefaultPackId(now);
+      await _assertPackCanAcceptItems(
+        resolvedPackId,
+        existingItem: existing.item,
+      );
+      return _dao.updateItemFields(
+        id,
+        ItemsCompanion(
+          packId: Value(resolvedPackId),
+          updatedAt: Value(now.millisecondsSinceEpoch),
+        ),
+      );
+    });
+  }
+
   Future<bool> updateItem(int id, ItemInput input) async {
     final existing = await getItemById(id);
     if (existing == null) {

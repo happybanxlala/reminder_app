@@ -241,6 +241,7 @@ class _ItemManagementGroupCard extends ConsumerWidget {
 
     return Card(
       key: Key('pack-section-${pack.id}'),
+      clipBehavior: Clip.antiAlias,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -250,30 +251,40 @@ class _ItemManagementGroupCard extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        crossAxisAlignment: WrapCrossAlignment.center,
+                  child: InkWell(
+                    key: Key('pack-header-${pack.id}'),
+                    onTap: onToggle,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(
+                                isUnassigned
+                                    ? ReminderUiText.unassignedPackTitle
+                                    : pack.title,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                            ],
+                          ),
+                          if (!isUnassigned &&
+                              (pack.description ?? '').trim().isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(pack.description!.trim()),
+                          ],
+                          const SizedBox(height: 4),
                           Text(
-                            isUnassigned
-                                ? ReminderUiText.unassignedPackTitle
-                                : pack.title,
-                            style: Theme.of(context).textTheme.titleMedium,
+                            '${items.length} ${ReminderUiText.itemCountLabel}',
                           ),
                         ],
                       ),
-                      if (!isUnassigned &&
-                          (pack.description ?? '').trim().isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(pack.description!.trim()),
-                      ],
-                      const SizedBox(height: 4),
-                      Text('${items.length} ${ReminderUiText.itemCountLabel}'),
-                    ],
+                    ),
                   ),
                 ),
                 Wrap(
@@ -547,6 +558,7 @@ enum _ManagedItemMenuAction {
   skip,
   details,
   history,
+  move,
   pause,
   resume,
   archive,
@@ -612,6 +624,12 @@ Future<void> _showManagedItemActionSheet(
                   sheetContext,
                 ).pop(_ManagedItemMenuAction.history),
               ),
+              _ItemActionSheetTile(
+                key: Key('item-menu-move-${bundle.item.id}'),
+                label: ReminderUiText.moveAction,
+                onTap: () =>
+                    Navigator.of(sheetContext).pop(_ManagedItemMenuAction.move),
+              ),
               const Divider(height: 16),
               _ItemActionSheetTile(
                 key: Key(
@@ -673,6 +691,12 @@ Future<void> _showManagedItemActionSheet(
       context.pushNamed(
         ItemHistoryPage.routeName,
         pathParameters: {'id': bundle.item.id.toString()},
+      );
+      return;
+    case _ManagedItemMenuAction.move:
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => _MoveItemDialog(bundle: bundle),
       );
       return;
     case _ManagedItemMenuAction.pause:
@@ -808,6 +832,176 @@ class _ItemActionSheetTile extends StatelessWidget {
       title: Text(label),
     );
   }
+}
+
+class _MoveItemDialog extends ConsumerStatefulWidget {
+  const _MoveItemDialog({required this.bundle});
+
+  final ItemBundle bundle;
+
+  @override
+  ConsumerState<_MoveItemDialog> createState() => _MoveItemDialogState();
+}
+
+class _MoveItemDialogState extends ConsumerState<_MoveItemDialog> {
+  static const _unassignedPackValue = 'unassigned';
+  static const _newPackValue = 'new-pack';
+
+  late String _selectedPackValue;
+  ItemPackInput? _pendingPack;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedPackValue = widget.bundle.pack.isSystemDefault
+        ? _unassignedPackValue
+        : _packValue(widget.bundle.pack.id);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final activePacksAsync = ref.watch(activeItemPacksProvider);
+    return AlertDialog(
+      title: const Text(ReminderUiText.moveItemTitle),
+      content: SizedBox(
+        width: 480,
+        child: activePacksAsync.when(
+          data: (packs) => Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.bundle.item.title,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                key: const Key('move-pack-field'),
+                initialValue: _selectedPackValue,
+                decoration: const InputDecoration(
+                  labelText: ReminderUiText.moveDestinationFieldLabel,
+                ),
+                items: _packOptions(packs),
+                onChanged: _isSaving
+                    ? null
+                    : (value) {
+                        if (value == null) {
+                          return;
+                        }
+                        setState(() {
+                          _selectedPackValue = value;
+                        });
+                      },
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton(
+                  key: const Key('move-item-add-pack-button'),
+                  onPressed: _isSaving
+                      ? null
+                      : () async {
+                          final input = await showDialog<ItemPackInput>(
+                            context: context,
+                            builder: (dialogContext) => const _PackFormDialog(),
+                          );
+                          if (input == null) {
+                            return;
+                          }
+                          setState(() {
+                            _pendingPack = input;
+                            _selectedPackValue = _newPackValue;
+                          });
+                        },
+                  child: const Text(ReminderUiText.addItemPack),
+                ),
+              ),
+            ],
+          ),
+          error: (error, stack) => Text('讀取失敗: $error'),
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+          child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+        ),
+        FilledButton(
+          key: const Key('move-item-confirm-button'),
+          onPressed: _isSaving ? null : _submit,
+          child: const Text(ReminderUiText.confirmAction),
+        ),
+      ],
+    );
+  }
+
+  List<DropdownMenuItem<String>> _packOptions(List<ItemPack> packs) {
+    return [
+      const DropdownMenuItem<String>(
+        value: _unassignedPackValue,
+        child: Text(ReminderUiText.unassignedPackOption),
+      ),
+      ...packs
+          .where((pack) => !pack.isSystemDefault)
+          .map(
+            (pack) => DropdownMenuItem<String>(
+              value: _packValue(pack.id),
+              child: Text(pack.title),
+            ),
+          ),
+      if (_pendingPack != null)
+        DropdownMenuItem<String>(
+          value: _newPackValue,
+          child: Text(
+            '${_pendingPack!.title} (${ReminderUiText.pendingPackSuffix})',
+          ),
+        ),
+    ];
+  }
+
+  Future<void> _submit() async {
+    final repository = ref.read(itemRepositoryProvider);
+    final newPack = _selectedPackValue == _newPackValue ? _pendingPack : null;
+    final packId = switch (_selectedPackValue) {
+      _unassignedPackValue => null,
+      _newPackValue => null,
+      _ => int.tryParse(_selectedPackValue.replaceFirst('pack-', '')),
+    };
+
+    setState(() {
+      _isSaving = true;
+    });
+    try {
+      await repository.moveItemToPack(
+        widget.bundle.item.id,
+        packId: packId,
+        newPack: newPack,
+      );
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } on StateError catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message.toString())));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
+  }
+
+  String _packValue(int id) => 'pack-$id';
 }
 
 class _CreateItemDialog extends ConsumerStatefulWidget {

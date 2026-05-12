@@ -500,6 +500,63 @@ void main() {
     expect(find.text('Item 2'), findsOneWidget);
   });
 
+  testWidgets('items management pack header toggles without blocking buttons', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final container = ProviderContainer(
+      overrides: [
+        itemRepositoryProvider.overrideWith(
+          (ref) => ItemRepository(db.itemTimelineDao),
+        ),
+        reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
+        systemPreviewDateProvider.overrideWith(
+          (ref) => Stream.value(DateTime(2026, 4, 11)),
+        ),
+        activeItemPacksProvider.overrideWith(
+          (ref) => Stream.value([
+            _pack(1, title: 'Default Item Pack', isSystemDefault: true),
+            _pack(2, title: 'Cat Care'),
+          ]),
+        ),
+        packManagementItemsProvider.overrideWith(
+          (ref) => Stream.value([
+            _itemBundle(1, ItemType.stateBased),
+            _itemBundle(
+              2,
+              ItemType.resourceBased,
+              packId: 2,
+              packTitle: 'Cat Care',
+            ),
+          ]),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: ItemsManagementPage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('pack-header-1')));
+    await tester.pumpAndSettle();
+    expect(find.text('Item 1'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('pack-header-1')));
+    await tester.pumpAndSettle();
+    expect(find.text('Item 1'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('pack-add-item-1')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('create-item-next-button')), findsOneWidget);
+    expect(find.text('Item 1'), findsNothing);
+  });
+
   testWidgets('template picker applies builtin template into a new pack', (
     tester,
   ) async {
@@ -639,6 +696,197 @@ void main() {
     await tester.tap(find.text(ReminderUiText.closeAction));
     await tester.pumpAndSettle();
     expect(find.text(ReminderUiText.itemDetailTitle), findsNothing);
+  });
+
+  testWidgets('item move action moves to an existing non-default pack', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = _RecordingItemRepository(db.itemTimelineDao);
+    final container = ProviderContainer(
+      overrides: [
+        itemRepositoryProvider.overrideWith((ref) => repository),
+        systemPreviewDateProvider.overrideWith(
+          (ref) => Stream.value(DateTime(2026, 4, 11)),
+        ),
+        activeItemPacksProvider.overrideWith(
+          (ref) => Stream.value([
+            _pack(1, title: 'Default Item Pack', isSystemDefault: true),
+            _pack(2, title: 'Cat Care'),
+          ]),
+        ),
+        packManagementItemsProvider.overrideWith(
+          (ref) => Stream.value([_itemBundle(1, ItemType.stateBased)]),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: ItemsManagementPage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('pack-toggle-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('item-overflow-1')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('item-menu-move-1')),
+      80,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('item-menu-move-1')));
+    await tester.pumpAndSettle();
+
+    expect(find.text(ReminderUiText.moveItemTitle), findsOneWidget);
+    await tester.tap(find.byKey(const Key('move-pack-field')));
+    await tester.pumpAndSettle();
+    expect(find.text('Default Item Pack'), findsNothing);
+    expect(find.text('Cat Care').last, findsOneWidget);
+    await tester.tap(find.text('Cat Care').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('move-item-confirm-button')));
+    await tester.pumpAndSettle();
+
+    expect(repository.recordedMoveItemId, 1);
+    expect(repository.recordedMovePackId, 2);
+    expect(repository.recordedMoveNewPack, isNull);
+  });
+
+  testWidgets('item move action can move to unassigned', (tester) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = _RecordingItemRepository(db.itemTimelineDao);
+    final container = ProviderContainer(
+      overrides: [
+        itemRepositoryProvider.overrideWith((ref) => repository),
+        systemPreviewDateProvider.overrideWith(
+          (ref) => Stream.value(DateTime(2026, 4, 11)),
+        ),
+        activeItemPacksProvider.overrideWith(
+          (ref) => Stream.value([
+            _pack(1, title: 'Default Item Pack', isSystemDefault: true),
+            _pack(2, title: 'Cat Care'),
+          ]),
+        ),
+        packManagementItemsProvider.overrideWith(
+          (ref) => Stream.value([
+            _itemBundle(
+              2,
+              ItemType.stateBased,
+              packId: 2,
+              packTitle: 'Cat Care',
+            ),
+          ]),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: ItemsManagementPage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('pack-toggle-2')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('item-overflow-2')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('item-menu-move-2')),
+      80,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('item-menu-move-2')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('move-pack-field')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(ReminderUiText.unassignedPackOption).last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('move-item-confirm-button')));
+    await tester.pumpAndSettle();
+
+    expect(repository.recordedMoveItemId, 2);
+    expect(repository.recordedMovePackId, isNull);
+    expect(repository.recordedMoveNewPack, isNull);
+  });
+
+  testWidgets('item move action can create a new destination pack', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = _RecordingItemRepository(db.itemTimelineDao);
+    final container = ProviderContainer(
+      overrides: [
+        itemRepositoryProvider.overrideWith((ref) => repository),
+        systemPreviewDateProvider.overrideWith(
+          (ref) => Stream.value(DateTime(2026, 4, 11)),
+        ),
+        activeItemPacksProvider.overrideWith(
+          (ref) => Stream.value([
+            _pack(1, title: 'Default Item Pack', isSystemDefault: true),
+          ]),
+        ),
+        packManagementItemsProvider.overrideWith(
+          (ref) => Stream.value([_itemBundle(1, ItemType.stateBased)]),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: ItemsManagementPage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('pack-toggle-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('item-overflow-1')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('item-menu-move-1')),
+      80,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('item-menu-move-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('move-item-add-pack-button')));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byKey(const Key('pack-title-field')), 'Plants');
+    await tester.enterText(
+      find.byKey(const Key('pack-description-field')),
+      'Balcony',
+    );
+    await tester.tap(find.byKey(const Key('pack-save-button')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Plants (${ReminderUiText.pendingPackSuffix})'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('move-item-confirm-button')));
+    await tester.pumpAndSettle();
+
+    expect(repository.recordedMoveItemId, 1);
+    expect(repository.recordedMovePackId, isNull);
+    expect(repository.recordedMoveNewPack!.title, 'Plants');
+    expect(repository.recordedMoveNewPack!.description, 'Balcony');
   });
 
   testWidgets(
@@ -1080,6 +1328,9 @@ class _RecordingItemRepository extends ItemRepository {
   int? recordedPauseItemId;
   int? recordedResumeItemId;
   int? recordedArchiveItemId;
+  int? recordedMoveItemId;
+  int? recordedMovePackId;
+  ItemPackInput? recordedMoveNewPack;
   String? recordedTemplateId;
   int markDoneCount = 0;
 
@@ -1137,6 +1388,18 @@ class _RecordingItemRepository extends ItemRepository {
   @override
   Future<bool> archiveItem(int id) async {
     recordedArchiveItemId = id;
+    return true;
+  }
+
+  @override
+  Future<bool> moveItemToPack(
+    int id, {
+    int? packId,
+    ItemPackInput? newPack,
+  }) async {
+    recordedMoveItemId = id;
+    recordedMovePackId = packId;
+    recordedMoveNewPack = newPack;
     return true;
   }
 }

@@ -701,6 +701,144 @@ void main() {
     },
   );
 
+  test('moveItemToPack moves an item to an existing active pack', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = ItemRepository(db.itemTimelineDao);
+
+    final sourcePackId = await repository.createPack(
+      const ItemPackInput(title: 'Source'),
+    );
+    final destinationPackId = await repository.createPack(
+      const ItemPackInput(title: 'Destination'),
+    );
+    final itemId = await repository.createItem(
+      ItemInput(
+        title: 'Move me',
+        type: ItemType.stateBased,
+        packId: sourcePackId,
+        config: const StateBasedItemConfig(
+          warningAfter: Duration(days: 7),
+          dangerAfter: Duration(days: 14),
+        ),
+      ),
+    );
+
+    expect(
+      await repository.moveItemToPack(itemId, packId: destinationPackId),
+      isTrue,
+    );
+
+    final item = await repository.getItemById(itemId);
+    expect(item!.item.packId, destinationPackId);
+    expect(item.pack.title, 'Destination');
+    expect(item.item.title, 'Move me');
+  });
+
+  test('moveItemToPack with null pack moves item to system default', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = ItemRepository(db.itemTimelineDao);
+
+    final packId = await repository.createPack(
+      const ItemPackInput(title: 'Cat Care'),
+    );
+    final itemId = await repository.createItem(
+      ItemInput(
+        title: 'Unassign me',
+        type: ItemType.stateBased,
+        packId: packId,
+        config: const StateBasedItemConfig(
+          warningAfter: Duration(days: 7),
+          dangerAfter: Duration(days: 14),
+        ),
+      ),
+    );
+
+    expect(await repository.moveItemToPack(itemId), isTrue);
+
+    final item = await repository.getItemById(itemId);
+    expect(item!.pack.isSystemDefault, isTrue);
+    expect(item.pack.title, 'Default Item Pack');
+  });
+
+  test(
+    'moveItemToPack creates a new pack and moves item transactionally',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = ItemRepository(db.itemTimelineDao);
+
+      final itemId = await repository.createItem(
+        ItemInput(
+          title: 'New home',
+          type: ItemType.stateBased,
+          config: const StateBasedItemConfig(
+            warningAfter: Duration(days: 7),
+            dangerAfter: Duration(days: 14),
+          ),
+        ),
+      );
+
+      expect(
+        await repository.moveItemToPack(
+          itemId,
+          newPack: const ItemPackInput(
+            title: 'Plant Care',
+            description: 'Watering group',
+          ),
+        ),
+        isTrue,
+      );
+
+      final item = await repository.getItemById(itemId);
+      final packs = await repository.watchPacks().first;
+      expect(item!.pack.title, 'Plant Care');
+      expect(item.pack.description, 'Watering group');
+      expect(packs.where((pack) => pack.title == 'Plant Care'), hasLength(1));
+    },
+  );
+
+  test(
+    'moveItemToPack rejects archived or missing destination packs',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = ItemRepository(db.itemTimelineDao);
+
+      final sourcePackId = await repository.createPack(
+        const ItemPackInput(title: 'Source'),
+      );
+      final archivedPackId = await repository.createPack(
+        const ItemPackInput(title: 'Archived'),
+      );
+      final itemId = await repository.createItem(
+        ItemInput(
+          title: 'Do not move',
+          type: ItemType.stateBased,
+          packId: sourcePackId,
+          config: const StateBasedItemConfig(
+            warningAfter: Duration(days: 7),
+            dangerAfter: Duration(days: 14),
+          ),
+        ),
+      );
+      await repository.archivePack(archivedPackId);
+
+      expect(
+        () => repository.moveItemToPack(itemId, packId: archivedPackId),
+        throwsStateError,
+      );
+      expect(
+        () => repository.moveItemToPack(itemId, packId: 999),
+        throwsStateError,
+      );
+
+      final item = await repository.getItemById(itemId);
+      expect(item!.item.packId, sourcePackId);
+    },
+  );
+
   test(
     'applyTemplate creates a new pack with initialized item baselines',
     () async {

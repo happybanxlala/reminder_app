@@ -55,6 +55,13 @@ void main() {
     expect(find.byKey(const Key('estimated-duration-field')), findsNothing);
     expect(find.byKey(const Key('pack-field')), findsOneWidget);
 
+    await tester.tap(find.byKey(const Key('pack-field')));
+    await tester.pumpAndSettle();
+    expect(find.text('Default Item Pack'), findsNothing);
+    expect(find.text('Cat Care').last, findsOneWidget);
+    await tester.tap(find.text('Cat Care').last);
+    await tester.pumpAndSettle();
+
     await tester.tap(
       find.text(ReminderFormatters.itemType(ItemType.stateBased)),
     );
@@ -150,7 +157,9 @@ void main() {
       find.byKey(const Key('attention-policy-advanced-section')),
       findsOneWidget,
     );
-    expect(find.text('Default Item Pack (系統預設)'), findsOneWidget);
+    expect(find.byKey(const Key('pack-field')), findsNothing);
+    expect(find.byKey(const Key('pack-readonly')), findsOneWidget);
+    expect(find.text(ReminderUiText.unassignedPackTitle), findsOneWidget);
   });
 
   testWidgets('editor keeps archived current pack visible while editing', (
@@ -571,6 +580,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('pack-field')), findsNothing);
+    expect(find.byKey(const Key('pack-readonly')), findsOneWidget);
     expect(find.text('Weekly grooming'), findsOneWidget);
     expect(find.text('Brush and trim'), findsOneWidget);
     expect(find.byKey(const Key('item-type-field')), findsNothing);
@@ -690,9 +700,78 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('pack-field')), findsNothing);
+    expect(find.byKey(const Key('pack-readonly')), findsOneWidget);
     expect(find.byKey(const Key('item-type-readonly')), findsOneWidget);
     expect(find.text('2026/04/01'), findsNWidgets(2));
     expect(find.text('2026/04/03'), findsNothing);
+  });
+
+  testWidgets('edit cancel exits immediately when there are no changes', (
+    tester,
+  ) async {
+    await _pumpEditableItemRoute(tester);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('cancel-button')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('cancel-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Home'), findsOneWidget);
+    expect(find.text(ReminderUiText.discardChangesTitle), findsNothing);
+  });
+
+  testWidgets('edit cancel asks before discarding changes', (tester) async {
+    await _pumpEditableItemRoute(tester);
+
+    await tester.enterText(find.byKey(const Key('title-field')), 'Changed');
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('cancel-button')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('cancel-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text(ReminderUiText.discardChangesTitle), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.text(ReminderUiText.editItem), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('cancel-button')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('cancel-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(ReminderUiText.discardChangesAction));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Home'), findsOneWidget);
+  });
+
+  testWidgets('system back asks before discarding edited item changes', (
+    tester,
+  ) async {
+    await _pumpEditableItemRoute(tester);
+
+    await tester.enterText(find.byKey(const Key('note-field')), 'Changed note');
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    expect(find.text(ReminderUiText.discardChangesTitle), findsOneWidget);
+    await tester.tap(find.text(ReminderUiText.discardChangesAction));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Home'), findsOneWidget);
   });
 
   testWidgets('edit page still renders when target item no longer exists', (
@@ -730,4 +809,76 @@ void main() {
     expect(find.text(ReminderUiText.editItem), findsOneWidget);
     expect(find.byKey(const Key('title-field')), findsOneWidget);
   });
+}
+
+Future<void> _pumpEditableItemRoute(WidgetTester tester) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
+        activeItemPacksProvider.overrideWith(
+          (ref) => Stream.value([
+            ItemPack(
+              id: 1,
+              title: 'Default Item Pack',
+              status: ItemPackStatus.active,
+              isSystemDefault: true,
+              createdAt: DateTime(2026, 4, 1),
+              updatedAt: DateTime(2026, 4, 1),
+            ),
+          ]),
+        ),
+        itemProvider(21).overrideWith(
+          (ref) => Future.value(
+            ItemBundle(
+              item: Item(
+                id: 21,
+                packId: 1,
+                title: 'Editable item',
+                description: 'Original note',
+                type: ItemType.stateBased,
+                config: StateBasedItemConfig(
+                  anchorDate: DateTime(2026, 4, 1),
+                  infoAfter: Duration(days: 7),
+                  warningAfter: Duration(days: 7),
+                  dangerAfter: Duration(days: 14),
+                ),
+                createdAt: DateTime(2026, 4, 1),
+                updatedAt: DateTime(2026, 4, 2),
+              ),
+              pack: ItemPack(
+                id: 1,
+                title: 'Default Item Pack',
+                status: ItemPackStatus.active,
+                isSystemDefault: true,
+                createdAt: DateTime(2026, 4, 1),
+                updatedAt: DateTime(2026, 4, 2),
+              ),
+            ),
+          ),
+        ),
+      ],
+      child: MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              key: const Key('open-editor'),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (context) =>
+                        const ItemEditPage(mode: ItemEditMode.edit, id: 21),
+                  ),
+                );
+              },
+              child: const Text('Home'),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const Key('open-editor')));
+  await tester.pumpAndSettle();
 }

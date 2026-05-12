@@ -33,6 +33,7 @@ class ReminderUiText {
   static const addItemPack = '新增責任包';
   static const addTimeline = '新增時間線';
   static const editItem = '編輯要照顧的事';
+  static const moveItemTitle = '搬移要照顧的事';
   static const itemHistoryTitle = '要照顧的事操作紀錄';
   static const editItemPack = '編輯責任包';
   static const editTimeline = '編輯時間線';
@@ -91,6 +92,7 @@ class ReminderUiText {
   static const deferAction = '延期';
   static const noticedAction = '已看過';
   static const editAction = '編輯';
+  static const moveAction = '搬移';
   static const pauseAction = '暫停';
   static const resumeAction = '恢復';
   static const archiveAction = '封存';
@@ -103,6 +105,9 @@ class ReminderUiText {
   static const nextPageAction = '下一頁';
   static const nextStepAction = '下一步';
   static const confirmAction = '確認';
+  static const discardChangesTitle = '放棄修改？';
+  static const discardChangesMessage = '目前有尚未儲存的修改，確定要離開嗎？';
+  static const discardChangesAction = '放棄修改';
   static const closeAction = '關閉';
   static const systemDefaultPackLabel = '系統預設';
   static const unassignedPackTitle = '未分類';
@@ -113,6 +118,7 @@ class ReminderUiText {
   static const packDescriptionFieldLabel = '責任包說明';
   static const itemCountLabel = '項要照顧的事';
   static const packFieldLabel = '責任包';
+  static const moveDestinationFieldLabel = '目標責任包';
   static const pendingPackSuffix = '新責任包';
   static const itemTypeFieldLabel = '提醒方式';
   static const scheduleTypeFieldLabel = '節奏類型';
