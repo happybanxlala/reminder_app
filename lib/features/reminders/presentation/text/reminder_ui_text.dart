@@ -2,11 +2,14 @@ class ReminderUiText {
   const ReminderUiText._();
 
   static const appTitle = 'Reminder App';
-  static const homeTitle = '首頁';
+  static const homeTitle = '今天';
   static const homeAttentionStable = '目前都很穩定';
   static const homeAttentionBreakdownTemplate =
       '快變糟 {danger} 件・需留意 {warning} 件・時間提醒 {timeline} 件';
   static const manageTitle = '管理';
+  static const bottomNavToday = '今天';
+  static const bottomNavManage = '管理';
+  static const bottomNavTimeline = '時間線';
   static const featureAction = '功能';
   static const featurePageTitle = '功能頁';
   static const itemPackTitle = '責任包';

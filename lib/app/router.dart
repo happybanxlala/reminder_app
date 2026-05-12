@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../features/reminders/ui/pages/home_page.dart';
+import 'app_shell.dart';
+import '../features/reminders/ui/pages/feature_management_sections.dart';
 import '../features/reminders/ui/pages/feature_page.dart';
+import '../features/reminders/ui/pages/home_page.dart';
 import '../features/reminders/ui/pages/item_edit_page.dart';
 import '../features/reminders/ui/pages/item_history_page.dart';
 import '../features/reminders/ui/pages/timeline_edit_page.dart';
@@ -12,10 +14,38 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: HomePage.routePath,
     routes: [
-      GoRoute(
-        path: HomePage.routePath,
-        name: HomePage.routeName,
-        builder: (context, state) => const HomePage(),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            AppShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: HomePage.routePath,
+                name: HomePage.routeName,
+                builder: (context, state) => const HomeContent(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: ItemsManagementPage.routePath,
+                name: ItemsManagementPage.routeName,
+                builder: (context, state) => const ItemsManagementContent(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: TimelineManagementPage.routePath,
+                name: TimelineManagementPage.routeName,
+                builder: (context, state) => const TimelineManagementContent(),
+              ),
+            ],
+          ),
+        ],
       ),
       GoRoute(
         path: FeaturePage.routePath,
@@ -28,9 +58,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ItemActivityPage(),
       ),
       GoRoute(
-        path: ItemsManagementPage.routePath,
-        name: ItemsManagementPage.routeName,
-        builder: (context, state) => const ItemsManagementPage(),
+        path: ItemsManagementPage.legacyRoutePath,
+        redirect: (context, state) => ItemsManagementPage.routePath,
       ),
       GoRoute(
         path: ItemPacksManagementPage.routePath,
@@ -38,9 +67,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ItemPacksManagementPage(),
       ),
       GoRoute(
-        path: TimelineManagementPage.routePath,
-        name: TimelineManagementPage.routeName,
-        builder: (context, state) => const TimelineManagementPage(),
+        path: TimelineManagementPage.legacyRoutePath,
+        redirect: (context, state) => TimelineManagementPage.routePath,
       ),
       GoRoute(
         path: SettingsPage.routePath,

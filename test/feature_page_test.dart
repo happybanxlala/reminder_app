@@ -31,23 +31,18 @@ import 'package:reminder_app/features/reminders/providers/timeline_providers.dar
 import 'package:reminder_app/features/reminders/ui/pages/feature_page.dart';
 
 void main() {
-  testWidgets('feature page shows integrated management entry set', (
-    tester,
-  ) async {
+  testWidgets('feature page hides primary tab destinations', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: FeaturePage()));
 
     expect(find.text(ReminderUiText.itemActivityFeatureTitle), findsOneWidget);
-    expect(
-      find.text(ReminderUiText.itemsManagementFeatureTitle),
-      findsOneWidget,
-    );
+    expect(find.text(ReminderUiText.itemsManagementFeatureTitle), findsNothing);
     expect(
       find.text(ReminderUiText.itemPacksManagementFeatureTitle),
       findsNothing,
     );
     expect(
       find.text(ReminderUiText.timelineManagementFeatureTitle),
-      findsOneWidget,
+      findsNothing,
     );
     expect(find.text(ReminderUiText.userSettingsFeatureTitle), findsOneWidget);
     expect(
@@ -166,16 +161,6 @@ void main() {
           key: 'item-activity',
           title: ReminderUiText.itemActivityFeatureTitle,
           placeholder: ReminderUiText.noRecentActivity,
-        ),
-        const _FeatureRouteCase(
-          key: 'items-management',
-          title: ReminderUiText.itemsManagementFeatureTitle,
-          placeholder: ReminderUiText.unassignedPackTitle,
-        ),
-        const _FeatureRouteCase(
-          key: 'timeline-management',
-          title: ReminderUiText.timelineManagementFeatureTitle,
-          placeholder: 'No sugar',
         ),
         const _FeatureRouteCase(
           key: 'settings',

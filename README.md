@@ -33,7 +33,7 @@ dart run build_runner build --delete-conflicting-outputs
 ## Run Checks
 
 ```bash
-dart format lib test docs
+dart format lib test
 flutter analyze
 flutter test
 ```
@@ -49,6 +49,8 @@ flutter run
 ```text
 lib/
   app/
+    app_shell.dart
+    router.dart
   features/
     reminders/
       data/
@@ -71,11 +73,15 @@ lib/
         pages/
           home_page.dart
           feature_page.dart
+          feature_management_sections.dart
           item_edit_page.dart
           timeline_edit_page.dart
           timeline_milestone_history_page.dart
         widgets/
-          feature_management_sections.dart
+          editor_common_fields.dart
+          item_config_form_section.dart
+          item_summary_dialog.dart
+          timeline_milestone_rule_form_card.dart
 ```
 
 ## Documentation Rules

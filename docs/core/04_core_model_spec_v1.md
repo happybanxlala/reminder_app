@@ -732,9 +732,30 @@ history 僅包含：
 
 ---
 
-## 8. Home 語意
+## 8. 主導航與「今天」語意
 
-Home 是唯一核心畫面。
+App 啟動後預設進入「今天」頁。
+
+主要導航使用 Material 3 `NavigationBar`，由 app shell 統一承載：
+
+1. `今天`：route `/`，顯示 Home attention buckets
+2. `管理`：route `/manage`，顯示 Items / Packs 整合管理
+3. `時間線`：route `/timeline`，顯示 Timeline 管理
+
+目前實作使用 `GoRouter` 的 `StatefulShellRoute.indexedStack`：
+
+- 三個 primary tabs 切換時保留各自頁面狀態
+- shell scaffold 統一負責 AppBar、Bottom Navigation 與 FAB
+- tab content 不重複建立 AppBar / Bottom Navigation
+- `今天` 是主要 destination，不是 action，不可放入 FAB
+
+FeaturePage 不再作為主要入口頁。它只保留次級入口：
+
+- 事項動態
+- 設定頁
+- 開發者設定
+
+Items 管理與 Timeline 管理不得藏在 FeaturePage card 裡，必須由 Bottom Navigation 直接進入。
 
 ### 8.1 Item 區塊
 
@@ -793,9 +814,23 @@ Home 是唯一核心畫面。
 2. item `warning`
 3. timeline upcoming
 
-### 8.4 Home 入口
+### 8.4 AppBar 與 FAB
 
-Home 的 AppBar 保留主要日常操作入口，並提供一個 `功能` 入口導向功能頁。
+Shell AppBar title 依目前 tab 顯示：
+
+- `今天`
+- `管理`
+- `時間線`
+
+Shell AppBar 提供 `功能` action，導向 FeaturePage。
+
+FAB 只表示建立 action，不做 tab navigation：
+
+- `今天` tab：`新增要照顧的事`
+- `管理` tab：`新增要照顧的事`
+- `時間線` tab：`新增時間線`
+
+Standalone `HomePage` 保留原本 `新增要照顧的事` FAB，供單頁測試與非 shell 使用情境使用。Shell route 使用 `HomeContent`，避免 nested scaffold。
 
 ### 8.5 Attention Summary / App Badge / Daily Notification
 
@@ -874,38 +909,48 @@ AttentionSummary {
 
 #### 9.3.1 Items 管理
 
-- 只管理 system default pack 內的 items
+- `/manage` 是 Bottom Navigation 的一級 tab
+- Items 管理與 Item Packs 管理目前整合在同一頁
+- 舊 `/feature/items-management` route 保留 redirect 到 `/manage`
+- 顯示所有 active packs，包含 system default pack
+- 每個 pack 以 pack card 呈現，內嵌該 pack 的 active / paused item 清單
 - 可顯示：
   - default pack 標示
+  - pack title
+  - pack 內 item count
   - item title
   - item summary
   - derived status
 - 可操作：
   - 新增 item
+  - 套用 template
+  - 新增 pack
+  - 編輯非 system default pack
+  - 儲存 pack 為 template
+  - 封存非 system default pack
   - 編輯 item
   - 完成 item
   - 跳過 item
+  - 暫停 / 恢復 / 封存 item
+  - 搬移 item
   - 查看 item history
 
 #### 9.3.2 Item Packs 管理
 
-- pack 是正式可見實體
-- item packs 頁以 pack card 內嵌顯示該 pack 的 item 清單
-- 可操作：
-  - 新增 pack
-  - 編輯非 system default pack
-  - 新增 item 到指定 pack
-  - 編輯 pack 內 item
-  - 暫停 / 恢復 / 封存 pack 內 item
-  - 封存非 system default pack；若 pack 內仍有 active / paused items，需二次確認
+- pack 是正式可見實體，但目前不再有獨立 primary tab
+- `ItemPacksManagementPage` route 保留作為相容入口，內容渲染整合後的 Items 管理頁
+- 舊 item pack 管理語意收斂到 `/manage`
 
 #### 9.3.3 Timeline 管理
 
-- timeline 管理獨立為單頁
+- `/timeline` 是 Bottom Navigation 的一級 tab
+- timeline 管理獨立於 FeaturePage
 - 可操作：
   - 新增 timeline
   - 編輯 active timeline
   - 查看 milestone history
+
+舊 `/feature/timeline-management` route 保留 redirect 到 `/timeline`。
 
 #### 9.3.4 History
 

@@ -36,20 +36,6 @@ class FeaturePage extends StatelessWidget {
           ),
           SizedBox(height: 12),
           _FeatureEntryCard(
-            itemKey: 'items-management',
-            title: ReminderUiText.itemsManagementFeatureTitle,
-            icon: Icons.checklist_rtl_outlined,
-            routeName: ItemsManagementPage.routeName,
-          ),
-          SizedBox(height: 12),
-          _FeatureEntryCard(
-            itemKey: 'timeline-management',
-            title: ReminderUiText.timelineManagementFeatureTitle,
-            icon: Icons.timeline_outlined,
-            routeName: TimelineManagementPage.routeName,
-          ),
-          SizedBox(height: 12),
-          _FeatureEntryCard(
             itemKey: 'settings',
             title: ReminderUiText.userSettingsFeatureTitle,
             icon: Icons.settings_outlined,
@@ -236,7 +222,8 @@ class ItemsManagementPage extends StatelessWidget {
   const ItemsManagementPage({super.key});
 
   static const routeName = 'items-management';
-  static const routePath = '/feature/items-management';
+  static const routePath = '/manage';
+  static const legacyRoutePath = '/feature/items-management';
 
   @override
   Widget build(BuildContext context) {
@@ -270,7 +257,8 @@ class TimelineManagementPage extends StatelessWidget {
   const TimelineManagementPage({super.key});
 
   static const routeName = 'timeline-management';
-  static const routePath = '/feature/timeline-management';
+  static const routePath = '/timeline';
+  static const legacyRoutePath = '/feature/timeline-management';
 
   @override
   Widget build(BuildContext context) {

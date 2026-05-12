@@ -25,11 +25,6 @@ class HomePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final summaryAsync = ref.watch(attentionSummaryProvider);
-    final dangerAsync = ref.watch(dangerHomeEntriesProvider);
-    final warningAsync = ref.watch(warningHomeEntriesProvider);
-    final timelineAsync = ref.watch(upcomingTimelineMilestonesProvider);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text(ReminderUiText.homeTitle),
@@ -42,68 +37,82 @@ class HomePage extends ConsumerWidget {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          summaryAsync.when(
-            data: (summary) => _AttentionSummaryCard(summary: summary),
-            error: (error, stack) => Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text('讀取失敗: $error'),
-              ),
-            ),
-            loading: () => const Card(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator()),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          _HomeSection(
-            title: ReminderUiText.dangerTab,
-            child: dangerAsync.when(
-              data: (items) => _ItemList(
-                items: items,
-                emptyMessage: ReminderUiText.noDangerItems,
-              ),
-              error: (error, stack) => Text('讀取失敗: $error'),
-              loading: () => const Center(child: CircularProgressIndicator()),
-            ),
-          ),
-          const SizedBox(height: 16),
-          _HomeSection(
-            title: ReminderUiText.warningTab,
-            child: warningAsync.when(
-              data: (items) => _ItemList(
-                items: items,
-                emptyMessage: ReminderUiText.noWarningItems,
-              ),
-              error: (error, stack) => Text('讀取失敗: $error'),
-              loading: () => const Center(child: CircularProgressIndicator()),
-            ),
-          ),
-          const SizedBox(height: 16),
-          _HomeSection(
-            title: ReminderUiText.upcomingSectionTitle,
-            child: timelineAsync.when(
-              data: (items) => _TimelineMilestoneList(
-                items: items,
-                emptyMessage: ReminderUiText.noUpcomingTimelineItems,
-              ),
-              error: (error, stack) => Text('讀取失敗: $error'),
-              loading: () => const Center(child: CircularProgressIndicator()),
-            ),
-          ),
-        ],
-      ),
+      body: const HomeContent(),
       floatingActionButton: FloatingActionButton(
         key: const Key('home-add-item-fab'),
         onPressed: () => context.pushNamed(ItemEditPage.createRouteName),
         tooltip: ReminderUiText.addItem,
         child: const Icon(Icons.add_task),
       ),
+    );
+  }
+}
+
+class HomeContent extends ConsumerWidget {
+  const HomeContent({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final summaryAsync = ref.watch(attentionSummaryProvider);
+    final dangerAsync = ref.watch(dangerHomeEntriesProvider);
+    final warningAsync = ref.watch(warningHomeEntriesProvider);
+    final timelineAsync = ref.watch(upcomingTimelineMilestonesProvider);
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        summaryAsync.when(
+          data: (summary) => _AttentionSummaryCard(summary: summary),
+          error: (error, stack) => Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text('讀取失敗: $error'),
+            ),
+          ),
+          loading: () => const Card(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        _HomeSection(
+          title: ReminderUiText.dangerTab,
+          child: dangerAsync.when(
+            data: (items) => _ItemList(
+              items: items,
+              emptyMessage: ReminderUiText.noDangerItems,
+            ),
+            error: (error, stack) => Text('讀取失敗: $error'),
+            loading: () => const Center(child: CircularProgressIndicator()),
+          ),
+        ),
+        const SizedBox(height: 16),
+        _HomeSection(
+          title: ReminderUiText.warningTab,
+          child: warningAsync.when(
+            data: (items) => _ItemList(
+              items: items,
+              emptyMessage: ReminderUiText.noWarningItems,
+            ),
+            error: (error, stack) => Text('讀取失敗: $error'),
+            loading: () => const Center(child: CircularProgressIndicator()),
+          ),
+        ),
+        const SizedBox(height: 16),
+        _HomeSection(
+          title: ReminderUiText.upcomingSectionTitle,
+          child: timelineAsync.when(
+            data: (items) => _TimelineMilestoneList(
+              items: items,
+              emptyMessage: ReminderUiText.noUpcomingTimelineItems,
+            ),
+            error: (error, stack) => Text('讀取失敗: $error'),
+            loading: () => const Center(child: CircularProgressIndicator()),
+          ),
+        ),
+      ],
     );
   }
 }
