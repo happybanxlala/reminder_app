@@ -19,6 +19,11 @@ This is the single source of truth for reminders core model, MVP scope, naming, 
 - `ItemActionRecord`
 - `ItemType`
 - `ItemStatus`
+- `AttentionPolicy`
+- `AttentionPolicySource`
+- `ReminderTone`
+- `UsageSpeed`
+- `AppSettings`
 - `Timeline`
 - `TimelineMilestoneRule`
 - `TimelineMilestoneOccurrence`
@@ -61,7 +66,7 @@ This is the single source of truth for reminders core model, MVP scope, naming, 
 
 ```ts
 ItemPack {
-  id: string
+  id: number
   title: string
   description?: string
   status: "active" | "archived"
@@ -82,13 +87,14 @@ ItemPack {
 
 ```ts
 Item {
-  id: string
-  packId: string
+  id: number
+  packId: number
   title: string
   description?: string
   type: ItemType
   config: ItemConfig
-  status: "active" | "paused" | "archived"
+  attentionPolicySource: "systemDefault" | "userCustomized"
+  status: "active" | "paused" | "archived" // lifecycle status
   lastDoneAt?: DateTime
   createdAt: DateTime
   updatedAt: DateTime
@@ -100,6 +106,7 @@ Item {
 - item 屬於一個 pack
 - item 的 lifecycle 與 attention status 分離
 - item 以 `type + config` 為主推導 attention status；部分類型會輔以 `lastDoneAt`
+- `attentionPolicySource` 記錄提醒策略是系統推導或使用者自訂
 - `lastDoneAt` 是快照欄位與查詢優化欄位，不等於完整歷史
 - `STATE_BASED` 不再以 `lastDoneAt` 作為主要基準，改以 `config.anchorDate`
 - item side 不建立 `TaskTemplate + Task instance`
@@ -108,9 +115,9 @@ Item {
 
 ```ts
 ItemActionRecord {
-  id: string
-  itemId: string
-  actionType: "done" | "skipped" | "deferred"
+  id: number
+  itemId: number
+  actionType: "created" | "done" | "skipped" | "deferred"
   actionDate: DateTime
   remark?: string
   payload?: Json
@@ -125,13 +132,14 @@ ItemActionRecord {
 - `payload` 用來保存操作附加資訊，例如：`addedDays`、`nextCycleStrategy`
 - `未處理` 不持久化成 record status；以缺少該輪 action 表示
 - item 操作寫入 record 後，仍需同步更新 item snapshot 欄位
+- `created` action type 可用於歷史顯示與相容；目前建立 item 不要求一定寫入 created record
 - `deferred` action type 保留給既有資料相容與未來功能恢復；目前 MVP 不會建立新的 deferred record
 
 ### 3.4 Timeline
 
 ```ts
 Timeline {
-  id: string
+  id: number
   title: string
   startDate: DateTime
   displayUnit: "day" | "week" | "month" | "year"
@@ -152,8 +160,8 @@ Timeline {
 
 ```ts
 TimelineMilestoneRule {
-  id: string
-  timelineId: string
+  id: number
+  timelineId: number
   type: "every_n_days" | "every_n_weeks" | "every_n_months" | "every_n_years"
   intervalValue: number
   intervalUnit: "days" | "weeks" | "months" | "years"
@@ -174,8 +182,8 @@ TimelineMilestoneRule {
 
 ```ts
 TimelineMilestoneOccurrence {
-  timelineId: string
-  ruleId: string
+  timelineId: number
+  ruleId: number
   occurrenceIndex: number
   targetDate: DateTime
   label: string
@@ -194,9 +202,9 @@ TimelineMilestoneOccurrence {
 
 ```ts
 TimelineMilestoneRecord {
-  id: string
-  timelineId: string
-  ruleId: string
+  id: number
+  timelineId: number
+  ruleId: number
   occurrenceIndex: number
   targetDate: DateTime
   status: "upcoming" | "noticed" | "skipped"
@@ -232,6 +240,7 @@ ItemTemplateItem {
   description?: string
   type: ItemType
   config: ItemConfig
+  attentionPolicySource: "systemDefault" | "userCustomized"
 }
 ```
 
@@ -244,17 +253,38 @@ ItemTemplateItem {
 - `ItemPackTemplate / ItemTemplateItem` 不參與 FIXED 週期生成，不產生 instance，也不擁有 lifecycle / attention status
 - built-in templates 來自程式碼；custom templates 持久化在本機資料庫
 
+### 3.9 AppSettings
+
+```ts
+AppSettings {
+  reminderTone: ReminderTone
+  updatedAt: DateTime
+}
+```
+
+規則：
+
+- `AppSettings` 是 singleton settings model
+- `reminderTone` 預設為 `standard`
+- `reminderTone` 影響新建 item 與未自訂策略 item 的提醒策略推導
+- `reminderTone` 不批次改寫既有 item config
+
 ---
 
 ## 4. ItemType
 
 ```ts
 enum ItemType {
-  FIXED
-  STATE_BASED
-  RESOURCE_BASED
+  fixed
+  stateBased
+  resourceBased
 }
 ```
+
+說明：
+
+- 文件段落標題仍使用 `FIXED / STATE_BASED / RESOURCE_BASED` 表示語意分類
+- 實作 enum name 以 Dart lower camel case 為準：`fixed / stateBased / resourceBased`
 
 ### 4.1 FIXED
 
@@ -289,7 +319,7 @@ config = {
 - `FixedScheduleType` 已支援 `daily`、`weekly`、`oneTime`、`everyXDays`、`everyXWeeks`、`monthly`
 - `scheduleInterval` 用於 `everyXDays` / `everyXWeeks`；未指定時視為 `1`
 - `monthlyDay` 用於 `monthly`，代表每月目標日；實作需處理短月份的日期 clamp
-- `oneTime` 類型顯示文案使用 `ONETIME`
+- `oneTime` 類型顯示文案使用「一次」
 - `timeOfDay` 目前只作為摘要顯示欄位，不參與狀態判斷
 - `autoAdvance` item 在 preview date 或實際 today 超過 `dueDate` 時，status 與摘要都必須反映 resolved next cycle
 
@@ -359,6 +389,29 @@ config = {
 
 `warningAfter / dangerAfter / warningBefore / dangerBefore` 是內部提醒策略參數，不是主要建立流程的使用者輸入欄位。
 
+```ts
+AttentionPolicy {
+  warningAfterDays?: number
+  dangerAfterDays?: number
+  warningBeforeDays?: number
+  dangerBeforeDays?: number
+  source: "systemDefault" | "userCustomized"
+}
+
+enum ReminderTone {
+  gentle
+  standard
+  early
+  urgent
+}
+
+enum UsageSpeed {
+  low
+  medium
+  high
+}
+```
+
 建立 item 時，系統必須根據 item type 與使用者輸入的生活語意自動推導預設 `AttentionPolicy`：
 
 - `FIXED`：由 `anchorDate / dueDate` 推導可完成窗口，再產生 `warningBefore / dangerBefore`
@@ -373,14 +426,89 @@ config = {
 - Setting Page 可提供全局提醒風格，預設為 `standard`
 - UI 應顯示生活語言，例如「3 天前開始提醒」、「第 21 天建議處理」、「5月8日開始提醒補貨」
 - UI 不應在主要建立流程中直接顯示工程欄位名稱或要求輸入 raw warning/danger 數值
-- 推導邏輯必須集中在純 domain service，例如 `AttentionPolicyResolver`，不得散落在 widget 中
+- 推導邏輯必須集中在純 domain service：`AttentionPolicyResolver`，不得散落在 widget 中
+
+目前 resolver 規則：
+
+#### FIXED
+
+```ts
+availableWindowDays = max(1, dueDate - anchorDate + 1)
+
+standard:
+if availableWindowDays <= 1:
+  warningBeforeDays = 0
+  dangerBeforeDays = 0
+elif availableWindowDays <= 3:
+  warningBeforeDays = availableWindowDays - 1
+  dangerBeforeDays = 0
+elif availableWindowDays <= 7:
+  warningBeforeDays = min(3, availableWindowDays - 1)
+  dangerBeforeDays = 1
+else:
+  warningBeforeDays = ceil(availableWindowDays * 0.5)
+  dangerBeforeDays = max(1, ceil(availableWindowDays * 0.2))
+```
+
+`ReminderTone` 對 `FIXED` 的影響：
+
+- `gentle`：`warningBeforeDays = min(1, availableWindowDays - 1)`，`dangerBeforeDays = 0`
+- `standard`：使用上述 standard 規則
+- `early` / `urgent`：warning 至少覆蓋整個可完成窗口；danger 至少提前 1 天，但不超過 warning
+- 所有結果都 clamp 到 `0...availableWindowDays - 1`，且 `dangerBeforeDays <= warningBeforeDays`
+
+#### STATE_BASED
+
+建立流程使用 `expectedIntervalDays` 推導策略：
+
+```ts
+if expectedIntervalDays <= 1:
+  warningAfterDays = 0
+  dangerAfterDays = 1
+elif expectedIntervalDays <= 3:
+  warningAfterDays = max(1, expectedIntervalDays - 1)
+  dangerAfterDays = expectedIntervalDays
+else:
+  warningAfterDays = round(expectedIntervalDays * warningRatio)
+  dangerAfterDays = expectedIntervalDays
+```
+
+`warningRatio`：
+
+- `gentle`: `0.9`
+- `standard`: `0.8`
+- `early`: `0.65`
+- `urgent`: `0.6`
+
+補充：
+
+- `urgent` 的 `dangerAfterDays = round(expectedIntervalDays * 0.9)`
+- `warningAfterDays` 必須 clamp 到 `0...dangerAfterDays`
+
+#### RESOURCE_BASED
+
+建立流程使用 `estimatedDurationDays + UsageSpeed` 推導策略：
+
+```ts
+usageSpeed.low:    warningBeforeDays = 2, dangerBeforeDays = 1
+usageSpeed.medium: warningBeforeDays = 3, dangerBeforeDays = 1
+usageSpeed.high:   warningBeforeDays = 5, dangerBeforeDays = 2
+```
+
+`ReminderTone` 對 `RESOURCE_BASED` 的影響：
+
+- `gentle`：最多使用 `2 / 1`
+- `standard`：使用 `UsageSpeed` standard 規則
+- `early`：至少使用 `5 / 2`
+- `urgent`：至少使用 `7 / 3`
+- 所有結果都 clamp 到 `0...estimatedDurationDays`，且 `dangerBeforeDays <= warningBeforeDays`
 
 持久化與相容策略：
 
 - resolver 產生的 policy 會寫回既有 config 欄位
 - `AttentionPolicySource` 持久化於 item / template item 層級
 - `systemDefault` 代表目前策略由系統推導；`userCustomized` 代表使用者在進階提醒策略中覆寫過
-- 全局 `ReminderTone` 持久化於 settings，預設為 `standard`
+- 全局 `ReminderTone` 持久化於 `app_settings`，預設為 `standard`
 - 全局 `ReminderTone` 影響新建與後續編輯時的系統推導，不會批次覆蓋既有 `userCustomized` item
 - 進階提醒策略 UI 是 raw warning/danger 的唯一一般使用者入口；主要建立與編輯路徑仍使用生活語意欄位
 
@@ -392,27 +520,27 @@ config = {
 
 ```ts
 enum ItemLifecycleStatus {
-  ACTIVE
-  PAUSED
-  ARCHIVED
+  active
+  paused
+  archived
 }
 ```
 
 規則：
 
-- `ACTIVE` 參與一般 item 列表與 derived status 計算
-- `PAUSED` 不參與 Home 的 danger / warning 列表
-- `ARCHIVED` 不參與一般 item 列表，僅作為保留資料
-- pack 被封存時，其底下 items 會一併轉為 `ARCHIVED`
+- `active` 參與一般 item 列表與 derived status 計算
+- `paused` 不參與 Home 的 danger / warning 列表
+- `archived` 不參與一般 item 列表，僅作為保留資料
+- pack 被封存時，其底下 items 會一併轉為 `archived`
 
 ### 5.2 Attention 狀態集合
 
 ```ts
 enum ItemStatus {
-  NORMAL
-  WARNING
-  DANGER
-  UNKNOWN
+  normal
+  warning
+  danger
+  unknown
 }
 ```
 
@@ -427,13 +555,13 @@ enum ItemStatus {
 dayIndex = (now - anchorDate) + 1
 
 if anchorDate == null:
-    status = UNKNOWN
+    status = unknown
 elif dayIndex >= dangerAfter:
-    status = DANGER
+    status = danger
 elif dayIndex >= warningAfter:
-    status = WARNING
+    status = warning
 else:
-    status = NORMAL
+    status = normal
 ```
 
 補充：
@@ -441,31 +569,31 @@ else:
 - `unknown` 代表尚未建立 baseline
 - `StateBased` 的 baseline 由 `anchorDate` 單一承擔
 - `anchorDate` 當天是第 `1` 天，不是第 `0` 天
-- `warningAfter = 4` 代表第 4 天當天起進入 `WARNING`
-- `dangerAfter = 10` 代表第 10 天當天起進入 `DANGER`
-- 若 `dangerAfter < warningAfter`，仍以 `DANGER` 優先
+- `warningAfter = 4` 代表第 4 天當天起進入 `warning`
+- `dangerAfter = 10` 代表第 10 天當天起進入 `danger`
+- 若 `dangerAfter < warningAfter`，仍以 `danger` 優先
 - `infoAfter` 不參與 attention status 邊界，只保留為資訊層設定
 
 ### 5.4 FIXED 計算規則
 
 ```ts
 if anchorDate == null or dueDate == null:
-    status = UNKNOWN
+    status = unknown
 
 cycle = resolveCurrentCycle(anchorDate, dueDate, scheduleType, overduePolicy, now)
 
 if now < cycle.anchorDate:
-    status = NORMAL
+    status = normal
 elif completedWithin(cycle):
-    status = NORMAL
+    status = normal
 elif now > cycle.dueDate and overduePolicy == "waitForAction":
-    status = DANGER
+    status = danger
 elif remainingDays(cycle.dueDate, now) <= dangerBefore:
-    status = DANGER
+    status = danger
 elif remainingDays(cycle.dueDate, now) <= warningBefore:
-    status = WARNING
+    status = warning
 else:
-    status = NORMAL
+    status = normal
 ```
 
 補充：
@@ -477,17 +605,17 @@ else:
 
 ```ts
 if anchorDate == null or durationDays <= 0:
-    status = UNKNOWN
+    status = unknown
 
 depletionDate = anchorDate + durationDays - 1
 remainingDays = depletionDate - now
 
 if remainingDays <= dangerBefore:
-    status = DANGER
+    status = danger
 elif remainingDays <= warningBefore:
-    status = WARNING
+    status = warning
 else:
-    status = NORMAL
+    status = normal
 ```
 
 補充：
@@ -502,10 +630,10 @@ else:
 
 | Status | UI 感受 |
 | --- | --- |
-| NORMAL | 穩定 |
-| WARNING | 需留意 |
-| DANGER | 快變糟 |
-| UNKNOWN | 未建立基準 |
+| normal | 穩定 |
+| warning | 需留意 |
+| danger | 快變糟 |
+| unknown | 未建立基準 |
 
 ---
 
@@ -706,21 +834,30 @@ AttentionSummary {
 
 1. 輸入內容
 2. 選擇 pack
-3. 選擇 item type
-4. 設定對應 config
+3. 選擇提醒方式（`fixed / stateBased / resourceBased`）
+4. 設定對應生活語意 config
+5. 系統依目前 `ReminderTone` 自動推導 raw attention policy
 
 編輯既有 item：
 
 1. 輸入內容
-2. 選擇 pack
+2. 檢視 pack（唯讀）
 3. 檢視既有 item type（唯讀，不可修改）
 4. 調整對應 config
+5. 可在「進階提醒策略」中切換為 `userCustomized` 並直接調整 raw warning/danger 欄位
 
 規則：
 
+- create mode 若從特定 pack 進入，可鎖定 pack 並隱藏 pack selector
+- edit mode 不提供移動 pack；pack 顯示為唯讀
 - item type 只可在建立時選擇；既有 item 不允許變更 type
 - UI 必須在 edit mode 鎖住 type
 - repository / data layer 也必須拒絕任何跨 type 的更新請求
+- create mode 不顯示 raw `warningAfter / dangerAfter / warningBefore / dangerBefore` 欄位，只顯示推導後的生活語言預覽
+- edit mode 預設仍使用系統推導；只有打開「自訂這項事項的提醒策略」時才顯示 raw 欄位，存檔後 `attentionPolicySource = userCustomized`
+- 關閉自訂策略並存檔時，`attentionPolicySource = systemDefault`，config 會依目前生活語意欄位與 `ReminderTone` 重新推導
+- `STATE_BASED` create mode 使用「大約幾天需要處理一次」作為 `expectedIntervalDays`
+- `RESOURCE_BASED` create mode 使用「可用天數」與「消耗速度」推導補貨提醒策略
 - 編輯 `FIXED` item 時，日期欄位必須反映目前生效中的 cycle snapshot
 - 若 `FIXED` item 為 `autoAdvance` 且 preview date 已推進到下一輪，edit 頁必須顯示 resolved cycle 的 `anchorDate / dueDate`
 - 若無法解析 resolved cycle，才退回實際儲存的 `anchorDate / dueDate`
@@ -776,6 +913,14 @@ AttentionSummary {
 - milestone history 只保留在單一 timeline 的明細層級
 - item history 以單一 item 明細頁提供
 
+#### 9.3.5 User Settings
+
+- settings 頁提供全局 `ReminderTone`
+- 可選值：`gentle / standard / early / urgent`
+- 預設值為 `standard`
+- 此設定影響新建 item 與未自訂策略 item 的後續系統推導
+- 此設定不批次覆蓋既有 `userCustomized` item
+
 ### 9.4 Developer Preview Date Override
 
 規則：
@@ -807,6 +952,8 @@ AttentionSummary {
 
 ## 10. Persistence Model
 
+目前 Drift `schemaVersion = 3`。
+
 ### 10.1 item_packs
 
 - `id`
@@ -825,6 +972,7 @@ AttentionSummary {
 - `description`
 - `status`
 - `type`
+- `attentionPolicySource`
 - `fixedScheduleType`
 - `fixedScheduleInterval`
 - `fixedMonthlyDay`
@@ -835,6 +983,7 @@ AttentionSummary {
 - `fixedExpectedBeforeMinutes`
 - `fixedWarningBeforeMinutes`
 - `fixedDangerBeforeMinutes`
+- `stateAnchorDate`
 - `stateExpectedAfterMinutes`
 - `stateWarningAfterMinutes`
 - `stateDangerAfterMinutes`
@@ -869,6 +1018,7 @@ AttentionSummary {
 - `title`
 - `description`
 - `type`
+- `attentionPolicySource`
 - `fixedScheduleType`
 - `fixedScheduleInterval`
 - `fixedMonthlyDay`
@@ -934,6 +1084,19 @@ AttentionSummary {
 - `createdAt`
 - `updatedAt`
 
+### 10.9 app_settings
+
+- `id`
+- `reminderTone`
+- `createdAt`
+- `updatedAt`
+
+規則：
+
+- singleton row 使用 `id = 1`
+- `reminderTone` 預設為 `standard`
+- database open 時必須確保 settings row 存在
+
 ---
 
 ## 11. Domain Constraints
@@ -959,6 +1122,10 @@ AttentionSummary {
 - `STATE_BASED`
 - `FIXED` 的 overdue policy
 - item 狀態計算
+- `AttentionPolicyResolver`
+- `AttentionPolicySource`
+- `ReminderTone` settings
+- `UsageSpeed` for resource-based create flow
 - Home 顯示（warning / danger）
 - item `完成 / 跳過`
 - timeline milestone rule / record 基本流
