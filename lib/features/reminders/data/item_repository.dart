@@ -222,6 +222,7 @@ class ItemRepository {
         fixedScheduleType: _fixedScheduleType(input.config),
         fixedScheduleInterval: _fixedScheduleInterval(input.config),
         fixedMonthlyDay: _fixedMonthlyDay(input.config),
+        fixedRepeatRuleV2: _fixedRepeatRuleV2(input.config),
         fixedAnchorDate: _fixedAnchorDate(input.config),
         fixedDueDate: _fixedDueDate(input.config),
         fixedTimeOfDay: _fixedTimeOfDay(input.config),
@@ -537,6 +538,7 @@ class ItemRepository {
     return ItemsCompanion(
       fixedAnchorDate: _dateValue(snapshot.fixedAnchorDate),
       fixedDueDate: _dateValue(snapshot.fixedDueDate),
+      fixedRepeatRuleV2: _stringValue(snapshot.fixedRepeatRuleV2),
       stateAnchorDate: _dateValue(snapshot.stateAnchorDate),
       resourceAnchorDate: _dateValue(snapshot.resourceAnchorDate),
       resourceDurationDays: _intValue(snapshot.resourceDurationDays),
@@ -569,6 +571,7 @@ class ItemRepository {
       fixedScheduleType: Value(_fixedScheduleType(input.config)),
       fixedScheduleInterval: Value(_fixedScheduleInterval(input.config)),
       fixedMonthlyDay: Value(_fixedMonthlyDay(input.config)),
+      fixedRepeatRuleV2: Value(_fixedRepeatRuleV2(input.config)),
       fixedAnchorDate: Value(_fixedAnchorDate(input.config)),
       fixedDueDate: Value(_fixedDueDate(input.config)),
       fixedTimeOfDay: Value(_fixedTimeOfDay(input.config)),
@@ -631,6 +634,7 @@ class ItemRepository {
       fixedScheduleType: Value(_fixedScheduleType(item.config)),
       fixedScheduleInterval: Value(_fixedScheduleInterval(item.config)),
       fixedMonthlyDay: Value(_fixedMonthlyDay(item.config)),
+      fixedRepeatRuleV2: Value(_fixedRepeatRuleV2(item.config)),
       fixedTimeOfDay: Value(_fixedTimeOfDay(item.config)),
       fixedOverduePolicy: Value(_fixedOverduePolicy(item.config)),
       fixedExpectedBeforeMinutes: Value(
@@ -775,6 +779,13 @@ class ItemRepository {
     };
   }
 
+  String? _fixedRepeatRuleV2(ItemConfig config) {
+    return switch (config) {
+      FixedItemConfig fixed => fixed.repeatRuleV2?.encode(),
+      _ => null,
+    };
+  }
+
   DateTime _normalizeDate(DateTime value) {
     return DateTime(value.year, value.month, value.day);
   }
@@ -911,6 +922,13 @@ class ItemRepository {
   }
 
   Value<int?> _intValue(SnapshotValue<int> value) {
+    if (!value.present) {
+      return const Value.absent();
+    }
+    return Value(value.value);
+  }
+
+  Value<String?> _stringValue(SnapshotValue<String> value) {
     if (!value.present) {
       return const Value.absent();
     }

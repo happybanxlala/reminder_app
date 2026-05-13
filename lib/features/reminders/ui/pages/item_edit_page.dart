@@ -413,6 +413,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       _selectedPackId,
       _configController.type.name,
       _configController.scheduleType.name,
+      _configController.fixedRepeatRuleV2?.encode(),
       _configController.overduePolicy.name,
       _configController.usageSpeed.name,
       _configController.customizeAttentionPolicy,

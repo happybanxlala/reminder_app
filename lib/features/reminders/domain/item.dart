@@ -1,4 +1,5 @@
 import 'attention_policy.dart';
+import 'repeat_rule_v2.dart';
 
 enum ItemType { fixed, stateBased, resourceBased }
 
@@ -33,6 +34,7 @@ class FixedItemConfig extends ItemConfig {
     required this.scheduleType,
     this.scheduleInterval = 1,
     this.monthlyDay,
+    this.repeatRuleV2,
     this.anchorDate,
     this.dueDate,
     this.timeOfDay,
@@ -45,6 +47,7 @@ class FixedItemConfig extends ItemConfig {
   final FixedScheduleType scheduleType;
   final int scheduleInterval;
   final int? monthlyDay;
+  final RepeatRuleV2? repeatRuleV2;
   final DateTime? anchorDate;
   final DateTime? dueDate;
   final String? timeOfDay;

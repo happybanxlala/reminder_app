@@ -6,6 +6,7 @@ import '../../domain/item.dart';
 import '../../domain/item_action_record.dart';
 import '../../domain/item_pack.dart';
 import '../../domain/item_pack_template.dart';
+import '../../domain/repeat_rule_v2.dart';
 import '../../domain/timeline.dart';
 import '../../domain/timeline_milestone_occurrence.dart';
 import '../../domain/timeline_milestone_record.dart';
@@ -782,6 +783,7 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
         ),
         scheduleInterval: row.fixedScheduleInterval ?? 1,
         monthlyDay: row.fixedMonthlyDay,
+        repeatRuleV2: RepeatRuleV2.parse(row.fixedRepeatRuleV2),
         anchorDate: row.fixedAnchorDate == null
             ? null
             : DateTime.fromMillisecondsSinceEpoch(row.fixedAnchorDate!),
@@ -826,6 +828,7 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
         ),
         scheduleInterval: row.fixedScheduleInterval ?? 1,
         monthlyDay: row.fixedMonthlyDay,
+        repeatRuleV2: RepeatRuleV2.parse(row.fixedRepeatRuleV2),
         timeOfDay: row.fixedTimeOfDay,
         overduePolicy: ItemOverduePolicy.values.byName(
           row.fixedOverduePolicy ?? ItemOverduePolicy.autoAdvance.name,

@@ -5,12 +5,12 @@ import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 
 void main() {
   test(
-    'database uses clean drift schema version 3 and core tables are writable',
+    'database uses clean drift schema version 4 and core tables are writable',
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
 
-      expect(db.schemaVersion, 3);
+      expect(db.schemaVersion, 4);
 
       final packId = await db
           .into(db.itemPacks)
@@ -37,6 +37,7 @@ void main() {
               fixedScheduleType: const Value.absent(),
               fixedScheduleInterval: const Value.absent(),
               fixedMonthlyDay: const Value.absent(),
+              fixedRepeatRuleV2: const Value.absent(),
               fixedAnchorDate: const Value.absent(),
               fixedDueDate: const Value.absent(),
               fixedTimeOfDay: const Value.absent(),
@@ -82,6 +83,7 @@ void main() {
               fixedScheduleType: const Value('everyXDays'),
               fixedScheduleInterval: const Value(3),
               fixedMonthlyDay: const Value.absent(),
+              fixedRepeatRuleV2: const Value.absent(),
               fixedTimeOfDay: const Value.absent(),
               fixedOverduePolicy: const Value('autoAdvance'),
               fixedExpectedBeforeMinutes: const Value(0),

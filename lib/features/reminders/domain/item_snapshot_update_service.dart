@@ -2,6 +2,7 @@ import 'item.dart';
 import 'item_action_record.dart';
 import 'item_action_service.dart';
 import 'item_status_service.dart';
+import 'repeat_rule_v2.dart';
 import 'resource_refill_calculator.dart';
 
 class SnapshotValue<T> {
@@ -17,6 +18,7 @@ class ItemSnapshotUpdate {
   const ItemSnapshotUpdate({
     this.fixedAnchorDate = const SnapshotValue.absent(),
     this.fixedDueDate = const SnapshotValue.absent(),
+    this.fixedRepeatRuleV2 = const SnapshotValue.absent(),
     this.stateAnchorDate = const SnapshotValue.absent(),
     this.resourceAnchorDate = const SnapshotValue.absent(),
     this.resourceDurationDays = const SnapshotValue.absent(),
@@ -26,6 +28,7 @@ class ItemSnapshotUpdate {
 
   final SnapshotValue<DateTime> fixedAnchorDate;
   final SnapshotValue<DateTime> fixedDueDate;
+  final SnapshotValue<String> fixedRepeatRuleV2;
   final SnapshotValue<DateTime> stateAnchorDate;
   final SnapshotValue<DateTime> resourceAnchorDate;
   final SnapshotValue<int> resourceDurationDays;
@@ -42,6 +45,8 @@ class ItemSnapshotUpdateService {
 
   final ItemStatusService _statusService;
   final ResourceRefillCalculator _refillCalculator;
+  final RepeatRuleOccurrenceCalculator _repeatCalculator =
+      const RepeatRuleOccurrenceCalculator();
 
   ItemSnapshotUpdate build(
     Item item, {
@@ -86,6 +91,7 @@ class ItemSnapshotUpdateService {
     var anchorDate = config.anchorDate;
     var dueDate = config.dueDate;
     var lastDoneAt = item.lastDoneAt;
+    var repeatRuleV2 = config.repeatRuleV2;
 
     if (action.type == ItemActionType.deferred) {
       final deferDays = (action.payload?['deferDays'] as num?)?.toInt() ?? 0;
@@ -96,11 +102,37 @@ class ItemSnapshotUpdateService {
         dueDate = dueDate.add(Duration(days: deferDays));
       }
     } else if (cycle != null &&
-        config.scheduleType != FixedScheduleType.oneTime) {
-      anchorDate = _statusService.nextFixedCycleAnchor(cycle, config);
-      dueDate = _statusService.nextFixedCycleDue(cycle, config);
+        (config.scheduleType != FixedScheduleType.oneTime ||
+            repeatRuleV2 != null)) {
+      if (repeatRuleV2 != null) {
+        final shouldCountOccurrence =
+            action.type == ItemActionType.done ||
+            action.type == ItemActionType.skipped;
+        final updatedRule = shouldCountOccurrence
+            ? repeatRuleV2.copyWithCompletedCount(
+                repeatRuleV2.completedCount + 1,
+              )
+            : repeatRuleV2;
+        final next = _repeatCalculator.nextOccurrence(
+          rule: updatedRule,
+          fromDate: action.actionDate,
+          anchorDate: config.anchorDate ?? cycle.anchorDate,
+        );
+        repeatRuleV2 = updatedRule;
+        if (next != null) {
+          anchorDate = next;
+          dueDate = next;
+        } else {
+          anchorDate = cycle.anchorDate;
+          dueDate = cycle.dueDate;
+        }
+      } else {
+        anchorDate = _statusService.nextFixedCycleAnchor(cycle, config);
+        dueDate = _statusService.nextFixedCycleDue(cycle, config);
+      }
       if (config.overduePolicy == ItemOverduePolicy.waitForAction &&
           action.actionDate.isAfter(cycle.dueDate) &&
+          repeatRuleV2 == null &&
           nextCycleStrategy == ItemNextCycleStrategy.shiftByDelay) {
         final delayDays = action.actionDate.difference(cycle.dueDate).inDays;
         anchorDate = _statusService.shiftDateByDelay(anchorDate, delayDays);
@@ -115,6 +147,7 @@ class ItemSnapshotUpdateService {
     return ItemSnapshotUpdate(
       fixedAnchorDate: SnapshotValue.value(anchorDate),
       fixedDueDate: SnapshotValue.value(dueDate),
+      fixedRepeatRuleV2: SnapshotValue.value(repeatRuleV2?.encode()),
       lastDoneAt: SnapshotValue.value(lastDoneAt),
       updatedAt: updatedAt,
     );

@@ -82,6 +82,68 @@ void main() {
     expect(find.byKey(const Key('resource-danger-before-field')), findsNothing);
   });
 
+  testWidgets('fixed repeat row opens custom stepper and updates summary', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
+          activeItemPacksProvider.overrideWith(
+            (ref) => Stream.value([
+              ItemPack(
+                id: 1,
+                title: 'Default Item Pack',
+                status: ItemPackStatus.active,
+                isSystemDefault: true,
+                createdAt: DateTime(2026, 4, 1),
+                updatedAt: DateTime(2026, 4, 1),
+              ),
+            ]),
+          ),
+        ],
+        child: const MaterialApp(home: ItemEditPage(mode: ItemEditMode.create)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.text(ReminderFormatters.itemType(ItemType.stateBased)),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(
+      find.text(ReminderFormatters.itemType(ItemType.fixed)).last,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('fixed-repeat-row')), findsOneWidget);
+    expect(
+      find.byKey(const Key('fixed-schedule-interval-field')),
+      findsNothing,
+    );
+    expect(find.text('每 X 天'), findsNothing);
+    expect(find.byKey(const Key('fixed-repeat-summary')), findsOneWidget);
+    expect(find.text('每天'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('fixed-repeat-row')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('repeat-option-custom')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('repeat-interval-increment')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('repeat-interval-increment')));
+    await tester.pumpAndSettle();
+    expect(find.text('3 天'), findsOneWidget);
+    expect(find.text('完成後， 3 天再次出現。'), findsNothing);
+    expect(find.text('完成後 3 天再次出現。'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('repeat-save-custom')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('每 3 天'), findsOneWidget);
+  });
+
   testWidgets('editor loads existing state-based item', (tester) async {
     await tester.pumpWidget(
       ProviderScope(

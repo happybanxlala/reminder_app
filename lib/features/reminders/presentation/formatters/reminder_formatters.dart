@@ -6,6 +6,8 @@ import '../../domain/attention_policy.dart';
 import '../../domain/item_action_record.dart';
 import '../../domain/item.dart';
 import '../../domain/item_pack.dart';
+import '../../domain/repeat_rule.dart';
+import '../../domain/repeat_rule_v2.dart';
 import '../../domain/timeline.dart';
 import '../../domain/timeline_milestone_occurrence.dart';
 import '../../domain/timeline_milestone_record.dart';
@@ -285,7 +287,105 @@ class ReminderFormatters {
     };
   }
 
+  static String formatRepeatRuleSummary(RepeatRule? rule) {
+    if (rule == null) {
+      return '永不';
+    }
+    final interval = rule.interval < 1 ? 1 : rule.interval;
+    return switch (rule.unit) {
+      RepeatUnit.day => interval == 1 ? '每天' : '每 $interval 天',
+      RepeatUnit.week => interval == 1 ? '每週' : '每 $interval 週',
+      RepeatUnit.month => interval == 1 ? '每月' : '每 $interval 個月',
+      RepeatUnit.year => interval == 1 ? '每年' : '每 $interval 年',
+    };
+  }
+
+  static String formatRepeatRuleDescription(RepeatRule? rule) {
+    if (rule == null) {
+      return '完成後不會再次出現。';
+    }
+    final interval = rule.interval < 1 ? 1 : rule.interval;
+    return switch (rule.unit) {
+      RepeatUnit.day => interval == 1 ? '完成後每天再次出現。' : '完成後 $interval 天再次出現。',
+      RepeatUnit.week => interval == 1 ? '完成後每週再次出現。' : '完成後 $interval 週再次出現。',
+      RepeatUnit.month =>
+        interval == 1 ? '完成後每月再次出現。' : '完成後 $interval 個月再次出現。',
+      RepeatUnit.year => interval == 1 ? '完成後每年再次出現。' : '完成後 $interval 年再次出現。',
+    };
+  }
+
+  static String repeatRuleV2Summary(RepeatRuleV2? rule) {
+    if (rule == null) {
+      return '永不';
+    }
+    final base = switch (rule.kind) {
+      RepeatRuleV2Kind.simple => formatRepeatRuleSummary(
+        RepeatRule(unit: rule.unit, interval: rule.interval),
+      ),
+      RepeatRuleV2Kind.weeklyWeekdays => _weeklyWeekdaysSummary(rule),
+      RepeatRuleV2Kind.monthlyDates => _monthlyDatesSummary(rule),
+      RepeatRuleV2Kind.monthlyNthWeekday => _monthlyNthWeekdaySummary(rule),
+    };
+    return '$base${_repeatEndSummarySuffix(rule.end)}';
+  }
+
+  static String repeatRuleV2Description(RepeatRuleV2? rule) {
+    if (rule == null) {
+      return '完成後不會再次出現。';
+    }
+    if (rule.kind == RepeatRuleV2Kind.simple) {
+      return formatRepeatRuleDescription(
+        RepeatRule(unit: rule.unit, interval: rule.interval),
+      );
+    }
+    final body = switch (rule.kind) {
+      RepeatRuleV2Kind.simple => '',
+      RepeatRuleV2Kind.weeklyWeekdays => _weeklyWeekdaysSummary(rule),
+      RepeatRuleV2Kind.monthlyDates => _monthlyDatesSummary(rule),
+      RepeatRuleV2Kind.monthlyNthWeekday => _monthlyNthWeekdaySummary(rule),
+    };
+    return '完成後，$body再次出現。';
+  }
+
+  static RepeatRule? repeatRuleFromFixedConfig(FixedItemConfig config) {
+    final v2 = repeatRuleV2FromFixedConfig(config);
+    return v2?.legacySimpleRule;
+  }
+
+  static RepeatRuleV2? repeatRuleV2FromFixedConfig(FixedItemConfig config) {
+    if (config.repeatRuleV2 != null) {
+      return config.repeatRuleV2;
+    }
+    final interval = config.scheduleInterval < 1 ? 1 : config.scheduleInterval;
+    return switch (config.scheduleType) {
+      FixedScheduleType.oneTime => null,
+      FixedScheduleType.daily => RepeatRuleV2.simple(
+        unit: RepeatUnit.day,
+        interval: 1,
+      ),
+      FixedScheduleType.weekly => RepeatRuleV2.simple(
+        unit: RepeatUnit.week,
+        interval: 1,
+      ),
+      FixedScheduleType.everyXDays => RepeatRuleV2.simple(
+        unit: RepeatUnit.day,
+        interval: interval,
+      ),
+      FixedScheduleType.everyXWeeks => RepeatRuleV2.simple(
+        unit: RepeatUnit.week,
+        interval: interval,
+      ),
+      FixedScheduleType.monthly => RepeatRuleV2.simple(
+        unit: RepeatUnit.month,
+        interval: interval,
+      ),
+    };
+  }
+
   static String fixedScheduleSummary(FixedItemConfig config) {
+    if (config.repeatRuleV2 != null) {
+      return repeatRuleV2Summary(config.repeatRuleV2);
+    }
     final interval = config.scheduleInterval < 1 ? 1 : config.scheduleInterval;
     return switch (config.scheduleType) {
       FixedScheduleType.daily => '每天',
@@ -296,6 +396,88 @@ class ReminderFormatters {
       FixedScheduleType.monthly =>
         config.monthlyDay == null ? '每月' : '每月 ${config.monthlyDay} 日',
     };
+  }
+
+  static String _weeklyWeekdaysSummary(RepeatRuleV2 rule) {
+    if (rule.interval == 1) {
+      final weekdayText = rule.weekdays.map(_weekdayShortName).join('、');
+      return '每週$weekdayText';
+    }
+    final weekdayText = _joinChineseList(
+      rule.weekdays.map(_weekdayName).toList(growable: false),
+    );
+    return '每 ${rule.interval} 週的$weekdayText';
+  }
+
+  static String _monthlyDatesSummary(RepeatRuleV2 rule) {
+    final dateValues = rule.monthDays
+        .map((day) => '$day 日')
+        .toList(growable: false);
+    final dateText = dateValues.length <= 1
+        ? dateValues.single
+        : '${dateValues.take(dateValues.length - 1).join('、')}和 ${dateValues.last}';
+    return rule.interval == 1
+        ? '每月 $dateText'
+        : '每 ${rule.interval} 個月的 $dateText';
+  }
+
+  static String _monthlyNthWeekdaySummary(RepeatRuleV2 rule) {
+    final ordinal = switch (rule.monthlyWeekOrdinal!) {
+      MonthlyWeekOrdinal.first => '第一個',
+      MonthlyWeekOrdinal.second => '第二個',
+      MonthlyWeekOrdinal.third => '第三個',
+      MonthlyWeekOrdinal.fourth => '第四個',
+      MonthlyWeekOrdinal.fifth => '第五個',
+      MonthlyWeekOrdinal.last => '最後一個',
+    };
+    final weekday = _weekdayName(rule.monthlyWeekday!);
+    return rule.interval == 1
+        ? '每月$ordinal$weekday'
+        : '每 ${rule.interval} 個月的$ordinal$weekday';
+  }
+
+  static String _repeatEndSummarySuffix(RepeatEndCondition end) {
+    return switch (end.type) {
+      RepeatEndType.never => '',
+      RepeatEndType.onDate => '，直到 ${date(end.untilDate!)}',
+      RepeatEndType.afterCount => '，共 ${end.occurrenceCount} 次',
+    };
+  }
+
+  static String _weekdayName(int weekday) {
+    return switch (weekday) {
+      DateTime.monday => '星期一',
+      DateTime.tuesday => '星期二',
+      DateTime.wednesday => '星期三',
+      DateTime.thursday => '星期四',
+      DateTime.friday => '星期五',
+      DateTime.saturday => '星期六',
+      DateTime.sunday => '星期日',
+      _ => '星期一',
+    };
+  }
+
+  static String _weekdayShortName(int weekday) {
+    return switch (weekday) {
+      DateTime.monday => '一',
+      DateTime.tuesday => '二',
+      DateTime.wednesday => '三',
+      DateTime.thursday => '四',
+      DateTime.friday => '五',
+      DateTime.saturday => '六',
+      DateTime.sunday => '日',
+      _ => '一',
+    };
+  }
+
+  static String _joinChineseList(List<String> values) {
+    if (values.isEmpty) {
+      return '';
+    }
+    if (values.length == 1) {
+      return values.single;
+    }
+    return '${values.take(values.length - 1).join('、')}和${values.last}';
   }
 
   static String itemCardBadge(ItemConfig config) {

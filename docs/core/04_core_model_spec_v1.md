@@ -23,6 +23,7 @@ This is the single source of truth for reminders core model, MVP scope, naming, 
 - `AttentionPolicySource`
 - `ReminderTone`
 - `UsageSpeed`
+- `RepeatRuleV2`
 - `AppSettings`
 - `Timeline`
 - `TimelineMilestoneRule`
@@ -293,6 +294,7 @@ config = {
   scheduleType: "daily" | "weekly" | "oneTime" | "everyXDays" | "everyXWeeks" | "monthly"
   scheduleInterval: number
   monthlyDay?: number
+  repeatRuleV2?: RepeatRuleV2
   anchorDate?: DateTime
   dueDate?: DateTime
   timeOfDay?: "HH:mm"
@@ -317,11 +319,59 @@ config = {
 - `anchorDate` 是固定排程的基準日
 - `dueDate` 是當前週期的到期點
 - `FixedScheduleType` 已支援 `daily`、`weekly`、`oneTime`、`everyXDays`、`everyXWeeks`、`monthly`
-- `scheduleInterval` 用於 `everyXDays` / `everyXWeeks`；未指定時視為 `1`
-- `monthlyDay` 用於 `monthly`，代表每月目標日；實作需處理短月份的日期 clamp
-- `oneTime` 類型顯示文案使用「一次」
+- `scheduleType / scheduleInterval / monthlyDay` 是 legacy simple schedule 欄位，仍需保留讀寫相容
+- `scheduleInterval` 用於 `everyXDays` / `everyXWeeks` / `monthly`；未指定時視為 `1`
+- `monthlyDay` 用於 legacy `monthly`，代表每月目標日；實作需處理短月份的日期 clamp
+- `repeatRuleV2` 是進階重複規則 payload；若存在，固定節奏下一次出現時間以 `repeatRuleV2` 為準
+- simple 規則可繼續雙寫到 legacy 欄位；進階規則必須寫入 `repeatRuleV2`
+- `oneTime` 在重複 UI 中顯示為「永不」
 - `timeOfDay` 目前只作為摘要顯示欄位，不參與狀態判斷
 - `autoAdvance` item 在 preview date 或實際 today 超過 `dueDate` 時，status 與摘要都必須反映 resolved next cycle
+
+### 4.1.1 RepeatRuleV2
+
+```ts
+RepeatRuleV2 {
+  version: 2
+  kind: "simple" | "weeklyWeekdays" | "monthlyDates" | "monthlyNthWeekday"
+  unit: "day" | "week" | "month" | "year"
+  interval: number
+  weekdays?: number[] // DateTime.monday = 1 ... DateTime.sunday = 7
+  monthDays?: number[] // 1...31
+  monthlyWeekOrdinal?: "first" | "second" | "third" | "fourth" | "fifth" | "last"
+  monthlyWeekday?: number
+  end: RepeatEndCondition
+  completedCount: number
+}
+
+RepeatEndCondition =
+  | { type: "never" }
+  | { type: "onDate", untilDate: "yyyy-MM-dd" }
+  | { type: "afterCount", occurrenceCount: number }
+```
+
+規則：
+
+- `RepeatRuleV2` 只用於 fixed item，不擴散到 state/resource 類型
+- legacy `D3 / W2 / M1 / Y1` 必須仍可 parse 成 simple rule
+- `weeklyWeekdays` 至少保留一個 weekday
+- `monthlyDates` 至少保留一個 month day
+- `monthlyDates` 若指定 29 / 30 / 31 但該月不存在該日期，使用該月最後一天
+- `monthlyNthWeekday` 若指定第五個星期 X 但該月不存在，略過該月；`last` 永遠取該月最後一個指定星期
+- `end.onDate` 以 next occurrence 是否晚於 `untilDate` 判斷是否停止
+- `end.afterCount` 使用 payload 內的 `completedCount` 判斷是否停止；完成或跳過固定節奏 item 時遞增
+- 當進階重複規則停止後，不再推進 `anchorDate / dueDate`
+
+顯示規則：
+
+- 使用者不應看到 raw enum、raw interval、raw JSON
+- 主編輯頁只顯示「重複」列與 trailing 摘要
+- simple summary：`永不`、`每天`、`每 3 天`、`每週`、`每 2 週`、`每月`、`每 3 個月`、`每年`
+- weekly summary：`每週一、三、五`、`每 2 週的星期三`
+- monthly date summary：`每月 12 日和 18 日`、`每 3 個月的 5 日`
+- monthly nth weekday summary：`每月第三個星期三`、`每 2 個月的最後一個星期五`
+- end summary：`每 3 天，直到 2026/06/30`、`每週三，共 10 次`
+- description 文案使用「完成後…再次出現。」語氣，不使用 calendar event 語氣
 
 ### 4.2 STATE_BASED
 
@@ -686,6 +736,12 @@ item side 不需要：
 - recurring task generation
 - cancel / pause-template lifecycle
 
+說明：
+
+- fixed item 的重複規則只推進同一個 item 的 `anchorDate / dueDate` snapshot
+- 系統不為每次重複建立獨立 instance，也不保存未來 occurrence queue
+- 進階重複規則的 next occurrence 由 domain calculator 即時計算
+
 ### 6.5 核心原則
 
 - 系統關注「有沒有事情正在變糟」
@@ -997,7 +1053,7 @@ AttentionSummary {
 
 ## 10. Persistence Model
 
-目前 Drift `schemaVersion = 3`。
+目前 Drift `schemaVersion = 4`。
 
 ### 10.1 item_packs
 
@@ -1021,6 +1077,7 @@ AttentionSummary {
 - `fixedScheduleType`
 - `fixedScheduleInterval`
 - `fixedMonthlyDay`
+- `fixedRepeatRuleV2`
 - `fixedAnchorDate`
 - `fixedDueDate`
 - `fixedTimeOfDay`
@@ -1046,6 +1103,9 @@ AttentionSummary {
 - domain config 名稱為 `infoBefore / infoAfter`
 - 目前 Drift 物理欄位仍沿用早期 `expected*` 欄名，例如 `fixedExpectedBeforeMinutes`、`stateExpectedAfterMinutes`、`resourceExpectedBeforeDays`
 - repository / DAO 必須將上述 storage 欄位映射為 domain 的 `infoBefore / infoAfter`
+- `fixedRepeatRuleV2` 是 nullable JSON payload；舊資料可為 null
+- 讀取 fixed item 時，若 `fixedRepeatRuleV2` 存在，domain config 必須 parse 成 `RepeatRuleV2`
+- 若 `fixedRepeatRuleV2` 為 null，repository / formatter 需從 legacy `fixedScheduleType / fixedScheduleInterval / fixedMonthlyDay` 推導 simple repeat summary
 
 ### 10.3 item_pack_templates
 
@@ -1067,6 +1127,7 @@ AttentionSummary {
 - `fixedScheduleType`
 - `fixedScheduleInterval`
 - `fixedMonthlyDay`
+- `fixedRepeatRuleV2`
 - `fixedTimeOfDay`
 - `fixedOverduePolicy`
 - `fixedExpectedBeforeMinutes`
@@ -1142,6 +1203,15 @@ AttentionSummary {
 - `reminderTone` 預設為 `standard`
 - database open 時必須確保 settings row 存在
 
+### 10.10 Migration notes
+
+- schema v4 新增：
+  - `items.fixedRepeatRuleV2`
+  - `item_template_items.fixedRepeatRuleV2`
+- v4 migration 只新增 nullable 欄位，不回填舊資料
+- 舊資料的 fixed schedule 由 legacy 欄位保持相容
+- 新 simple fixed schedule 可以繼續只用 legacy 欄位；yearly simple rule 或任何進階規則需寫入 `fixedRepeatRuleV2`
+
 ---
 
 ## 11. Domain Constraints
@@ -1152,6 +1222,8 @@ AttentionSummary {
 - `ItemActionRecord` 是 history layer，不是 item attention status 的唯一來源
 - `TimelineMilestoneRule` 是 primary source，occurrence 為動態計算結果
 - `TimelineMilestoneRecord` 不依使用者操作產生下一筆
+- `RepeatRuleV2` 只描述 fixed item 的重複節奏，不取代 `TimelineMilestoneRule`
+- fixed item 的 legacy schedule 欄位不可移除；它們是舊資料相容與 simple schedule 雙寫來源
 - archived `Timeline` 為唯讀
 - system default `ItemPack` 必須唯一、可見、不可封存
 
@@ -1166,6 +1238,7 @@ AttentionSummary {
 - `ItemActionRecord`
 - `STATE_BASED`
 - `FIXED` 的 overdue policy
+- `FIXED` 的重複設定 UI 與 `RepeatRuleV2`
 - item 狀態計算
 - `AttentionPolicyResolver`
 - `AttentionPolicySource`

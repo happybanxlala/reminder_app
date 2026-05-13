@@ -7,6 +7,7 @@ import 'package:reminder_app/features/reminders/domain/item_action_record.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack_template.dart';
+import 'package:reminder_app/features/reminders/domain/repeat_rule_v2.dart';
 
 void main() {
   test(
@@ -596,6 +597,48 @@ void main() {
     expect(updatedConfig.scheduleType, FixedScheduleType.monthly);
     expect(updatedConfig.monthlyDay, 31);
   });
+
+  test(
+    'fixed advanced repeat rule persists and advances after completion',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = ItemRepository(db.itemTimelineDao);
+
+      final itemId = await repository.createItem(
+        ItemInput(
+          title: 'Medication',
+          type: ItemType.fixed,
+          config: FixedItemConfig(
+            scheduleType: FixedScheduleType.weekly,
+            repeatRuleV2: RepeatRuleV2.weeklyWeekdays(
+              interval: 2,
+              weekdays: const [DateTime.wednesday],
+              end: const RepeatEndCondition.afterCount(2),
+            ),
+            anchorDate: DateTime(2026, 4, 1),
+            dueDate: DateTime(2026, 4, 1),
+          ),
+        ),
+      );
+
+      final created = await repository.getItemById(itemId);
+      final createdConfig = created!.item.config as FixedItemConfig;
+      expect(createdConfig.repeatRuleV2, isNotNull);
+      expect(createdConfig.repeatRuleV2!.weekdays, [DateTime.wednesday]);
+
+      expect(
+        await repository.markDone(itemId, doneAt: DateTime(2026, 4, 1)),
+        isTrue,
+      );
+
+      final updated = await repository.getItemById(itemId);
+      final updatedConfig = updated!.item.config as FixedItemConfig;
+      expect(updatedConfig.dueDate, DateTime(2026, 4, 15));
+      expect(updatedConfig.anchorDate, DateTime(2026, 4, 15));
+      expect(updatedConfig.repeatRuleV2!.completedCount, 1);
+    },
+  );
 
   test(
     'create, update, and archive pack round-trip with visibility rules',

@@ -1,4 +1,5 @@
 import 'item.dart';
+import 'repeat_rule_v2.dart';
 
 class FixedCycleWindow {
   const FixedCycleWindow({
@@ -14,6 +15,8 @@ class FixedCycleWindow {
 
 class ItemStatusService {
   const ItemStatusService();
+
+  static const _repeatCalculator = RepeatRuleOccurrenceCalculator();
 
   ItemStatus classify(Item item, {DateTime? now}) {
     final current = _normalizeDate(now ?? DateTime.now());
@@ -80,7 +83,17 @@ class ItemStatusService {
       );
     }
 
-    if (config.scheduleType == FixedScheduleType.oneTime) {
+    final repeatRule = config.repeatRuleV2;
+    if (repeatRule?.isEndedByCount ?? false) {
+      return FixedCycleWindow(
+        anchorDate: anchorDate,
+        dueDate: dueDate,
+        isVirtualAdvance: false,
+      );
+    }
+
+    if (config.scheduleType == FixedScheduleType.oneTime &&
+        repeatRule == null) {
       return FixedCycleWindow(
         anchorDate: anchorDate,
         dueDate: dueDate,
@@ -93,12 +106,25 @@ class ItemStatusService {
     var resolvedDue = dueDate;
     var advanced = false;
     while (current.isAfter(resolvedDue)) {
-      resolvedAnchor = _advanceDate(resolvedAnchor, config);
-      resolvedDue = _advanceDate(
-        resolvedDue,
-        config,
-        fallbackDays: cycleLength,
-      );
+      if (repeatRule != null) {
+        final next = _repeatCalculator.nextOccurrence(
+          rule: repeatRule,
+          fromDate: resolvedDue,
+          anchorDate: anchorDate,
+        );
+        if (next == null) {
+          break;
+        }
+        resolvedAnchor = next;
+        resolvedDue = next;
+      } else {
+        resolvedAnchor = _advanceDate(resolvedAnchor, config);
+        resolvedDue = _advanceDate(
+          resolvedDue,
+          config,
+          fallbackDays: cycleLength,
+        );
+      }
       advanced = true;
     }
     return FixedCycleWindow(
@@ -204,10 +230,28 @@ class ItemStatusService {
     FixedCycleWindow cycle,
     FixedItemConfig config,
   ) {
+    final repeatRule = config.repeatRuleV2;
+    if (repeatRule != null) {
+      return _repeatCalculator.nextOccurrence(
+            rule: repeatRule,
+            fromDate: cycle.dueDate,
+            anchorDate: config.anchorDate ?? cycle.anchorDate,
+          ) ??
+          cycle.anchorDate;
+    }
     return _advanceDate(cycle.anchorDate, config);
   }
 
   DateTime nextFixedCycleDue(FixedCycleWindow cycle, FixedItemConfig config) {
+    final repeatRule = config.repeatRuleV2;
+    if (repeatRule != null) {
+      return _repeatCalculator.nextOccurrence(
+            rule: repeatRule,
+            fromDate: cycle.dueDate,
+            anchorDate: config.anchorDate ?? cycle.anchorDate,
+          ) ??
+          cycle.dueDate;
+    }
     final fallbackDays = cycle.dueDate.difference(cycle.anchorDate).inDays;
     return _advanceDate(cycle.dueDate, config, fallbackDays: fallbackDays);
   }

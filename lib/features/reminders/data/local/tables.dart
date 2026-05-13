@@ -31,6 +31,7 @@ class Items extends Table {
   TextColumn get fixedScheduleType => text().nullable()();
   IntColumn get fixedScheduleInterval => integer().nullable()();
   IntColumn get fixedMonthlyDay => integer().nullable()();
+  TextColumn get fixedRepeatRuleV2 => text().nullable()();
   IntColumn get fixedAnchorDate => integer().nullable()();
   IntColumn get fixedDueDate => integer().nullable()();
   TextColumn get fixedTimeOfDay => text().nullable()();
@@ -80,6 +81,7 @@ class ItemTemplateItems extends Table {
   TextColumn get fixedScheduleType => text().nullable()();
   IntColumn get fixedScheduleInterval => integer().nullable()();
   IntColumn get fixedMonthlyDay => integer().nullable()();
+  TextColumn get fixedRepeatRuleV2 => text().nullable()();
   TextColumn get fixedTimeOfDay => text().nullable()();
   TextColumn get fixedOverduePolicy => text().nullable()();
   IntColumn get fixedExpectedBeforeMinutes => integer().nullable()();

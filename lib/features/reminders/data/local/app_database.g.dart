@@ -577,6 +577,18 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _fixedRepeatRuleV2Meta = const VerificationMeta(
+    'fixedRepeatRuleV2',
+  );
+  @override
+  late final GeneratedColumn<String> fixedRepeatRuleV2 =
+      GeneratedColumn<String>(
+        'fixed_repeat_rule_v2',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _fixedAnchorDateMeta = const VerificationMeta(
     'fixedAnchorDate',
   );
@@ -796,6 +808,7 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
     fixedScheduleType,
     fixedScheduleInterval,
     fixedMonthlyDay,
+    fixedRepeatRuleV2,
     fixedAnchorDate,
     fixedDueDate,
     fixedTimeOfDay,
@@ -903,6 +916,15 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
         fixedMonthlyDay.isAcceptableOrUnknown(
           data['fixed_monthly_day']!,
           _fixedMonthlyDayMeta,
+        ),
+      );
+    }
+    if (data.containsKey('fixed_repeat_rule_v2')) {
+      context.handle(
+        _fixedRepeatRuleV2Meta,
+        fixedRepeatRuleV2.isAcceptableOrUnknown(
+          data['fixed_repeat_rule_v2']!,
+          _fixedRepeatRuleV2Meta,
         ),
       );
     }
@@ -1124,6 +1146,10 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
         DriftSqlType.int,
         data['${effectivePrefix}fixed_monthly_day'],
       ),
+      fixedRepeatRuleV2: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}fixed_repeat_rule_v2'],
+      ),
       fixedAnchorDate: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}fixed_anchor_date'],
@@ -1220,6 +1246,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
   final String? fixedScheduleType;
   final int? fixedScheduleInterval;
   final int? fixedMonthlyDay;
+  final String? fixedRepeatRuleV2;
   final int? fixedAnchorDate;
   final int? fixedDueDate;
   final String? fixedTimeOfDay;
@@ -1250,6 +1277,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     this.fixedScheduleType,
     this.fixedScheduleInterval,
     this.fixedMonthlyDay,
+    this.fixedRepeatRuleV2,
     this.fixedAnchorDate,
     this.fixedDueDate,
     this.fixedTimeOfDay,
@@ -1290,6 +1318,9 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     }
     if (!nullToAbsent || fixedMonthlyDay != null) {
       map['fixed_monthly_day'] = Variable<int>(fixedMonthlyDay);
+    }
+    if (!nullToAbsent || fixedRepeatRuleV2 != null) {
+      map['fixed_repeat_rule_v2'] = Variable<String>(fixedRepeatRuleV2);
     }
     if (!nullToAbsent || fixedAnchorDate != null) {
       map['fixed_anchor_date'] = Variable<int>(fixedAnchorDate);
@@ -1385,6 +1416,9 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       fixedMonthlyDay: fixedMonthlyDay == null && nullToAbsent
           ? const Value.absent()
           : Value(fixedMonthlyDay),
+      fixedRepeatRuleV2: fixedRepeatRuleV2 == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fixedRepeatRuleV2),
       fixedAnchorDate: fixedAnchorDate == null && nullToAbsent
           ? const Value.absent()
           : Value(fixedAnchorDate),
@@ -1468,6 +1502,9 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
         json['fixedScheduleInterval'],
       ),
       fixedMonthlyDay: serializer.fromJson<int?>(json['fixedMonthlyDay']),
+      fixedRepeatRuleV2: serializer.fromJson<String?>(
+        json['fixedRepeatRuleV2'],
+      ),
       fixedAnchorDate: serializer.fromJson<int?>(json['fixedAnchorDate']),
       fixedDueDate: serializer.fromJson<int?>(json['fixedDueDate']),
       fixedTimeOfDay: serializer.fromJson<String?>(json['fixedTimeOfDay']),
@@ -1525,6 +1562,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       'fixedScheduleType': serializer.toJson<String?>(fixedScheduleType),
       'fixedScheduleInterval': serializer.toJson<int?>(fixedScheduleInterval),
       'fixedMonthlyDay': serializer.toJson<int?>(fixedMonthlyDay),
+      'fixedRepeatRuleV2': serializer.toJson<String?>(fixedRepeatRuleV2),
       'fixedAnchorDate': serializer.toJson<int?>(fixedAnchorDate),
       'fixedDueDate': serializer.toJson<int?>(fixedDueDate),
       'fixedTimeOfDay': serializer.toJson<String?>(fixedTimeOfDay),
@@ -1576,6 +1614,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     Value<String?> fixedScheduleType = const Value.absent(),
     Value<int?> fixedScheduleInterval = const Value.absent(),
     Value<int?> fixedMonthlyDay = const Value.absent(),
+    Value<String?> fixedRepeatRuleV2 = const Value.absent(),
     Value<int?> fixedAnchorDate = const Value.absent(),
     Value<int?> fixedDueDate = const Value.absent(),
     Value<String?> fixedTimeOfDay = const Value.absent(),
@@ -1612,6 +1651,9 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     fixedMonthlyDay: fixedMonthlyDay.present
         ? fixedMonthlyDay.value
         : this.fixedMonthlyDay,
+    fixedRepeatRuleV2: fixedRepeatRuleV2.present
+        ? fixedRepeatRuleV2.value
+        : this.fixedRepeatRuleV2,
     fixedAnchorDate: fixedAnchorDate.present
         ? fixedAnchorDate.value
         : this.fixedAnchorDate,
@@ -1684,6 +1726,9 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       fixedMonthlyDay: data.fixedMonthlyDay.present
           ? data.fixedMonthlyDay.value
           : this.fixedMonthlyDay,
+      fixedRepeatRuleV2: data.fixedRepeatRuleV2.present
+          ? data.fixedRepeatRuleV2.value
+          : this.fixedRepeatRuleV2,
       fixedAnchorDate: data.fixedAnchorDate.present
           ? data.fixedAnchorDate.value
           : this.fixedAnchorDate,
@@ -1753,6 +1798,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
           ..write('fixedScheduleType: $fixedScheduleType, ')
           ..write('fixedScheduleInterval: $fixedScheduleInterval, ')
           ..write('fixedMonthlyDay: $fixedMonthlyDay, ')
+          ..write('fixedRepeatRuleV2: $fixedRepeatRuleV2, ')
           ..write('fixedAnchorDate: $fixedAnchorDate, ')
           ..write('fixedDueDate: $fixedDueDate, ')
           ..write('fixedTimeOfDay: $fixedTimeOfDay, ')
@@ -1788,6 +1834,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     fixedScheduleType,
     fixedScheduleInterval,
     fixedMonthlyDay,
+    fixedRepeatRuleV2,
     fixedAnchorDate,
     fixedDueDate,
     fixedTimeOfDay,
@@ -1822,6 +1869,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
           other.fixedScheduleType == this.fixedScheduleType &&
           other.fixedScheduleInterval == this.fixedScheduleInterval &&
           other.fixedMonthlyDay == this.fixedMonthlyDay &&
+          other.fixedRepeatRuleV2 == this.fixedRepeatRuleV2 &&
           other.fixedAnchorDate == this.fixedAnchorDate &&
           other.fixedDueDate == this.fixedDueDate &&
           other.fixedTimeOfDay == this.fixedTimeOfDay &&
@@ -1854,6 +1902,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
   final Value<String?> fixedScheduleType;
   final Value<int?> fixedScheduleInterval;
   final Value<int?> fixedMonthlyDay;
+  final Value<String?> fixedRepeatRuleV2;
   final Value<int?> fixedAnchorDate;
   final Value<int?> fixedDueDate;
   final Value<String?> fixedTimeOfDay;
@@ -1884,6 +1933,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     this.fixedScheduleType = const Value.absent(),
     this.fixedScheduleInterval = const Value.absent(),
     this.fixedMonthlyDay = const Value.absent(),
+    this.fixedRepeatRuleV2 = const Value.absent(),
     this.fixedAnchorDate = const Value.absent(),
     this.fixedDueDate = const Value.absent(),
     this.fixedTimeOfDay = const Value.absent(),
@@ -1915,6 +1965,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     this.fixedScheduleType = const Value.absent(),
     this.fixedScheduleInterval = const Value.absent(),
     this.fixedMonthlyDay = const Value.absent(),
+    this.fixedRepeatRuleV2 = const Value.absent(),
     this.fixedAnchorDate = const Value.absent(),
     this.fixedDueDate = const Value.absent(),
     this.fixedTimeOfDay = const Value.absent(),
@@ -1950,6 +2001,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     Expression<String>? fixedScheduleType,
     Expression<int>? fixedScheduleInterval,
     Expression<int>? fixedMonthlyDay,
+    Expression<String>? fixedRepeatRuleV2,
     Expression<int>? fixedAnchorDate,
     Expression<int>? fixedDueDate,
     Expression<String>? fixedTimeOfDay,
@@ -1983,6 +2035,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
       if (fixedScheduleInterval != null)
         'fixed_schedule_interval': fixedScheduleInterval,
       if (fixedMonthlyDay != null) 'fixed_monthly_day': fixedMonthlyDay,
+      if (fixedRepeatRuleV2 != null) 'fixed_repeat_rule_v2': fixedRepeatRuleV2,
       if (fixedAnchorDate != null) 'fixed_anchor_date': fixedAnchorDate,
       if (fixedDueDate != null) 'fixed_due_date': fixedDueDate,
       if (fixedTimeOfDay != null) 'fixed_time_of_day': fixedTimeOfDay,
@@ -2028,6 +2081,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     Value<String?>? fixedScheduleType,
     Value<int?>? fixedScheduleInterval,
     Value<int?>? fixedMonthlyDay,
+    Value<String?>? fixedRepeatRuleV2,
     Value<int?>? fixedAnchorDate,
     Value<int?>? fixedDueDate,
     Value<String?>? fixedTimeOfDay,
@@ -2061,6 +2115,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
       fixedScheduleInterval:
           fixedScheduleInterval ?? this.fixedScheduleInterval,
       fixedMonthlyDay: fixedMonthlyDay ?? this.fixedMonthlyDay,
+      fixedRepeatRuleV2: fixedRepeatRuleV2 ?? this.fixedRepeatRuleV2,
       fixedAnchorDate: fixedAnchorDate ?? this.fixedAnchorDate,
       fixedDueDate: fixedDueDate ?? this.fixedDueDate,
       fixedTimeOfDay: fixedTimeOfDay ?? this.fixedTimeOfDay,
@@ -2128,6 +2183,9 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     }
     if (fixedMonthlyDay.present) {
       map['fixed_monthly_day'] = Variable<int>(fixedMonthlyDay.value);
+    }
+    if (fixedRepeatRuleV2.present) {
+      map['fixed_repeat_rule_v2'] = Variable<String>(fixedRepeatRuleV2.value);
     }
     if (fixedAnchorDate.present) {
       map['fixed_anchor_date'] = Variable<int>(fixedAnchorDate.value);
@@ -2220,6 +2278,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
           ..write('fixedScheduleType: $fixedScheduleType, ')
           ..write('fixedScheduleInterval: $fixedScheduleInterval, ')
           ..write('fixedMonthlyDay: $fixedMonthlyDay, ')
+          ..write('fixedRepeatRuleV2: $fixedRepeatRuleV2, ')
           ..write('fixedAnchorDate: $fixedAnchorDate, ')
           ..write('fixedDueDate: $fixedDueDate, ')
           ..write('fixedTimeOfDay: $fixedTimeOfDay, ')
@@ -2755,6 +2814,18 @@ class $ItemTemplateItemsTable extends ItemTemplateItems
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _fixedRepeatRuleV2Meta = const VerificationMeta(
+    'fixedRepeatRuleV2',
+  );
+  @override
+  late final GeneratedColumn<String> fixedRepeatRuleV2 =
+      GeneratedColumn<String>(
+        'fixed_repeat_rule_v2',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _fixedTimeOfDayMeta = const VerificationMeta(
     'fixedTimeOfDay',
   );
@@ -2919,6 +2990,7 @@ class $ItemTemplateItemsTable extends ItemTemplateItems
     fixedScheduleType,
     fixedScheduleInterval,
     fixedMonthlyDay,
+    fixedRepeatRuleV2,
     fixedTimeOfDay,
     fixedOverduePolicy,
     fixedExpectedBeforeMinutes,
@@ -3015,6 +3087,15 @@ class $ItemTemplateItemsTable extends ItemTemplateItems
         fixedMonthlyDay.isAcceptableOrUnknown(
           data['fixed_monthly_day']!,
           _fixedMonthlyDayMeta,
+        ),
+      );
+    }
+    if (data.containsKey('fixed_repeat_rule_v2')) {
+      context.handle(
+        _fixedRepeatRuleV2Meta,
+        fixedRepeatRuleV2.isAcceptableOrUnknown(
+          data['fixed_repeat_rule_v2']!,
+          _fixedRepeatRuleV2Meta,
         ),
       );
     }
@@ -3187,6 +3268,10 @@ class $ItemTemplateItemsTable extends ItemTemplateItems
         DriftSqlType.int,
         data['${effectivePrefix}fixed_monthly_day'],
       ),
+      fixedRepeatRuleV2: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}fixed_repeat_rule_v2'],
+      ),
       fixedTimeOfDay: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}fixed_time_of_day'],
@@ -3263,6 +3348,7 @@ class ItemTemplateItemRow extends DataClass
   final String? fixedScheduleType;
   final int? fixedScheduleInterval;
   final int? fixedMonthlyDay;
+  final String? fixedRepeatRuleV2;
   final String? fixedTimeOfDay;
   final String? fixedOverduePolicy;
   final int? fixedExpectedBeforeMinutes;
@@ -3287,6 +3373,7 @@ class ItemTemplateItemRow extends DataClass
     this.fixedScheduleType,
     this.fixedScheduleInterval,
     this.fixedMonthlyDay,
+    this.fixedRepeatRuleV2,
     this.fixedTimeOfDay,
     this.fixedOverduePolicy,
     this.fixedExpectedBeforeMinutes,
@@ -3321,6 +3408,9 @@ class ItemTemplateItemRow extends DataClass
     }
     if (!nullToAbsent || fixedMonthlyDay != null) {
       map['fixed_monthly_day'] = Variable<int>(fixedMonthlyDay);
+    }
+    if (!nullToAbsent || fixedRepeatRuleV2 != null) {
+      map['fixed_repeat_rule_v2'] = Variable<String>(fixedRepeatRuleV2);
     }
     if (!nullToAbsent || fixedTimeOfDay != null) {
       map['fixed_time_of_day'] = Variable<String>(fixedTimeOfDay);
@@ -3400,6 +3490,9 @@ class ItemTemplateItemRow extends DataClass
       fixedMonthlyDay: fixedMonthlyDay == null && nullToAbsent
           ? const Value.absent()
           : Value(fixedMonthlyDay),
+      fixedRepeatRuleV2: fixedRepeatRuleV2 == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fixedRepeatRuleV2),
       fixedTimeOfDay: fixedTimeOfDay == null && nullToAbsent
           ? const Value.absent()
           : Value(fixedTimeOfDay),
@@ -3467,6 +3560,9 @@ class ItemTemplateItemRow extends DataClass
         json['fixedScheduleInterval'],
       ),
       fixedMonthlyDay: serializer.fromJson<int?>(json['fixedMonthlyDay']),
+      fixedRepeatRuleV2: serializer.fromJson<String?>(
+        json['fixedRepeatRuleV2'],
+      ),
       fixedTimeOfDay: serializer.fromJson<String?>(json['fixedTimeOfDay']),
       fixedOverduePolicy: serializer.fromJson<String?>(
         json['fixedOverduePolicy'],
@@ -3518,6 +3614,7 @@ class ItemTemplateItemRow extends DataClass
       'fixedScheduleType': serializer.toJson<String?>(fixedScheduleType),
       'fixedScheduleInterval': serializer.toJson<int?>(fixedScheduleInterval),
       'fixedMonthlyDay': serializer.toJson<int?>(fixedMonthlyDay),
+      'fixedRepeatRuleV2': serializer.toJson<String?>(fixedRepeatRuleV2),
       'fixedTimeOfDay': serializer.toJson<String?>(fixedTimeOfDay),
       'fixedOverduePolicy': serializer.toJson<String?>(fixedOverduePolicy),
       'fixedExpectedBeforeMinutes': serializer.toJson<int?>(
@@ -3563,6 +3660,7 @@ class ItemTemplateItemRow extends DataClass
     Value<String?> fixedScheduleType = const Value.absent(),
     Value<int?> fixedScheduleInterval = const Value.absent(),
     Value<int?> fixedMonthlyDay = const Value.absent(),
+    Value<String?> fixedRepeatRuleV2 = const Value.absent(),
     Value<String?> fixedTimeOfDay = const Value.absent(),
     Value<String?> fixedOverduePolicy = const Value.absent(),
     Value<int?> fixedExpectedBeforeMinutes = const Value.absent(),
@@ -3593,6 +3691,9 @@ class ItemTemplateItemRow extends DataClass
     fixedMonthlyDay: fixedMonthlyDay.present
         ? fixedMonthlyDay.value
         : this.fixedMonthlyDay,
+    fixedRepeatRuleV2: fixedRepeatRuleV2.present
+        ? fixedRepeatRuleV2.value
+        : this.fixedRepeatRuleV2,
     fixedTimeOfDay: fixedTimeOfDay.present
         ? fixedTimeOfDay.value
         : this.fixedTimeOfDay,
@@ -3655,6 +3756,9 @@ class ItemTemplateItemRow extends DataClass
       fixedMonthlyDay: data.fixedMonthlyDay.present
           ? data.fixedMonthlyDay.value
           : this.fixedMonthlyDay,
+      fixedRepeatRuleV2: data.fixedRepeatRuleV2.present
+          ? data.fixedRepeatRuleV2.value
+          : this.fixedRepeatRuleV2,
       fixedTimeOfDay: data.fixedTimeOfDay.present
           ? data.fixedTimeOfDay.value
           : this.fixedTimeOfDay,
@@ -3708,6 +3812,7 @@ class ItemTemplateItemRow extends DataClass
           ..write('fixedScheduleType: $fixedScheduleType, ')
           ..write('fixedScheduleInterval: $fixedScheduleInterval, ')
           ..write('fixedMonthlyDay: $fixedMonthlyDay, ')
+          ..write('fixedRepeatRuleV2: $fixedRepeatRuleV2, ')
           ..write('fixedTimeOfDay: $fixedTimeOfDay, ')
           ..write('fixedOverduePolicy: $fixedOverduePolicy, ')
           ..write('fixedExpectedBeforeMinutes: $fixedExpectedBeforeMinutes, ')
@@ -3737,6 +3842,7 @@ class ItemTemplateItemRow extends DataClass
     fixedScheduleType,
     fixedScheduleInterval,
     fixedMonthlyDay,
+    fixedRepeatRuleV2,
     fixedTimeOfDay,
     fixedOverduePolicy,
     fixedExpectedBeforeMinutes,
@@ -3765,6 +3871,7 @@ class ItemTemplateItemRow extends DataClass
           other.fixedScheduleType == this.fixedScheduleType &&
           other.fixedScheduleInterval == this.fixedScheduleInterval &&
           other.fixedMonthlyDay == this.fixedMonthlyDay &&
+          other.fixedRepeatRuleV2 == this.fixedRepeatRuleV2 &&
           other.fixedTimeOfDay == this.fixedTimeOfDay &&
           other.fixedOverduePolicy == this.fixedOverduePolicy &&
           other.fixedExpectedBeforeMinutes == this.fixedExpectedBeforeMinutes &&
@@ -3791,6 +3898,7 @@ class ItemTemplateItemsCompanion extends UpdateCompanion<ItemTemplateItemRow> {
   final Value<String?> fixedScheduleType;
   final Value<int?> fixedScheduleInterval;
   final Value<int?> fixedMonthlyDay;
+  final Value<String?> fixedRepeatRuleV2;
   final Value<String?> fixedTimeOfDay;
   final Value<String?> fixedOverduePolicy;
   final Value<int?> fixedExpectedBeforeMinutes;
@@ -3815,6 +3923,7 @@ class ItemTemplateItemsCompanion extends UpdateCompanion<ItemTemplateItemRow> {
     this.fixedScheduleType = const Value.absent(),
     this.fixedScheduleInterval = const Value.absent(),
     this.fixedMonthlyDay = const Value.absent(),
+    this.fixedRepeatRuleV2 = const Value.absent(),
     this.fixedTimeOfDay = const Value.absent(),
     this.fixedOverduePolicy = const Value.absent(),
     this.fixedExpectedBeforeMinutes = const Value.absent(),
@@ -3840,6 +3949,7 @@ class ItemTemplateItemsCompanion extends UpdateCompanion<ItemTemplateItemRow> {
     this.fixedScheduleType = const Value.absent(),
     this.fixedScheduleInterval = const Value.absent(),
     this.fixedMonthlyDay = const Value.absent(),
+    this.fixedRepeatRuleV2 = const Value.absent(),
     this.fixedTimeOfDay = const Value.absent(),
     this.fixedOverduePolicy = const Value.absent(),
     this.fixedExpectedBeforeMinutes = const Value.absent(),
@@ -3869,6 +3979,7 @@ class ItemTemplateItemsCompanion extends UpdateCompanion<ItemTemplateItemRow> {
     Expression<String>? fixedScheduleType,
     Expression<int>? fixedScheduleInterval,
     Expression<int>? fixedMonthlyDay,
+    Expression<String>? fixedRepeatRuleV2,
     Expression<String>? fixedTimeOfDay,
     Expression<String>? fixedOverduePolicy,
     Expression<int>? fixedExpectedBeforeMinutes,
@@ -3896,6 +4007,7 @@ class ItemTemplateItemsCompanion extends UpdateCompanion<ItemTemplateItemRow> {
       if (fixedScheduleInterval != null)
         'fixed_schedule_interval': fixedScheduleInterval,
       if (fixedMonthlyDay != null) 'fixed_monthly_day': fixedMonthlyDay,
+      if (fixedRepeatRuleV2 != null) 'fixed_repeat_rule_v2': fixedRepeatRuleV2,
       if (fixedTimeOfDay != null) 'fixed_time_of_day': fixedTimeOfDay,
       if (fixedOverduePolicy != null)
         'fixed_overdue_policy': fixedOverduePolicy,
@@ -3934,6 +4046,7 @@ class ItemTemplateItemsCompanion extends UpdateCompanion<ItemTemplateItemRow> {
     Value<String?>? fixedScheduleType,
     Value<int?>? fixedScheduleInterval,
     Value<int?>? fixedMonthlyDay,
+    Value<String?>? fixedRepeatRuleV2,
     Value<String?>? fixedTimeOfDay,
     Value<String?>? fixedOverduePolicy,
     Value<int?>? fixedExpectedBeforeMinutes,
@@ -3961,6 +4074,7 @@ class ItemTemplateItemsCompanion extends UpdateCompanion<ItemTemplateItemRow> {
       fixedScheduleInterval:
           fixedScheduleInterval ?? this.fixedScheduleInterval,
       fixedMonthlyDay: fixedMonthlyDay ?? this.fixedMonthlyDay,
+      fixedRepeatRuleV2: fixedRepeatRuleV2 ?? this.fixedRepeatRuleV2,
       fixedTimeOfDay: fixedTimeOfDay ?? this.fixedTimeOfDay,
       fixedOverduePolicy: fixedOverduePolicy ?? this.fixedOverduePolicy,
       fixedExpectedBeforeMinutes:
@@ -4020,6 +4134,9 @@ class ItemTemplateItemsCompanion extends UpdateCompanion<ItemTemplateItemRow> {
     }
     if (fixedMonthlyDay.present) {
       map['fixed_monthly_day'] = Variable<int>(fixedMonthlyDay.value);
+    }
+    if (fixedRepeatRuleV2.present) {
+      map['fixed_repeat_rule_v2'] = Variable<String>(fixedRepeatRuleV2.value);
     }
     if (fixedTimeOfDay.present) {
       map['fixed_time_of_day'] = Variable<String>(fixedTimeOfDay.value);
@@ -4096,6 +4213,7 @@ class ItemTemplateItemsCompanion extends UpdateCompanion<ItemTemplateItemRow> {
           ..write('fixedScheduleType: $fixedScheduleType, ')
           ..write('fixedScheduleInterval: $fixedScheduleInterval, ')
           ..write('fixedMonthlyDay: $fixedMonthlyDay, ')
+          ..write('fixedRepeatRuleV2: $fixedRepeatRuleV2, ')
           ..write('fixedTimeOfDay: $fixedTimeOfDay, ')
           ..write('fixedOverduePolicy: $fixedOverduePolicy, ')
           ..write('fixedExpectedBeforeMinutes: $fixedExpectedBeforeMinutes, ')
@@ -7016,6 +7134,7 @@ typedef $$ItemsTableCreateCompanionBuilder =
       Value<String?> fixedScheduleType,
       Value<int?> fixedScheduleInterval,
       Value<int?> fixedMonthlyDay,
+      Value<String?> fixedRepeatRuleV2,
       Value<int?> fixedAnchorDate,
       Value<int?> fixedDueDate,
       Value<String?> fixedTimeOfDay,
@@ -7048,6 +7167,7 @@ typedef $$ItemsTableUpdateCompanionBuilder =
       Value<String?> fixedScheduleType,
       Value<int?> fixedScheduleInterval,
       Value<int?> fixedMonthlyDay,
+      Value<String?> fixedRepeatRuleV2,
       Value<int?> fixedAnchorDate,
       Value<int?> fixedDueDate,
       Value<String?> fixedTimeOfDay,
@@ -7165,6 +7285,11 @@ class $$ItemsTableFilterComposer extends Composer<_$AppDatabase, $ItemsTable> {
 
   ColumnFilters<int> get fixedMonthlyDay => $composableBuilder(
     column: $table.fixedMonthlyDay,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fixedRepeatRuleV2 => $composableBuilder(
+    column: $table.fixedRepeatRuleV2,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7366,6 +7491,11 @@ class $$ItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get fixedRepeatRuleV2 => $composableBuilder(
+    column: $table.fixedRepeatRuleV2,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get fixedAnchorDate => $composableBuilder(
     column: $table.fixedAnchorDate,
     builder: (column) => ColumnOrderings(column),
@@ -7528,6 +7658,11 @@ class $$ItemsTableAnnotationComposer
 
   GeneratedColumn<int> get fixedMonthlyDay => $composableBuilder(
     column: $table.fixedMonthlyDay,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get fixedRepeatRuleV2 => $composableBuilder(
+    column: $table.fixedRepeatRuleV2,
     builder: (column) => column,
   );
 
@@ -7710,6 +7845,7 @@ class $$ItemsTableTableManager
                 Value<String?> fixedScheduleType = const Value.absent(),
                 Value<int?> fixedScheduleInterval = const Value.absent(),
                 Value<int?> fixedMonthlyDay = const Value.absent(),
+                Value<String?> fixedRepeatRuleV2 = const Value.absent(),
                 Value<int?> fixedAnchorDate = const Value.absent(),
                 Value<int?> fixedDueDate = const Value.absent(),
                 Value<String?> fixedTimeOfDay = const Value.absent(),
@@ -7740,6 +7876,7 @@ class $$ItemsTableTableManager
                 fixedScheduleType: fixedScheduleType,
                 fixedScheduleInterval: fixedScheduleInterval,
                 fixedMonthlyDay: fixedMonthlyDay,
+                fixedRepeatRuleV2: fixedRepeatRuleV2,
                 fixedAnchorDate: fixedAnchorDate,
                 fixedDueDate: fixedDueDate,
                 fixedTimeOfDay: fixedTimeOfDay,
@@ -7772,6 +7909,7 @@ class $$ItemsTableTableManager
                 Value<String?> fixedScheduleType = const Value.absent(),
                 Value<int?> fixedScheduleInterval = const Value.absent(),
                 Value<int?> fixedMonthlyDay = const Value.absent(),
+                Value<String?> fixedRepeatRuleV2 = const Value.absent(),
                 Value<int?> fixedAnchorDate = const Value.absent(),
                 Value<int?> fixedDueDate = const Value.absent(),
                 Value<String?> fixedTimeOfDay = const Value.absent(),
@@ -7802,6 +7940,7 @@ class $$ItemsTableTableManager
                 fixedScheduleType: fixedScheduleType,
                 fixedScheduleInterval: fixedScheduleInterval,
                 fixedMonthlyDay: fixedMonthlyDay,
+                fixedRepeatRuleV2: fixedRepeatRuleV2,
                 fixedAnchorDate: fixedAnchorDate,
                 fixedDueDate: fixedDueDate,
                 fixedTimeOfDay: fixedTimeOfDay,
@@ -8262,6 +8401,7 @@ typedef $$ItemTemplateItemsTableCreateCompanionBuilder =
       Value<String?> fixedScheduleType,
       Value<int?> fixedScheduleInterval,
       Value<int?> fixedMonthlyDay,
+      Value<String?> fixedRepeatRuleV2,
       Value<String?> fixedTimeOfDay,
       Value<String?> fixedOverduePolicy,
       Value<int?> fixedExpectedBeforeMinutes,
@@ -8288,6 +8428,7 @@ typedef $$ItemTemplateItemsTableUpdateCompanionBuilder =
       Value<String?> fixedScheduleType,
       Value<int?> fixedScheduleInterval,
       Value<int?> fixedMonthlyDay,
+      Value<String?> fixedRepeatRuleV2,
       Value<String?> fixedTimeOfDay,
       Value<String?> fixedOverduePolicy,
       Value<int?> fixedExpectedBeforeMinutes,
@@ -8386,6 +8527,11 @@ class $$ItemTemplateItemsTableFilterComposer
 
   ColumnFilters<int> get fixedMonthlyDay => $composableBuilder(
     column: $table.fixedMonthlyDay,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fixedRepeatRuleV2 => $composableBuilder(
+    column: $table.fixedRepeatRuleV2,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8532,6 +8678,11 @@ class $$ItemTemplateItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get fixedRepeatRuleV2 => $composableBuilder(
+    column: $table.fixedRepeatRuleV2,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get fixedTimeOfDay => $composableBuilder(
     column: $table.fixedTimeOfDay,
     builder: (column) => ColumnOrderings(column),
@@ -8669,6 +8820,11 @@ class $$ItemTemplateItemsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get fixedRepeatRuleV2 => $composableBuilder(
+    column: $table.fixedRepeatRuleV2,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get fixedTimeOfDay => $composableBuilder(
     column: $table.fixedTimeOfDay,
     builder: (column) => column,
@@ -8802,6 +8958,7 @@ class $$ItemTemplateItemsTableTableManager
                 Value<String?> fixedScheduleType = const Value.absent(),
                 Value<int?> fixedScheduleInterval = const Value.absent(),
                 Value<int?> fixedMonthlyDay = const Value.absent(),
+                Value<String?> fixedRepeatRuleV2 = const Value.absent(),
                 Value<String?> fixedTimeOfDay = const Value.absent(),
                 Value<String?> fixedOverduePolicy = const Value.absent(),
                 Value<int?> fixedExpectedBeforeMinutes = const Value.absent(),
@@ -8826,6 +8983,7 @@ class $$ItemTemplateItemsTableTableManager
                 fixedScheduleType: fixedScheduleType,
                 fixedScheduleInterval: fixedScheduleInterval,
                 fixedMonthlyDay: fixedMonthlyDay,
+                fixedRepeatRuleV2: fixedRepeatRuleV2,
                 fixedTimeOfDay: fixedTimeOfDay,
                 fixedOverduePolicy: fixedOverduePolicy,
                 fixedExpectedBeforeMinutes: fixedExpectedBeforeMinutes,
@@ -8852,6 +9010,7 @@ class $$ItemTemplateItemsTableTableManager
                 Value<String?> fixedScheduleType = const Value.absent(),
                 Value<int?> fixedScheduleInterval = const Value.absent(),
                 Value<int?> fixedMonthlyDay = const Value.absent(),
+                Value<String?> fixedRepeatRuleV2 = const Value.absent(),
                 Value<String?> fixedTimeOfDay = const Value.absent(),
                 Value<String?> fixedOverduePolicy = const Value.absent(),
                 Value<int?> fixedExpectedBeforeMinutes = const Value.absent(),
@@ -8876,6 +9035,7 @@ class $$ItemTemplateItemsTableTableManager
                 fixedScheduleType: fixedScheduleType,
                 fixedScheduleInterval: fixedScheduleInterval,
                 fixedMonthlyDay: fixedMonthlyDay,
+                fixedRepeatRuleV2: fixedRepeatRuleV2,
                 fixedTimeOfDay: fixedTimeOfDay,
                 fixedOverduePolicy: fixedOverduePolicy,
                 fixedExpectedBeforeMinutes: fixedExpectedBeforeMinutes,
