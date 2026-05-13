@@ -23,7 +23,6 @@ class ItemActionService {
     DateTime? doneAt,
     DateTime? fallbackNow,
     String? remark,
-    int? addedDays,
     ItemNextCycleStrategy nextCycleStrategy =
         ItemNextCycleStrategy.keepSchedule,
   }) {
@@ -31,15 +30,6 @@ class ItemActionService {
     final payload = <String, Object?>{
       'nextCycleStrategy': nextCycleStrategy.name,
     };
-
-    if (item.type == ItemType.resourceBased) {
-      if (addedDays == null || addedDays <= 0) {
-        return null;
-      }
-      payload['addedDays'] = addedDays;
-    } else if (addedDays != null) {
-      payload['addedDays'] = addedDays;
-    }
 
     return PlannedItemAction(
       type: ItemActionType.done,
@@ -57,9 +47,6 @@ class ItemActionService {
     ItemNextCycleStrategy nextCycleStrategy =
         ItemNextCycleStrategy.keepSchedule,
   }) {
-    if (item.type == ItemType.resourceBased) {
-      return null;
-    }
     return PlannedItemAction(
       type: ItemActionType.skipped,
       actionDate: _normalizeDate(actionAt ?? fallbackNow ?? DateTime.now()),

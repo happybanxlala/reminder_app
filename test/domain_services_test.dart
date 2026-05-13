@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_status_service.dart';
+import 'package:reminder_app/features/reminders/domain/resource.dart';
+import 'package:reminder_app/features/reminders/domain/resource_status_service.dart';
 import 'package:reminder_app/features/reminders/domain/timeline.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_calculator.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_record.dart';
@@ -178,55 +180,68 @@ void main() {
     );
   });
 
-  test('item status service classifies resource-based items', () {
-    const service = ItemStatusService();
-    final item = Item(
-      id: 2,
-      packId: 1,
-      title: 'Cat food',
-      type: ItemType.resourceBased,
-      config: ResourceBasedItemConfig(
-        anchorDate: DateTime(2026, 4, 1),
-        durationDays: 30,
-        warningBefore: 7,
-      ),
-      lastDoneAt: DateTime(2026, 4, 1),
-      createdAt: DateTime(2026, 4, 1),
-      updatedAt: DateTime(2026, 4, 1),
+  test('resource status service classifies time-based resources', () {
+    const service = ResourceStatusService();
+    final config = TimeBasedResourceConfig(
+      anchorDate: DateTime(2026, 4, 1),
+      durationDays: 5,
+      warningBeforeDays: 2,
+      dangerBeforeDays: 1,
     );
 
     expect(
-      service.classify(item, now: DateTime(2026, 4, 20)),
-      ItemStatus.normal,
+      service.classifyTimeBased(config, now: DateTime(2026, 4, 1)),
+      ResourceStatus.normal,
     );
     expect(
-      service.classify(item, now: DateTime(2026, 4, 25)),
-      ItemStatus.warning,
+      service.classifyTimeBased(config, now: DateTime(2026, 4, 3)),
+      ResourceStatus.warning,
     );
     expect(
-      service.classify(item, now: DateTime(2026, 5, 2)),
-      ItemStatus.danger,
+      service.classifyTimeBased(config, now: DateTime(2026, 4, 4)),
+      ResourceStatus.danger,
+    );
+    expect(
+      service.classifyTimeBased(config, now: DateTime(2026, 4, 5)),
+      ResourceStatus.danger,
     );
   });
 
-  test('resource-based depletion day is already danger', () {
-    const service = ItemStatusService();
-    final item = Item(
-      id: 3,
-      packId: 1,
-      title: 'Cat food',
-      type: ItemType.resourceBased,
-      config: ResourceBasedItemConfig(
-        anchorDate: DateTime(2026, 4, 1),
-        durationDays: 5,
-      ),
-      createdAt: DateTime(2026, 4, 1),
-      updatedAt: DateTime(2026, 4, 1),
-    );
+  test('resource status service classifies quantity-based resources', () {
+    const service = ResourceStatusService();
 
     expect(
-      service.classify(item, now: DateTime(2026, 4, 5)),
-      ItemStatus.danger,
+      service.classifyQuantityBased(
+        const QuantityBasedResourceConfig(
+          currentQuantity: 5,
+          unitLabel: '個',
+          warningThreshold: 2,
+          dangerThreshold: 1,
+        ),
+      ),
+      ResourceStatus.normal,
+    );
+    expect(
+      service.classifyQuantityBased(
+        const QuantityBasedResourceConfig(
+          currentQuantity: 2,
+          unitLabel: '個',
+          warningThreshold: 2,
+          dangerThreshold: 1,
+        ),
+      ),
+      ResourceStatus.warning,
+    );
+    expect(
+      service.classifyQuantityBased(
+        const QuantityBasedResourceConfig(
+          currentQuantity: 1,
+          unitLabel: '個',
+          warningThreshold: 2,
+          dangerThreshold: 1,
+        ),
+      ),
+      ResourceStatus.danger,
     );
   });
 

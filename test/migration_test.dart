@@ -5,12 +5,12 @@ import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 
 void main() {
   test(
-    'database uses clean drift schema version 4 and core tables are writable',
+    'database uses clean drift schema version 6 and core tables are writable',
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
 
-      expect(db.schemaVersion, 4);
+      expect(db.schemaVersion, 6);
 
       final packId = await db
           .into(db.itemPacks)
@@ -49,11 +49,6 @@ void main() {
               stateExpectedAfterMinutes: const Value(2880),
               stateWarningAfterMinutes: const Value(2880),
               stateDangerAfterMinutes: const Value(5760),
-              resourceAnchorDate: const Value.absent(),
-              resourceDurationDays: const Value.absent(),
-              resourceExpectedBeforeDays: const Value.absent(),
-              resourceWarningBeforeDays: const Value.absent(),
-              resourceDangerBeforeDays: const Value.absent(),
               lastDoneAt: const Value.absent(),
               createdAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
               updatedAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
@@ -76,6 +71,7 @@ void main() {
           .insert(
             ItemTemplateItemsCompanion.insert(
               templateId: templateId,
+              logicalId: const Value('replace-filter'),
               title: 'Refill water',
               description: const Value('Every 3 days'),
               type: 'fixed',
@@ -92,10 +88,73 @@ void main() {
               stateExpectedAfterMinutes: const Value.absent(),
               stateWarningAfterMinutes: const Value.absent(),
               stateDangerAfterMinutes: const Value.absent(),
-              resourceDurationDays: const Value.absent(),
-              resourceExpectedBeforeDays: const Value.absent(),
-              resourceWarningBeforeDays: const Value.absent(),
-              resourceDangerBeforeDays: const Value.absent(),
+              createdAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+              updatedAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+            ),
+          );
+      final resourceTemplateId = await db
+          .into(db.resourceTemplateItems)
+          .insert(
+            ResourceTemplateItemsCompanion.insert(
+              templateId: templateId,
+              logicalId: 'filter-stock',
+              title: 'Water filter',
+              type: 'quantityBased',
+              quantityCurrent: const Value(5),
+              quantityUnitLabel: const Value('個'),
+              quantityWarningThreshold: const Value(2),
+              quantityDangerThreshold: const Value(1),
+              createdAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+              updatedAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+            ),
+          );
+      final ruleTemplateId = await db
+          .into(db.resourceConsumptionRuleTemplateItems)
+          .insert(
+            ResourceConsumptionRuleTemplateItemsCompanion.insert(
+              templateId: templateId,
+              itemLogicalId: 'replace-filter',
+              resourceLogicalId: 'filter-stock',
+              consumeAmount: const Value(1),
+              createdAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+              updatedAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+            ),
+          );
+
+      final resourceId = await db
+          .into(db.resources)
+          .insert(
+            ResourcesCompanion.insert(
+              packId: packId,
+              title: 'Water filter',
+              type: 'quantityBased',
+              quantityCurrent: const Value(5),
+              quantityUnitLabel: const Value('個'),
+              quantityWarningThreshold: const Value(2),
+              quantityDangerThreshold: const Value(1),
+              createdAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+              updatedAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+            ),
+          );
+      final consumptionRuleId = await db
+          .into(db.resourceConsumptionRules)
+          .insert(
+            ResourceConsumptionRulesCompanion.insert(
+              resourceId: resourceId,
+              itemId: itemId,
+              consumeAmount: const Value(1),
+              createdAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+              updatedAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+            ),
+          );
+      final resourceActionId = await db
+          .into(db.resourceActionRecords)
+          .insert(
+            ResourceActionRecordsCompanion.insert(
+              resourceId: resourceId,
+              actionType: 'created',
+              actionDate: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+              resultingQuantity: const Value(5),
               createdAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
               updatedAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
             ),
@@ -149,6 +208,11 @@ void main() {
       expect(itemId, greaterThan(0));
       expect(templateId, greaterThan(0));
       expect(templateItemId, greaterThan(0));
+      expect(resourceTemplateId, greaterThan(0));
+      expect(ruleTemplateId, greaterThan(0));
+      expect(resourceId, greaterThan(0));
+      expect(consumptionRuleId, greaterThan(0));
+      expect(resourceActionId, greaterThan(0));
       expect(timelineId, greaterThan(0));
       expect(ruleId, greaterThan(0));
       expect(recordId, greaterThan(0));

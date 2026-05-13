@@ -22,12 +22,11 @@ void main() {
             id: status.index + 1,
             packId: 1,
             title: 'State ${status.name}',
-            type: ItemType.resourceBased,
-            config: ResourceBasedItemConfig(
+            type: ItemType.stateBased,
+            config: StateBasedItemConfig(
               anchorDate: DateTime(2026, 4, 1),
-              durationDays: 10,
-              warningBefore: 2,
-              dangerBefore: 1,
+              warningAfter: Duration(days: 2),
+              dangerAfter: Duration(days: 4),
             ),
             createdAt: DateTime(2026, 4, 1),
             updatedAt: DateTime(2026, 4, 1),
@@ -214,32 +213,29 @@ void main() {
     expect(overdueViewModel.trailingLabel, '過期');
   });
 
-  test(
-    'item card view model shows resource remaining days in trailing label',
-    () {
-      final viewModel = ItemCardViewModel.fromEntry(
-        _entry(
-          status: ItemStatus.warning,
-          item: Item(
-            id: 13,
-            packId: 1,
-            title: 'Cat food',
-            type: ItemType.resourceBased,
-            config: ResourceBasedItemConfig(
-              anchorDate: DateTime(2026, 4, 1),
-              durationDays: 10,
-              warningBefore: 2,
-            ),
-            createdAt: DateTime(2026, 4, 1),
-            updatedAt: DateTime(2026, 4, 1),
+  test('item card view model shows state day index in trailing label', () {
+    final viewModel = ItemCardViewModel.fromEntry(
+      _entry(
+        status: ItemStatus.warning,
+        item: Item(
+          id: 13,
+          packId: 1,
+          title: 'Cat food',
+          type: ItemType.stateBased,
+          config: StateBasedItemConfig(
+            anchorDate: DateTime(2026, 4, 1),
+            warningAfter: Duration(days: 2),
+            dangerAfter: Duration(days: 4),
           ),
+          createdAt: DateTime(2026, 4, 1),
+          updatedAt: DateTime(2026, 4, 1),
         ),
-        now: DateTime(2026, 4, 8),
-      );
+      ),
+      now: DateTime(2026, 4, 8),
+    );
 
-      expect(viewModel.trailingLabel, '剩餘2日');
-    },
-  );
+    expect(viewModel.trailingLabel, '已持續8日');
+  });
 }
 
 ItemHomeEntry _entry({required ItemStatus status, required Item item}) {

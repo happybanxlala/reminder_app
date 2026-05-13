@@ -19,6 +19,7 @@ import 'package:reminder_app/features/reminders/domain/timeline_milestone_record
 import 'package:reminder_app/features/reminders/providers/attention_summary_providers.dart';
 import 'package:reminder_app/features/reminders/providers/developer_settings_providers.dart';
 import 'package:reminder_app/features/reminders/providers/item_providers.dart';
+import 'package:reminder_app/features/reminders/providers/resource_providers.dart';
 import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
 import 'package:reminder_app/features/reminders/providers/home_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/feature_page.dart';
@@ -32,6 +33,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _emptyResourcesOverride(),
           attentionSummaryProvider.overrideWith(
             (ref) => Stream.value(_summary(totalCount: 3)),
           ),
@@ -72,6 +74,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _emptyResourcesOverride(),
           attentionSummaryProvider.overrideWith(
             (ref) => Stream.value(
               const AttentionSummary(
@@ -106,6 +109,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            _emptyResourcesOverride(),
             attentionSummaryProvider.overrideWith(
               (ref) => Stream.value(_summary()),
             ),
@@ -139,6 +143,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _emptyResourcesOverride(),
           attentionSummaryProvider.overrideWith(
             (ref) => Stream.value(_summary(totalCount: 1)),
           ),
@@ -249,11 +254,11 @@ void main() {
               id: 204,
               packId: 1,
               title: 'Cat food',
-              type: ItemType.resourceBased,
-              config: ResourceBasedItemConfig(
+              type: ItemType.stateBased,
+              config: StateBasedItemConfig(
                 anchorDate: DateTime(2026, 4, 1),
-                durationDays: 5,
-                warningBefore: 1,
+                warningAfter: Duration(days: 1),
+                dangerAfter: Duration(days: 2),
               ),
               createdAt: DateTime(2026, 4, 1),
               updatedAt: DateTime(2026, 4, 1),
@@ -267,6 +272,7 @@ void main() {
 
       final container = ProviderContainer(
         overrides: [
+          _emptyResourcesOverride(),
           attentionSummaryProvider.overrideWith(
             (ref) => Stream.value(_summary(totalCount: 3)),
           ),
@@ -313,7 +319,7 @@ void main() {
       expect(
         find.descendant(
           of: find.byKey(const Key('item-badge-204')),
-          matching: find.text(ReminderUiText.resourceBasedTypeLabel),
+          matching: find.text(ReminderUiText.stateBasedTypeLabel),
         ),
         findsOneWidget,
       );
@@ -330,7 +336,7 @@ void main() {
 
       expect(find.byKey(const Key('item-skip-202')), findsOneWidget);
       expect(find.byKey(const Key('item-skip-203')), findsOneWidget);
-      expect(find.byKey(const Key('item-skip-204')), findsNothing);
+      expect(find.byKey(const Key('item-skip-204')), findsOneWidget);
       expect(find.byKey(const Key('item-defer-202')), findsNothing);
       expect(find.byKey(const Key('item-defer-203')), findsNothing);
       expect(find.byKey(const Key('item-defer-204')), findsNothing);
@@ -385,6 +391,7 @@ void main() {
     ];
     final container = ProviderContainer(
       overrides: [
+        _emptyResourcesOverride(),
         attentionSummaryProvider.overrideWith(
           (ref) => Stream.value(_summary(totalCount: 2)),
         ),
@@ -434,6 +441,7 @@ void main() {
     const itemId = 205;
     final container = ProviderContainer(
       overrides: [
+        _emptyResourcesOverride(),
         attentionSummaryProvider.overrideWith(
           (ref) => Stream.value(_summary(totalCount: 1)),
         ),
@@ -503,6 +511,7 @@ void main() {
     const itemId = 206;
     final container = ProviderContainer(
       overrides: [
+        _emptyResourcesOverride(),
         attentionSummaryProvider.overrideWith(
           (ref) => Stream.value(_summary(totalCount: 1)),
         ),
@@ -569,6 +578,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _emptyResourcesOverride(),
           attentionSummaryProvider.overrideWith(
             (ref) => Stream.value(_summary(totalCount: 1)),
           ),
@@ -613,6 +623,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _emptyResourcesOverride(),
           attentionSummaryProvider.overrideWith(
             (ref) => Stream.value(_summary()),
           ),
@@ -662,6 +673,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _emptyResourcesOverride(),
           attentionSummaryProvider.overrideWith(
             (ref) => Stream.value(_summary()),
           ),
@@ -695,6 +707,7 @@ void main() {
     addTearDown(db.close);
     final container = ProviderContainer(
       overrides: [
+        _emptyResourcesOverride(),
         homeRepositoryProvider.overrideWith(
           (ref) => _FakeHomeRepository(
             itemRepository: ItemRepository(db.itemTimelineDao),
@@ -741,6 +754,7 @@ void main() {
       addTearDown(controller.close);
       final container = ProviderContainer(
         overrides: [
+          _emptyResourcesOverride(),
           homeRepositoryProvider.overrideWith(
             (ref) => _FakeHomeRepository(
               itemRepository: ItemRepository(db.itemTimelineDao),
@@ -780,6 +794,7 @@ void main() {
     const itemId = 101;
     final container = ProviderContainer(
       overrides: [
+        _emptyResourcesOverride(),
         itemRepositoryProvider.overrideWith((ref) => itemRepository),
         attentionSummaryProvider.overrideWith(
           (ref) => Stream.value(_summary(totalCount: 1)),
@@ -843,7 +858,7 @@ void main() {
     expect(itemRepository.recordedDoneAt, previewDate);
   });
 
-  testWidgets('home hides skip for resource items and requires added days', (
+  testWidgets('home completes state items without resource refill dialog', (
     tester,
   ) async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -853,6 +868,7 @@ void main() {
     const itemId = 102;
     final container = ProviderContainer(
       overrides: [
+        _emptyResourcesOverride(),
         itemRepositoryProvider.overrideWith((ref) => itemRepository),
         attentionSummaryProvider.overrideWith(
           (ref) => Stream.value(_summary(totalCount: 1)),
@@ -865,11 +881,11 @@ void main() {
                   id: itemId,
                   packId: 1,
                   title: 'Cat food',
-                  type: ItemType.resourceBased,
-                  config: ResourceBasedItemConfig(
+                  type: ItemType.stateBased,
+                  config: StateBasedItemConfig(
                     anchorDate: DateTime(2026, 4, 1),
-                    durationDays: 5,
-                    warningBefore: 1,
+                    warningAfter: Duration(days: 1),
+                    dangerAfter: Duration(days: 2),
                   ),
                   createdAt: DateTime(2026, 4, 1),
                   updatedAt: DateTime(2026, 4, 1),
@@ -907,23 +923,25 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('剩餘0日'), findsOneWidget);
+    expect(find.text('已持續11日'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('item-expand-102')));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('item-skip-102')), findsNothing);
+    expect(find.byKey(const Key('item-skip-102')), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('item-checkbox-102')));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextFormField).last, '8');
-    await tester.tap(find.text(ReminderUiText.saveAction));
     await tester.pumpAndSettle();
 
     expect(itemRepository.recordedItemId, itemId);
     expect(itemRepository.recordedDoneAt, previewDate);
-    expect(itemRepository.recordedAddedDays, 8);
   });
+}
+
+Override _emptyResourcesOverride() {
+  return resourcesProvider.overrideWith(
+    (ref) => Stream.value(const <ResourceBundle>[]),
+  );
 }
 
 AttentionSummary _summary({
@@ -1021,12 +1039,9 @@ class _RecordingItemRepository extends ItemRepository {
 
   int? recordedItemId;
   DateTime? recordedDoneAt;
-  int? recordedAddedDays;
-
   @override
   Future<bool> markDone(
     int id, {
-    int? addedDays,
     DateTime? doneAt,
     ItemNextCycleStrategy nextCycleStrategy =
         ItemNextCycleStrategy.keepSchedule,
@@ -1034,7 +1049,6 @@ class _RecordingItemRepository extends ItemRepository {
   }) async {
     recordedItemId = id;
     recordedDoneAt = doneAt;
-    recordedAddedDays = addedDays;
     return true;
   }
 }

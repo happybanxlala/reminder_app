@@ -9,6 +9,7 @@ import 'package:reminder_app/features/reminders/data/builtin_item_pack_templates
 import 'package:reminder_app/features/reminders/data/item_repository.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/local/item_timeline_dao.dart';
+import 'package:reminder_app/features/reminders/data/resource_repository.dart';
 import 'package:reminder_app/features/reminders/data/settings_repository.dart';
 import 'package:reminder_app/features/reminders/data/timeline_models.dart';
 import 'package:reminder_app/features/reminders/data/timeline_repository.dart';
@@ -17,6 +18,7 @@ import 'package:reminder_app/features/reminders/domain/attention_policy.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack_template.dart';
+import 'package:reminder_app/features/reminders/domain/resource.dart';
 import 'package:reminder_app/features/reminders/domain/timeline.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_occurrence.dart';
 import 'package:reminder_app/features/reminders/domain/timeline_milestone_record.dart';
@@ -26,6 +28,7 @@ import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_te
 import 'package:reminder_app/features/reminders/providers/developer_settings_providers.dart';
 import 'package:reminder_app/features/reminders/providers/database_providers.dart';
 import 'package:reminder_app/features/reminders/providers/item_providers.dart';
+import 'package:reminder_app/features/reminders/providers/resource_providers.dart';
 import 'package:reminder_app/features/reminders/providers/settings_providers.dart';
 import 'package:reminder_app/features/reminders/providers/timeline_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/feature_page.dart';
@@ -101,6 +104,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            _emptyManagedResourcesOverride(),
             itemRepositoryProvider.overrideWith(
               (ref) => ItemRepository(db.itemTimelineDao),
             ),
@@ -128,7 +132,7 @@ void main() {
                 _itemBundle(1, ItemType.stateBased),
                 _itemBundle(
                   2,
-                  ItemType.resourceBased,
+                  ItemType.stateBased,
                   packId: 2,
                   packTitle: 'Cat Care',
                 ),
@@ -196,6 +200,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _emptyManagedResourcesOverride(),
           systemPreviewDateProvider.overrideWith(
             (ref) => Stream.value(DateTime(2026, 4, 11)),
           ),
@@ -259,6 +264,7 @@ void main() {
 
       final container = ProviderContainer(
         overrides: [
+          _emptyManagedResourcesOverride(),
           itemRepositoryProvider.overrideWith((ref) => repository),
           systemPreviewDateProvider.overrideWith(
             (ref) => Stream.value(DateTime(2026, 5, 1)),
@@ -362,6 +368,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _emptyManagedResourcesOverride(),
           settingsRepositoryProvider.overrideWith((ref) => repository),
         ],
         child: const MaterialApp(home: SettingsPage()),
@@ -406,6 +413,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _emptyManagedResourcesOverride(),
           systemPreviewDateProvider.overrideWith((ref) => controller.stream),
         ],
         child: const MaterialApp(home: DeveloperSettingsPage()),
@@ -431,6 +439,7 @@ void main() {
     addTearDown(db.close);
     final container = ProviderContainer(
       overrides: [
+        _emptyManagedResourcesOverride(),
         itemRepositoryProvider.overrideWith(
           (ref) => ItemRepository(db.itemTimelineDao),
         ),
@@ -448,7 +457,7 @@ void main() {
             _itemBundle(1, ItemType.stateBased),
             _itemBundle(
               2,
-              ItemType.resourceBased,
+              ItemType.stateBased,
               packId: 2,
               packTitle: 'Cat Care',
             ),
@@ -492,6 +501,7 @@ void main() {
     addTearDown(db.close);
     final container = ProviderContainer(
       overrides: [
+        _emptyManagedResourcesOverride(),
         itemRepositoryProvider.overrideWith(
           (ref) => ItemRepository(db.itemTimelineDao),
         ),
@@ -510,7 +520,7 @@ void main() {
             _itemBundle(1, ItemType.stateBased),
             _itemBundle(
               2,
-              ItemType.resourceBased,
+              ItemType.stateBased,
               packId: 2,
               packTitle: 'Cat Care',
             ),
@@ -550,6 +560,7 @@ void main() {
     final repository = _RecordingItemRepository(db.itemTimelineDao);
     final container = ProviderContainer(
       overrides: [
+        _emptyManagedResourcesOverride(),
         itemRepositoryProvider.overrideWith((ref) => repository),
         systemPreviewDateProvider.overrideWith(
           (ref) => Stream.value(DateTime(2026, 4, 10)),
@@ -591,7 +602,7 @@ void main() {
     final packId = await repository.createPack(
       const ItemPackInput(title: 'Cat Care', description: 'Reusable'),
     );
-    await repository.createItem(
+    final itemId = await repository.createItem(
       ItemInput(
         title: 'Brush teeth',
         type: ItemType.stateBased,
@@ -602,8 +613,26 @@ void main() {
         ),
       ),
     );
+    final resourceRepository = ResourceRepository(db.itemTimelineDao);
+    final resourceId = await resourceRepository.createResource(
+      ResourceInput(
+        packId: packId,
+        title: 'Toothbrush heads',
+        type: ResourceType.quantityBased,
+        config: const QuantityBasedResourceConfig(
+          currentQuantity: 3,
+          unitLabel: '個',
+          warningThreshold: 1,
+          dangerThreshold: 0,
+        ),
+      ),
+    );
+    await resourceRepository.createConsumptionRule(
+      ResourceConsumptionRuleInput(resourceId: resourceId, itemId: itemId),
+    );
     final container = ProviderContainer(
       overrides: [
+        _emptyManagedResourcesOverride(),
         itemRepositoryProvider.overrideWith((ref) => repository),
         systemPreviewDateProvider.overrideWith(
           (ref) => Stream.value(DateTime(2026, 4, 10)),
@@ -639,11 +668,18 @@ void main() {
 
     final templateRows = await db.select(db.itemPackTemplates).get();
     expect(templateRows.single.name, 'Cat Care');
+    final templateResources = await db.select(db.resourceTemplateItems).get();
+    final templateRules = await db
+        .select(db.resourceConsumptionRuleTemplateItems)
+        .get();
+    expect(templateResources.single.title, 'Toothbrush heads');
+    expect(templateRules.single.consumeAmount, 1);
   });
 
   testWidgets('items management card tap opens details dialog', (tester) async {
     final container = ProviderContainer(
       overrides: [
+        _emptyManagedResourcesOverride(),
         systemPreviewDateProvider.overrideWith(
           (ref) => Stream.value(DateTime(2026, 4, 11)),
         ),
@@ -691,6 +727,7 @@ void main() {
     final repository = _RecordingItemRepository(db.itemTimelineDao);
     final container = ProviderContainer(
       overrides: [
+        _emptyManagedResourcesOverride(),
         itemRepositoryProvider.overrideWith((ref) => repository),
         systemPreviewDateProvider.overrideWith(
           (ref) => Stream.value(DateTime(2026, 4, 11)),
@@ -750,6 +787,7 @@ void main() {
     final repository = _RecordingItemRepository(db.itemTimelineDao);
     final container = ProviderContainer(
       overrides: [
+        _emptyManagedResourcesOverride(),
         itemRepositoryProvider.overrideWith((ref) => repository),
         systemPreviewDateProvider.overrideWith(
           (ref) => Stream.value(DateTime(2026, 4, 11)),
@@ -814,6 +852,7 @@ void main() {
     final repository = _RecordingItemRepository(db.itemTimelineDao);
     final container = ProviderContainer(
       overrides: [
+        _emptyManagedResourcesOverride(),
         itemRepositoryProvider.overrideWith((ref) => repository),
         systemPreviewDateProvider.overrideWith(
           (ref) => Stream.value(DateTime(2026, 4, 11)),
@@ -883,6 +922,7 @@ void main() {
       final previewDate = DateTime(2026, 4, 11);
       final container = ProviderContainer(
         overrides: [
+          _emptyManagedResourcesOverride(),
           itemRepositoryProvider.overrideWith((ref) => repository),
           systemPreviewDateProvider.overrideWith(
             (ref) => Stream.value(previewDate),
@@ -934,6 +974,7 @@ void main() {
     (tester) async {
       final container = ProviderContainer(
         overrides: [
+          _emptyManagedResourcesOverride(),
           systemPreviewDateProvider.overrideWith(
             (ref) => Stream.value(DateTime(2026, 4, 11)),
           ),
@@ -996,6 +1037,7 @@ void main() {
     final repository = _RecordingItemRepository(db.itemTimelineDao);
     final container = ProviderContainer(
       overrides: [
+        _emptyManagedResourcesOverride(),
         itemRepositoryProvider.overrideWith((ref) => repository),
         systemPreviewDateProvider.overrideWith(
           (ref) => Stream.value(DateTime(2026, 4, 11)),
@@ -1061,7 +1103,7 @@ void main() {
     );
   });
 
-  testWidgets('resource items disable skip and require added days dialog', (
+  testWidgets('state items can skip and complete without added days dialog', (
     tester,
   ) async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -1070,6 +1112,7 @@ void main() {
     final previewDate = DateTime(2026, 4, 11);
     final container = ProviderContainer(
       overrides: [
+        _emptyManagedResourcesOverride(),
         itemRepositoryProvider.overrideWith((ref) => repository),
         systemPreviewDateProvider.overrideWith(
           (ref) => Stream.value(previewDate),
@@ -1080,7 +1123,7 @@ void main() {
           ]),
         ),
         packManagementItemsProvider.overrideWith(
-          (ref) => Stream.value([_itemBundle(3, ItemType.resourceBased)]),
+          (ref) => Stream.value([_itemBundle(3, ItemType.stateBased)]),
         ),
       ],
     );
@@ -1110,18 +1153,16 @@ void main() {
             ),
           )
           .enabled,
-      isFalse,
+      isTrue,
     );
 
     await tester.tap(find.byKey(const Key('item-menu-complete-3')));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextFormField).last, '12');
-    await tester.tap(find.text(ReminderUiText.saveAction));
+    await tester.tap(find.text(ReminderUiText.completeAction).last);
     await tester.pumpAndSettle();
 
     expect(repository.recordedItemId, 3);
     expect(repository.recordedDoneAt, previewDate);
-    expect(repository.recordedAddedDays, 12);
   });
 
   testWidgets('timeline management page shows timeline actions', (
@@ -1131,6 +1172,7 @@ void main() {
     addTearDown(db.close);
     final container = ProviderContainer(
       overrides: [
+        _emptyManagedResourcesOverride(),
         timelineRepositoryProvider.overrideWith(
           (ref) => _FakeTimelineRepository(db.itemTimelineDao),
         ),
@@ -1170,6 +1212,12 @@ void main() {
   });
 }
 
+Override _emptyManagedResourcesOverride() {
+  return managedResourcesProvider.overrideWith(
+    (ref) => Stream.value(const <ResourceBundle>[]),
+  );
+}
+
 class _FeatureRouteCase {
   const _FeatureRouteCase({
     required this.key,
@@ -1201,11 +1249,6 @@ ItemBundle _itemBundle(
           infoAfter: Duration(days: 7),
           warningAfter: Duration(days: 7),
           dangerAfter: Duration(days: 14),
-        ),
-        ItemType.resourceBased => ResourceBasedItemConfig(
-          anchorDate: DateTime(2026, 4, 10),
-          durationDays: 30,
-          warningBefore: 7,
         ),
         ItemType.fixed => FixedTimeItemConfig(
           scheduleType: FixedTimeScheduleType.daily,
@@ -1307,7 +1350,6 @@ class _RecordingItemRepository extends ItemRepository {
 
   int? recordedItemId;
   DateTime? recordedDoneAt;
-  int? recordedAddedDays;
   int? recordedSkipItemId;
   DateTime? recordedSkipAt;
   int? recordedPauseItemId;
@@ -1332,7 +1374,6 @@ class _RecordingItemRepository extends ItemRepository {
   @override
   Future<bool> markDone(
     int id, {
-    int? addedDays,
     DateTime? doneAt,
     ItemNextCycleStrategy nextCycleStrategy =
         ItemNextCycleStrategy.keepSchedule,
@@ -1341,7 +1382,6 @@ class _RecordingItemRepository extends ItemRepository {
     markDoneCount += 1;
     recordedItemId = id;
     recordedDoneAt = doneAt;
-    recordedAddedDays = addedDays;
     return true;
   }
 

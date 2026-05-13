@@ -122,29 +122,24 @@ void main() {
       },
     );
 
-    test(
-      'resource based item shows danger inventory label and disables skip',
-      () {
-        final viewModel = ManagementItemCardViewModel.fromBundle(
-          _bundle(
-            4,
-            type: ItemType.resourceBased,
-            config: ResourceBasedItemConfig(
-              anchorDate: DateTime(2026, 4, 10),
-              durationDays: 3,
-              warningBefore: 2,
-              dangerBefore: 1,
-            ),
+    test('state based item remains skippable when actionable', () {
+      final viewModel = ManagementItemCardViewModel.fromBundle(
+        _bundle(
+          4,
+          type: ItemType.stateBased,
+          config: StateBasedItemConfig(
+            anchorDate: DateTime(2026, 4, 10),
+            warningAfter: const Duration(days: 1),
+            dangerAfter: const Duration(days: 2),
           ),
-          now: DateTime(2026, 4, 11),
-        );
+        ),
+        now: DateTime(2026, 4, 11),
+      );
 
-        expect(viewModel.typeIcon, Icons.inventory_2_outlined);
-        expect(viewModel.status.label, '需要處理：只剩1天庫存量');
-        expect(viewModel.canComplete, isTrue);
-        expect(viewModel.canSkip, isFalse);
-      },
-    );
+      expect(viewModel.typeIcon, Icons.gesture_outlined);
+      expect(viewModel.canComplete, isTrue);
+      expect(viewModel.canSkip, isTrue);
+    });
   });
 }
 

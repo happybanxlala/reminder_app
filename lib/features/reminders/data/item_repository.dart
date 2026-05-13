@@ -8,6 +8,8 @@ import '../domain/item_pack.dart';
 import '../domain/item_pack_template.dart';
 import '../domain/item_snapshot_update_service.dart';
 import '../domain/item_status_service.dart';
+import '../domain/resource.dart';
+import '../domain/resource_refill_service.dart';
 import 'builtin_item_pack_templates.dart';
 import 'local/app_database.dart';
 import 'local/item_timeline_dao.dart';
@@ -246,11 +248,6 @@ class ItemRepository {
         stateDangerAfterMinutes: _durationMinutes(
           _stateDangerAfter(input.config),
         ),
-        resourceAnchorDate: _resourceAnchorDate(input.config),
-        resourceDurationDays: _resourceDurationDays(input.config),
-        resourceExpectedBeforeDays: _resourceInfoBefore(input.config),
-        resourceWarningBeforeDays: _resourceWarningBefore(input.config),
-        resourceDangerBeforeDays: _resourceDangerBefore(input.config),
         lastDoneAt: existing.item.lastDoneAt?.millisecondsSinceEpoch,
         createdAt: existing.item.createdAt.millisecondsSinceEpoch,
         updatedAt: now.millisecondsSinceEpoch,
@@ -262,7 +259,6 @@ class ItemRepository {
     int id, {
     DateTime? doneAt,
     String? remark,
-    int? addedDays,
     ItemNextCycleStrategy nextCycleStrategy =
         ItemNextCycleStrategy.keepSchedule,
   }) async {
@@ -275,7 +271,6 @@ class ItemRepository {
       doneAt: doneAt,
       fallbackNow: _clock(),
       remark: remark,
-      addedDays: addedDays,
       nextCycleStrategy: nextCycleStrategy,
     );
     if (action == null) {
@@ -391,6 +386,7 @@ class ItemRepository {
           now: now,
         ),
       );
+      final itemIdsByLogicalId = <String, int>{};
       for (final templateItem in template.items) {
         final itemId = await _createItemRecord(
           ItemInput(
@@ -403,7 +399,51 @@ class ItemRepository {
           ),
           now: now,
         );
+        if (templateItem.logicalId != null) {
+          itemIdsByLogicalId[templateItem.logicalId!] = itemId;
+        }
         await _insertCreatedAction(itemId, now: now);
+      }
+      final resourceIdsByLogicalId = <String, int>{};
+      for (final templateResource in template.resources) {
+        final resourceId = await _dao.insertResource(
+          _resourceCompanionForTemplate(
+            templateResource,
+            packId: packId,
+            today: today,
+            now: now,
+          ),
+        );
+        resourceIdsByLogicalId[templateResource.logicalId] = resourceId;
+        await _dao.insertResourceActionRecord(
+          ResourceActionRecordsCompanion.insert(
+            resourceId: resourceId,
+            actionType: ResourceActionType.created.name,
+            actionDate: today.millisecondsSinceEpoch,
+            createdAt: now.millisecondsSinceEpoch,
+            updatedAt: now.millisecondsSinceEpoch,
+          ),
+        );
+      }
+      for (final rule in template.consumptionRules) {
+        final itemId = itemIdsByLogicalId[rule.itemLogicalId];
+        final resourceId = resourceIdsByLogicalId[rule.resourceLogicalId];
+        if (itemId == null || resourceId == null) {
+          continue;
+        }
+        await _dao.insertResourceConsumptionRule(
+          ResourceConsumptionRulesCompanion.insert(
+            resourceId: resourceId,
+            itemId: itemId,
+            triggerActionType: Value(rule.triggerActionType.name),
+            consumeAmount: Value(
+              rule.consumeAmount < 1 ? 1 : rule.consumeAmount,
+            ),
+            isEnabled: Value(rule.isEnabled),
+            createdAt: now.millisecondsSinceEpoch,
+            updatedAt: now.millisecondsSinceEpoch,
+          ),
+        );
       }
       return packId;
     });
@@ -421,6 +461,22 @@ class ItemRepository {
     final packItems = items
         .where((bundle) => bundle.item.packId == packId)
         .toList(growable: false);
+    final resources = await _dao.listResourceBundles(
+      statuses: ResourceLifecycleStatus.values.toSet(),
+    );
+    final packResources = resources
+        .where((bundle) => bundle.resource.packId == packId)
+        .toList(growable: false);
+    final packResourceIds = packResources
+        .map((bundle) => bundle.resource.id)
+        .toSet();
+    final rules = <ResourceConsumptionRule>[];
+    for (final bundle in packItems) {
+      final itemRules = await _dao.listConsumptionRulesForItem(bundle.item.id);
+      rules.addAll(
+        itemRules.where((rule) => packResourceIds.contains(rule.resourceId)),
+      );
+    }
     final now = _clock();
     return _dao.attachedDatabase.transaction(() async {
       final templateId = await _dao.insertItemPackTemplate(
@@ -434,7 +490,35 @@ class ItemRepository {
       );
       for (final bundle in packItems) {
         await _dao.insertItemTemplateItem(
-          _templateItemCompanion(bundle.item, templateId: templateId, now: now),
+          _templateItemCompanion(
+            bundle.item,
+            templateId: templateId,
+            logicalId: _itemTemplateLogicalId(bundle.item.id),
+            now: now,
+          ),
+        );
+      }
+      for (final bundle in packResources) {
+        await _dao.insertResourceTemplateItem(
+          _resourceTemplateItemCompanion(
+            bundle.resource,
+            templateId: templateId,
+            logicalId: _resourceTemplateLogicalId(bundle.resource.id),
+            now: now,
+          ),
+        );
+      }
+      for (final rule in rules) {
+        await _dao.insertResourceConsumptionRuleTemplateItem(
+          ResourceConsumptionRuleTemplateItemsCompanion.insert(
+            templateId: templateId,
+            itemLogicalId: _itemTemplateLogicalId(rule.itemId),
+            resourceLogicalId: _resourceTemplateLogicalId(rule.resourceId),
+            triggerActionType: Value(rule.triggerActionType.name),
+            consumeAmount: Value(rule.consumeAmount),
+            createdAt: now.millisecondsSinceEpoch,
+            updatedAt: now.millisecondsSinceEpoch,
+          ),
         );
       }
       return templateId;
@@ -506,7 +590,7 @@ class ItemRepository {
       if (!updated) {
         return false;
       }
-      await _dao.insertItemActionRecord(
+      final itemActionRecordId = await _dao.insertItemActionRecord(
         ItemActionRecordsCompanion.insert(
           itemId: id,
           actionType: action.type.name,
@@ -517,8 +601,66 @@ class ItemRepository {
           updatedAt: now.millisecondsSinceEpoch,
         ),
       );
+      if (action.type == ItemActionType.done) {
+        await _applyResourceConsumptionRules(
+          id,
+          itemActionRecordId: itemActionRecordId,
+          actionDate: action.actionDate,
+          now: now,
+        );
+      }
       return true;
     });
+  }
+
+  Future<void> _applyResourceConsumptionRules(
+    int itemId, {
+    required int itemActionRecordId,
+    required DateTime actionDate,
+    required DateTime now,
+  }) async {
+    final rules = await _dao.listConsumptionRulesForItem(
+      itemId,
+      enabledOnly: true,
+    );
+    const refillService = ResourceRefillService();
+    for (final rule in rules) {
+      if (rule.triggerActionType != ItemActionType.done ||
+          rule.consumeAmount <= 0) {
+        continue;
+      }
+      final bundle = await _dao.getResourceBundleById(rule.resourceId);
+      final resource = bundle?.resource;
+      if (resource == null ||
+          resource.status != ResourceLifecycleStatus.active ||
+          resource.config is! QuantityBasedResourceConfig) {
+        continue;
+      }
+      final config = resource.config as QuantityBasedResourceConfig;
+      final resultingQuantity = refillService.consumeQuantity(
+        config,
+        rule.consumeAmount,
+      );
+      await _dao.updateResourceFields(
+        resource.id,
+        ResourcesCompanion(
+          quantityCurrent: Value(resultingQuantity),
+          updatedAt: Value(now.millisecondsSinceEpoch),
+        ),
+      );
+      await _dao.insertResourceActionRecord(
+        ResourceActionRecordsCompanion.insert(
+          resourceId: resource.id,
+          actionType: ResourceActionType.consumed.name,
+          actionDate: actionDate.millisecondsSinceEpoch,
+          amount: Value(rule.consumeAmount),
+          resultingQuantity: Value(resultingQuantity),
+          sourceItemActionRecordId: Value(itemActionRecordId),
+          createdAt: now.millisecondsSinceEpoch,
+          updatedAt: now.millisecondsSinceEpoch,
+        ),
+      );
+    }
   }
 
   Future<void> _insertCreatedAction(int itemId, {required DateTime now}) {
@@ -540,8 +682,6 @@ class ItemRepository {
       fixedDueDate: _dateValue(snapshot.fixedDueDate),
       fixedRepeatRuleV2: _stringValue(snapshot.fixedRepeatRuleV2),
       stateAnchorDate: _dateValue(snapshot.stateAnchorDate),
-      resourceAnchorDate: _dateValue(snapshot.resourceAnchorDate),
-      resourceDurationDays: _intValue(snapshot.resourceDurationDays),
       lastDoneAt: _dateValue(snapshot.lastDoneAt),
       updatedAt: Value(snapshot.updatedAt.millisecondsSinceEpoch),
     );
@@ -595,12 +735,41 @@ class ItemRepository {
       stateDangerAfterMinutes: Value(
         _durationMinutes(_stateDangerAfter(input.config)),
       ),
-      resourceAnchorDate: Value(_resourceAnchorDate(input.config)),
-      resourceDurationDays: Value(_resourceDurationDays(input.config)),
-      resourceExpectedBeforeDays: Value(_resourceInfoBefore(input.config)),
-      resourceWarningBeforeDays: Value(_resourceWarningBefore(input.config)),
-      resourceDangerBeforeDays: Value(_resourceDangerBefore(input.config)),
       lastDoneAt: Value(_snapshotLastDoneAtForCreate(input.config)),
+      createdAt: now.millisecondsSinceEpoch,
+      updatedAt: now.millisecondsSinceEpoch,
+    );
+  }
+
+  ResourcesCompanion _resourceCompanionForTemplate(
+    ResourceTemplateItem templateResource, {
+    required int packId,
+    required DateTime today,
+    required DateTime now,
+  }) {
+    final config = _resourceConfigForTemplateApply(
+      templateResource.config,
+      today,
+    );
+    return ResourcesCompanion.insert(
+      packId: packId,
+      title: templateResource.title,
+      description: Value(templateResource.description),
+      status: const Value('active'),
+      type: templateResource.type.name,
+      timeAnchorDate: Value(_resourceTimeAnchorDate(config)),
+      timeDurationDays: Value(_resourceTimeDurationDays(config)),
+      timeExpectedBeforeDays: Value(_resourceTimeInfoBeforeDays(config)),
+      timeWarningBeforeDays: Value(_resourceTimeWarningBeforeDays(config)),
+      timeDangerBeforeDays: Value(_resourceTimeDangerBeforeDays(config)),
+      quantityCurrent: Value(_resourceQuantityCurrent(config)),
+      quantityUnitLabel: Value(_resourceQuantityUnitLabel(config)),
+      quantityExpectedThreshold: Value(_resourceQuantityInfoThreshold(config)),
+      quantityWarningThreshold: Value(
+        _resourceQuantityWarningThreshold(config),
+      ),
+      quantityDangerThreshold: Value(_resourceQuantityDangerThreshold(config)),
+      lastRefilledAt: Value(_resourceInitialLastRefilledAt(config)),
       createdAt: now.millisecondsSinceEpoch,
       updatedAt: now.millisecondsSinceEpoch,
     );
@@ -623,10 +792,12 @@ class ItemRepository {
   ItemTemplateItemsCompanion _templateItemCompanion(
     Item item, {
     required int templateId,
+    String? logicalId,
     required DateTime now,
   }) {
     return ItemTemplateItemsCompanion.insert(
       templateId: templateId,
+      logicalId: Value(logicalId),
       title: item.title,
       description: Value(item.description),
       type: item.type.name,
@@ -655,14 +826,43 @@ class ItemRepository {
       stateDangerAfterMinutes: Value(
         _durationMinutes(_stateDangerAfter(item.config)),
       ),
-      resourceDurationDays: Value(_resourceDurationDays(item.config)),
-      resourceExpectedBeforeDays: Value(_resourceInfoBefore(item.config)),
-      resourceWarningBeforeDays: Value(_resourceWarningBefore(item.config)),
-      resourceDangerBeforeDays: Value(_resourceDangerBefore(item.config)),
       createdAt: now.millisecondsSinceEpoch,
       updatedAt: now.millisecondsSinceEpoch,
     );
   }
+
+  ResourceTemplateItemsCompanion _resourceTemplateItemCompanion(
+    Resource resource, {
+    required int templateId,
+    required String logicalId,
+    required DateTime now,
+  }) {
+    final config = resource.config;
+    return ResourceTemplateItemsCompanion.insert(
+      templateId: templateId,
+      logicalId: logicalId,
+      title: resource.title,
+      description: Value(resource.description),
+      type: resource.type.name,
+      timeDurationDays: Value(_resourceTimeDurationDays(config)),
+      timeExpectedBeforeDays: Value(_resourceTimeInfoBeforeDays(config)),
+      timeWarningBeforeDays: Value(_resourceTimeWarningBeforeDays(config)),
+      timeDangerBeforeDays: Value(_resourceTimeDangerBeforeDays(config)),
+      quantityCurrent: Value(_resourceQuantityCurrent(config)),
+      quantityUnitLabel: Value(_resourceQuantityUnitLabel(config)),
+      quantityExpectedThreshold: Value(_resourceQuantityInfoThreshold(config)),
+      quantityWarningThreshold: Value(
+        _resourceQuantityWarningThreshold(config),
+      ),
+      quantityDangerThreshold: Value(_resourceQuantityDangerThreshold(config)),
+      createdAt: now.millisecondsSinceEpoch,
+      updatedAt: now.millisecondsSinceEpoch,
+    );
+  }
+
+  String _itemTemplateLogicalId(int itemId) => 'item-$itemId';
+
+  String _resourceTemplateLogicalId(int resourceId) => 'resource-$resourceId';
 
   ItemConfig _configForTemplateApply(ItemConfig config, DateTime today) {
     return switch (config) {
@@ -684,11 +884,30 @@ class ItemRepository {
         warningAfter: state.warningAfter,
         dangerAfter: state.dangerAfter,
       ),
-      ResourceBasedItemConfig resource => ResourceBasedItemConfig(
-        durationDays: resource.durationDays,
-        infoBefore: resource.infoBefore,
-        warningBefore: resource.warningBefore,
-        dangerBefore: resource.dangerBefore,
+      _ => config,
+    };
+  }
+
+  ResourceConfig _resourceConfigForTemplateApply(
+    ResourceConfig config,
+    DateTime today,
+  ) {
+    return switch (config) {
+      TimeBasedResourceConfig time => TimeBasedResourceConfig(
+        anchorDate: time.anchorDate ?? today,
+        durationDays: time.durationDays,
+        infoBeforeDays: time.infoBeforeDays,
+        warningBeforeDays: time.warningBeforeDays,
+        dangerBeforeDays: time.dangerBeforeDays,
+      ),
+      QuantityBasedResourceConfig quantity => QuantityBasedResourceConfig(
+        currentQuantity: quantity.currentQuantity < 0
+            ? 0
+            : quantity.currentQuantity,
+        unitLabel: quantity.unitLabel,
+        infoThreshold: quantity.infoThreshold,
+        warningThreshold: quantity.warningThreshold,
+        dangerThreshold: quantity.dangerThreshold,
       ),
       _ => config,
     };
@@ -867,38 +1086,80 @@ class ItemRepository {
     };
   }
 
-  int? _resourceAnchorDate(ItemConfig config) {
+  int? _resourceTimeAnchorDate(ResourceConfig config) {
     return switch (config) {
-      ResourceBasedItemConfig resource =>
-        resource.anchorDate?.millisecondsSinceEpoch,
+      TimeBasedResourceConfig time => time.anchorDate?.millisecondsSinceEpoch,
       _ => null,
     };
   }
 
-  int? _resourceDurationDays(ItemConfig config) {
+  int? _resourceTimeDurationDays(ResourceConfig config) {
     return switch (config) {
-      ResourceBasedItemConfig resource => resource.durationDays,
+      TimeBasedResourceConfig time => time.durationDays,
       _ => null,
     };
   }
 
-  int? _resourceInfoBefore(ItemConfig config) {
+  int? _resourceTimeInfoBeforeDays(ResourceConfig config) {
     return switch (config) {
-      ResourceBasedItemConfig resource => resource.infoBefore,
+      TimeBasedResourceConfig time => time.infoBeforeDays,
       _ => null,
     };
   }
 
-  int? _resourceWarningBefore(ItemConfig config) {
+  int? _resourceTimeWarningBeforeDays(ResourceConfig config) {
     return switch (config) {
-      ResourceBasedItemConfig resource => resource.warningBefore,
+      TimeBasedResourceConfig time => time.warningBeforeDays,
       _ => null,
     };
   }
 
-  int? _resourceDangerBefore(ItemConfig config) {
+  int? _resourceTimeDangerBeforeDays(ResourceConfig config) {
     return switch (config) {
-      ResourceBasedItemConfig resource => resource.dangerBefore,
+      TimeBasedResourceConfig time => time.dangerBeforeDays,
+      _ => null,
+    };
+  }
+
+  int? _resourceQuantityCurrent(ResourceConfig config) {
+    return switch (config) {
+      QuantityBasedResourceConfig quantity =>
+        quantity.currentQuantity < 0 ? 0 : quantity.currentQuantity,
+      _ => null,
+    };
+  }
+
+  String? _resourceQuantityUnitLabel(ResourceConfig config) {
+    return switch (config) {
+      QuantityBasedResourceConfig quantity => quantity.unitLabel,
+      _ => null,
+    };
+  }
+
+  int? _resourceQuantityInfoThreshold(ResourceConfig config) {
+    return switch (config) {
+      QuantityBasedResourceConfig quantity => quantity.infoThreshold,
+      _ => null,
+    };
+  }
+
+  int? _resourceQuantityWarningThreshold(ResourceConfig config) {
+    return switch (config) {
+      QuantityBasedResourceConfig quantity => quantity.warningThreshold,
+      _ => null,
+    };
+  }
+
+  int? _resourceQuantityDangerThreshold(ResourceConfig config) {
+    return switch (config) {
+      QuantityBasedResourceConfig quantity => quantity.dangerThreshold,
+      _ => null,
+    };
+  }
+
+  int? _resourceInitialLastRefilledAt(ResourceConfig config) {
+    return switch (config) {
+      TimeBasedResourceConfig time => time.anchorDate?.millisecondsSinceEpoch,
       _ => null,
     };
   }
@@ -919,13 +1180,6 @@ class ItemRepository {
       return const Value.absent();
     }
     return Value(value.value?.millisecondsSinceEpoch);
-  }
-
-  Value<int?> _intValue(SnapshotValue<int> value) {
-    if (!value.present) {
-      return const Value.absent();
-    }
-    return Value(value.value);
   }
 
   Value<String?> _stringValue(SnapshotValue<String> value) {

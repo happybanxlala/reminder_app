@@ -16,6 +16,11 @@ part 'app_database.g.dart';
     Items,
     ItemPackTemplates,
     ItemTemplateItems,
+    ResourceTemplateItems,
+    ResourceConsumptionRuleTemplateItems,
+    Resources,
+    ResourceConsumptionRules,
+    ResourceActionRecords,
     ItemActionRecords,
     Timelines,
     TimelineMilestoneRules,
@@ -32,32 +37,36 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
     onUpgrade: (m, from, to) async {
-      if (from < 2) {
-        await m.addColumn(items, items.fixedScheduleInterval);
-        await m.addColumn(items, items.fixedMonthlyDay);
-        await m.createTable(itemPackTemplates);
-        await m.createTable(itemTemplateItems);
-      }
-      if (from < 3) {
-        await m.addColumn(items, items.attentionPolicySource);
-        await m.addColumn(
-          itemTemplateItems,
-          itemTemplateItems.attentionPolicySource,
+      if (from < 6) {
+        await customStatement('PRAGMA foreign_keys = OFF');
+        await customStatement('DROP TABLE IF EXISTS resource_action_records');
+        await customStatement(
+          'DROP TABLE IF EXISTS resource_consumption_rules',
         );
-        await m.createTable(appSettingsEntries);
-      }
-      if (from < 4) {
-        await m.addColumn(items, items.fixedRepeatRuleV2);
-        await m.addColumn(
-          itemTemplateItems,
-          itemTemplateItems.fixedRepeatRuleV2,
+        await customStatement('DROP TABLE IF EXISTS resources');
+        await customStatement(
+          'DROP TABLE IF EXISTS resource_consumption_rule_template_items',
         );
+        await customStatement('DROP TABLE IF EXISTS resource_template_items');
+        await customStatement(
+          'DROP TABLE IF EXISTS timeline_milestone_records',
+        );
+        await customStatement('DROP TABLE IF EXISTS timeline_milestone_rules');
+        await customStatement('DROP TABLE IF EXISTS timelines');
+        await customStatement('DROP TABLE IF EXISTS item_action_records');
+        await customStatement('DROP TABLE IF EXISTS item_template_items');
+        await customStatement('DROP TABLE IF EXISTS item_pack_templates');
+        await customStatement('DROP TABLE IF EXISTS items');
+        await customStatement('DROP TABLE IF EXISTS item_packs');
+        await customStatement('DROP TABLE IF EXISTS app_settings');
+        await m.createAll();
+        await customStatement('PRAGMA foreign_keys = ON');
       }
     },
     beforeOpen: (details) async {

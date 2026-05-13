@@ -3,7 +3,6 @@ import 'item_action_record.dart';
 import 'item_action_service.dart';
 import 'item_status_service.dart';
 import 'repeat_rule_v2.dart';
-import 'resource_refill_calculator.dart';
 
 class SnapshotValue<T> {
   const SnapshotValue.absent() : present = false, value = null;
@@ -20,8 +19,6 @@ class ItemSnapshotUpdate {
     this.fixedDueDate = const SnapshotValue.absent(),
     this.fixedRepeatRuleV2 = const SnapshotValue.absent(),
     this.stateAnchorDate = const SnapshotValue.absent(),
-    this.resourceAnchorDate = const SnapshotValue.absent(),
-    this.resourceDurationDays = const SnapshotValue.absent(),
     this.lastDoneAt = const SnapshotValue.absent(),
     required this.updatedAt,
   });
@@ -30,21 +27,15 @@ class ItemSnapshotUpdate {
   final SnapshotValue<DateTime> fixedDueDate;
   final SnapshotValue<String> fixedRepeatRuleV2;
   final SnapshotValue<DateTime> stateAnchorDate;
-  final SnapshotValue<DateTime> resourceAnchorDate;
-  final SnapshotValue<int> resourceDurationDays;
   final SnapshotValue<DateTime> lastDoneAt;
   final DateTime updatedAt;
 }
 
 class ItemSnapshotUpdateService {
-  ItemSnapshotUpdateService({
-    ItemStatusService? statusService,
-    ResourceRefillCalculator? refillCalculator,
-  }) : _statusService = statusService ?? const ItemStatusService(),
-       _refillCalculator = refillCalculator ?? const ResourceRefillCalculator();
+  ItemSnapshotUpdateService({ItemStatusService? statusService})
+    : _statusService = statusService ?? const ItemStatusService();
 
   final ItemStatusService _statusService;
-  final ResourceRefillCalculator _refillCalculator;
   final RepeatRuleOccurrenceCalculator _repeatCalculator =
       const RepeatRuleOccurrenceCalculator();
 
@@ -61,11 +52,6 @@ class ItemSnapshotUpdateService {
         updatedAt: updatedAt,
       ),
       StateBasedItemConfig config => _buildStateBasedUpdate(
-        config,
-        action: action,
-        updatedAt: updatedAt,
-      ),
-      ResourceBasedItemConfig config => _buildResourceUpdate(
         config,
         action: action,
         updatedAt: updatedAt,
@@ -163,29 +149,6 @@ class ItemSnapshotUpdateService {
           ? SnapshotValue.value(action.actionDate)
           : SnapshotValue.value(config.anchorDate),
       lastDoneAt: const SnapshotValue.value(null),
-      updatedAt: updatedAt,
-    );
-  }
-
-  ItemSnapshotUpdate _buildResourceUpdate(
-    ResourceBasedItemConfig config, {
-    required PlannedItemAction action,
-    required DateTime updatedAt,
-  }) {
-    if (action.type != ItemActionType.done) {
-      return ItemSnapshotUpdate(updatedAt: updatedAt);
-    }
-
-    final addedDays = (action.payload?['addedDays'] as num?)?.toInt() ?? 0;
-    final refill = _refillCalculator.refill(
-      config,
-      actionDate: action.actionDate,
-      addedDays: addedDays,
-    );
-    return ItemSnapshotUpdate(
-      resourceAnchorDate: SnapshotValue.value(refill.anchorDate),
-      resourceDurationDays: SnapshotValue.value(refill.durationDays),
-      lastDoneAt: SnapshotValue.value(refill.lastDoneAt),
       updatedAt: updatedAt,
     );
   }

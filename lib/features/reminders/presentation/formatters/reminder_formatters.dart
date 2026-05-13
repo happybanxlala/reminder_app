@@ -8,6 +8,8 @@ import '../../domain/item.dart';
 import '../../domain/item_pack.dart';
 import '../../domain/repeat_rule.dart';
 import '../../domain/repeat_rule_v2.dart';
+import '../../domain/resource.dart';
+import '../../domain/resource_status_service.dart';
 import '../../domain/timeline.dart';
 import '../../domain/timeline_milestone_occurrence.dart';
 import '../../domain/timeline_milestone_record.dart';
@@ -39,7 +41,6 @@ class ReminderFormatters {
         statusService: statusService,
       ),
       StateBasedItemConfig config => _stateBasedSummary(config),
-      ResourceBasedItemConfig config => _resourceBasedSummary(config),
       _ => bundle.item.type.name,
     };
   }
@@ -55,8 +56,6 @@ class ReminderFormatters {
   static String itemActionRecord(ItemActionRecord record) {
     final payload = record.payload;
     final payloadText = switch (record.actionType) {
-      ItemActionType.done when payload?['addedDays'] != null =>
-        ' • 補充 ${(payload?['addedDays'] as num).toInt()} 天',
       ItemActionType.deferred when payload?['deferDays'] != null =>
         ' • 延後 ${(payload?['deferDays'] as num).toInt()} 天',
       _ => '',
@@ -220,18 +219,10 @@ class ReminderFormatters {
     return parts.join(' • ');
   }
 
-  static String _resourceBasedSummary(ResourceBasedItemConfig config) {
-    final anchor = config.anchorDate == null ? '未建立' : date(config.anchorDate!);
-    return '起點 $anchor • 可維持 ${config.durationDays} 天（含起點） • ${attentionPolicySummary(config)}';
-  }
-
   static String attentionPolicySummary(ItemConfig config) {
     return switch (config) {
       FixedItemConfig fixed => _fixedAttentionPolicySummary(fixed),
       StateBasedItemConfig state => _stateAttentionPolicySummary(state),
-      ResourceBasedItemConfig resource => _resourceAttentionPolicySummary(
-        resource,
-      ),
       _ => '',
     };
   }
@@ -247,22 +238,6 @@ class ReminderFormatters {
     final danger = config.dangerAfter.inDays;
     final warningLabel = warning <= 0 ? '當天開始提醒' : '約第 $warning 天開始提醒';
     return '$warningLabel • 第 $danger 天建議處理';
-  }
-
-  static String _resourceAttentionPolicySummary(
-    ResourceBasedItemConfig config,
-  ) {
-    if (config.anchorDate == null || config.durationDays <= 0) {
-      return '預計用完日期尚未建立';
-    }
-    final emptyDate = config.anchorDate!.add(
-      Duration(days: config.durationDays - 1),
-    );
-    final warningDate = emptyDate.subtract(
-      Duration(days: config.warningBefore),
-    );
-    final dangerDate = emptyDate.subtract(Duration(days: config.dangerBefore));
-    return '預計可用到 ${date(emptyDate)} • ${date(warningDate)} 開始提醒補貨 • ${date(dangerDate)} 加強提醒';
   }
 
   static String _beforeLabel(
@@ -484,7 +459,6 @@ class ReminderFormatters {
     return switch (config) {
       FixedItemConfig _ => ReminderUiText.fixedTypeLabel,
       StateBasedItemConfig _ => ReminderUiText.stateBasedTypeLabel,
-      ResourceBasedItemConfig _ => ReminderUiText.resourceBasedTypeLabel,
       _ => '未知',
     };
   }
@@ -500,8 +474,88 @@ class ReminderFormatters {
     return switch (value) {
       ItemType.fixed => ReminderUiText.fixedTypeLabel,
       ItemType.stateBased => ReminderUiText.stateBasedTypeLabel,
-      ItemType.resourceBased => ReminderUiText.resourceBasedTypeLabel,
     };
+  }
+
+  static String resourceType(ResourceType value) {
+    return switch (value) {
+      ResourceType.timeBased => '天數估算',
+      ResourceType.quantityBased => '數量庫存',
+    };
+  }
+
+  static String resourceStatus(ResourceStatus status) {
+    return switch (status) {
+      ResourceStatus.normal => '穩定',
+      ResourceStatus.warning => ReminderUiText.warningTab,
+      ResourceStatus.danger => ReminderUiText.dangerTab,
+      ResourceStatus.unknown => '未建立基準',
+    };
+  }
+
+  static String resourceSummary(
+    Resource resource, {
+    DateTime? now,
+    ResourceStatusService statusService = const ResourceStatusService(),
+  }) {
+    return switch (resource.config) {
+      TimeBasedResourceConfig config => _timeResourceSummary(
+        config,
+        now: now,
+        statusService: statusService,
+      ),
+      QuantityBasedResourceConfig config => _quantityResourceSummary(config),
+      _ => resource.type.name,
+    };
+  }
+
+  static String resourceTrailingLabel(
+    Resource resource, {
+    DateTime? now,
+    ResourceStatusService statusService = const ResourceStatusService(),
+  }) {
+    return switch (resource.config) {
+      TimeBasedResourceConfig config => _timeResourceRemainingLabel(
+        config,
+        now: now,
+        statusService: statusService,
+      ),
+      QuantityBasedResourceConfig config =>
+        '剩 ${config.currentQuantity} ${config.unitLabel}',
+      _ => '',
+    };
+  }
+
+  static String _timeResourceSummary(
+    TimeBasedResourceConfig config, {
+    DateTime? now,
+    required ResourceStatusService statusService,
+  }) {
+    final depletion = statusService.depletionDate(config);
+    if (depletion == null) {
+      return '預計用完日期尚未建立';
+    }
+    final remaining = statusService.timeBasedRemainingDays(config, now: now);
+    final remainingText = remaining == null
+        ? ''
+        : ' • 大約剩 ${remaining < 0 ? 0 : remaining} 天';
+    return '預計可用到 ${date(depletion)}$remainingText';
+  }
+
+  static String _timeResourceRemainingLabel(
+    TimeBasedResourceConfig config, {
+    DateTime? now,
+    required ResourceStatusService statusService,
+  }) {
+    final remaining = statusService.timeBasedRemainingDays(config, now: now);
+    if (remaining == null) {
+      return '未建立';
+    }
+    return '約剩 ${remaining < 0 ? 0 : remaining} 天';
+  }
+
+  static String _quantityResourceSummary(QuantityBasedResourceConfig config) {
+    return '目前 ${config.currentQuantity} ${config.unitLabel} • 剩 ${config.warningThreshold} ${config.unitLabel}提醒 • 剩 ${config.dangerThreshold} ${config.unitLabel}危急';
   }
 
   static String usageSpeed(UsageSpeed value) {

@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 import '../../data/local/item_timeline_dao.dart';
@@ -62,8 +60,6 @@ class ManagementItemCardViewModel {
     final status = _statusFor(item, now: current, statusService: statusService);
     final lifecycle = item.status;
     final active = lifecycle == ItemLifecycleStatus.active;
-    final isResource = item.type == ItemType.resourceBased;
-
     final anchorDate = _effectiveAnchorDate(
       item,
       now: current,
@@ -75,7 +71,6 @@ class ManagementItemCardViewModel {
       statusService: statusService,
     );
     final stateBaseline = _stateBaseline(item);
-    final remainingInventory = _remainingInventory(item, now: current);
 
     return ManagementItemCardViewModel(
       id: item.id,
@@ -103,16 +98,10 @@ class ManagementItemCardViewModel {
       stateBaselineLabel: stateBaseline == null
           ? null
           : ReminderFormatters.date(stateBaseline),
-      remainingInventoryLabel: remainingInventory == null
-          ? null
-          : '$remainingInventory ${ReminderUiText.inventoryDaysUnit}',
-      availableDaysLabel: switch (item.config) {
-        ResourceBasedItemConfig config =>
-          '${config.durationDays} ${ReminderUiText.inventoryDaysUnit}',
-        _ => null,
-      },
+      remainingInventoryLabel: null,
+      availableDaysLabel: null,
       canComplete: active && status.isActionable,
-      canSkip: active && status.isActionable && !isResource,
+      canSkip: active && status.isActionable,
       canPause: active,
       canResume: lifecycle == ItemLifecycleStatus.paused,
       canArchive: lifecycle != ItemLifecycleStatus.archived,
@@ -200,12 +189,6 @@ class ManagementItemCardViewModel {
       ),
       StateBasedItemConfig _ => _stateStatus(
         item,
-        status: baseStatus,
-        now: now,
-        statusService: statusService,
-      ),
-      ResourceBasedItemConfig config => _resourceStatus(
-        config,
         status: baseStatus,
         now: now,
         statusService: statusService,
@@ -326,52 +309,10 @@ class ManagementItemCardViewModel {
     };
   }
 
-  static ManagementItemStatusPresentation _resourceStatus(
-    ResourceBasedItemConfig config, {
-    required ItemStatus status,
-    required DateTime now,
-    required ItemStatusService statusService,
-  }) {
-    final remainingDays = math.max(
-      statusService.resourceRemainingDays(config, now: now) ?? 0,
-      0,
-    );
-    return switch (status) {
-      ItemStatus.warning => ManagementItemStatusPresentation(
-        label:
-            '${ReminderUiText.warningTab}：${ReminderUiText.resourceWarningPrefix}$remainingDays${ReminderUiText.dayWithParticleSuffix}',
-        color: Colors.orange,
-        isNotStarted: false,
-        isUnknown: false,
-        isActionable: true,
-        isWarningOrDanger: true,
-      ),
-      ItemStatus.danger => ManagementItemStatusPresentation(
-        label:
-            '${ReminderUiText.dangerTab}：${ReminderUiText.resourceDangerPrefix}$remainingDays${ReminderUiText.inventoryDaysUnit}',
-        color: Colors.red,
-        isNotStarted: false,
-        isUnknown: false,
-        isActionable: true,
-        isWarningOrDanger: true,
-      ),
-      _ => ManagementItemStatusPresentation(
-        label:
-            '${ReminderUiText.resourceNormalPrefix}$remainingDays${ReminderUiText.inventoryDaysUnit}',
-        color: Colors.black87,
-        isNotStarted: false,
-        isUnknown: false,
-        isActionable: true,
-        isWarningOrDanger: false,
-      ),
-    };
-  }
-
   static IconData _typeIcon(ItemType type) {
     return switch (type) {
       ItemType.fixed => Icons.schedule_outlined,
       ItemType.stateBased => Icons.gesture_outlined,
-      ItemType.resourceBased => Icons.inventory_2_outlined,
     };
   }
 
@@ -385,9 +326,6 @@ class ManagementItemCardViewModel {
         statusService.resolveFixedCycle(config, now: now)?.anchorDate ??
             _normalizeNullableDate(config.anchorDate),
       StateBasedItemConfig config => _normalizeNullableDate(config.anchorDate),
-      ResourceBasedItemConfig config => _normalizeNullableDate(
-        config.anchorDate,
-      ),
       _ => null,
     };
   }
@@ -410,21 +348,6 @@ class ManagementItemCardViewModel {
       StateBasedItemConfig config => _normalizeNullableDate(config.anchorDate),
       _ => null,
     };
-  }
-
-  static int? _remainingInventory(Item item, {required DateTime now}) {
-    final config = item.config;
-    if (config is! ResourceBasedItemConfig) {
-      return null;
-    }
-    final remaining = const ItemStatusService().resourceRemainingDays(
-      config,
-      now: now,
-    );
-    if (remaining == null) {
-      return null;
-    }
-    return math.max(remaining, 0);
   }
 
   static bool _completedWithinWindow(

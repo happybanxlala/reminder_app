@@ -8,19 +8,30 @@ This is the single source of truth for reminders core model, MVP scope, naming, 
 
 後續實作若與舊文件、舊註解、舊命名衝突，一律以本文件為準。
 
----
-
 ## 1. 核心決策
 
-唯一核心模型定為：
+reminders feature 的核心模型定為：
 
 - `ItemPack`
 - `Item`
-- `ItemActionRecord`
+- `ItemConfig`
 - `ItemType`
+- `ItemLifecycleStatus`
 - `ItemStatus`
+- `ItemStatusService`
+- `ItemActionRecord`
+- `ItemActionType`
 - `AttentionPolicy`
 - `AttentionPolicySource`
+- `Resource`
+- `ResourceConfig`
+- `ResourceType`
+- `ResourceLifecycleStatus`
+- `ResourceStatus`
+- `ResourceStatusService`
+- `ResourceConsumptionRule`
+- `ResourceActionRecord`
+- `ResourceActionType`
 - `ReminderTone`
 - `UsageSpeed`
 - `RepeatRuleV2`
@@ -34,18 +45,18 @@ This is the single source of truth for reminders core model, MVP scope, naming, 
 
 一句話版本：
 
-> reminders feature 的核心，是 `Item` 的狀態變化與其 action history，加上 `Timeline` 的 rule-driven milestone records。
+> `Item` 是要做的事；`Resource` 是要留意的資源。Item action 可以消耗 Resource，但 Resource 不是 ItemType。
 
-核心轉變：
+核心邊界：
 
-| 舊模型 | 新模型 |
+| 概念 | 責任 |
 | --- | --- |
-| Task 分類 | Item 本質（fixed / state / resource） |
-| due-date task queue | 狀態（normal / warning / danger / unknown）驅動 |
-| instance history | item snapshot + item action records |
-| timeline data pre-generation | rule -> occurrence -> record |
-
----
+| `Item` | 責任 / 行為 / 需要被完成的事 |
+| `Resource` | 可被消耗、可補充、可提醒的資源 |
+| `ItemActionRecord` | user actions on responsibilities |
+| `ResourceActionRecord` | resource stock / availability changes |
+| `ItemStatus` | item 責任狀態推導結果 |
+| `ResourceStatus` | resource 可用性狀態推導結果 |
 
 ## 2. 產品北極星
 
@@ -55,13 +66,12 @@ This is the single source of truth for reminders core model, MVP scope, naming, 
 
 - 哪些責任正在惡化
 - 哪些固定節奏的責任已接近或超過當前週期
+- 哪些資源即將不足或已不足
 - 哪些 timeline milestone 已進入提醒窗口
 
-系統不再以「今天有哪些到期 task」作為主要心智模型。
+Home 可以聚合 `Item` 與 `Resource` 成 presentation model，例如 `AttentionTarget`。Domain 必須保持分離。
 
----
-
-## 3. 核心實體
+## 3. Item Domain
 
 ### 3.1 ItemPack
 
@@ -79,10 +89,10 @@ ItemPack {
 
 規則：
 
-- item pack 用來組織責任場景，例如：養貓、家務、健康
+- item pack 用來組織責任與資源場景，例如：養貓、家務、健康
 - system default pack 必須唯一
 - system default pack 可見，但不可改名、不可封存
-- archived pack 不再接受新 item 歸屬
+- archived pack 不再接受新 item / resource 歸屬
 
 ### 3.2 Item
 
@@ -111,8 +121,68 @@ Item {
 - `lastDoneAt` 是快照欄位與查詢優化欄位，不等於完整歷史
 - `STATE_BASED` 不再以 `lastDoneAt` 作為主要基準，改以 `config.anchorDate`
 - item side 不建立 `TaskTemplate + Task instance`
+- Resource is no longer an ItemType.
 
-### 3.3 ItemActionRecord
+### 3.3 ItemType
+
+```dart
+enum ItemType {
+  fixed,
+  stateBased,
+}
+```
+
+語意：
+
+- `fixed`：有明確日曆週期或 due date 的責任，例如繳費、回診、固定清潔
+- `stateBased`：狀態會隨時間變差的責任，例如清貓砂、換濾水網、整理冰箱
+
+明確淘汰：
+
+- `ItemType.resourceBased`
+- `ResourceBasedItemConfig`
+- Item 上的 resource-based config
+- Item table 上的 `resourceAnchorDate / resourceDurationDays / resourceExpectedBeforeDays / resourceWarningBeforeDays / resourceDangerBeforeDays`
+
+The previous `RESOURCE_BASED ItemType` is removed. Its day-based availability behavior is now represented by `ResourceType.timeBased`.
+
+### 3.4 FixedItemConfig
+
+```ts
+FixedItemConfig {
+  scheduleType: "oneTime" | "daily" | "weekly" | "monthly" | "yearly" | "custom"
+  anchorDate?: DateTime
+  dueDate?: DateTime
+  repeatRule?: RepeatRuleV2
+  overduePolicy: "waitForAction" | "autoComplete"
+}
+```
+
+規則：
+
+- `fixed` 責任的主要問題是「週期是否到點」
+- `skip` 可用於跳過本輪 fixed 責任
+- `overduePolicy.waitForAction` 會維持待處理直到使用者 action
+
+### 3.5 StateBasedItemConfig
+
+```ts
+StateBasedItemConfig {
+  anchorDate?: DateTime
+  infoAfter: Duration
+  warningAfter: Duration
+  dangerAfter: Duration
+}
+```
+
+規則：
+
+- `stateBased` 責任的主要問題是「距離上次重設基準多久」
+- 完成時將 `anchorDate` 更新為 action date
+- `skip` 可用於表示這次不處理，但不重設狀態基準
+- `warningAfter / dangerAfter` 由 domain service 集中計算，不散落在 widget
+
+### 3.6 ItemActionRecord
 
 ```ts
 ItemActionRecord {
@@ -129,14 +199,459 @@ ItemActionRecord {
 
 規則：
 
+- `ItemActionRecord` records user actions on responsibilities.
 - `ItemActionRecord` 是 history layer，不是 item attention status 的唯一來源
-- `payload` 用來保存操作附加資訊，例如：`addedDays`、`nextCycleStrategy`
-- `未處理` 不持久化成 record status；以缺少該輪 action 表示
+- `payload` 只保存 item action 附加資訊，不保存 resource refill 資訊
 - item 操作寫入 record 後，仍需同步更新 item snapshot 欄位
-- `created` action type 可用於歷史顯示與相容；目前建立 item 不要求一定寫入 created record
 - `deferred` action type 保留給既有資料相容與未來功能恢復；目前 MVP 不會建立新的 deferred record
+- `ItemActionService` 不再要求 `addedDays`，也不再對 resource item 做 special case
 
-### 3.4 Timeline
+## 4. Resource Domain
+
+### 4.1 Resource
+
+`Resource` 代表可用資源，而不是要完成的責任。
+
+範例：
+
+- 濾水網：目前 5 個，剩 2 個提醒，剩 1 個危急
+- 洗髮精：大約還能用 20 天，剩 3 天提醒，剩 1 天危急
+
+```ts
+Resource {
+  id: number
+  packId: number
+  title: string
+  description?: string
+  type: ResourceType
+  config: ResourceConfig
+  status: "active" | "paused" | "archived" // lifecycle status
+  lastRefilledAt?: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+```
+
+規則：
+
+- Resource 屬於 pack，可在管理頁或 Home 與 item 聚合顯示
+- Resource lifecycle 使用 `active / paused / archived`
+- Home 只聚合 active resources
+- UI 可以把 Resource 顯示在 Item 編輯頁的「消耗資源」區塊，但 domain 仍保持分離
+
+### 4.2 ResourceType
+
+```dart
+enum ResourceType {
+  timeBased,
+  quantityBased,
+}
+```
+
+語意：
+
+- `timeBased`：用天數估算可用性，例如洗髮精、貓砂、清潔劑
+- `quantityBased`：用數量估算可用性，例如濾水網、垃圾袋、藥片
+
+### 4.3 ResourceConfig
+
+```dart
+abstract class ResourceConfig {
+  ResourceType get type;
+}
+```
+
+Time-based resource：
+
+```ts
+TimeBasedResourceConfig {
+  anchorDate?: DateTime
+  durationDays: number
+  infoBeforeDays: number
+  warningBeforeDays: number
+  dangerBeforeDays: number
+}
+```
+
+規則：
+
+- `anchorDate` 當天算第 1 天
+- `durationDays` 是估算可用天數
+- depletion day 顯示 remaining days = `0`
+- UI 文案使用「預計」、「大約」，避免太絕對
+
+Quantity-based resource：
+
+```ts
+QuantityBasedResourceConfig {
+  currentQuantity: number
+  unitLabel: string
+  infoThreshold?: number
+  warningThreshold: number
+  dangerThreshold: number
+}
+```
+
+規則：
+
+- quantity 不允許小於 `0`
+- repository 在消耗或調整時將負數結果 clamp 到 `0`
+- `unitLabel` 使用生活單位，例如：個、包、瓶、片
+
+### 4.4 ResourceConsumptionRule
+
+```ts
+ResourceConsumptionRule {
+  id: number
+  resourceId: number
+  itemId: number
+  triggerActionType: ItemActionType
+  consumeAmount: number
+  isEnabled: boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+```
+
+規則：
+
+- MVP 只支援 `triggerActionType = done`
+- MVP 只支援 item action 消耗 quantity-based resource
+- `consumeAmount` 必須大於 `0`
+- disabled rule 不會套用，但可保留歷史設定
+
+範例：
+
+```text
+Item: 替換濾水網
+Resource: 濾水網
+Rule: done 時 consume 1 個
+```
+
+### 4.5 ResourceActionRecord
+
+```dart
+enum ResourceActionType {
+  created,
+  consumed,
+  refilled,
+  adjusted,
+}
+```
+
+```ts
+ResourceActionRecord {
+  id: number
+  resourceId: number
+  actionType: ResourceActionType
+  actionDate: DateTime
+  amount?: number
+  resultingQuantity?: number
+  addedDays?: number
+  resultingDurationDays?: number
+  sourceItemActionRecordId?: number
+  remark?: string
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+```
+
+規則：
+
+- `ResourceActionRecord` records resource stock / availability changes.
+- quantity consumption / refill / adjustment 記錄 `amount` 與 `resultingQuantity`
+- time refill 記錄 `addedDays` 與 `resultingDurationDays`
+- 由 item done 觸發的 consumption 必須設定 `sourceItemActionRecordId`
+
+## 5. Status 邊界
+
+`ItemStatus` and `ResourceStatus` are separate derived statuses.
+
+Home may aggregate both into `AttentionTarget`，但 aggregation 是 presentation layer，不是 domain 合併。
+
+### 5.1 ItemStatus
+
+```dart
+enum ItemStatus {
+  normal,
+  warning,
+  danger,
+  unknown,
+}
+```
+
+規則：
+
+- `fixed` 由 due date / repeat cycle / preview date 推導
+- `stateBased` 由 `anchorDate + warningAfter / dangerAfter` 推導
+- paused / archived item 不應進入 Home attention 聚合
+
+### 5.2 ResourceStatus
+
+```dart
+enum ResourceStatus {
+  normal,
+  warning,
+  danger,
+  unknown,
+}
+```
+
+Time-based resource：
+
+```text
+if anchorDate == null or durationDays <= 0:
+    status = unknown
+
+depletionDate = anchorDate + durationDays - 1
+remainingDays = depletionDate - now
+
+if remainingDays <= dangerBeforeDays:
+    status = danger
+elif remainingDays <= warningBeforeDays:
+    status = warning
+else:
+    status = normal
+```
+
+Quantity-based resource：
+
+```text
+if currentQuantity < 0:
+    status = unknown
+
+if currentQuantity <= dangerThreshold:
+    status = danger
+elif currentQuantity <= warningThreshold:
+    status = warning
+else:
+    status = normal
+```
+
+Repository 不應寫入 negative quantity；若外部資料異常小於 `0`，status service 可回傳 `unknown`。
+
+## 6. Repository / Transaction 行為
+
+### 6.1 完成 Item
+
+When completing an Item, matching `ResourceConsumptionRules` are applied in the same transaction.
+
+同一個 transaction 必須包含：
+
+1. item snapshot update
+2. `ItemActionRecord(done)` insert
+3. matching enabled resource consumption rules query
+4. quantity resource snapshot update
+5. `ResourceActionRecord(consumed)` insert
+
+規則：
+
+- rule 必須符合 `rule.itemId == item.id`
+- rule 必須 enabled
+- rule trigger 必須為 `done`
+- MVP 僅扣 quantity-based resource
+- resource 必須 active
+- 消耗後 quantity clamp 到 `0`
+- `ResourceActionRecord.sourceItemActionRecordId` 指向剛建立的 `ItemActionRecord(done)`
+
+### 6.2 Refill Resource
+
+建議 repository API：
+
+```dart
+Future<bool> refillResource(
+  int resourceId, {
+  DateTime? actionAt,
+  int? addedDays,
+  int? addedQuantity,
+  String? remark,
+})
+```
+
+Time-based resource refill：
+
+- 必須輸入 `addedDays > 0`
+- 若尚未耗盡，要 carry over 剩餘天數
+- 新 `anchorDate = actionDate`
+- 新 `durationDays = remainingCarryDays + addedDays`
+- 寫入 `ResourceActionRecord(refilled)`
+
+Quantity-based resource refill：
+
+- 必須輸入 `addedQuantity > 0`
+- `currentQuantity += addedQuantity`
+- 寫入 `ResourceActionRecord(refilled)`
+- `resultingQuantity = 更新後數量`
+
+### 6.3 Adjust Resource
+
+MVP 支援 manual adjustment：
+
+```dart
+Future<bool> adjustResourceQuantity(
+  int resourceId, {
+  required int newQuantity,
+  DateTime? actionAt,
+  String? remark,
+})
+```
+
+規則：
+
+- `newQuantity` 若小於 `0`，repository clamp 到 `0`
+- adjustment 用於使用者修正庫存錯誤
+- 寫入 `ResourceActionRecord(adjusted)`
+
+## 7. Drift Schema
+
+### 7.1 items
+
+`items` 不再保存 resource-based 欄位。
+
+移除：
+
+- `resourceAnchorDate`
+- `resourceDurationDays`
+- `resourceExpectedBeforeDays`
+- `resourceWarningBeforeDays`
+- `resourceDangerBeforeDays`
+
+### 7.2 resources
+
+```text
+id
+packId
+title
+description
+status
+type
+timeAnchorDate
+timeDurationDays
+timeExpectedBeforeDays
+timeWarningBeforeDays
+timeDangerBeforeDays
+quantityCurrent
+quantityUnitLabel
+quantityExpectedThreshold
+quantityWarningThreshold
+quantityDangerThreshold
+lastRefilledAt
+createdAt
+updatedAt
+```
+
+### 7.3 resource_consumption_rules
+
+```text
+id
+resourceId
+itemId
+triggerActionType
+consumeAmount
+isEnabled
+createdAt
+updatedAt
+```
+
+### 7.4 resource_action_records
+
+```text
+id
+resourceId
+actionType
+actionDate
+amount
+resultingQuantity
+addedDays
+resultingDurationDays
+sourceItemActionRecordId
+remark
+createdAt
+updatedAt
+```
+
+舊資料不重要；schema upgrade 可 drop/recreate 或等價 reset schema。
+
+## 8. UI 心智模型
+
+```text
+Item = 要做的事
+Resource = 要留意的資源
+```
+
+規則：
+
+- Item 建立 / 編輯頁只提供 `fixed / stateBased`
+- Resource 可以 appear attached to Item in UI, but remains separate in domain.
+- Item 編輯頁可以有「消耗資源」區塊
+- 新增 consumption rule 時只選 existing quantity-based resource
+- trigger action MVP 固定為 done
+- Resource 管理頁支援建立 / 編輯 / 補充 / quantity 調整
+- UI 文案使用生活語言，不顯示 raw enum 或 raw config 欄位名
+- time-based resource UI 使用「大約還能用幾天」、「預計剩 N 天」
+- quantity-based resource UI 使用「目前 N 個」、「剩 N 個提醒」
+
+Home 顯示可以是：
+
+```text
+快變糟
+- 替換濾水網：已到處理日
+- 濾水網：剩 2 個
+- 洗髮精：預計剩 3 天
+```
+
+MVP 可保留 item sections，並新增 Resource section；presentation model 應朝 `AttentionTarget` 聚合收斂。
+
+## 9. Templates / Demo
+
+Built-in template 若需要 resource 行為，必須建立：
+
+1. `Resource`
+2. 需要時建立 `Item`
+3. 需要時建立 `ResourceConsumptionRule`
+
+示例：
+
+```text
+Pack: 家務 / 濾水
+
+Item:
+  title: 替換濾水網
+  type: stateBased
+  anchorDate: today
+  warningAfter: 12 days
+  dangerAfter: 14 days
+
+Resource:
+  title: 濾水網
+  type: quantityBased
+  currentQuantity: 5
+  unitLabel: 個
+  warningThreshold: 2
+  dangerThreshold: 1
+
+ConsumptionRule:
+  item = 替換濾水網
+  resource = 濾水網
+  trigger = done
+  consumeAmount = 1
+```
+
+```text
+Pack: 個人護理
+
+Resource:
+  title: 洗髮精
+  type: timeBased
+  anchorDate: today
+  durationDays: 20
+  warningBeforeDays: 3
+  dangerBeforeDays: 1
+```
+
+## 10. Timeline Domain
+
+Timeline 維持 rule-driven milestone 模型，不與 Resource 合併。
 
 ```ts
 Timeline {
@@ -149,15 +664,6 @@ Timeline {
   updatedAt: DateTime
 }
 ```
-
-規則：
-
-- timeline 表示一段持續中的時間與其意義
-- timeline 不可完成
-- timeline 不會 overdue
-- archived timeline 為唯讀
-
-### 3.5 TimelineMilestoneRule
 
 ```ts
 TimelineMilestoneRule {
@@ -176,1102 +682,35 @@ TimelineMilestoneRule {
 
 規則：
 
-- rule 是 timeline milestone 的 primary source
-- `paused` 不產生可用 milestone 提醒
-
-### 3.6 TimelineMilestoneOccurrence
-
-```ts
-TimelineMilestoneOccurrence {
-  timelineId: number
-  ruleId: number
-  occurrenceIndex: number
-  targetDate: DateTime
-  label: string
-  status: "upcoming" | "noticed" | "skipped"
-  reminderOffsetDays: number
-}
-```
-
-規則：
-
 - occurrence 是計算結果，不是預生成資料
-- UI 顯示時動態計算
-- 需要記錄互動時才對應到 record
+- 需要記錄互動時才建立 `TimelineMilestoneRecord`
+- timeline milestone 可以進入 Home attention，但仍是獨立 domain
 
-### 3.7 TimelineMilestoneRecord
+## 11. 命名規則
 
-```ts
-TimelineMilestoneRecord {
-  id: number
-  timelineId: number
-  ruleId: number
-  occurrenceIndex: number
-  targetDate: DateTime
-  status: "upcoming" | "noticed" | "skipped"
-  notifiedAt?: DateTime
-  actedAt?: DateTime
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-```
-
-規則：
-
-- record 只記錄已通知或已互動的 milestone
-- record 不產生下一筆 milestone
-- record 不進入 overdue
-
-### 3.8 ItemPackTemplate / ItemTemplateItem
-
-```ts
-ItemPackTemplate {
-  id: string
-  source: "builtin" | "custom"
-  name: string
-  category: string
-  description: string
-  items: ItemTemplateItem[]
-  createdAt?: DateTime
-  updatedAt?: DateTime
-}
-
-ItemTemplateItem {
-  title: string
-  description?: string
-  type: ItemType
-  config: ItemConfig
-  attentionPolicySource: "systemDefault" | "userCustomized"
-}
-```
-
-規則：
-
-- `ItemPackTemplate` 與 `ItemTemplateItem` 是 pack preset，用於快速建立一組 `Item`
-- 它們不是 task instance template，也不是 recurring task template
-- template item 只在套用 preset 時轉成真實 `Item`
-- 套用 preset 後，後續狀態計算、週期解析、完成、跳過、history 都只針對建立出的 `Item`
-- `ItemPackTemplate / ItemTemplateItem` 不參與 FIXED 週期生成，不產生 instance，也不擁有 lifecycle / attention status
-- built-in templates 來自程式碼；custom templates 持久化在本機資料庫
-
-### 3.9 AppSettings
-
-```ts
-AppSettings {
-  reminderTone: ReminderTone
-  updatedAt: DateTime
-}
-```
-
-規則：
-
-- `AppSettings` 是 singleton settings model
-- `reminderTone` 預設為 `standard`
-- `reminderTone` 影響新建 item 與未自訂策略 item 的提醒策略推導
-- `reminderTone` 不批次改寫既有 item config
-
----
-
-## 4. ItemType
-
-```ts
-enum ItemType {
-  fixed
-  stateBased
-  resourceBased
-}
-```
-
-說明：
-
-- 文件段落標題仍使用 `FIXED / STATE_BASED / RESOURCE_BASED` 表示語意分類
-- 實作 enum name 以 Dart lower camel case 為準：`fixed / stateBased / resourceBased`
-
-### 4.1 FIXED
-
-```ts
-config = {
-  scheduleType: "daily" | "weekly" | "oneTime" | "everyXDays" | "everyXWeeks" | "monthly"
-  scheduleInterval: number
-  monthlyDay?: number
-  repeatRuleV2?: RepeatRuleV2
-  anchorDate?: DateTime
-  dueDate?: DateTime
-  timeOfDay?: "HH:mm"
-  overduePolicy: "autoAdvance" | "waitForAction"
-  infoBefore: Duration
-  warningBefore: Duration
-  dangerBefore: Duration
-}
-```
-
-用途：
-
-- 每日餵罐
-- 每週清理
-- 跑步提醒
-- 需要固定節奏的例行責任
-
-規則：
-
-- `FIXED` 吸收原本產品討論中的「一般通知」與「例行事務」
-- 差異不在 top-level type，而在 `overduePolicy`
-- `anchorDate` 是固定排程的基準日
-- `dueDate` 是當前週期的到期點
-- `FixedScheduleType` 已支援 `daily`、`weekly`、`oneTime`、`everyXDays`、`everyXWeeks`、`monthly`
-- `scheduleType / scheduleInterval / monthlyDay` 是 legacy simple schedule 欄位，仍需保留讀寫相容
-- `scheduleInterval` 用於 `everyXDays` / `everyXWeeks` / `monthly`；未指定時視為 `1`
-- `monthlyDay` 用於 legacy `monthly`，代表每月目標日；實作需處理短月份的日期 clamp
-- `repeatRuleV2` 是進階重複規則 payload；若存在，固定節奏下一次出現時間以 `repeatRuleV2` 為準
-- simple 規則可繼續雙寫到 legacy 欄位；進階規則必須寫入 `repeatRuleV2`
-- `oneTime` 在重複 UI 中顯示為「永不」
-- `timeOfDay` 目前只作為摘要顯示欄位，不參與狀態判斷
-- `autoAdvance` item 在 preview date 或實際 today 超過 `dueDate` 時，status 與摘要都必須反映 resolved next cycle
-
-### 4.1.1 RepeatRuleV2
-
-```ts
-RepeatRuleV2 {
-  version: 2
-  kind: "simple" | "weeklyWeekdays" | "monthlyDates" | "monthlyNthWeekday"
-  unit: "day" | "week" | "month" | "year"
-  interval: number
-  weekdays?: number[] // DateTime.monday = 1 ... DateTime.sunday = 7
-  monthDays?: number[] // 1...31
-  monthlyWeekOrdinal?: "first" | "second" | "third" | "fourth" | "fifth" | "last"
-  monthlyWeekday?: number
-  end: RepeatEndCondition
-  completedCount: number
-}
-
-RepeatEndCondition =
-  | { type: "never" }
-  | { type: "onDate", untilDate: "yyyy-MM-dd" }
-  | { type: "afterCount", occurrenceCount: number }
-```
-
-規則：
-
-- `RepeatRuleV2` 只用於 fixed item，不擴散到 state/resource 類型
-- legacy `D3 / W2 / M1 / Y1` 必須仍可 parse 成 simple rule
-- `weeklyWeekdays` 至少保留一個 weekday
-- `monthlyDates` 至少保留一個 month day
-- `monthlyDates` 若指定 29 / 30 / 31 但該月不存在該日期，使用該月最後一天
-- `monthlyNthWeekday` 若指定第五個星期 X 但該月不存在，略過該月；`last` 永遠取該月最後一個指定星期
-- `end.onDate` 以 next occurrence 是否晚於 `untilDate` 判斷是否停止
-- `end.afterCount` 使用 payload 內的 `completedCount` 判斷是否停止；完成或跳過固定節奏 item 時遞增
-- 當進階重複規則停止後，不再推進 `anchorDate / dueDate`
-
-顯示規則：
-
-- 使用者不應看到 raw enum、raw interval、raw JSON
-- 主編輯頁只顯示「重複」列與 trailing 摘要
-- simple summary：`永不`、`每天`、`每 3 天`、`每週`、`每 2 週`、`每月`、`每 3 個月`、`每年`
-- weekly summary：`每週一、三、五`、`每 2 週的星期三`
-- monthly date summary：`每月 12 日和 18 日`、`每 3 個月的 5 日`
-- monthly nth weekday summary：`每月第三個星期三`、`每 2 個月的最後一個星期五`
-- end summary：`每 3 天，直到 2026/06/30`、`每週三，共 10 次`
-- description 文案使用「完成後…再次出現。」語氣，不使用 calendar event 語氣
-
-### 4.2 STATE_BASED
-
-```ts
-config = {
-  anchorDate?: DateTime
-  infoAfter: Duration
-  warningAfter: Duration
-  dangerAfter: Duration
-}
-```
-
-用途：
-
-- 需要依「距離上次處理多久」來判斷是否變糟的責任
-
-規則：
-
-- `anchorDate` 是 `STATE_BASED` 的主要 baseline
-- `anchorDate` 當天視為第 `1` 天
-- 建立 item 時，system 以 `anchorDate` 作為初始 baseline 推導狀態
-- 使用者完成 item 時，system 直接更新 `anchorDate`
-- `lastDoneAt` 在 `STATE_BASED` 上視為棄用欄位，不再參與狀態判斷
-- `warningAfter` 與 `dangerAfter` 都是「第 N 天當天生效」的 inclusive 門檻
-- `infoAfter` 保留作為資訊層設定，不單獨形成 attention status 邊界
-
-### 4.3 RESOURCE_BASED
-
-```ts
-config = {
-  anchorDate?: DateTime
-  durationDays: number
-  infoBefore: number
-  warningBefore: number
-  dangerBefore: number
-}
-```
-
-用途：
-
-- 貓罐頭補貨
-- 濾芯存量
-- 任何可用「剩餘天數」估算的資源型責任
-
-規則：
-
-- `anchorDate` 表示目前這批資源開始被消耗的日期
-- `durationDays` 表示依目前估算可持續多久，且包含 `anchorDate` 當天
-- `infoBefore / warningBefore / dangerBefore` 以剩餘天數做判斷
-- depletion day 本身視為已進入 danger boundary
-- 完成時必須要求使用者輸入 `addedDays`
-- 補貨 / 完成行為透過 action record 的 `addedDays` 表示，並同步更新 item snapshot
-- 完成後新的 `anchorDate` 一律重設為完成當天
-- 若完成日尚未超過 depletion date，需保留「完成當天起仍可沿用」的剩餘天數，再加上 `addedDays`
-- snapshot 更新公式為：
-  - `depletionDate = anchorDate + durationDays - 1`
-  - `remainingCarryDays = max(0, depletionDate - actionDate + 1)`
-  - `newDurationDays = remainingCarryDays + addedDays`
-- 若完成日已晚於 depletion date，則 `remainingCarryDays = 0`，等價於 `newDurationDays = addedDays`
-- `RESOURCE_BASED` 不允許 `skip`
-
----
-
-## 4.4 Attention Policy / Reminder Urgency Policy
-
-`warningAfter / dangerAfter / warningBefore / dangerBefore` 是內部提醒策略參數，不是主要建立流程的使用者輸入欄位。
-
-```ts
-AttentionPolicy {
-  warningAfterDays?: number
-  dangerAfterDays?: number
-  warningBeforeDays?: number
-  dangerBeforeDays?: number
-  source: "systemDefault" | "userCustomized"
-}
-
-enum ReminderTone {
-  gentle
-  standard
-  early
-  urgent
-}
-
-enum UsageSpeed {
-  low
-  medium
-  high
-}
-```
-
-建立 item 時，系統必須根據 item type 與使用者輸入的生活語意自動推導預設 `AttentionPolicy`：
-
-- `FIXED`：由 `anchorDate / dueDate` 推導可完成窗口，再產生 `warningBefore / dangerBefore`
-- `STATE_BASED`：由「大約幾天需要處理一次」推導 `warningAfter / dangerAfter`
-- `RESOURCE_BASED`：由「可用天數」與「消耗速度」推導 `warningBefore / dangerBefore`
-
-規則：
-
-- 預設策略來源是 `systemDefault`
-- 使用者日後若在進階設定覆寫，來源應標記為 `userCustomized`
-- 已自訂的 item 不應被新的系統預設覆蓋
-- Setting Page 可提供全局提醒風格，預設為 `standard`
-- UI 應顯示生活語言，例如「3 天前開始提醒」、「第 21 天建議處理」、「5月8日開始提醒補貨」
-- UI 不應在主要建立流程中直接顯示工程欄位名稱或要求輸入 raw warning/danger 數值
-- 推導邏輯必須集中在純 domain service：`AttentionPolicyResolver`，不得散落在 widget 中
-
-目前 resolver 規則：
-
-#### FIXED
-
-```ts
-availableWindowDays = max(1, dueDate - anchorDate + 1)
-
-standard:
-if availableWindowDays <= 1:
-  warningBeforeDays = 0
-  dangerBeforeDays = 0
-elif availableWindowDays <= 3:
-  warningBeforeDays = availableWindowDays - 1
-  dangerBeforeDays = 0
-elif availableWindowDays <= 7:
-  warningBeforeDays = min(3, availableWindowDays - 1)
-  dangerBeforeDays = 1
-else:
-  warningBeforeDays = ceil(availableWindowDays * 0.5)
-  dangerBeforeDays = max(1, ceil(availableWindowDays * 0.2))
-```
-
-`ReminderTone` 對 `FIXED` 的影響：
-
-- `gentle`：`warningBeforeDays = min(1, availableWindowDays - 1)`，`dangerBeforeDays = 0`
-- `standard`：使用上述 standard 規則
-- `early` / `urgent`：warning 至少覆蓋整個可完成窗口；danger 至少提前 1 天，但不超過 warning
-- 所有結果都 clamp 到 `0...availableWindowDays - 1`，且 `dangerBeforeDays <= warningBeforeDays`
-
-#### STATE_BASED
-
-建立流程使用 `expectedIntervalDays` 推導策略：
-
-```ts
-if expectedIntervalDays <= 1:
-  warningAfterDays = 0
-  dangerAfterDays = 1
-elif expectedIntervalDays <= 3:
-  warningAfterDays = max(1, expectedIntervalDays - 1)
-  dangerAfterDays = expectedIntervalDays
-else:
-  warningAfterDays = round(expectedIntervalDays * warningRatio)
-  dangerAfterDays = expectedIntervalDays
-```
-
-`warningRatio`：
-
-- `gentle`: `0.9`
-- `standard`: `0.8`
-- `early`: `0.65`
-- `urgent`: `0.6`
-
-補充：
-
-- `urgent` 的 `dangerAfterDays = round(expectedIntervalDays * 0.9)`
-- `warningAfterDays` 必須 clamp 到 `0...dangerAfterDays`
-
-#### RESOURCE_BASED
-
-建立流程使用 `estimatedDurationDays + UsageSpeed` 推導策略：
-
-```ts
-usageSpeed.low:    warningBeforeDays = 2, dangerBeforeDays = 1
-usageSpeed.medium: warningBeforeDays = 3, dangerBeforeDays = 1
-usageSpeed.high:   warningBeforeDays = 5, dangerBeforeDays = 2
-```
-
-`ReminderTone` 對 `RESOURCE_BASED` 的影響：
-
-- `gentle`：最多使用 `2 / 1`
-- `standard`：使用 `UsageSpeed` standard 規則
-- `early`：至少使用 `5 / 2`
-- `urgent`：至少使用 `7 / 3`
-- 所有結果都 clamp 到 `0...estimatedDurationDays`，且 `dangerBeforeDays <= warningBeforeDays`
-
-持久化與相容策略：
-
-- resolver 產生的 policy 會寫回既有 config 欄位
-- `AttentionPolicySource` 持久化於 item / template item 層級
-- `systemDefault` 代表目前策略由系統推導；`userCustomized` 代表使用者在進階提醒策略中覆寫過
-- 全局 `ReminderTone` 持久化於 `app_settings`，預設為 `standard`
-- 全局 `ReminderTone` 影響新建與後續編輯時的系統推導，不會批次覆蓋既有 `userCustomized` item
-- 進階提醒策略 UI 是 raw warning/danger 的唯一一般使用者入口；主要建立與編輯路徑仍使用生活語意欄位
-
----
-
-## 5. Item 狀態模型
-
-### 5.1 Lifecycle 狀態集合
-
-```ts
-enum ItemLifecycleStatus {
-  active
-  paused
-  archived
-}
-```
-
-規則：
-
-- `active` 參與一般 item 列表與 derived status 計算
-- `paused` 不參與 Home 的 danger / warning 列表
-- `archived` 不參與一般 item 列表，僅作為保留資料
-- pack 被封存時，其底下 items 會一併轉為 `archived`
-
-### 5.2 Attention 狀態集合
-
-```ts
-enum ItemStatus {
-  normal
-  warning
-  danger
-  unknown
-}
-```
-
-規則：
-
-- 這是 derived status
-- 不是持久化 instance history
-
-### 5.3 STATE_BASED 計算規則
-
-```ts
-dayIndex = (now - anchorDate) + 1
-
-if anchorDate == null:
-    status = unknown
-elif dayIndex >= dangerAfter:
-    status = danger
-elif dayIndex >= warningAfter:
-    status = warning
-else:
-    status = normal
-```
-
-補充：
-
-- `unknown` 代表尚未建立 baseline
-- `StateBased` 的 baseline 由 `anchorDate` 單一承擔
-- `anchorDate` 當天是第 `1` 天，不是第 `0` 天
-- `warningAfter = 4` 代表第 4 天當天起進入 `warning`
-- `dangerAfter = 10` 代表第 10 天當天起進入 `danger`
-- 若 `dangerAfter < warningAfter`，仍以 `danger` 優先
-- `infoAfter` 不參與 attention status 邊界，只保留為資訊層設定
-
-### 5.4 FIXED 計算規則
-
-```ts
-if anchorDate == null or dueDate == null:
-    status = unknown
-
-cycle = resolveCurrentCycle(anchorDate, dueDate, scheduleType, overduePolicy, now)
-
-if now < cycle.anchorDate:
-    status = normal
-elif completedWithin(cycle):
-    status = normal
-elif now > cycle.dueDate and overduePolicy == "waitForAction":
-    status = danger
-elif remainingDays(cycle.dueDate, now) <= dangerBefore:
-    status = danger
-elif remainingDays(cycle.dueDate, now) <= warningBefore:
-    status = warning
-else:
-    status = normal
-```
-
-補充：
-
-- `autoAdvance` 逾期後，系統會虛擬推進到目前應在的 cycle，再用新週期做狀態判斷
-- `waitForAction` 逾期後，不自動推進；維持待處理，直到使用者 `done / skipped`
-
-### 5.5 RESOURCE_BASED 計算規則
-
-```ts
-if anchorDate == null or durationDays <= 0:
-    status = unknown
-
-depletionDate = anchorDate + durationDays - 1
-remainingDays = depletionDate - now
-
-if remainingDays <= dangerBefore:
-    status = danger
-elif remainingDays <= warningBefore:
-    status = warning
-else:
-    status = normal
-```
-
-補充：
-
-- `RESOURCE_BASED` 以剩餘天數心智運作，不以 `lastDoneAt` 作為主要狀態基準
-- `lastDoneAt` 仍保留為最近一次完成/補貨快照
-- `remainingDays` 表示「今天之後還剩幾天」；因此 depletion day 會顯示 `0`
-
-### 5.6 UI 感受對應
-
-只作為 UI 呈現，不作為資料欄位：
-
-| Status | UI 感受 |
-| --- | --- |
-| normal | 穩定 |
-| warning | 需留意 |
-| danger | 快變糟 |
-| unknown | 未建立基準 |
-
----
-
-## 6. Item 行為規則
-
-### 6.1 完成行為
-
-```ts
-onComplete(item):
-    create ItemActionRecord(actionType="done", actionDate=completionDate)
-    sync item snapshot
-```
-
-規則：
-
-- 一般情況下 `completionDate = 真實今天`
-- 若 UI 正在使用 Developer Preview Date Override，且操作來自 Home / Items 管理頁，`completionDate = 生效中的 preview date`
-- `updatedAt` 保留真實寫入時間，不跟隨 preview date 覆蓋
-
-### 6.2 跳過與延期
-
-```ts
-onSkip(item):
-    create ItemActionRecord(actionType="skipped")
-    sync item snapshot
-
-onDefer(item, deferDays):
-    return disabled
-```
-
-規則：
-
-- `skip` 是 item 的正式操作
-- `skip` 不等於刪除或封存 item
-- `defer` 目前為停用狀態
-- UI 不提供 defer 入口
-- repository / data layer 也必須拒絕 defer 呼叫，不更新 snapshot，也不建立 `ItemActionRecord`
-
-### 6.3 History 與 snapshot 邊界
-
-- item history 由 `ItemActionRecord` 提供
-- `lastDoneAt` 保留為快照欄位與查詢優化欄位，但 `STATE_BASED` 不再依賴它
-- 首頁與列表查詢不要求回放完整 history 才能顯示狀態
-
-### 6.4 不產生 instance
-
-item side 不需要：
-
-- legacy task instance
-- recurring task generation
-- cancel / pause-template lifecycle
-
-說明：
-
-- fixed item 的重複規則只推進同一個 item 的 `anchorDate / dueDate` snapshot
-- 系統不為每次重複建立獨立 instance，也不保存未來 occurrence queue
-- 進階重複規則的 next occurrence 由 domain calculator 即時計算
-
-### 6.5 核心原則
-
-- 系統關注「有沒有事情正在變糟」
-- 不再以 `Today / Upcoming / Overdue task queue` 作為 item 主畫面語意
-- `FIXED` 可包含 `dueDate`，但仍不回退成 task-instance 模型
-
----
-
-## 7. Timeline 規則
-
-### 7.1 Rule over Data
-
-timeline milestone 採 rule-driven 模型：
-
-- 優先儲存 rule
-- occurrence 按需計算
-- 僅保存有互動或已通知的 records
-
-系統不得在 timeline 建立時批量預生成所有 milestone。
-
-### 7.2 支援的 rule 類型
-
-- `every_n_days`
-- `every_n_weeks`
-- `every_n_months`
-- `every_n_years`
-
-### 7.3 Reminder 規則
-
-對每個 occurrence：
-
-- 以 `reminderOffsetDays` 計算提醒時間
-- 進入提醒窗口後列入 timeline upcoming
-- timeline milestone 不會進入 overdue
-
-### 7.4 History 規則
-
-history 僅包含：
-
-- `noticed`
-- `skipped`
-
-未互動的 future milestones 不進入 history。
-
----
-
-## 8. 主導航與「今天」語意
-
-App 啟動後預設進入「今天」頁。
-
-主要導航使用 Material 3 `NavigationBar`，由 app shell 統一承載：
-
-1. `今天`：route `/`，顯示 Home attention buckets
-2. `管理`：route `/manage`，顯示 Items / Packs 整合管理
-3. `時間線`：route `/timeline`，顯示 Timeline 管理
-
-目前實作使用 `GoRouter` 的 `StatefulShellRoute.indexedStack`：
-
-- 三個 primary tabs 切換時保留各自頁面狀態
-- shell scaffold 統一負責 AppBar、Bottom Navigation 與 FAB
-- tab content 不重複建立 AppBar / Bottom Navigation
-- `今天` 是主要 destination，不是 action，不可放入 FAB
-
-FeaturePage 不再作為主要入口頁。它只保留次級入口：
-
-- 事項動態
-- 設定頁
-- 開發者設定
-
-Items 管理與 Timeline 管理不得藏在 FeaturePage card 裡，必須由 Bottom Navigation 直接進入。
-
-### 8.1 Item 區塊
-
-只關注：
-
-- `danger`
-- `warning`
-
-`normal` 可隱藏。
-
-首頁 item card 使用三段式中的兩段：
-
-- 標題列
-- 可展開的內容列
-
-首頁不再顯示獨立提示列。
-
-標題列必須可顯示：
-
-- 完成 checkbox
-- title
-- 緊貼 title 的 item type badge
-- 與 title / badge 拉開的尾欄狀態文字
-- 展開 / 收合按鈕
-
-內容列展開後必須可顯示：
-
-- pack title
-- note（item description；若空則隱藏）
-- 開始日期
-- 到期日期（如有）
-- overdue policy（僅 `FIXED`）
-
-尾欄狀態文字規則：
-
-- `FIXED`：`剩餘N日` / `今天到期` / `過期`
-- `STATE_BASED`：`已持續N日`
-- `RESOURCE_BASED`：`剩餘N日`
-
-補充：
-
-- `RESOURCE_BASED` 的尾欄剩餘天數最小顯示為 `0`
-- `skip` 只在展開後提供給 `FIXED` 與 `STATE_BASED`
-- `RESOURCE_BASED` 在首頁不提供 `skip`
-- `notStarted / overdue` 為首頁 item card 的 presentation state，不是 core `ItemStatus` 欄位
-
-### 8.2 Timeline 區塊
-
-顯示：
-
-- 已進入提醒窗口的 upcoming milestone occurrences
-
-### 8.3 顯示優先級
-
-1. item `danger`
-2. item `warning`
-3. timeline upcoming
-
-### 8.4 AppBar 與 FAB
-
-Shell AppBar title 依目前 tab 顯示：
-
-- `今天`
-- `管理`
-- `時間線`
-
-Shell AppBar 提供 `功能` action，導向 FeaturePage。
-
-FAB 只表示建立 action，不做 tab navigation：
-
-- `今天` tab：`新增要照顧的事`
-- `管理` tab：`新增要照顧的事`
-- `時間線` tab：`新增時間線`
-
-Standalone `HomePage` 保留原本 `新增要照顧的事` FAB，供單頁測試與非 shell 使用情境使用。Shell route 使用 `HomeContent`，避免 nested scaffold。
-
-### 8.5 Attention Summary / App Badge / Daily Notification
-
-MVP 以 Home attention buckets 形成單一摘要：
-
-```ts
-AttentionSummary {
-  dangerCount: number
-  warningCount: number
-  timelineUpcomingCount: number
-  totalCount = dangerCount + warningCount + timelineUpcomingCount
-}
-```
-
-規則：
-
-- `dangerCount` 來自 Home danger items
-- `warningCount` 來自 Home warning items
-- `timelineUpcomingCount` 來自已進入提醒窗口的 timeline milestones
-- app badge 顯示 `totalCount`
-- 若 `totalCount == 0`，badge 更新為 `0`，並取消 daily attention notification
-- 若 `totalCount > 0`，badge 更新為 `totalCount`，並排程下一次本地時間 09:00 的 daily attention notification
-- daily notification 使用固定 id `9001`，payload 為 `home`
-- daily notification title 使用 `今天有 N 件事需要處理`
-- daily notification body 使用 `打開看看哪些事情需要留意`
-- notification tap 導回 Home
-- notification / badge 權限在初始化時請求；不支援 badge 或平台權限失敗時，不應阻斷 core reminder 流程
-
----
-
-## 9. 編輯與管理流程
-
-### 9.1 Item 編輯流程
-
-建立 item：
-
-1. 輸入內容
-2. 選擇 pack
-3. 選擇提醒方式（`fixed / stateBased / resourceBased`）
-4. 設定對應生活語意 config
-5. 系統依目前 `ReminderTone` 自動推導 raw attention policy
-
-編輯既有 item：
-
-1. 輸入內容
-2. 檢視 pack（唯讀）
-3. 檢視既有 item type（唯讀，不可修改）
-4. 調整對應 config
-5. 可在「進階提醒策略」中切換為 `userCustomized` 並直接調整 raw warning/danger 欄位
-
-規則：
-
-- create mode 若從特定 pack 進入，可鎖定 pack 並隱藏 pack selector
-- edit mode 不提供移動 pack；pack 顯示為唯讀
-- item type 只可在建立時選擇；既有 item 不允許變更 type
-- UI 必須在 edit mode 鎖住 type
-- repository / data layer 也必須拒絕任何跨 type 的更新請求
-- create mode 不顯示 raw `warningAfter / dangerAfter / warningBefore / dangerBefore` 欄位，只顯示推導後的生活語言預覽
-- edit mode 預設仍使用系統推導；只有打開「自訂這項事項的提醒策略」時才顯示 raw 欄位，存檔後 `attentionPolicySource = userCustomized`
-- 關閉自訂策略並存檔時，`attentionPolicySource = systemDefault`，config 會依目前生活語意欄位與 `ReminderTone` 重新推導
-- `STATE_BASED` create mode 使用「大約幾天需要處理一次」作為 `expectedIntervalDays`
-- `RESOURCE_BASED` create mode 使用「可用天數」與「消耗速度」推導補貨提醒策略
-- 編輯 `FIXED` item 時，日期欄位必須反映目前生效中的 cycle snapshot
-- 若 `FIXED` item 為 `autoAdvance` 且 preview date 已推進到下一輪，edit 頁必須顯示 resolved cycle 的 `anchorDate / dueDate`
-- 若無法解析 resolved cycle，才退回實際儲存的 `anchorDate / dueDate`
-- `STATE_BASED` 與 `RESOURCE_BASED` 的 edit 頁日期欄位仍直接反映目前儲存的 snapshot
-- preview date 不可污染存檔 payload；它只影響 `FIXED` edit 頁的預填顯示與狀態/操作計算
-
-### 9.2 Timeline 編輯流程
-
-1. 輸入內容
-2. milestone rule 設定
-3. reminder offset 設定
-
-### 9.3 Management
-
-#### 9.3.1 Items 管理
-
-- `/manage` 是 Bottom Navigation 的一級 tab
-- Items 管理與 Item Packs 管理目前整合在同一頁
-- 舊 `/feature/items-management` route 保留 redirect 到 `/manage`
-- 顯示所有 active packs，包含 system default pack
-- 每個 pack 以 pack card 呈現，內嵌該 pack 的 active / paused item 清單
-- 可顯示：
-  - default pack 標示
-  - pack title
-  - pack 內 item count
-  - item title
-  - item summary
-  - derived status
-- 可操作：
-  - 新增 item
-  - 套用 template
-  - 新增 pack
-  - 編輯非 system default pack
-  - 儲存 pack 為 template
-  - 封存非 system default pack
-  - 編輯 item
-  - 完成 item
-  - 跳過 item
-  - 暫停 / 恢復 / 封存 item
-  - 搬移 item
-  - 查看 item history
-
-#### 9.3.2 Item Packs 管理
-
-- pack 是正式可見實體，但目前不再有獨立 primary tab
-- `ItemPacksManagementPage` route 保留作為相容入口，內容渲染整合後的 Items 管理頁
-- 舊 item pack 管理語意收斂到 `/manage`
-
-#### 9.3.3 Timeline 管理
-
-- `/timeline` 是 Bottom Navigation 的一級 tab
-- timeline 管理獨立於 FeaturePage
-- 可操作：
-  - 新增 timeline
-  - 編輯 active timeline
-  - 查看 milestone history
-
-舊 `/feature/timeline-management` route 保留 redirect 到 `/timeline`。
-
-#### 9.3.4 History
-
-- 不保留首頁層級的聚合 history page
-- milestone history 只保留在單一 timeline 的明細層級
-- item history 以單一 item 明細頁提供
-
-#### 9.3.5 User Settings
-
-- settings 頁提供全局 `ReminderTone`
-- 可選值：`gentle / standard / early / urgent`
-- 預設值為 `standard`
-- 此設定影響新建 item 與未自訂策略 item 的後續系統推導
-- 此設定不批次覆蓋既有 `userCustomized` item
-
-### 9.4 Developer Preview Date Override
-
-規則：
-
-- 覆蓋值為 `DateTime?`
-- `null` 代表使用真實今天
-- 生效日期一律正規化為本地時區的年月日 `00:00`
-- 此設定影響狀態計算與部分 item 操作的 actionDate / snapshot
-- 此設定只存在記憶體，本次 app 啟動有效
-
-影響範圍：
-
-- Home 的 `danger / warning / upcoming timeline` 計算
-- `Items 管理` 中 item derived status 的顯示
-- Home / `Items 管理` 的 item `完成 / 跳過` 操作
-- `Timeline 管理` 中 next / upcoming milestone 的顯示
-
-不影響：
-
-- `createdAt / updatedAt / actedAt / notifiedAt`
-- timeline 編輯頁的預設日期欄位
-- item 建立頁的預設日期欄位
-
-例外：
-
-- `FIXED` item 編輯頁的日期欄位必須依 preview date 反映目前生效 cycle 的 snapshot
-
----
-
-## 10. Persistence Model
-
-目前 Drift `schemaVersion = 4`。
-
-### 10.1 item_packs
-
-- `id`
-- `title`
-- `description`
-- `status`
-- `isSystemDefault`
-- `createdAt`
-- `updatedAt`
-
-### 10.2 items
-
-- `id`
-- `packId`
-- `title`
-- `description`
-- `status`
-- `type`
-- `attentionPolicySource`
-- `fixedScheduleType`
-- `fixedScheduleInterval`
-- `fixedMonthlyDay`
-- `fixedRepeatRuleV2`
-- `fixedAnchorDate`
-- `fixedDueDate`
-- `fixedTimeOfDay`
-- `fixedOverduePolicy`
-- `fixedExpectedBeforeMinutes`
-- `fixedWarningBeforeMinutes`
-- `fixedDangerBeforeMinutes`
-- `stateAnchorDate`
-- `stateExpectedAfterMinutes`
-- `stateWarningAfterMinutes`
-- `stateDangerAfterMinutes`
-- `resourceAnchorDate`
-- `resourceDurationDays`
-- `resourceExpectedBeforeDays`
-- `resourceWarningBeforeDays`
-- `resourceDangerBeforeDays`
-- `lastDoneAt`
-- `createdAt`
-- `updatedAt`
-
-說明：
-
-- domain config 名稱為 `infoBefore / infoAfter`
-- 目前 Drift 物理欄位仍沿用早期 `expected*` 欄名，例如 `fixedExpectedBeforeMinutes`、`stateExpectedAfterMinutes`、`resourceExpectedBeforeDays`
-- repository / DAO 必須將上述 storage 欄位映射為 domain 的 `infoBefore / infoAfter`
-- `fixedRepeatRuleV2` 是 nullable JSON payload；舊資料可為 null
-- 讀取 fixed item 時，若 `fixedRepeatRuleV2` 存在，domain config 必須 parse 成 `RepeatRuleV2`
-- 若 `fixedRepeatRuleV2` 為 null，repository / formatter 需從 legacy `fixedScheduleType / fixedScheduleInterval / fixedMonthlyDay` 推導 simple repeat summary
-
-### 10.3 item_pack_templates
-
-- `id`
-- `name`
-- `category`
-- `description`
-- `createdAt`
-- `updatedAt`
-
-### 10.4 item_template_items
-
-- `id`
-- `templateId`
-- `title`
-- `description`
-- `type`
-- `attentionPolicySource`
-- `fixedScheduleType`
-- `fixedScheduleInterval`
-- `fixedMonthlyDay`
-- `fixedRepeatRuleV2`
-- `fixedTimeOfDay`
-- `fixedOverduePolicy`
-- `fixedExpectedBeforeMinutes`
-- `fixedWarningBeforeMinutes`
-- `fixedDangerBeforeMinutes`
-- `stateExpectedAfterMinutes`
-- `stateWarningAfterMinutes`
-- `stateDangerAfterMinutes`
-- `resourceDurationDays`
-- `resourceExpectedBeforeDays`
-- `resourceWarningBeforeDays`
-- `resourceDangerBeforeDays`
-- `createdAt`
-- `updatedAt`
-
-### 10.5 item_action_records
-
-- `id`
-- `itemId`
-- `actionType`
-- `actionDate`
-- `remark`
-- `payload`
-- `createdAt`
-- `updatedAt`
-
-### 10.6 timelines
-
-- `id`
-- `title`
-- `startDate`
-- `displayUnit`
-- `status`
-- `createdAt`
-- `updatedAt`
-
-### 10.7 timeline_milestone_rules
-
-- `id`
-- `timelineId`
-- `type`
-- `intervalValue`
-- `intervalUnit`
-- `labelTemplate`
-- `reminderOffsetDays`
-- `status`
-- `createdAt`
-- `updatedAt`
-
-### 10.8 timeline_milestone_records
-
-- `id`
-- `timelineId`
-- `ruleId`
-- `occurrenceIndex`
-- `targetDate`
-- `status`
-- `notifiedAt`
-- `actedAt`
-- `createdAt`
-- `updatedAt`
-
-### 10.9 app_settings
-
-- `id`
-- `reminderTone`
-- `createdAt`
-- `updatedAt`
-
-規則：
-
-- singleton row 使用 `id = 1`
-- `reminderTone` 預設為 `standard`
-- database open 時必須確保 settings row 存在
-
-### 10.10 Migration notes
-
-- schema v4 新增：
-  - `items.fixedRepeatRuleV2`
-  - `item_template_items.fixedRepeatRuleV2`
-- v4 migration 只新增 nullable 欄位，不回填舊資料
-- 舊資料的 fixed schedule 由 legacy 欄位保持相容
-- 新 simple fixed schedule 可以繼續只用 legacy 欄位；yearly simple rule 或任何進階規則需寫入 `fixedRepeatRuleV2`
-
----
-
-## 11. Domain Constraints
-
-- `Item` 與 `Timeline` 不混用
-- item side 不再拆成 `TaskTemplate + Task`
-- `ItemStatus` 來自規則計算，不作為核心歷史模型
-- `ItemActionRecord` 是 history layer，不是 item attention status 的唯一來源
-- `TimelineMilestoneRule` 是 primary source，occurrence 為動態計算結果
-- `TimelineMilestoneRecord` 不依使用者操作產生下一筆
-- `RepeatRuleV2` 只描述 fixed item 的重複節奏，不取代 `TimelineMilestoneRule`
-- fixed item 的 legacy schedule 欄位不可移除；它們是舊資料相容與 simple schedule 雙寫來源
-- archived `Timeline` 為唯讀
-- system default `ItemPack` 必須唯一、可見、不可封存
-
----
-
-## 12. MVP 必做 / 可延後 / 禁止事項
-
-### 必做
+必須使用：
 
 - `ItemPack`
 - `Item`
 - `ItemActionRecord`
-- `STATE_BASED`
-- `FIXED` 的 overdue policy
-- `FIXED` 的重複設定 UI 與 `RepeatRuleV2`
-- item 狀態計算
-- `AttentionPolicyResolver`
-- `AttentionPolicySource`
-- `ReminderTone` settings
-- `UsageSpeed` for resource-based create flow
-- Home 顯示（warning / danger）
-- item `完成 / 跳過`
-- timeline milestone rule / record 基本流
+- `Resource`
+- `ResourceConfig`
+- `ResourceConsumptionRule`
+- `ResourceActionRecord`
+- `Timeline`
+- `TimelineMilestoneRule`
 
-### 可延後
+禁止重新引入：
 
-- group 協作
-- pack preset marketplace
-- timeline 深整合
-
-### 禁止事項
-
-不再實作：
-
-- `TaskTemplate`
 - `Task`
-- `TaskStatus`
-- `TaskTemplateStatus`
-- recurring task instance generation
-- 巨型通用 Reminder model
+- `TaskTemplate`
+- `TaskInstance`
+- `ItemType.resourceBased`
+- `ResourceBasedItemConfig`
+- `ResourceBaseItem`
 
----
+命名原則：
 
-## 13. 實作指令
-
-後續所有 reminders feature 實作必須遵守：
-
-1. 不再新增 `task`、`template`、`instance` 型命名到核心 domain/data/UI
-2. item 相關實作一律以 `ItemPack / Item / ItemActionRecord` 收斂
-3. timeline 相關實作一律維持 `rule -> occurrence -> record` 邊界
-4. 若舊註解、舊文件、舊欄位名稱仍使用舊 task 語言，以本文件覆寫
+- 程式碼命名維持英文、清楚、domain-driven
+- UI 文案使用繁體中文與生活語意
+- Resource domain 一律優先使用 `Resource`，不要使用 `ResourceBaseItem`

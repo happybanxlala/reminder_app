@@ -8,6 +8,8 @@ import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack_template.dart';
 import 'package:reminder_app/features/reminders/domain/repeat_rule_v2.dart';
+import 'package:reminder_app/features/reminders/domain/resource.dart';
+import 'package:reminder_app/features/reminders/data/resource_repository.dart';
 
 void main() {
   test(
@@ -216,154 +218,157 @@ void main() {
     expect(warning.map((item) => item.item.title), ['Brush cat']);
   });
 
-  test('markDone(resourceBased, addedDays) updates refill snapshot', () async {
+  test('markDone consumes quantity resource through enabled rule', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
     final repository = ItemRepository(db.itemTimelineDao);
+    final resourceRepository = ResourceRepository(db.itemTimelineDao);
 
     final itemId = await repository.createItem(
-      ItemInput(
-        title: 'Cat food',
-        type: ItemType.resourceBased,
-        config: ResourceBasedItemConfig(
-          anchorDate: DateTime(2026, 4, 1),
-          durationDays: 5,
-          warningBefore: 1,
+      const ItemInput(
+        title: 'Replace water filter',
+        type: ItemType.stateBased,
+        config: StateBasedItemConfig(
+          warningAfter: Duration(days: 12),
+          dangerAfter: Duration(days: 14),
         ),
+      ),
+    );
+    final resourceId = await resourceRepository.createResource(
+      const ResourceInput(
+        title: 'Water filter',
+        type: ResourceType.quantityBased,
+        config: QuantityBasedResourceConfig(
+          currentQuantity: 5,
+          unitLabel: '個',
+          warningThreshold: 2,
+          dangerThreshold: 1,
+        ),
+      ),
+    );
+    await resourceRepository.createConsumptionRule(
+      ResourceConsumptionRuleInput(
+        itemId: itemId,
+        resourceId: resourceId,
+        consumeAmount: 1,
       ),
     );
 
     expect(
       await repository.markDone(itemId, doneAt: DateTime(2026, 4, 5)),
-      isFalse,
+      isTrue,
     );
+
+    final resource = await resourceRepository.getResourceById(resourceId);
+    final history = await resourceRepository.listActionHistory(resourceId);
+    final itemHistory = await repository.listActionHistory(itemId);
+    expect(resource, isNotNull);
     expect(
-      await repository.markDone(
-        itemId,
-        doneAt: DateTime(2026, 4, 5),
-        addedDays: 9,
+      (resource!.resource.config as QuantityBasedResourceConfig)
+          .currentQuantity,
+      4,
+    );
+    final consumedRecord = history.firstWhere(
+      (record) => record.actionType == ResourceActionType.consumed,
+    );
+    final actualDoneRecord = itemHistory.firstWhere(
+      (record) => record.actionType == ItemActionType.done,
+    );
+    expect(consumedRecord.resultingQuantity, 4);
+    expect(consumedRecord.sourceItemActionRecordId, actualDoneRecord.id);
+  });
+
+  test('refill quantity resource writes resulting quantity', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = ResourceRepository(db.itemTimelineDao);
+
+    final resourceId = await repository.createResource(
+      const ResourceInput(
+        title: 'Filter',
+        type: ResourceType.quantityBased,
+        config: QuantityBasedResourceConfig(
+          currentQuantity: 2,
+          unitLabel: '個',
+          warningThreshold: 2,
+          dangerThreshold: 1,
+        ),
+      ),
+    );
+
+    expect(
+      await repository.refillResource(
+        resourceId,
+        actionAt: DateTime(2026, 4, 5),
+        addedQuantity: 5,
       ),
       isTrue,
     );
 
-    final item = await repository.getItemById(itemId);
-    final history = await repository.listActionHistory(itemId);
-    expect(item, isNotNull);
-    expect(item!.item.lastDoneAt, DateTime(2026, 4, 5));
+    final resource = await repository.getResourceById(resourceId);
+    final history = await repository.listActionHistory(resourceId);
     expect(
-      (item.item.config as ResourceBasedItemConfig).anchorDate,
-      DateTime(2026, 4, 5),
+      (resource!.resource.config as QuantityBasedResourceConfig)
+          .currentQuantity,
+      7,
     );
-    expect((item.item.config as ResourceBasedItemConfig).durationDays, 10);
-    final doneRecord = history.firstWhere(
-      (record) => record.actionType == ItemActionType.done,
+    expect(
+      history.any(
+        (record) =>
+            record.actionType == ResourceActionType.refilled &&
+            record.resultingQuantity == 7,
+      ),
+      isTrue,
     );
-    expect(doneRecord.payload?['addedDays'], 9);
   });
 
-  test(
-    'resource-based completion carries remaining days from completion day',
-    () async {
-      final db = AppDatabase.forTesting(NativeDatabase.memory());
-      addTearDown(db.close);
-      final repository = ItemRepository(db.itemTimelineDao);
-
-      final itemId = await repository.createItem(
-        ItemInput(
-          title: 'Cat food',
-          type: ItemType.resourceBased,
-          config: ResourceBasedItemConfig(
-            anchorDate: DateTime(2026, 4, 1),
-            durationDays: 10,
-            warningBefore: 1,
-          ),
-        ),
-      );
-
-      expect(
-        await repository.markDone(
-          itemId,
-          doneAt: DateTime(2026, 4, 9),
-          addedDays: 2,
-        ),
-        isTrue,
-      );
-
-      final item = await repository.getItemById(itemId);
-      expect(item, isNotNull);
-      expect(
-        (item!.item.config as ResourceBasedItemConfig).anchorDate,
-        DateTime(2026, 4, 9),
-      );
-      expect((item.item.config as ResourceBasedItemConfig).durationDays, 4);
-    },
-  );
-
-  test(
-    'resource-based completion after depletion starts new cycle on action day',
-    () async {
-      final db = AppDatabase.forTesting(NativeDatabase.memory());
-      addTearDown(db.close);
-      final repository = ItemRepository(db.itemTimelineDao);
-
-      final itemId = await repository.createItem(
-        ItemInput(
-          title: 'Cat food',
-          type: ItemType.resourceBased,
-          config: ResourceBasedItemConfig(
-            anchorDate: DateTime(2026, 4, 1),
-            durationDays: 5,
-            warningBefore: 1,
-          ),
-        ),
-      );
-
-      expect(
-        await repository.markDone(
-          itemId,
-          doneAt: DateTime(2026, 4, 7),
-          addedDays: 3,
-        ),
-        isTrue,
-      );
-
-      final item = await repository.getItemById(itemId);
-      expect(item, isNotNull);
-      expect(
-        (item!.item.config as ResourceBasedItemConfig).anchorDate,
-        DateTime(2026, 4, 7),
-      );
-      expect((item.item.config as ResourceBasedItemConfig).durationDays, 3);
-    },
-  );
-
-  test('skip(resourceBased) must fail', () async {
+  test('refill time resource carries days before depletion only', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = ItemRepository(db.itemTimelineDao);
+    final repository = ResourceRepository(db.itemTimelineDao);
 
-    final itemId = await repository.createItem(
-      ItemInput(
-        title: 'Cat food',
-        type: ItemType.resourceBased,
-        config: ResourceBasedItemConfig(
+    final beforeId = await repository.createResource(
+      ResourceInput(
+        title: 'Shampoo',
+        type: ResourceType.timeBased,
+        config: TimeBasedResourceConfig(
           anchorDate: DateTime(2026, 4, 1),
-          durationDays: 5,
-          warningBefore: 1,
+          durationDays: 10,
+          warningBeforeDays: 3,
+          dangerBeforeDays: 1,
         ),
       ),
     );
+    await repository.refillResource(
+      beforeId,
+      actionAt: DateTime(2026, 4, 9),
+      addedDays: 2,
+    );
+    final before = await repository.getResourceById(beforeId);
+    expect(
+      (before!.resource.config as TimeBasedResourceConfig).durationDays,
+      4,
+    );
 
-    expect(
-      await repository.skip(itemId, actionAt: DateTime(2026, 4, 5)),
-      isFalse,
+    final afterId = await repository.createResource(
+      ResourceInput(
+        title: 'Soap',
+        type: ResourceType.timeBased,
+        config: TimeBasedResourceConfig(
+          anchorDate: DateTime(2026, 4, 1),
+          durationDays: 5,
+          warningBeforeDays: 1,
+          dangerBeforeDays: 0,
+        ),
+      ),
     );
-    expect(
-      (await repository.listActionHistory(
-        itemId,
-      )).where((record) => record.actionType != ItemActionType.created),
-      isEmpty,
+    await repository.refillResource(
+      afterId,
+      actionAt: DateTime(2026, 4, 7),
+      addedDays: 3,
     );
+    final after = await repository.getResourceById(afterId);
+    expect((after!.resource.config as TimeBasedResourceConfig).durationDays, 3);
   });
 
   test('defer is disabled and does not write action history', () async {
@@ -421,11 +426,10 @@ void main() {
       final itemId = await repository.createItem(
         ItemInput(
           title: 'Cat food',
-          type: ItemType.resourceBased,
-          config: ResourceBasedItemConfig(
-            anchorDate: DateTime(2026, 4, 1),
-            durationDays: 5,
-            warningBefore: 1,
+          type: ItemType.stateBased,
+          config: StateBasedItemConfig(
+            warningAfter: Duration(days: 3),
+            dangerAfter: Duration(days: 5),
           ),
         ),
       );
@@ -449,7 +453,7 @@ void main() {
       final after = await repository.getItemById(itemId);
       expect(after, isNotNull);
       expect(after!.item.title, 'Cat food');
-      expect(after.item.type, ItemType.resourceBased);
+      expect(after.item.type, ItemType.stateBased);
     },
   );
 
@@ -903,21 +907,18 @@ void main() {
 
       expect(pack!.title, '彩月島貓奴指南(模版)');
       expect(packItems, hasLength(template.items.length));
-      final water = packItems.firstWhere(
-        (bundle) => bundle.item.title == '飲水機加水',
+      final fixed = packItems.firstWhere(
+        (bundle) => bundle.item.title == '19:00 餵飯',
       );
-      final waterConfig = water.item.config as FixedItemConfig;
-      expect(waterConfig.scheduleType, FixedScheduleType.everyXDays);
-      expect(waterConfig.scheduleInterval, 3);
-      expect(waterConfig.anchorDate, DateTime(2026, 4, 10));
-      expect(waterConfig.dueDate, DateTime(2026, 4, 12));
+      final fixedConfig = fixed.item.config as FixedItemConfig;
+      expect(fixedConfig.scheduleType, FixedScheduleType.daily);
+      expect(fixedConfig.anchorDate, DateTime(2026, 4, 10));
+      expect(fixedConfig.dueDate, DateTime(2026, 4, 10));
 
-      final inventory = packItems.firstWhere(
-        (bundle) => bundle.item.title == '補充貓乾糧',
-      );
-      final inventoryConfig = inventory.item.config as ResourceBasedItemConfig;
-      expect(inventoryConfig.anchorDate, isNull);
-      expect(inventoryConfig.durationDays, 0);
+      final resources = await ResourceRepository(
+        db.itemTimelineDao,
+      ).watchManagedResources().first;
+      expect(resources.any((bundle) => bundle.resource.title == '貓乾糧'), isTrue);
     },
   );
 
@@ -1136,12 +1137,11 @@ void main() {
       final foodId = await repository.createItem(
         ItemInput(
           title: 'Cat food',
-          type: ItemType.resourceBased,
+          type: ItemType.stateBased,
           packId: packId,
-          config: ResourceBasedItemConfig(
-            anchorDate: DateTime(2026, 4, 1),
-            durationDays: 5,
-            warningBefore: 1,
+          config: StateBasedItemConfig(
+            warningAfter: Duration(days: 1),
+            dangerAfter: Duration(days: 2),
           ),
         ),
       );
@@ -1163,11 +1163,7 @@ void main() {
       await repository.skip(litterId, actionAt: DateTime(2026, 4, 20));
 
       now = DateTime(2026, 5, 1, 9, 0);
-      await repository.markDone(
-        foodId,
-        doneAt: DateTime(2026, 5, 1),
-        addedDays: 3,
-      );
+      await repository.markDone(foodId, doneAt: DateTime(2026, 5, 1));
 
       final recentFeed = await repository.listActivityFeed(
         now: DateTime(2026, 5, 1),

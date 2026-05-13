@@ -4,9 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../data/item_repository.dart';
 import '../../data/local/item_timeline_dao.dart';
+import '../../data/resource_repository.dart';
 import '../../domain/item.dart';
 import '../../domain/item_pack.dart';
 import '../../domain/item_pack_template.dart';
+import '../../domain/resource.dart';
 import '../../domain/timeline.dart';
 import '../../domain/timeline_milestone_occurrence.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
@@ -14,6 +16,7 @@ import '../../presentation/text/reminder_ui_text.dart';
 import '../../presentation/view_models/management_item_card_view_model.dart';
 import '../../providers/developer_settings_providers.dart';
 import '../../providers/item_providers.dart';
+import '../../providers/resource_providers.dart';
 import '../../providers/settings_providers.dart';
 import '../../providers/timeline_providers.dart';
 import 'item_edit_page.dart';
@@ -104,6 +107,8 @@ class _ItemsManagementContentState
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+            const ResourceManagementSection(),
           ],
         );
       },
@@ -162,7 +167,7 @@ class TimelineManagementContent extends ConsumerWidget {
             );
           },
           error: (error, stack) => Text('讀取失敗: $error'),
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Text('正在讀取資源...'),
         ),
       ],
     );
@@ -751,22 +756,7 @@ Future<void> _handleManagedItemComplete(
     }
   }
 
-  final addedDays = bundle.item.type == ItemType.resourceBased
-      ? await _showResourceAddedDaysDialog(
-          context,
-          initialValue:
-              (bundle.item.config as ResourceBasedItemConfig).durationDays,
-        )
-      : null;
-  if (bundle.item.type == ItemType.resourceBased && addedDays == null) {
-    return;
-  }
-
-  await repository.markDone(
-    bundle.item.id,
-    doneAt: previewDate,
-    addedDays: addedDays,
-  );
+  await repository.markDone(bundle.item.id, doneAt: previewDate);
 }
 
 Future<bool?> _showItemActionConfirmation(
@@ -830,6 +820,411 @@ class _ItemActionSheetTile extends StatelessWidget {
       textColor: effectiveTextColor,
       onTap: enabled ? onTap : null,
       title: Text(label),
+    );
+  }
+}
+
+class ResourceManagementSection extends ConsumerWidget {
+  const ResourceManagementSection({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final resourcesAsync = ref.watch(managedResourcesProvider);
+    final previewDate = ref.watch(effectivePreviewDateProvider);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionHeader(
+          title: '資源管理',
+          actions: [
+            FilledButton.icon(
+              key: const Key('add-resource-button'),
+              onPressed: () async {
+                final input = await showDialog<ResourceInput>(
+                  context: context,
+                  builder: (dialogContext) => const _ResourceFormDialog(),
+                );
+                if (input != null && context.mounted) {
+                  await ref
+                      .read(resourceRepositoryProvider)
+                      .createResource(input);
+                }
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('新增資源'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        resourcesAsync.when(
+          data: (resources) {
+            if (resources.isEmpty) {
+              return const Text('目前沒有要留意的資源。');
+            }
+            return Column(
+              children: resources
+                  .map(
+                    (bundle) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _ManagedResourceCard(
+                        bundle: bundle,
+                        previewDate: previewDate,
+                      ),
+                    ),
+                  )
+                  .toList(growable: false),
+            );
+          },
+          error: (error, stack) => Text('讀取失敗: $error'),
+          loading: () => const Center(child: CircularProgressIndicator()),
+        ),
+      ],
+    );
+  }
+}
+
+class _ManagedResourceCard extends ConsumerWidget {
+  const _ManagedResourceCard({required this.bundle, required this.previewDate});
+
+  final ResourceBundle bundle;
+  final DateTime previewDate;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final repository = ref.watch(resourceRepositoryProvider);
+    final resource = bundle.resource;
+    final status = repository.statusFor(resource, now: previewDate);
+    return Card(
+      key: Key('resource-card-${resource.id}'),
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        leading: const Icon(Icons.inventory_2_outlined),
+        title: Text(resource.title),
+        subtitle: Text(
+          '${ReminderFormatters.resourceType(resource.type)}｜${ReminderFormatters.resourceStatus(status)}｜${ReminderFormatters.resourceSummary(resource, now: previewDate)}',
+        ),
+        trailing: Wrap(
+          spacing: 4,
+          children: [
+            TextButton(
+              key: Key('resource-refill-${resource.id}'),
+              onPressed: () =>
+                  _showResourceRefillDialog(context, ref, resource),
+              child: const Text('補充'),
+            ),
+            if (resource.config is QuantityBasedResourceConfig)
+              TextButton(
+                key: Key('resource-adjust-${resource.id}'),
+                onPressed: () =>
+                    _showResourceAdjustDialog(context, ref, resource),
+                child: const Text('調整'),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showResourceRefillDialog(
+    BuildContext context,
+    WidgetRef ref,
+    Resource resource,
+  ) async {
+    final input = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => _NumberInputDialog(
+        title: '補充資源',
+        label: resource.config is TimeBasedResourceConfig ? '新增可用天數' : '新增數量',
+        initialValue: '1',
+      ),
+    );
+    if (input == null) {
+      return;
+    }
+    await ref
+        .read(resourceRepositoryProvider)
+        .refillResource(
+          resource.id,
+          actionAt: previewDate,
+          addedDays: resource.config is TimeBasedResourceConfig ? input : null,
+          addedQuantity: resource.config is QuantityBasedResourceConfig
+              ? input
+              : null,
+        );
+  }
+
+  Future<void> _showResourceAdjustDialog(
+    BuildContext context,
+    WidgetRef ref,
+    Resource resource,
+  ) async {
+    final config = resource.config;
+    if (config is! QuantityBasedResourceConfig) {
+      return;
+    }
+    final input = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => _NumberInputDialog(
+        title: '調整庫存',
+        label: '目前數量',
+        initialValue: '${config.currentQuantity}',
+        allowZero: true,
+      ),
+    );
+    if (input == null) {
+      return;
+    }
+    await ref
+        .read(resourceRepositoryProvider)
+        .adjustResourceQuantity(
+          resource.id,
+          newQuantity: input,
+          actionAt: previewDate,
+        );
+  }
+}
+
+class _ResourceFormDialog extends StatefulWidget {
+  const _ResourceFormDialog();
+
+  @override
+  State<_ResourceFormDialog> createState() => _ResourceFormDialogState();
+}
+
+class _ResourceFormDialogState extends State<_ResourceFormDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _durationController = TextEditingController(text: '20');
+  final _warningDaysController = TextEditingController(text: '3');
+  final _dangerDaysController = TextEditingController(text: '1');
+  final _quantityController = TextEditingController(text: '5');
+  final _unitController = TextEditingController(text: '個');
+  final _warningQuantityController = TextEditingController(text: '2');
+  final _dangerQuantityController = TextEditingController(text: '1');
+  ResourceType _type = ResourceType.quantityBased;
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _durationController.dispose();
+    _warningDaysController.dispose();
+    _dangerDaysController.dispose();
+    _quantityController.dispose();
+    _unitController.dispose();
+    _warningQuantityController.dispose();
+    _dangerQuantityController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('新增資源'),
+      content: SizedBox(
+        width: 420,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  key: const Key('resource-title-field'),
+                  controller: _titleController,
+                  decoration: const InputDecoration(labelText: '名稱'),
+                  validator: (value) =>
+                      (value ?? '').trim().isEmpty ? '請輸入名稱' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _descriptionController,
+                  decoration: const InputDecoration(labelText: '備註'),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<ResourceType>(
+                  key: const Key('resource-type-field'),
+                  initialValue: _type,
+                  decoration: const InputDecoration(labelText: '資源類型'),
+                  items: ResourceType.values
+                      .map(
+                        (type) => DropdownMenuItem(
+                          value: type,
+                          child: Text(ReminderFormatters.resourceType(type)),
+                        ),
+                      )
+                      .toList(growable: false),
+                  onChanged: (value) {
+                    if (value == null) {
+                      return;
+                    }
+                    setState(() {
+                      _type = value;
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+                if (_type == ResourceType.timeBased) ...[
+                  _numberField(_durationController, '大約還能用幾天'),
+                  const SizedBox(height: 12),
+                  _numberField(_warningDaysController, '剩幾天開始提醒'),
+                  const SizedBox(height: 12),
+                  _numberField(_dangerDaysController, '剩幾天進入危急'),
+                ] else ...[
+                  _numberField(_quantityController, '目前有多少'),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _unitController,
+                    decoration: const InputDecoration(labelText: '單位'),
+                  ),
+                  const SizedBox(height: 12),
+                  _numberField(_warningQuantityController, '剩多少開始提醒'),
+                  const SizedBox(height: 12),
+                  _numberField(_dangerQuantityController, '剩多少進入危急'),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+        ),
+        FilledButton(
+          key: const Key('resource-save-button'),
+          onPressed: _submit,
+          child: const Text(ReminderUiText.saveAction),
+        ),
+      ],
+    );
+  }
+
+  Widget _numberField(TextEditingController controller, String label) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: TextInputType.number,
+      decoration: InputDecoration(labelText: label),
+    );
+  }
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+    final now = DateTime.now();
+    final config = _type == ResourceType.timeBased
+        ? TimeBasedResourceConfig(
+            anchorDate: DateTime(now.year, now.month, now.day),
+            durationDays: _positiveInt(_durationController),
+            warningBeforeDays: _nonNegativeInt(_warningDaysController),
+            dangerBeforeDays: _nonNegativeInt(_dangerDaysController),
+          )
+        : QuantityBasedResourceConfig(
+            currentQuantity: _nonNegativeInt(_quantityController),
+            unitLabel: _unitController.text.trim().isEmpty
+                ? '個'
+                : _unitController.text.trim(),
+            warningThreshold: _nonNegativeInt(_warningQuantityController),
+            dangerThreshold: _nonNegativeInt(_dangerQuantityController),
+          );
+    Navigator.of(context).pop(
+      ResourceInput(
+        title: _titleController.text.trim(),
+        description: _normalizeOptionalText(_descriptionController.text),
+        type: _type,
+        config: config,
+      ),
+    );
+  }
+
+  int _positiveInt(TextEditingController controller) {
+    final parsed = int.tryParse(controller.text.trim());
+    if (parsed == null || parsed < 1) {
+      return 1;
+    }
+    return parsed;
+  }
+
+  int _nonNegativeInt(TextEditingController controller) {
+    final parsed = int.tryParse(controller.text.trim());
+    if (parsed == null || parsed < 0) {
+      return 0;
+    }
+    return parsed;
+  }
+
+  String? _normalizeOptionalText(String value) {
+    final normalized = value.trim();
+    return normalized.isEmpty ? null : normalized;
+  }
+}
+
+class _NumberInputDialog extends StatefulWidget {
+  const _NumberInputDialog({
+    required this.title,
+    required this.label,
+    required this.initialValue,
+    this.allowZero = false,
+  });
+
+  final String title;
+  final String label;
+  final String initialValue;
+  final bool allowZero;
+
+  @override
+  State<_NumberInputDialog> createState() => _NumberInputDialogState();
+}
+
+class _NumberInputDialogState extends State<_NumberInputDialog> {
+  late String _inputValue;
+  String? _errorText;
+
+  @override
+  void initState() {
+    super.initState();
+    _inputValue = widget.initialValue;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: TextFormField(
+        autofocus: true,
+        initialValue: _inputValue,
+        keyboardType: TextInputType.number,
+        onChanged: (value) {
+          _inputValue = value;
+        },
+        decoration: InputDecoration(
+          labelText: widget.label,
+          errorText: _errorText,
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+        ),
+        FilledButton(
+          onPressed: () {
+            final value = int.tryParse(_inputValue.trim());
+            final minimum = widget.allowZero ? 0 : 1;
+            if (value == null || value < minimum) {
+              setState(() {
+                _errorText = widget.allowZero ? '請輸入 0 或以上' : '請輸入 1 或以上';
+              });
+              return;
+            }
+            Navigator.of(context).pop(value);
+          },
+          child: const Text(ReminderUiText.saveAction),
+        ),
+      ],
     );
   }
 }
@@ -1278,55 +1673,6 @@ class _CreateItemDialogState extends ConsumerState<_CreateItemDialog> {
   String _packValue(int id) => 'pack-$id';
 }
 
-Future<int?> _showResourceAddedDaysDialog(
-  BuildContext context, {
-  required int initialValue,
-}) async {
-  var inputValue = '$initialValue';
-  String? errorText;
-  final result = await showDialog<int>(
-    context: context,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setState) => AlertDialog(
-        title: const Text(ReminderUiText.resourceCompletionDialogTitle),
-        content: TextFormField(
-          autofocus: true,
-          initialValue: inputValue,
-          keyboardType: TextInputType.number,
-          onChanged: (value) {
-            inputValue = value;
-          },
-          decoration: InputDecoration(
-            labelText: ReminderUiText.resourceCompletionDialogLabel,
-            helperText: ReminderUiText.resourceCompletionDialogHelper,
-            errorText: errorText,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final value = int.tryParse(inputValue.trim());
-              if (value == null || value <= 0) {
-                setState(() {
-                  errorText = ReminderUiText.resourceCompletionDialogError;
-                });
-                return;
-              }
-              Navigator.of(context).pop(value);
-            },
-            child: const Text(ReminderUiText.saveAction),
-          ),
-        ],
-      ),
-    ),
-  );
-  return result;
-}
-
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({required this.title, required this.actions});
 
@@ -1641,10 +1987,6 @@ class _TemplateDetailDialog extends ConsumerWidget {
       FixedItemConfig fixed => ReminderFormatters.fixedScheduleSummary(fixed),
       StateBasedItemConfig state =>
         '留意 ${state.warningAfter.inDays} 天｜需要處理 ${state.dangerAfter.inDays} 天',
-      ResourceBasedItemConfig resource =>
-        resource.durationDays <= 0
-            ? '尚未建立庫存基準'
-            : '可用 ${resource.durationDays} 天',
       _ => '',
     };
   }

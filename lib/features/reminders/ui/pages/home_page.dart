@@ -3,8 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/home_models.dart';
+import '../../data/local/item_timeline_dao.dart';
 import '../../domain/attention_summary.dart';
-import '../../domain/item.dart';
+import '../../domain/resource.dart';
 import '../../domain/timeline_milestone_occurrence.dart';
 import '../../providers/developer_settings_providers.dart';
 import '../../providers/attention_summary_providers.dart';
@@ -12,7 +13,9 @@ import '../../presentation/text/reminder_ui_text.dart';
 import '../../presentation/view_models/item_timeline_card_view_model.dart';
 import '../../providers/home_providers.dart';
 import '../../providers/item_providers.dart';
+import '../../providers/resource_providers.dart';
 import '../../providers/timeline_providers.dart';
+import '../../presentation/formatters/reminder_formatters.dart';
 import 'feature_page.dart';
 import 'item_edit_page.dart';
 import 'item_history_page.dart';
@@ -56,6 +59,7 @@ class HomeContent extends ConsumerWidget {
     final summaryAsync = ref.watch(attentionSummaryProvider);
     final dangerAsync = ref.watch(dangerHomeEntriesProvider);
     final warningAsync = ref.watch(warningHomeEntriesProvider);
+    final resourcesAsync = ref.watch(resourcesProvider);
     final timelineAsync = ref.watch(upcomingTimelineMilestonesProvider);
 
     return ListView(
@@ -77,6 +81,25 @@ class HomeContent extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 16),
+        resourcesAsync.when(
+          data: (resources) {
+            if (resources.isEmpty) {
+              return const SizedBox.shrink();
+            }
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: _HomeSection(
+                title: '資源',
+                child: _ResourceList(resources: resources),
+              ),
+            );
+          },
+          error: (error, stack) => Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: _HomeSection(title: '資源', child: Text('讀取失敗: $error')),
+          ),
+          loading: () => const SizedBox.shrink(),
+        ),
         _HomeSection(
           title: ReminderUiText.dangerTab,
           child: dangerAsync.when(
@@ -365,23 +388,9 @@ class _ItemCardState extends ConsumerState<_ItemCard> {
   }
 
   Future<void> _handleComplete(ItemCardViewModel viewModel) async {
-    final item = widget.entry.bundle.item;
-    final addedDays = item.type == ItemType.resourceBased
-        ? await _pickResourceAddedDays(
-            context,
-            initialValue: (item.config as ResourceBasedItemConfig).durationDays,
-          )
-        : null;
-    if (item.type == ItemType.resourceBased && addedDays == null) {
-      return;
-    }
     await ref
         .read(itemRepositoryProvider)
-        .markDone(
-          viewModel.id,
-          doneAt: widget.previewDate,
-          addedDays: addedDays,
-        );
+        .markDone(viewModel.id, doneAt: widget.previewDate);
   }
 }
 
@@ -440,53 +449,65 @@ Color _headerColor(ItemCardDisplayState state) {
   };
 }
 
-Future<int?> _pickResourceAddedDays(
-  BuildContext context, {
-  required int initialValue,
-}) async {
-  var inputValue = '$initialValue';
-  String? errorText;
-  final result = await showDialog<int>(
-    context: context,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setState) => AlertDialog(
-        title: const Text(ReminderUiText.resourceCompletionDialogTitle),
-        content: TextFormField(
-          autofocus: true,
-          initialValue: inputValue,
-          keyboardType: TextInputType.number,
-          onChanged: (value) {
-            inputValue = value;
-          },
-          decoration: InputDecoration(
-            labelText: ReminderUiText.resourceCompletionDialogLabel,
-            helperText: ReminderUiText.resourceCompletionDialogHelper,
-            errorText: errorText,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final value = int.tryParse(inputValue.trim());
-              if (value == null || value <= 0) {
-                setState(() {
-                  errorText = ReminderUiText.resourceCompletionDialogError;
-                });
-                return;
-              }
-              Navigator.of(context).pop(value);
-            },
-            child: const Text(ReminderUiText.saveAction),
-          ),
+class _ResourceList extends ConsumerWidget {
+  const _ResourceList({required this.resources});
+
+  final List<ResourceBundle> resources;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final previewDate = ref.watch(effectivePreviewDateProvider);
+    final repository = ref.watch(resourceRepositoryProvider);
+    final attentionResources = resources
+        .where((bundle) {
+          final status = repository.statusFor(
+            bundle.resource,
+            now: previewDate,
+          );
+          return status == ResourceStatus.warning ||
+              status == ResourceStatus.danger;
+        })
+        .toList(growable: false);
+    if (attentionResources.isEmpty) {
+      return const Text('目前沒有需要留意的資源。');
+    }
+    return Column(
+      children: [
+        for (var index = 0; index < attentionResources.length; index++) ...[
+          if (index > 0) const SizedBox(height: 12),
+          _ResourceCard(bundle: attentionResources[index], now: previewDate),
         ],
+      ],
+    );
+  }
+}
+
+class _ResourceCard extends ConsumerWidget {
+  const _ResourceCard({required this.bundle, required this.now});
+
+  final ResourceBundle bundle;
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final repository = ref.watch(resourceRepositoryProvider);
+    final resource = bundle.resource;
+    final status = repository.statusFor(resource, now: now);
+    return Card(
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        key: Key('resource-card-${resource.id}'),
+        leading: const Icon(Icons.inventory_2_outlined),
+        title: Text(resource.title),
+        subtitle: Text(
+          '${ReminderFormatters.resourceStatus(status)} • ${ReminderFormatters.resourceSummary(resource, now: now)}',
+        ),
+        trailing: Text(
+          ReminderFormatters.resourceTrailingLabel(resource, now: now),
+        ),
       ),
-    ),
-  );
-  return result;
+    );
+  }
 }
 
 class _TimelineMilestoneList extends ConsumerWidget {

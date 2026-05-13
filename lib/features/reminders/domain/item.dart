@@ -1,7 +1,7 @@
 import 'attention_policy.dart';
 import 'repeat_rule_v2.dart';
 
-enum ItemType { fixed, stateBased, resourceBased }
+enum ItemType { fixed, stateBased }
 
 enum ItemStatus { normal, warning, danger, unknown }
 
@@ -75,28 +75,6 @@ class StateBasedItemConfig extends ItemConfig {
 
   @override
   ItemType get type => ItemType.stateBased;
-}
-
-class ResourceBasedItemConfig extends ItemConfig {
-  const ResourceBasedItemConfig({
-    this.anchorDate,
-    required this.durationDays,
-    this.infoBefore = 0,
-    this.warningBefore = 0,
-    this.dangerBefore = 0,
-  });
-
-  final DateTime? anchorDate;
-  final int durationDays;
-  final int infoBefore;
-  final int warningBefore;
-  final int dangerBefore;
-
-  Duration get estimatedDuration => Duration(days: durationDays);
-  Duration get warningBeforeDepletion => Duration(days: warningBefore);
-
-  @override
-  ItemType get type => ItemType.resourceBased;
 }
 
 class Item {

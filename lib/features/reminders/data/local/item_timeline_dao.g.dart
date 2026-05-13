@@ -10,8 +10,18 @@ mixin _$ItemTimelineDaoMixin on DatabaseAccessor<AppDatabase> {
       attachedDatabase.itemPackTemplates;
   $ItemTemplateItemsTable get itemTemplateItems =>
       attachedDatabase.itemTemplateItems;
+  $ResourceTemplateItemsTable get resourceTemplateItems =>
+      attachedDatabase.resourceTemplateItems;
+  $ResourceConsumptionRuleTemplateItemsTable
+  get resourceConsumptionRuleTemplateItems =>
+      attachedDatabase.resourceConsumptionRuleTemplateItems;
+  $ResourcesTable get resources => attachedDatabase.resources;
+  $ResourceConsumptionRulesTable get resourceConsumptionRules =>
+      attachedDatabase.resourceConsumptionRules;
   $ItemActionRecordsTable get itemActionRecords =>
       attachedDatabase.itemActionRecords;
+  $ResourceActionRecordsTable get resourceActionRecords =>
+      attachedDatabase.resourceActionRecords;
   $TimelinesTable get timelines => attachedDatabase.timelines;
   $TimelineMilestoneRulesTable get timelineMilestoneRules =>
       attachedDatabase.timelineMilestoneRules;
@@ -39,10 +49,33 @@ class ItemTimelineDaoManager {
         _db.attachedDatabase,
         _db.itemTemplateItems,
       );
+  $$ResourceTemplateItemsTableTableManager get resourceTemplateItems =>
+      $$ResourceTemplateItemsTableTableManager(
+        _db.attachedDatabase,
+        _db.resourceTemplateItems,
+      );
+  $$ResourceConsumptionRuleTemplateItemsTableTableManager
+  get resourceConsumptionRuleTemplateItems =>
+      $$ResourceConsumptionRuleTemplateItemsTableTableManager(
+        _db.attachedDatabase,
+        _db.resourceConsumptionRuleTemplateItems,
+      );
+  $$ResourcesTableTableManager get resources =>
+      $$ResourcesTableTableManager(_db.attachedDatabase, _db.resources);
+  $$ResourceConsumptionRulesTableTableManager get resourceConsumptionRules =>
+      $$ResourceConsumptionRulesTableTableManager(
+        _db.attachedDatabase,
+        _db.resourceConsumptionRules,
+      );
   $$ItemActionRecordsTableTableManager get itemActionRecords =>
       $$ItemActionRecordsTableTableManager(
         _db.attachedDatabase,
         _db.itemActionRecords,
+      );
+  $$ResourceActionRecordsTableTableManager get resourceActionRecords =>
+      $$ResourceActionRecordsTableTableManager(
+        _db.attachedDatabase,
+        _db.resourceActionRecords,
       );
   $$TimelinesTableTableManager get timelines =>
       $$TimelinesTableTableManager(_db.attachedDatabase, _db.timelines);

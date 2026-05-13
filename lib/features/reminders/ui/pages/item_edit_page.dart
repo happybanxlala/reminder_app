@@ -3,12 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/item_repository.dart';
 import '../../data/local/item_timeline_dao.dart';
+import '../../data/resource_repository.dart';
 import '../../domain/attention_policy.dart';
 import '../../domain/item.dart';
 import '../../domain/item_pack.dart';
+import '../../domain/resource.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
 import '../../providers/item_providers.dart';
+import '../../providers/resource_providers.dart';
 import '../../providers/settings_providers.dart';
 import '../widgets/editor_common_fields.dart';
 import '../widgets/item_config_form_section.dart';
@@ -194,6 +197,10 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
                   controller: _configController,
                   onChanged: () => setState(() {}),
                 ),
+                if (bundle != null) ...[
+                  const SizedBox(height: 12),
+                  _ResourceConsumptionSection(itemId: widget.id!),
+                ],
               ],
               const SizedBox(height: 24),
               if (_isEdit)
@@ -386,10 +393,6 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       _configController.stateExpectedIntervalController,
       _configController.warningAfterController,
       _configController.dangerAfterController,
-      _configController.resourceAnchorDateController,
-      _configController.resourceDurationController,
-      _configController.resourceWarningBeforeController,
-      _configController.resourceDangerBeforeController,
     ]) {
       controller.addListener(_notifyPotentialChange);
     }
@@ -415,12 +418,10 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       _configController.scheduleType.name,
       _configController.fixedRepeatRuleV2?.encode(),
       _configController.overduePolicy.name,
-      _configController.usageSpeed.name,
       _configController.customizeAttentionPolicy,
       _configController.selectedFixedAnchorDate.toIso8601String(),
       _configController.selectedFixedDueDate.toIso8601String(),
       _configController.selectedStateAnchorDate.toIso8601String(),
-      _configController.selectedResourceAnchorDate.toIso8601String(),
       _configController.fixedScheduleIntervalController.text,
       _configController.fixedMonthlyDayController.text,
       _configController.fixedWarningBeforeController.text,
@@ -428,9 +429,6 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       _configController.stateExpectedIntervalController.text,
       _configController.warningAfterController.text,
       _configController.dangerAfterController.text,
-      _configController.resourceDurationController.text,
-      _configController.resourceWarningBeforeController.text,
-      _configController.resourceDangerBeforeController.text,
     ].join('\u001f');
   }
 
@@ -486,4 +484,235 @@ class _PackOption {
   final int? id;
   final String label;
   final bool enabled;
+}
+
+class _ResourceConsumptionSection extends ConsumerWidget {
+  const _ResourceConsumptionSection({required this.itemId});
+
+  final int itemId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rulesAsync = ref.watch(itemConsumptionRulesProvider(itemId));
+    final resourcesAsync = ref.watch(resourcesProvider);
+    return Card(
+      key: const Key('resource-consumption-section'),
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Expanded(child: Text('消耗資源')),
+                TextButton.icon(
+                  key: const Key('add-resource-rule-button'),
+                  onPressed: () => _showAddResourceRuleDialog(context, ref),
+                  icon: const Icon(Icons.add),
+                  label: const Text('綁定資源'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            rulesAsync.when(
+              data: (rules) => resourcesAsync.when(
+                data: (resources) {
+                  final enabledRules = rules
+                      .where((rule) => rule.isEnabled)
+                      .toList(growable: false);
+                  if (enabledRules.isEmpty) {
+                    return const Text('尚未綁定會消耗的資源。');
+                  }
+                  return Column(
+                    children: [
+                      for (final rule in enabledRules)
+                        _ResourceRuleTile(
+                          rule: rule,
+                          resource: _findResource(resources, rule.resourceId),
+                        ),
+                    ],
+                  );
+                },
+                error: (error, stack) => Text('讀取資源失敗: $error'),
+                loading: () => const Text('正在讀取資源...'),
+              ),
+              error: (error, stack) => Text('讀取綁定失敗: $error'),
+              loading: () => const Text('正在讀取綁定...'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Resource? _findResource(List<ResourceBundle> bundles, int resourceId) {
+    for (final bundle in bundles) {
+      if (bundle.resource.id == resourceId) {
+        return bundle.resource;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _showAddResourceRuleDialog(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final resources = await ref.read(resourcesProvider.future);
+    final quantityResources = resources
+        .map((bundle) => bundle.resource)
+        .where((resource) => resource.config is QuantityBasedResourceConfig)
+        .toList(growable: false);
+    if (!context.mounted) {
+      return;
+    }
+    if (quantityResources.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('目前沒有可綁定的數量資源。')));
+      return;
+    }
+    final input = await showDialog<_ResourceRuleDraft>(
+      context: context,
+      builder: (dialogContext) =>
+          _ResourceRuleDialog(resources: quantityResources),
+    );
+    if (input == null) {
+      return;
+    }
+    await ref
+        .read(resourceRepositoryProvider)
+        .createConsumptionRule(
+          ResourceConsumptionRuleInput(
+            resourceId: input.resourceId,
+            itemId: itemId,
+            consumeAmount: input.consumeAmount,
+          ),
+        );
+  }
+}
+
+class _ResourceRuleTile extends ConsumerWidget {
+  const _ResourceRuleTile({required this.rule, required this.resource});
+
+  final ResourceConsumptionRule rule;
+  final Resource? resource;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final config = resource?.config;
+    final unit = config is QuantityBasedResourceConfig ? config.unitLabel : '';
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(resource?.title ?? '已不存在的資源'),
+      subtitle: Text('每次完成此 item 扣 ${rule.consumeAmount} $unit'),
+      trailing: IconButton(
+        key: Key('remove-resource-rule-${rule.id}'),
+        onPressed: () async {
+          await ref
+              .read(resourceRepositoryProvider)
+              .disableConsumptionRule(rule.id);
+        },
+        tooltip: '移除綁定',
+        icon: const Icon(Icons.close),
+      ),
+    );
+  }
+}
+
+class _ResourceRuleDraft {
+  const _ResourceRuleDraft({
+    required this.resourceId,
+    required this.consumeAmount,
+  });
+
+  final int resourceId;
+  final int consumeAmount;
+}
+
+class _ResourceRuleDialog extends StatefulWidget {
+  const _ResourceRuleDialog({required this.resources});
+
+  final List<Resource> resources;
+
+  @override
+  State<_ResourceRuleDialog> createState() => _ResourceRuleDialogState();
+}
+
+class _ResourceRuleDialogState extends State<_ResourceRuleDialog> {
+  late int _resourceId;
+  late final TextEditingController _amountController;
+
+  @override
+  void initState() {
+    super.initState();
+    _resourceId = widget.resources.first.id;
+    _amountController = TextEditingController(text: '1');
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('綁定資源'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DropdownButtonFormField<int>(
+            key: const Key('resource-rule-resource-field'),
+            initialValue: _resourceId,
+            decoration: const InputDecoration(labelText: '資源'),
+            items: widget.resources
+                .map(
+                  (resource) => DropdownMenuItem<int>(
+                    value: resource.id,
+                    child: Text(resource.title),
+                  ),
+                )
+                .toList(growable: false),
+            onChanged: (value) {
+              if (value == null) {
+                return;
+              }
+              setState(() {
+                _resourceId = value;
+              });
+            },
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            key: const Key('resource-rule-amount-field'),
+            controller: _amountController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: '每次完成扣多少'),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+        ),
+        FilledButton(
+          key: const Key('resource-rule-save-button'),
+          onPressed: () {
+            final amount = int.tryParse(_amountController.text.trim()) ?? 1;
+            Navigator.of(context).pop(
+              _ResourceRuleDraft(
+                resourceId: _resourceId,
+                consumeAmount: amount < 1 ? 1 : amount,
+              ),
+            );
+          },
+          child: const Text(ReminderUiText.saveAction),
+        ),
+      ],
+    );
+  }
 }

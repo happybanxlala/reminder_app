@@ -43,11 +43,6 @@ class Items extends Table {
   IntColumn get stateExpectedAfterMinutes => integer().nullable()();
   IntColumn get stateWarningAfterMinutes => integer().nullable()();
   IntColumn get stateDangerAfterMinutes => integer().nullable()();
-  IntColumn get resourceAnchorDate => integer().nullable()();
-  IntColumn get resourceDurationDays => integer().nullable()();
-  IntColumn get resourceExpectedBeforeDays => integer().nullable()();
-  IntColumn get resourceWarningBeforeDays => integer().nullable()();
-  IntColumn get resourceDangerBeforeDays => integer().nullable()();
   IntColumn get lastDoneAt => integer().nullable()();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
@@ -73,6 +68,7 @@ class ItemTemplateItems extends Table {
 
   IntColumn get id => integer().autoIncrement()();
   IntColumn get templateId => integer().references(ItemPackTemplates, #id)();
+  TextColumn get logicalId => text().nullable()();
   TextColumn get title => text()();
   TextColumn get description => text().nullable()();
   TextColumn get type => text()();
@@ -90,10 +86,108 @@ class ItemTemplateItems extends Table {
   IntColumn get stateExpectedAfterMinutes => integer().nullable()();
   IntColumn get stateWarningAfterMinutes => integer().nullable()();
   IntColumn get stateDangerAfterMinutes => integer().nullable()();
-  IntColumn get resourceDurationDays => integer().nullable()();
-  IntColumn get resourceExpectedBeforeDays => integer().nullable()();
-  IntColumn get resourceWarningBeforeDays => integer().nullable()();
-  IntColumn get resourceDangerBeforeDays => integer().nullable()();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+}
+
+@DataClassName('ResourceTemplateItemRow')
+class ResourceTemplateItems extends Table {
+  @override
+  String get tableName => 'resource_template_items';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get templateId => integer().references(ItemPackTemplates, #id)();
+  TextColumn get logicalId => text()();
+  TextColumn get title => text()();
+  TextColumn get description => text().nullable()();
+  TextColumn get type => text()();
+  IntColumn get timeDurationDays => integer().nullable()();
+  IntColumn get timeExpectedBeforeDays => integer().nullable()();
+  IntColumn get timeWarningBeforeDays => integer().nullable()();
+  IntColumn get timeDangerBeforeDays => integer().nullable()();
+  IntColumn get quantityCurrent => integer().nullable()();
+  TextColumn get quantityUnitLabel => text().nullable()();
+  IntColumn get quantityExpectedThreshold => integer().nullable()();
+  IntColumn get quantityWarningThreshold => integer().nullable()();
+  IntColumn get quantityDangerThreshold => integer().nullable()();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+}
+
+@DataClassName('ResourceConsumptionRuleTemplateRow')
+class ResourceConsumptionRuleTemplateItems extends Table {
+  @override
+  String get tableName => 'resource_consumption_rule_template_items';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get templateId => integer().references(ItemPackTemplates, #id)();
+  TextColumn get itemLogicalId => text()();
+  TextColumn get resourceLogicalId => text()();
+  TextColumn get triggerActionType =>
+      text().withDefault(const Constant('done'))();
+  IntColumn get consumeAmount => integer().withDefault(const Constant(1))();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+}
+
+@DataClassName('ResourceRow')
+class Resources extends Table {
+  @override
+  String get tableName => 'resources';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get packId => integer().references(ItemPacks, #id)();
+  TextColumn get title => text()();
+  TextColumn get description => text().nullable()();
+  TextColumn get status => text().withDefault(const Constant('active'))();
+  TextColumn get type => text()();
+  IntColumn get timeAnchorDate => integer().nullable()();
+  IntColumn get timeDurationDays => integer().nullable()();
+  IntColumn get timeExpectedBeforeDays => integer().nullable()();
+  IntColumn get timeWarningBeforeDays => integer().nullable()();
+  IntColumn get timeDangerBeforeDays => integer().nullable()();
+  IntColumn get quantityCurrent => integer().nullable()();
+  TextColumn get quantityUnitLabel => text().nullable()();
+  IntColumn get quantityExpectedThreshold => integer().nullable()();
+  IntColumn get quantityWarningThreshold => integer().nullable()();
+  IntColumn get quantityDangerThreshold => integer().nullable()();
+  IntColumn get lastRefilledAt => integer().nullable()();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+}
+
+@DataClassName('ResourceConsumptionRuleRow')
+class ResourceConsumptionRules extends Table {
+  @override
+  String get tableName => 'resource_consumption_rules';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get resourceId => integer().references(Resources, #id)();
+  IntColumn get itemId => integer().references(Items, #id)();
+  TextColumn get triggerActionType =>
+      text().withDefault(const Constant('done'))();
+  IntColumn get consumeAmount => integer().withDefault(const Constant(1))();
+  BoolColumn get isEnabled => boolean().withDefault(const Constant(true))();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+}
+
+@DataClassName('ResourceActionRecordRow')
+class ResourceActionRecords extends Table {
+  @override
+  String get tableName => 'resource_action_records';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get resourceId => integer().references(Resources, #id)();
+  TextColumn get actionType => text()();
+  IntColumn get actionDate => integer()();
+  IntColumn get amount => integer().nullable()();
+  IntColumn get resultingQuantity => integer().nullable()();
+  IntColumn get addedDays => integer().nullable()();
+  IntColumn get resultingDurationDays => integer().nullable()();
+  IntColumn get sourceItemActionRecordId =>
+      integer().nullable().references(ItemActionRecords, #id)();
+  TextColumn get remark => text().nullable()();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 }

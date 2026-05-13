@@ -79,7 +79,7 @@ class ItemCardViewModel {
       },
       displayState: displayState,
       canComplete: displayState != ItemCardDisplayState.notStarted,
-      canSkip: item.type != ItemType.resourceBased,
+      canSkip: true,
     );
   }
 
@@ -125,9 +125,6 @@ class ItemCardViewModel {
         statusService.resolveFixedCycle(config, now: now)?.anchorDate ??
             _normalizeNullableDate(config.anchorDate),
       StateBasedItemConfig config => _normalizeNullableDate(config.anchorDate),
-      ResourceBasedItemConfig config => _normalizeNullableDate(
-        config.anchorDate,
-      ),
       _ => null,
     };
   }
@@ -202,15 +199,7 @@ class ItemCardViewModel {
       }
       return '已持續$dayIndex日';
     }
-    if (config is! ResourceBasedItemConfig) {
-      return null;
-    }
-    final remainingDays = statusService.resourceRemainingDays(config, now: now);
-    if (remainingDays == null) {
-      return null;
-    }
-    final safeRemainingDays = remainingDays < 0 ? 0 : remainingDays;
-    return '剩餘$safeRemainingDays日';
+    return null;
   }
 
   static bool _completedWithinWindow(

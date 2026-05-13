@@ -31,10 +31,6 @@ class ItemStatusService {
         config,
         now: current,
       ),
-      ResourceBasedItemConfig config => _classifyResourceBased(
-        config,
-        now: current,
-      ),
       _ => ItemStatus.unknown,
     };
   }
@@ -156,23 +152,6 @@ class ItemStatusService {
     return ItemStatus.normal;
   }
 
-  ItemStatus _classifyResourceBased(
-    ResourceBasedItemConfig config, {
-    required DateTime now,
-  }) {
-    final remainingDays = resourceRemainingDays(config, now: now);
-    if (remainingDays == null) {
-      return ItemStatus.unknown;
-    }
-    if (remainingDays <= config.dangerBefore) {
-      return ItemStatus.danger;
-    }
-    if (remainingDays <= config.warningBefore) {
-      return ItemStatus.warning;
-    }
-    return ItemStatus.normal;
-  }
-
   DateTime? stateBaseline(Item item) {
     final config = item.config;
     if (config is! StateBasedItemConfig) {
@@ -181,18 +160,6 @@ class ItemStatusService {
     return config.anchorDate == null
         ? null
         : _normalizeDate(config.anchorDate!);
-  }
-
-  int? resourceRemainingDays(ResourceBasedItemConfig config, {DateTime? now}) {
-    final anchorDate = config.anchorDate == null
-        ? null
-        : _normalizeDate(config.anchorDate!);
-    if (anchorDate == null || config.durationDays <= 0) {
-      return null;
-    }
-    final current = _normalizeDate(now ?? DateTime.now());
-    final elapsedDays = current.difference(anchorDate).inDays;
-    return config.durationDays - elapsedDays - 1;
   }
 
   ItemStatus _classifyFixed(

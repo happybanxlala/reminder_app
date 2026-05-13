@@ -7,6 +7,7 @@ import '../../domain/item_action_record.dart';
 import '../../domain/item_pack.dart';
 import '../../domain/item_pack_template.dart';
 import '../../domain/repeat_rule_v2.dart';
+import '../../domain/resource.dart';
 import '../../domain/timeline.dart';
 import '../../domain/timeline_milestone_occurrence.dart';
 import '../../domain/timeline_milestone_record.dart';
@@ -20,6 +21,13 @@ class ItemBundle {
   const ItemBundle({required this.item, required this.pack});
 
   final Item item;
+  final ItemPack pack;
+}
+
+class ResourceBundle {
+  const ResourceBundle({required this.resource, required this.pack});
+
+  final Resource resource;
   final ItemPack pack;
 }
 
@@ -73,6 +81,11 @@ class TimelineDetailRecord {
     Items,
     ItemPackTemplates,
     ItemTemplateItems,
+    ResourceTemplateItems,
+    ResourceConsumptionRuleTemplateItems,
+    Resources,
+    ResourceConsumptionRules,
+    ResourceActionRecords,
     ItemActionRecords,
     Timelines,
     TimelineMilestoneRules,
@@ -96,12 +109,36 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
     return into(itemActionRecords).insert(entry);
   }
 
+  Future<int> insertResource(ResourcesCompanion entry) {
+    return into(resources).insert(entry);
+  }
+
+  Future<int> insertResourceConsumptionRule(
+    ResourceConsumptionRulesCompanion entry,
+  ) {
+    return into(resourceConsumptionRules).insert(entry);
+  }
+
+  Future<int> insertResourceActionRecord(ResourceActionRecordsCompanion entry) {
+    return into(resourceActionRecords).insert(entry);
+  }
+
   Future<int> insertItemPackTemplate(ItemPackTemplatesCompanion entry) {
     return into(itemPackTemplates).insert(entry);
   }
 
   Future<int> insertItemTemplateItem(ItemTemplateItemsCompanion entry) {
     return into(itemTemplateItems).insert(entry);
+  }
+
+  Future<int> insertResourceTemplateItem(ResourceTemplateItemsCompanion entry) {
+    return into(resourceTemplateItems).insert(entry);
+  }
+
+  Future<int> insertResourceConsumptionRuleTemplateItem(
+    ResourceConsumptionRuleTemplateItemsCompanion entry,
+  ) {
+    return into(resourceConsumptionRuleTemplateItems).insert(entry);
   }
 
   Stream<AppSettings> watchAppSettings() {
@@ -142,6 +179,12 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
   Future<int> deleteItemPackTemplate(int id) {
     return transaction(() async {
       await (delete(
+        resourceConsumptionRuleTemplateItems,
+      )..where((t) => t.templateId.equals(id))).go();
+      await (delete(
+        resourceTemplateItems,
+      )..where((t) => t.templateId.equals(id))).go();
+      await (delete(
         itemTemplateItems,
       )..where((t) => t.templateId.equals(id))).go();
       return (delete(itemPackTemplates)..where((t) => t.id.equals(id))).go();
@@ -151,6 +194,27 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
   Future<bool> updateItemFields(int id, ItemsCompanion entry) async {
     final updatedRows = await (update(
       items,
+    )..where((t) => t.id.equals(id))).write(entry);
+    return updatedRows > 0;
+  }
+
+  Future<bool> updateResourceFields(int id, ResourcesCompanion entry) async {
+    final updatedRows = await (update(
+      resources,
+    )..where((t) => t.id.equals(id))).write(entry);
+    return updatedRows > 0;
+  }
+
+  Future<bool> updateResourceRecord(ResourceRow entry) {
+    return update(resources).replace(entry);
+  }
+
+  Future<bool> updateResourceConsumptionRuleFields(
+    int id,
+    ResourceConsumptionRulesCompanion entry,
+  ) async {
+    final updatedRows = await (update(
+      resourceConsumptionRules,
     )..where((t) => t.id.equals(id))).write(entry);
     return updatedRows > 0;
   }
@@ -239,6 +303,85 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
       return null;
     }
     return _mapItemBundle(rows.single);
+  }
+
+  Stream<List<ResourceBundle>> watchResourceBundles({
+    Set<ResourceLifecycleStatus>? statuses,
+  }) {
+    return _resourceBundleQuery(statuses: statuses).watch().map(
+      (rows) => rows.map(_mapResourceBundle).toList(growable: false),
+    );
+  }
+
+  Future<List<ResourceBundle>> listResourceBundles({
+    Set<ResourceLifecycleStatus>? statuses,
+  }) {
+    return _resourceBundleQuery(statuses: statuses).get().then(
+      (rows) => rows.map(_mapResourceBundle).toList(growable: false),
+    );
+  }
+
+  Future<ResourceBundle?> getResourceBundleById(int id) async {
+    final rows = await _resourceBundleQuery(
+      where: (t) => t.id.equals(id),
+      limit: 1,
+    ).get();
+    if (rows.isEmpty) {
+      return null;
+    }
+    return _mapResourceBundle(rows.single);
+  }
+
+  Future<List<ResourceConsumptionRule>> listConsumptionRulesForItem(
+    int itemId, {
+    bool enabledOnly = false,
+  }) async {
+    final query = select(resourceConsumptionRules)
+      ..where((t) => t.itemId.equals(itemId));
+    if (enabledOnly) {
+      query.where((t) => t.isEnabled.equals(true));
+    }
+    final rows = await query.get();
+    return rows.map(_toResourceConsumptionRule).toList(growable: false);
+  }
+
+  Stream<List<ResourceConsumptionRule>> watchConsumptionRulesForItem(
+    int itemId,
+  ) {
+    final query = select(resourceConsumptionRules)
+      ..where((t) => t.itemId.equals(itemId))
+      ..orderBy([(t) => OrderingTerm.asc(t.id)]);
+    return query.watch().map(
+      (rows) => rows.map(_toResourceConsumptionRule).toList(growable: false),
+    );
+  }
+
+  Stream<List<ResourceActionRecord>> watchResourceActionRecordsForResource(
+    int resourceId,
+  ) {
+    final query = select(resourceActionRecords)
+      ..where((t) => t.resourceId.equals(resourceId))
+      ..orderBy([
+        (t) => OrderingTerm.desc(t.actionDate),
+        (t) => OrderingTerm.desc(t.id),
+      ]);
+    return query.watch().map(
+      (rows) => rows.map(_toResourceActionRecord).toList(growable: false),
+    );
+  }
+
+  Future<List<ResourceActionRecord>> listResourceActionRecordsForResource(
+    int resourceId,
+  ) async {
+    final rows =
+        await (select(resourceActionRecords)
+              ..where((t) => t.resourceId.equals(resourceId))
+              ..orderBy([
+                (t) => OrderingTerm.desc(t.actionDate),
+                (t) => OrderingTerm.desc(t.id),
+              ]))
+            .get();
+    return rows.map(_toResourceActionRecord).toList(growable: false);
   }
 
   Stream<List<ItemActionRecord>> watchItemActionRecordsForItem(int itemId) {
@@ -569,6 +712,30 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
     return query;
   }
 
+  JoinedSelectStatement<HasResultSet, dynamic> _resourceBundleQuery({
+    Expression<bool> Function($ResourcesTable t)? where,
+    Set<ResourceLifecycleStatus>? statuses,
+    int? limit,
+  }) {
+    final query = select(
+      resources,
+    ).join([innerJoin(itemPacks, itemPacks.id.equalsExp(resources.packId))]);
+    if (statuses != null) {
+      query.where(resources.status.isIn(statuses.map((item) => item.name)));
+    }
+    if (where != null) {
+      query.where(where(resources));
+    }
+    query.orderBy([
+      OrderingTerm.desc(resources.updatedAt),
+      OrderingTerm.asc(resources.id),
+    ]);
+    if (limit != null) {
+      query.limit(limit);
+    }
+    return query;
+  }
+
   JoinedSelectStatement<HasResultSet, dynamic>
   _timelineMilestoneRecordBundleQuery({
     Expression<bool> Function($TimelineMilestoneRecordsTable t)? where,
@@ -668,6 +835,13 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  ResourceBundle _mapResourceBundle(TypedResult row) {
+    return ResourceBundle(
+      resource: _toResource(row.readTable(resources)),
+      pack: _toItemPack(row.readTable(itemPacks)),
+    );
+  }
+
   Expression<bool> _itemStatusPredicate(
     Expression<bool> base,
     Set<ItemLifecycleStatus>? statuses,
@@ -731,6 +905,16 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
               ..where((t) => t.templateId.equals(row.id))
               ..orderBy([(t) => OrderingTerm.asc(t.id)]))
             .get();
+    final resourceRows =
+        await (select(resourceTemplateItems)
+              ..where((t) => t.templateId.equals(row.id))
+              ..orderBy([(t) => OrderingTerm.asc(t.id)]))
+            .get();
+    final ruleRows =
+        await (select(resourceConsumptionRuleTemplateItems)
+              ..where((t) => t.templateId.equals(row.id))
+              ..orderBy([(t) => OrderingTerm.asc(t.id)]))
+            .get();
     return ItemPackTemplate(
       id: 'custom-${row.id}',
       source: ItemPackTemplateSource.custom,
@@ -738,6 +922,12 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
       category: row.category,
       description: row.description,
       items: itemRows.map(_toItemPackTemplateItem).toList(growable: false),
+      resources: resourceRows
+          .map(_toResourceTemplateItem)
+          .toList(growable: false),
+      consumptionRules: ruleRows
+          .map(_toResourceConsumptionRuleTemplate)
+          .toList(growable: false),
       createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
     );
@@ -746,11 +936,55 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
   ItemPackTemplateItem _toItemPackTemplateItem(ItemTemplateItemRow row) {
     final itemType = _itemTypeFromRow(row.type);
     return ItemPackTemplateItem(
+      logicalId: row.logicalId,
       title: row.title,
       description: row.description,
       type: itemType,
       config: _toTemplateItemConfig(row, itemType),
       attentionPolicySource: _attentionPolicySource(row.attentionPolicySource),
+    );
+  }
+
+  ResourceTemplateItem _toResourceTemplateItem(ResourceTemplateItemRow row) {
+    final type = ResourceType.values.byName(row.type);
+    return ResourceTemplateItem(
+      logicalId: row.logicalId,
+      title: row.title,
+      description: row.description,
+      type: type,
+      config: _toResourceTemplateConfig(row, type),
+    );
+  }
+
+  ResourceConfig _toResourceTemplateConfig(
+    ResourceTemplateItemRow row,
+    ResourceType type,
+  ) {
+    return switch (type) {
+      ResourceType.timeBased => TimeBasedResourceConfig(
+        durationDays: row.timeDurationDays ?? 1,
+        infoBeforeDays: row.timeExpectedBeforeDays ?? 0,
+        warningBeforeDays: row.timeWarningBeforeDays ?? 0,
+        dangerBeforeDays: row.timeDangerBeforeDays ?? 0,
+      ),
+      ResourceType.quantityBased => QuantityBasedResourceConfig(
+        currentQuantity: row.quantityCurrent ?? 0,
+        unitLabel: row.quantityUnitLabel ?? '個',
+        infoThreshold: row.quantityExpectedThreshold,
+        warningThreshold: row.quantityWarningThreshold ?? 0,
+        dangerThreshold: row.quantityDangerThreshold ?? 0,
+      ),
+    };
+  }
+
+  ResourceConsumptionRuleTemplate _toResourceConsumptionRuleTemplate(
+    ResourceConsumptionRuleTemplateRow row,
+  ) {
+    return ResourceConsumptionRuleTemplate(
+      itemLogicalId: row.itemLogicalId,
+      resourceLogicalId: row.resourceLogicalId,
+      triggerActionType: ItemActionType.values.byName(row.triggerActionType),
+      consumeAmount: row.consumeAmount,
     );
   }
 
@@ -806,15 +1040,6 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
         warningAfter: Duration(minutes: row.stateWarningAfterMinutes ?? 0),
         dangerAfter: Duration(minutes: row.stateDangerAfterMinutes ?? 0),
       ),
-      ItemType.resourceBased => ResourceBasedItemConfig(
-        anchorDate: row.resourceAnchorDate == null
-            ? null
-            : DateTime.fromMillisecondsSinceEpoch(row.resourceAnchorDate!),
-        durationDays: row.resourceDurationDays ?? 0,
-        infoBefore: row.resourceExpectedBeforeDays ?? 0,
-        warningBefore: row.resourceWarningBeforeDays ?? 0,
-        dangerBefore: row.resourceDangerBeforeDays ?? 0,
-      ),
     };
   }
 
@@ -842,12 +1067,6 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
         warningAfter: Duration(minutes: row.stateWarningAfterMinutes ?? 0),
         dangerAfter: Duration(minutes: row.stateDangerAfterMinutes ?? 0),
       ),
-      ItemType.resourceBased => ResourceBasedItemConfig(
-        durationDays: row.resourceDurationDays ?? 0,
-        infoBefore: row.resourceExpectedBeforeDays ?? 0,
-        warningBefore: row.resourceWarningBeforeDays ?? 0,
-        dangerBefore: row.resourceDangerBeforeDays ?? 0,
-      ),
     };
   }
 
@@ -859,6 +1078,77 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
       actionDate: DateTime.fromMillisecondsSinceEpoch(row.actionDate),
       remark: row.remark,
       payload: ItemActionRecord.decodePayload(row.payload),
+      createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
+    );
+  }
+
+  Resource _toResource(ResourceRow row) {
+    final type = ResourceType.values.byName(row.type);
+    return Resource(
+      id: row.id,
+      packId: row.packId,
+      title: row.title,
+      description: row.description,
+      status: ResourceLifecycleStatus.values.byName(row.status),
+      type: type,
+      config: _toResourceConfig(row, type),
+      lastRefilledAt: row.lastRefilledAt == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(row.lastRefilledAt!),
+      createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
+    );
+  }
+
+  ResourceConfig _toResourceConfig(ResourceRow row, ResourceType type) {
+    return switch (type) {
+      ResourceType.timeBased => TimeBasedResourceConfig(
+        anchorDate: row.timeAnchorDate == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch(row.timeAnchorDate!),
+        durationDays: row.timeDurationDays ?? 0,
+        infoBeforeDays: row.timeExpectedBeforeDays ?? 0,
+        warningBeforeDays: row.timeWarningBeforeDays ?? 0,
+        dangerBeforeDays: row.timeDangerBeforeDays ?? 0,
+      ),
+      ResourceType.quantityBased => QuantityBasedResourceConfig(
+        currentQuantity: row.quantityCurrent ?? 0,
+        unitLabel: row.quantityUnitLabel ?? '',
+        infoThreshold: row.quantityExpectedThreshold,
+        warningThreshold: row.quantityWarningThreshold ?? 0,
+        dangerThreshold: row.quantityDangerThreshold ?? 0,
+      ),
+    };
+  }
+
+  ResourceConsumptionRule _toResourceConsumptionRule(
+    ResourceConsumptionRuleRow row,
+  ) {
+    return ResourceConsumptionRule(
+      id: row.id,
+      resourceId: row.resourceId,
+      itemId: row.itemId,
+      triggerActionType: ItemActionType.values.byName(row.triggerActionType),
+      consumeAmount: row.consumeAmount,
+      isEnabled: row.isEnabled,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
+    );
+  }
+
+  ResourceActionRecord _toResourceActionRecord(ResourceActionRecordRow row) {
+    return ResourceActionRecord(
+      id: row.id,
+      resourceId: row.resourceId,
+      actionType: ResourceActionType.values.byName(row.actionType),
+      actionDate: DateTime.fromMillisecondsSinceEpoch(row.actionDate),
+      amount: row.amount,
+      resultingQuantity: row.resultingQuantity,
+      addedDays: row.addedDays,
+      resultingDurationDays: row.resultingDurationDays,
+      sourceItemActionRecordId: row.sourceItemActionRecordId,
+      remark: row.remark,
       createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
     );

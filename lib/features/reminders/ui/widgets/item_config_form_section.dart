@@ -24,10 +24,6 @@ class ItemConfigFormController {
     stateExpectedIntervalController = TextEditingController(text: '14');
     warningAfterController = TextEditingController(text: '7');
     dangerAfterController = TextEditingController(text: '14');
-    resourceAnchorDateController = TextEditingController();
-    resourceDurationController = TextEditingController(text: '30');
-    resourceWarningBeforeController = TextEditingController(text: '3');
-    resourceDangerBeforeController = TextEditingController(text: '0');
     syncDateControllers();
   }
 
@@ -41,10 +37,6 @@ class ItemConfigFormController {
   late final TextEditingController stateExpectedIntervalController;
   late final TextEditingController warningAfterController;
   late final TextEditingController dangerAfterController;
-  late final TextEditingController resourceAnchorDateController;
-  late final TextEditingController resourceDurationController;
-  late final TextEditingController resourceWarningBeforeController;
-  late final TextEditingController resourceDangerBeforeController;
 
   final AttentionPolicyResolver _attentionPolicyResolver;
   ReminderTone reminderTone;
@@ -52,15 +44,12 @@ class ItemConfigFormController {
   FixedScheduleType scheduleType = FixedScheduleType.daily;
   RepeatRuleV2? fixedRepeatRuleV2;
   ItemOverduePolicy overduePolicy = ItemOverduePolicy.autoAdvance;
-  UsageSpeed usageSpeed = UsageSpeed.medium;
   bool customizeAttentionPolicy = false;
   DateTime selectedFixedAnchorDate = DateTime.now();
   DateTime selectedFixedDueDate = DateTime.now();
   DateTime selectedStateAnchorDate = DateTime.now();
-  DateTime selectedResourceAnchorDate = DateTime.now();
   Duration fixedInfoBefore = Duration.zero;
   Duration stateInfoAfter = Duration.zero;
-  int resourceInfoBefore = 0;
 
   void dispose() {
     fixedAnchorDateController.dispose();
@@ -73,10 +62,6 @@ class ItemConfigFormController {
     stateExpectedIntervalController.dispose();
     warningAfterController.dispose();
     dangerAfterController.dispose();
-    resourceAnchorDateController.dispose();
-    resourceDurationController.dispose();
-    resourceWarningBeforeController.dispose();
-    resourceDangerBeforeController.dispose();
   }
 
   void load(ItemConfig config) {
@@ -100,13 +85,6 @@ class ItemConfigFormController {
         stateExpectedIntervalController.text = '${state.dangerAfter.inDays}';
         warningAfterController.text = '${state.warningAfter.inDays}';
         dangerAfterController.text = '${state.dangerAfter.inDays}';
-      case ResourceBasedItemConfig resource:
-        selectedResourceAnchorDate =
-            resource.anchorDate ?? selectedResourceAnchorDate;
-        resourceDurationController.text = '${resource.durationDays}';
-        resourceInfoBefore = resource.infoBefore;
-        resourceWarningBeforeController.text = '${resource.warningBefore}';
-        resourceDangerBeforeController.text = '${resource.dangerBefore}';
     }
     syncDateControllers();
   }
@@ -118,9 +96,6 @@ class ItemConfigFormController {
     fixedDueDateController.text = ReminderFormatters.date(selectedFixedDueDate);
     stateAnchorDateController.text = ReminderFormatters.date(
       selectedStateAnchorDate,
-    );
-    resourceAnchorDateController.text = ReminderFormatters.date(
-      selectedResourceAnchorDate,
     );
   }
 
@@ -134,9 +109,6 @@ class ItemConfigFormController {
       ItemType.stateBased => _buildStateBasedConfig(
         deriveAttentionPolicy: true,
       ),
-      ItemType.resourceBased => _buildResourceConfig(
-        deriveAttentionPolicy: true,
-      ),
     };
   }
 
@@ -144,9 +116,6 @@ class ItemConfigFormController {
     return switch (type) {
       ItemType.fixed => _buildFixedConfig(deriveAttentionPolicy: false),
       ItemType.stateBased => _buildStateBasedConfig(
-        deriveAttentionPolicy: false,
-      ),
-      ItemType.resourceBased => _buildResourceConfig(
         deriveAttentionPolicy: false,
       ),
     };
@@ -173,9 +142,6 @@ class ItemConfigFormController {
       case StateBasedItemConfig state:
         warningAfterController.text = '${state.warningAfter.inDays}';
         dangerAfterController.text = '${state.dangerAfter.inDays}';
-      case ResourceBasedItemConfig resource:
-        resourceWarningBeforeController.text = '${resource.warningBefore}';
-        resourceDangerBeforeController.text = '${resource.dangerBefore}';
     }
   }
 
@@ -232,29 +198,6 @@ class ItemConfigFormController {
       dangerAfter: Duration(
         days: policy?.dangerAfterDays ?? parseDays(dangerAfterController),
       ),
-    );
-  }
-
-  ResourceBasedItemConfig _buildResourceConfig({
-    required bool deriveAttentionPolicy,
-  }) {
-    final durationDays = parsePositiveDays(resourceDurationController);
-    final policy = deriveAttentionPolicy
-        ? _attentionPolicyResolver.resolveStock(
-            estimatedDurationDays: durationDays,
-            usageSpeed: usageSpeed,
-            tone: reminderTone,
-          )
-        : null;
-    return ResourceBasedItemConfig(
-      anchorDate: selectedResourceAnchorDate,
-      durationDays: durationDays,
-      infoBefore: resourceInfoBefore,
-      warningBefore:
-          policy?.warningBeforeDays ??
-          parseDays(resourceWarningBeforeController),
-      dangerBefore:
-          policy?.dangerBeforeDays ?? parseDays(resourceDangerBeforeController),
     );
   }
 
@@ -393,19 +336,6 @@ class AttentionPolicyAdvancedSection extends StatelessWidget {
           label: ReminderUiText.dangerAfterDaysFieldLabel,
         ),
       ],
-      ItemType.resourceBased => [
-        _DaysField(
-          key: const Key('warning-before-depletion-field'),
-          controller: controller.resourceWarningBeforeController,
-          label: ReminderUiText.warningBeforeDaysFieldLabel,
-        ),
-        const SizedBox(height: 12),
-        _DaysField(
-          key: const Key('resource-danger-before-field'),
-          controller: controller.resourceDangerBeforeController,
-          label: ReminderUiText.dangerBeforeDaysFieldLabel,
-        ),
-      ],
     };
   }
 }
@@ -428,7 +358,6 @@ class ItemConfigFormSection extends StatelessWidget {
       children: switch (controller.type) {
         ItemType.fixed => _buildFixedFields(context),
         ItemType.stateBased => _buildStateBasedFields(context),
-        ItemType.resourceBased => _buildResourceBasedFields(context),
       },
     );
   }
@@ -567,71 +496,6 @@ class ItemConfigFormSection extends StatelessWidget {
           controller: controller.stateExpectedIntervalController,
           label: ReminderUiText.expectedIntervalDaysFieldLabel,
           minimum: 1,
-        ),
-        const SizedBox(height: 12),
-        _AttentionPolicyPreview(config: controller.buildConfigForCreate()),
-      ],
-    ];
-  }
-
-  List<Widget> _buildResourceBasedFields(BuildContext context) {
-    return [
-      EditorDateField(
-        controller: controller.resourceAnchorDateController,
-        label: ReminderUiText.resourceAnchorDateFieldLabel,
-        onPickDate: () => _pickDate(
-          context,
-          initialDate: controller.selectedResourceAnchorDate,
-          onSelected: (value) {
-            controller.selectedResourceAnchorDate = value;
-            controller.syncDateControllers();
-            onChanged();
-          },
-        ),
-      ),
-      const SizedBox(height: 12),
-      _DaysField(
-        key: const Key('estimated-duration-field'),
-        controller: controller.resourceDurationController,
-        label: ReminderUiText.durationDaysFieldLabel,
-        minimum: 1,
-      ),
-      if (showAttentionFields) ...[
-        const SizedBox(height: 12),
-        _DaysField(
-          key: const Key('warning-before-depletion-field'),
-          controller: controller.resourceWarningBeforeController,
-          label: ReminderUiText.warningBeforeDaysFieldLabel,
-        ),
-        const SizedBox(height: 12),
-        _DaysField(
-          key: const Key('resource-danger-before-field'),
-          controller: controller.resourceDangerBeforeController,
-          label: ReminderUiText.dangerBeforeDaysFieldLabel,
-        ),
-      ] else ...[
-        const SizedBox(height: 12),
-        DropdownButtonFormField<UsageSpeed>(
-          key: const Key('usage-speed-field'),
-          initialValue: controller.usageSpeed,
-          decoration: const InputDecoration(
-            labelText: ReminderUiText.usageSpeedFieldLabel,
-          ),
-          items: UsageSpeed.values
-              .map(
-                (value) => DropdownMenuItem(
-                  value: value,
-                  child: Text(ReminderFormatters.usageSpeed(value)),
-                ),
-              )
-              .toList(growable: false),
-          onChanged: (value) {
-            if (value == null) {
-              return;
-            }
-            controller.usageSpeed = value;
-            onChanged();
-          },
         ),
         const SizedBox(height: 12),
         _AttentionPolicyPreview(config: controller.buildConfigForCreate()),

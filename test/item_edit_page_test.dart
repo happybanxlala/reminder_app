@@ -9,9 +9,11 @@ import 'package:reminder_app/features/reminders/data/local/item_timeline_dao.dar
 import 'package:reminder_app/features/reminders/domain/attention_policy.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
+import 'package:reminder_app/features/reminders/domain/resource.dart';
 import 'package:reminder_app/features/reminders/presentation/formatters/reminder_formatters.dart';
 import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
 import 'package:reminder_app/features/reminders/providers/item_providers.dart';
+import 'package:reminder_app/features/reminders/providers/resource_providers.dart';
 import 'package:reminder_app/features/reminders/providers/settings_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/item_edit_page.dart';
 
@@ -20,6 +22,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          ..._emptyResourceOverrides(),
           reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
           activeItemPacksProvider.overrideWith(
             (ref) => Stream.value([
@@ -62,23 +65,9 @@ void main() {
     await tester.tap(find.text('Cat Care').last);
     await tester.pumpAndSettle();
 
-    await tester.tap(
-      find.text(ReminderFormatters.itemType(ItemType.stateBased)),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(
-      find.text(ReminderFormatters.itemType(ItemType.resourceBased)).last,
-    );
+    await tester.tap(find.byKey(const Key('item-type-field')));
     await tester.pumpAndSettle();
-
-    expect(find.byKey(const Key('warning-after-field')), findsNothing);
-    expect(find.byKey(const Key('estimated-duration-field')), findsOneWidget);
-    expect(find.byKey(const Key('usage-speed-field')), findsOneWidget);
-    expect(
-      find.byKey(const Key('warning-before-depletion-field')),
-      findsNothing,
-    );
+    expect(find.text('庫存'), findsNothing);
     expect(find.byKey(const Key('resource-danger-before-field')), findsNothing);
   });
 
@@ -88,6 +77,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          ..._emptyResourceOverrides(),
           reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
           activeItemPacksProvider.overrideWith(
             (ref) => Stream.value([
@@ -148,6 +138,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          ..._emptyResourceOverrides(),
           reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
           activeItemPacksProvider.overrideWith(
             (ref) => Stream.value([
@@ -230,6 +221,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          ..._emptyResourceOverrides(),
           reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
           activeItemPacksProvider.overrideWith(
             (ref) => Stream.value([
@@ -250,11 +242,11 @@ void main() {
                   id: 8,
                   packId: 2,
                   title: 'Archived owner',
-                  type: ItemType.resourceBased,
-                  config: ResourceBasedItemConfig(
+                  type: ItemType.stateBased,
+                  config: StateBasedItemConfig(
                     anchorDate: DateTime(2026, 4, 1),
-                    durationDays: 30,
-                    warningBefore: 7,
+                    warningAfter: Duration(days: 7),
+                    dangerAfter: Duration(days: 14),
                   ),
                   createdAt: DateTime(2026, 4, 1),
                   updatedAt: DateTime(2026, 4, 2),
@@ -310,6 +302,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          ..._emptyResourceOverrides(),
           itemRepositoryProvider.overrideWith((ref) => repository),
           reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
           activeItemPacksProvider.overrideWith(
@@ -385,6 +378,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          ..._emptyResourceOverrides(),
           itemRepositoryProvider.overrideWith((ref) => repository),
           reminderToneProvider.overrideWith((ref) => ReminderTone.urgent),
           activeItemPacksProvider.overrideWith(
@@ -449,6 +443,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          ..._emptyResourceOverrides(),
           itemRepositoryProvider.overrideWith((ref) => repository),
           reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
           activeItemPacksProvider.overrideWith(
@@ -528,6 +523,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          ..._emptyResourceOverrides(),
           itemRepositoryProvider.overrideWith((ref) => repository),
           reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
           activeItemPacksProvider.overrideWith(
@@ -591,6 +587,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          ..._emptyResourceOverrides(),
           reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
           activeItemPacksProvider.overrideWith(
             (ref) => Stream.value([
@@ -655,6 +652,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          ..._emptyResourceOverrides(),
           reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
           activeItemPacksProvider.overrideWith(
             (ref) => Stream.value([
@@ -712,6 +710,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          ..._emptyResourceOverrides(),
           reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
           activeItemPacksProvider.overrideWith(
             (ref) => Stream.value([
@@ -846,6 +845,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          ..._emptyResourceOverrides(),
           itemRepositoryProvider.overrideWith((ref) => repository),
           reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
           activeItemPacksProvider.overrideWith(
@@ -873,10 +873,22 @@ void main() {
   });
 }
 
+List<Override> _emptyResourceOverrides() {
+  return [
+    resourcesProvider.overrideWith(
+      (ref) => Stream.value(const <ResourceBundle>[]),
+    ),
+    itemConsumptionRulesProvider.overrideWith(
+      (ref, itemId) => Stream.value(const <ResourceConsumptionRule>[]),
+    ),
+  ];
+}
+
 Future<void> _pumpEditableItemRoute(WidgetTester tester) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        ..._emptyResourceOverrides(),
         reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
         activeItemPacksProvider.overrideWith(
           (ref) => Stream.value([

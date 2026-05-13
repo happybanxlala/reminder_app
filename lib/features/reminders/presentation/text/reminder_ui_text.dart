@@ -21,7 +21,6 @@ class ReminderUiText {
   static const milestoneLabel = '里程碑';
   static const fixedTypeLabel = '固定節奏';
   static const stateBasedTypeLabel = '彈性處理';
-  static const resourceBasedTypeLabel = '庫存';
   static const itemActivityFeatureTitle = '事項動態';
   static const itemsManagementFeatureTitle = '要照顧的事管理';
   static const itemPacksManagementFeatureTitle = '責任包管理';
