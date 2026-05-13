@@ -103,6 +103,10 @@ class ResourceRepository {
     return _dao.listResourceActionRecordsForResource(resourceId);
   }
 
+  Stream<List<ResourceBinding>> watchBindings(int resourceId) {
+    return _dao.watchResourceBindings(resourceId);
+  }
+
   ResourceStatus statusFor(Resource resource, {DateTime? now}) {
     return _statusService.classify(resource, now: now);
   }
@@ -166,6 +170,17 @@ class ResourceRepository {
             existing.resource.lastRefilledAt?.millisecondsSinceEpoch,
         createdAt: existing.resource.createdAt.millisecondsSinceEpoch,
         updatedAt: now.millisecondsSinceEpoch,
+      ),
+    );
+  }
+
+  Future<bool> archiveResource(int resourceId) {
+    final now = _clock();
+    return _dao.updateResourceFields(
+      resourceId,
+      ResourcesCompanion(
+        status: Value(ResourceLifecycleStatus.archived.name),
+        updatedAt: Value(now.millisecondsSinceEpoch),
       ),
     );
   }

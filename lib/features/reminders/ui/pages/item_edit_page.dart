@@ -15,6 +15,7 @@ import '../../providers/resource_providers.dart';
 import '../../providers/settings_providers.dart';
 import '../widgets/editor_common_fields.dart';
 import '../widgets/item_config_form_section.dart';
+import '../widgets/resource_binding_draft_section.dart';
 
 enum ItemEditMode { create, edit }
 
@@ -46,6 +47,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
   late final ItemConfigFormController _configController;
 
   int? _selectedPackId;
+  List<ResourceBindingDraft> _resourceBindingDrafts = const [];
   bool _initialized = false;
   bool _discardingChanges = false;
   String? _cleanFingerprint;
@@ -82,10 +84,13 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
         ? ref.watch(itemProvider(widget.id!))
         : const AsyncData<ItemBundle?>(null);
     final activePacksAsync = ref.watch(activeItemPacksProvider);
+    final resourcesAsync = ref.watch(resourcesProvider);
     final reminderTone = ref.watch(reminderToneProvider);
     _configController.reminderTone = reminderTone;
 
-    if (itemAsync.isLoading || activePacksAsync.isLoading) {
+    if (itemAsync.isLoading ||
+        activePacksAsync.isLoading ||
+        resourcesAsync.isLoading) {
       return Scaffold(
         appBar: AppBar(title: Text(_pageTitle)),
         body: const Center(child: CircularProgressIndicator()),
@@ -94,8 +99,10 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
 
     final bundle = itemAsync.valueOrNull;
     final activePacks = activePacksAsync.valueOrNull ?? const <ItemPack>[];
+    final resources = resourcesAsync.valueOrNull ?? const <ResourceBundle>[];
     _initializeIfNeeded(bundle);
     final packOptions = _packOptions(activePacks, bundle?.pack);
+    final draftPackId = _resolvedPackId(activePacks);
 
     return PopScope<Object?>(
       canPop: !_shouldConfirmDiscard,
@@ -191,6 +198,19 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
                 onChanged: () => setState(() {}),
                 showAttentionFields: false,
               ),
+              if (!_isEdit) ...[
+                const SizedBox(height: 12),
+                ResourceBindingDraftSection(
+                  drafts: _resourceBindingDrafts,
+                  resources: resources,
+                  packId: draftPackId,
+                  onChanged: (drafts) {
+                    setState(() {
+                      _resourceBindingDrafts = drafts;
+                    });
+                  },
+                ),
+              ],
               if (_isEdit) ...[
                 const SizedBox(height: 12),
                 AttentionPolicyAdvancedSection(
@@ -284,7 +304,15 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     try {
       final saved = _isEdit
           ? await repository.updateItem(widget.id!, input)
-          : (await repository.createItem(input), true).$2;
+          : (
+              await repository.createItem(
+                input,
+                resourceBindings: _resourceBindingDrafts
+                    .map((draft) => draft.toInput())
+                    .toList(growable: false),
+              ),
+              true,
+            ).$2;
       if (!saved) {
         _showSaveError(ReminderUiText.itemSaveFailedMessage);
         return;
@@ -355,6 +383,21 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       return pack.title;
     }
     return '${pack.title} (${ReminderUiText.systemDefaultPackLabel})';
+  }
+
+  int? _resolvedPackId(List<ItemPack> activePacks) {
+    if (widget.lockedPackId != null) {
+      return widget.lockedPackId;
+    }
+    if (_selectedPackId != null) {
+      return _selectedPackId;
+    }
+    for (final pack in activePacks) {
+      if (pack.isSystemDefault) {
+        return pack.id;
+      }
+    }
+    return null;
   }
 
   String? _normalizeOptionalText(String value) {
@@ -429,6 +472,10 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       _configController.stateExpectedIntervalController.text,
       _configController.warningAfterController.text,
       _configController.dangerAfterController.text,
+      ..._resourceBindingDrafts.map(
+        (draft) =>
+            '${draft.resourceId}:${draft.newResource?.title}:${draft.consumeAmount}',
+      ),
     ].join('\u001f');
   }
 

@@ -7,6 +7,7 @@ import '../features/reminders/ui/pages/feature_page.dart';
 import '../features/reminders/ui/pages/home_page.dart';
 import '../features/reminders/ui/pages/item_edit_page.dart';
 import '../features/reminders/ui/pages/item_history_page.dart';
+import '../features/reminders/ui/pages/resource_history_page.dart';
 import '../features/reminders/ui/pages/timeline_edit_page.dart';
 import '../features/reminders/ui/pages/timeline_milestone_history_page.dart';
 
@@ -58,6 +59,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ItemActivityPage(),
       ),
       GoRoute(
+        path: ResourceManagementPage.routePath,
+        name: ResourceManagementPage.routeName,
+        builder: (context, state) => const ResourceManagementPage(),
+      ),
+      GoRoute(
         path: ItemsManagementPage.legacyRoutePath,
         redirect: (context, state) => ItemsManagementPage.routePath,
       ),
@@ -106,6 +112,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final id = int.tryParse(state.pathParameters['id'] ?? '');
           return ItemHistoryPage(itemId: id ?? 0);
+        },
+      ),
+      GoRoute(
+        path: ResourceHistoryPage.routePath,
+        name: ResourceHistoryPage.routeName,
+        builder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '');
+          return ResourceHistoryPage(resourceId: id ?? 0);
         },
       ),
       GoRoute(

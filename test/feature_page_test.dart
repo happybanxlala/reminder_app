@@ -32,6 +32,8 @@ import 'package:reminder_app/features/reminders/providers/resource_providers.dar
 import 'package:reminder_app/features/reminders/providers/settings_providers.dart';
 import 'package:reminder_app/features/reminders/providers/timeline_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/feature_page.dart';
+import 'package:reminder_app/features/reminders/ui/pages/feature_management_sections.dart';
+import 'package:reminder_app/features/reminders/ui/pages/resource_history_page.dart';
 
 void main() {
   testWidgets('feature page hides primary tab destinations', (tester) async {
@@ -72,6 +74,11 @@ void main() {
             path: ItemActivityPage.routePath,
             name: ItemActivityPage.routeName,
             builder: (context, state) => const ItemActivityPage(),
+          ),
+          GoRoute(
+            path: ResourceManagementPage.routePath,
+            name: ResourceManagementPage.routeName,
+            builder: (context, state) => const ResourceManagementPage(),
           ),
           GoRoute(
             path: ItemsManagementPage.routePath,
@@ -165,6 +172,11 @@ void main() {
           key: 'item-activity',
           title: ReminderUiText.itemActivityFeatureTitle,
           placeholder: ReminderUiText.noRecentActivity,
+        ),
+        const _FeatureRouteCase(
+          key: 'resources-management',
+          title: '資源管理',
+          placeholder: '目前沒有要留意的資源。',
         ),
         const _FeatureRouteCase(
           key: 'settings',
@@ -1209,6 +1221,135 @@ void main() {
 
     expect(find.text('第 20天'), findsOneWidget);
     expect(find.text('2026/04/30'), findsOneWidget);
+  });
+
+  testWidgets('resource management card opens details with item bindings', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final resourceRepository = ResourceRepository(db.itemTimelineDao);
+    final pack = _pack(1, title: 'Water');
+    final resource = Resource(
+      id: 7,
+      packId: pack.id,
+      title: 'Water filter',
+      type: ResourceType.quantityBased,
+      config: const QuantityBasedResourceConfig(
+        currentQuantity: 5,
+        unitLabel: '個',
+        warningThreshold: 2,
+        dangerThreshold: 1,
+      ),
+      createdAt: DateTime(2026, 4),
+      updatedAt: DateTime(2026, 4),
+    );
+    final item = _itemBundle(
+      3,
+      ItemType.stateBased,
+      title: 'Replace filter',
+      packId: pack.id,
+      packTitle: pack.title,
+    ).item;
+    final rule = ResourceConsumptionRule(
+      id: 9,
+      resourceId: resource.id,
+      itemId: item.id,
+      consumeAmount: 1,
+      createdAt: DateTime(2026, 4),
+      updatedAt: DateTime(2026, 4),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          resourceRepositoryProvider.overrideWith((ref) => resourceRepository),
+          managedResourcesProvider.overrideWith(
+            (ref) =>
+                Stream.value([ResourceBundle(resource: resource, pack: pack)]),
+          ),
+          resourceBindingsProvider(resource.id).overrideWith(
+            (ref) => Stream.value([ResourceBinding(rule: rule, item: item)]),
+          ),
+          systemPreviewDateProvider.overrideWith(
+            (ref) => Stream.value(DateTime(2026, 4, 11)),
+          ),
+        ],
+        child: const MaterialApp(home: ResourceManagementPage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Water filter'), findsOneWidget);
+    expect(find.textContaining('數量庫存'), findsOneWidget);
+    await tester.tap(find.byKey(Key('resource-card-${resource.id}')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('綁定 item'), findsOneWidget);
+    expect(find.text('Replace filter'), findsOneWidget);
+    expect(find.textContaining('每次完成扣 1 個'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
+  testWidgets('resource history page shows action records', (tester) async {
+    final pack = _pack(1, title: 'Personal care');
+    final resource = Resource(
+      id: 8,
+      packId: pack.id,
+      title: 'Shampoo',
+      type: ResourceType.timeBased,
+      config: const TimeBasedResourceConfig(
+        durationDays: 20,
+        warningBeforeDays: 3,
+        dangerBeforeDays: 1,
+      ),
+      createdAt: DateTime(2026, 4),
+      updatedAt: DateTime(2026, 4),
+    );
+    final records = [
+      ResourceActionRecord(
+        id: 1,
+        resourceId: resource.id,
+        actionType: ResourceActionType.created,
+        actionDate: DateTime(2026, 4, 1),
+        createdAt: DateTime(2026, 4, 1),
+        updatedAt: DateTime(2026, 4, 1),
+      ),
+      ResourceActionRecord(
+        id: 2,
+        resourceId: resource.id,
+        actionType: ResourceActionType.refilled,
+        actionDate: DateTime(2026, 4, 11),
+        addedDays: 5,
+        resultingDurationDays: 25,
+        createdAt: DateTime(2026, 4, 11),
+        updatedAt: DateTime(2026, 4, 11),
+      ),
+    ];
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          resourceProvider(resource.id).overrideWith(
+            (ref) =>
+                Future.value(ResourceBundle(resource: resource, pack: pack)),
+          ),
+          resourceActionHistoryProvider(
+            resource.id,
+          ).overrideWith((ref) => Stream.value(records)),
+        ],
+        child: MaterialApp(home: ResourceHistoryPage(resourceId: resource.id)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('新增'), findsOneWidget);
+    expect(find.textContaining('補充'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
   });
 }
 

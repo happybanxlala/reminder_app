@@ -502,6 +502,47 @@ Future<bool> adjustResourceQuantity(
 - adjustment 用於使用者修正庫存錯誤
 - 寫入 `ResourceActionRecord(adjusted)`
 
+### 6.4 Create Item with Resource Binding Draft
+
+新增 item 時，UI 可以先建立「消耗資源」草稿，但確認前不得寫入 DB。
+
+支援草稿：
+
+1. 綁定既有 active quantity-based resource
+2. 建立新的 quantity-based resource draft 並綁定
+
+送出時必須在同一個 transaction 完成：
+
+1. create item
+2. insert `ItemActionRecord(created)`
+3. 若有 new resource draft，create resource
+4. 若有 new resource draft，insert `ResourceActionRecord(created)`
+5. insert `ResourceConsumptionRule`
+
+規則：
+
+- 新增 item 時 MVP 僅支援 quantity-based resource consumption binding
+- time-based resource 仍由 Resource 管理頁手動建立與補充
+- existing resource 選單只顯示同 pack 的 active quantity-based resources
+- new resource 使用 item resolved pack
+- trigger action 固定為 `done`
+- 任一步驟失敗時 transaction 不應留下 partial item / resource / rule
+
+### 6.5 Archive Resource
+
+封存 Resource 只更新 lifecycle status：
+
+```dart
+Future<bool> archiveResource(int resourceId)
+```
+
+規則：
+
+- archived resource 不出現在 active / managed resource 列表
+- archived resource 的 rules 與 action history 保留
+- archived resource 的 rules 不再由 `markDone` 套用
+- 封存不刪除 `ResourceActionRecord`
+
 ## 7. Drift Schema
 
 ### 7.1 items
@@ -585,11 +626,77 @@ Resource = 要留意的資源
 - Resource 可以 appear attached to Item in UI, but remains separate in domain.
 - Item 編輯頁可以有「消耗資源」區塊
 - 新增 consumption rule 時只選 existing quantity-based resource
+- 新增 item 時可以先建立 resource binding draft；確認前不得寫入 resource / rule
+- create item + new resource + consumption rule 必須同 transaction
 - trigger action MVP 固定為 done
-- Resource 管理頁支援建立 / 編輯 / 補充 / quantity 調整
+- Resource 管理頁支援建立 / 編輯 / 補充 / quantity 調整 / 封存
 - UI 文案使用生活語言，不顯示 raw enum 或 raw config 欄位名
 - time-based resource UI 使用「大約還能用幾天」、「預計剩 N 天」
 - quantity-based resource UI 使用「目前 N 個」、「剩 N 個提醒」
+
+### 8.1 Resource 管理頁
+
+Resource 管理頁有兩個主要入口：
+
+1. 功能頁
+2. Item 管理頁
+
+Route：
+
+```text
+name: resources-management
+path: /feature/resources-management
+```
+
+頁面必須包含：
+
+- 返回 / 前往 Item 管理頁入口
+- 新增資源 action
+- active / paused resource 列表
+- resource card
+
+Resource card summary 顯示：
+
+- 名稱
+- 類型
+- derived `ResourceStatus`
+- 數量或預計剩餘天數
+
+Resource card 空白處點擊開 detail dialog。Detail 內容：
+
+- 名稱
+- 備註
+- 資源類型
+- time-based：天數估算、預計可用到、提醒準則
+- quantity-based：目前數量、單位、提醒準則
+- quantity-based 額外顯示綁定 items：item 名稱、consume amount、rule enabled 狀態
+
+Resource card actions：
+
+- add button = 補充
+- overflow menu = 調整、編輯、詳細資訊、歷史紀錄、封存
+
+`adjust` 僅適用 quantity-based resource。
+
+### 8.2 Resource History UI
+
+Resource history 是 `ResourceActionRecord` 的 UI。
+
+Route：
+
+```text
+name: resource-history
+path: /resource/:id/history
+```
+
+列表顯示：
+
+- action type：created / consumed / refilled / adjusted
+- action date
+- amount / added days
+- resulting quantity / resulting duration days
+- remark
+- `sourceItemActionRecordId`（若來自 item done 消耗）
 
 Home 顯示可以是：
 

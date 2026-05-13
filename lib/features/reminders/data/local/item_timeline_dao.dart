@@ -31,6 +31,13 @@ class ResourceBundle {
   final ItemPack pack;
 }
 
+class ResourceBinding {
+  const ResourceBinding({required this.rule, required this.item});
+
+  final ResourceConsumptionRule rule;
+  final Item item;
+}
+
 class ItemActivityEntry {
   const ItemActivityEntry({
     required this.record,
@@ -353,6 +360,30 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
       ..orderBy([(t) => OrderingTerm.asc(t.id)]);
     return query.watch().map(
       (rows) => rows.map(_toResourceConsumptionRule).toList(growable: false),
+    );
+  }
+
+  Stream<List<ResourceBinding>> watchResourceBindings(int resourceId) {
+    final query =
+        select(resourceConsumptionRules).join([
+            innerJoin(
+              items,
+              items.id.equalsExp(resourceConsumptionRules.itemId),
+            ),
+          ])
+          ..where(resourceConsumptionRules.resourceId.equals(resourceId))
+          ..orderBy([OrderingTerm.asc(resourceConsumptionRules.id)]);
+    return query.watch().map(
+      (rows) => rows
+          .map(
+            (row) => ResourceBinding(
+              rule: _toResourceConsumptionRule(
+                row.readTable(resourceConsumptionRules),
+              ),
+              item: _toItem(row.readTable(items)),
+            ),
+          )
+          .toList(growable: false),
     );
   }
 

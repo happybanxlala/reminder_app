@@ -13,6 +13,7 @@ import '../domain/resource_refill_service.dart';
 import 'builtin_item_pack_templates.dart';
 import 'local/app_database.dart';
 import 'local/item_timeline_dao.dart';
+import 'resource_repository.dart';
 
 class ItemInput {
   const ItemInput({
@@ -30,6 +31,24 @@ class ItemInput {
   final ItemConfig config;
   final AttentionPolicySource attentionPolicySource;
   final int? packId;
+}
+
+class ItemResourceBindingInput {
+  const ItemResourceBindingInput.existing({
+    required int resourceId,
+    this.consumeAmount = 1,
+  }) : existingResourceId = resourceId,
+       newResource = null;
+
+  const ItemResourceBindingInput.newResource({
+    required ResourceInput resource,
+    this.consumeAmount = 1,
+  }) : existingResourceId = null,
+       newResource = resource;
+
+  final int? existingResourceId;
+  final ResourceInput? newResource;
+  final int consumeAmount;
 }
 
 class ItemRepository {
@@ -141,11 +160,24 @@ class ItemRepository {
     return _dao.getCustomItemPackTemplateById(customId);
   }
 
-  Future<int> createItem(ItemInput input) async {
+  Future<int> createItem(
+    ItemInput input, {
+    List<ItemResourceBindingInput> resourceBindings = const [],
+  }) async {
     final now = _clock();
     return _dao.attachedDatabase.transaction(() async {
-      final itemId = await _createItemRecord(input, now: now);
+      final packId = await _resolvePackId(input.packId, now);
+      final itemId = await _createItemRecord(
+        _copyItemInput(input, packId: packId),
+        now: now,
+      );
       await _insertCreatedAction(itemId, now: now);
+      await _applyResourceBindingInputs(
+        itemId: itemId,
+        packId: packId,
+        bindings: resourceBindings,
+        now: now,
+      );
       return itemId;
     });
   }
@@ -153,22 +185,25 @@ class ItemRepository {
   Future<int> createItemWithOptionalNewPack({
     required ItemInput item,
     ItemPackInput? newPack,
+    List<ItemResourceBindingInput> resourceBindings = const [],
   }) async {
     final now = _clock();
     return _dao.attachedDatabase.transaction(() async {
       final createdPackId = newPack == null
           ? null
           : await _dao.insertItemPack(_packCompanion(newPack, now: now));
-      final resolvedInput = ItemInput(
-        title: item.title,
-        description: item.description,
-        type: item.type,
-        config: item.config,
-        attentionPolicySource: item.attentionPolicySource,
-        packId: createdPackId ?? item.packId,
+      final packId = createdPackId ?? await _resolvePackId(item.packId, now);
+      final itemId = await _createItemRecord(
+        _copyItemInput(item, packId: packId),
+        now: now,
       );
-      final itemId = await _createItemRecord(resolvedInput, now: now);
       await _insertCreatedAction(itemId, now: now);
+      await _applyResourceBindingInputs(
+        itemId: itemId,
+        packId: packId,
+        bindings: resourceBindings,
+        now: now,
+      );
       return itemId;
     });
   }
@@ -696,6 +731,102 @@ class ItemRepository {
     return _dao.insertItem(_itemCompanion(input, packId: packId, now: now));
   }
 
+  Future<int> _resolvePackId(int? packId, DateTime now) async {
+    final resolvedPackId = packId ?? await _ensureDefaultPackId(now);
+    await _assertPackCanAcceptItems(resolvedPackId);
+    return resolvedPackId;
+  }
+
+  ItemInput _copyItemInput(ItemInput input, {required int packId}) {
+    return ItemInput(
+      title: input.title,
+      description: input.description,
+      type: input.type,
+      config: input.config,
+      attentionPolicySource: input.attentionPolicySource,
+      packId: packId,
+    );
+  }
+
+  Future<void> _applyResourceBindingInputs({
+    required int itemId,
+    required int packId,
+    required List<ItemResourceBindingInput> bindings,
+    required DateTime now,
+  }) async {
+    for (final binding in bindings) {
+      final consumeAmount = binding.consumeAmount < 1
+          ? 1
+          : binding.consumeAmount;
+      final resourceId = binding.existingResourceId == null
+          ? await _createResourceForItemBinding(
+              binding.newResource,
+              packId: packId,
+              now: now,
+            )
+          : await _validateExistingResourceBinding(
+              binding.existingResourceId!,
+              packId: packId,
+            );
+      await _dao.insertResourceConsumptionRule(
+        ResourceConsumptionRulesCompanion.insert(
+          resourceId: resourceId,
+          itemId: itemId,
+          triggerActionType: Value(ItemActionType.done.name),
+          consumeAmount: Value(consumeAmount),
+          isEnabled: const Value(true),
+          createdAt: now.millisecondsSinceEpoch,
+          updatedAt: now.millisecondsSinceEpoch,
+        ),
+      );
+    }
+  }
+
+  Future<int> _createResourceForItemBinding(
+    ResourceInput? input, {
+    required int packId,
+    required DateTime now,
+  }) async {
+    if (input == null ||
+        input.type != ResourceType.quantityBased ||
+        input.config is! QuantityBasedResourceConfig) {
+      throw StateError('新增 item 時只能建立數量庫存資源');
+    }
+    final resourceId = await _dao.insertResource(
+      _resourceCompanionForInput(input, packId: packId, now: now),
+    );
+    await _dao.insertResourceActionRecord(
+      ResourceActionRecordsCompanion.insert(
+        resourceId: resourceId,
+        actionType: ResourceActionType.created.name,
+        actionDate: _normalizeDate(now).millisecondsSinceEpoch,
+        resultingQuantity: Value(_resourceQuantityCurrent(input.config)),
+        createdAt: now.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
+      ),
+    );
+    return resourceId;
+  }
+
+  Future<int> _validateExistingResourceBinding(
+    int resourceId, {
+    required int packId,
+  }) async {
+    final bundle = await _dao.getResourceBundleById(resourceId);
+    if (bundle == null) {
+      throw StateError('找不到要綁定的資源');
+    }
+    final resource = bundle.resource;
+    if (resource.packId != packId) {
+      throw StateError('只能綁定同一個責任包內的資源');
+    }
+    if (resource.status != ResourceLifecycleStatus.active ||
+        resource.config is! QuantityBasedResourceConfig) {
+      throw StateError('只能綁定啟用中的數量庫存資源');
+    }
+    return resource.id;
+  }
+
   ItemsCompanion _itemCompanion(
     ItemInput input, {
     required int packId,
@@ -770,6 +901,41 @@ class ItemRepository {
       ),
       quantityDangerThreshold: Value(_resourceQuantityDangerThreshold(config)),
       lastRefilledAt: Value(_resourceInitialLastRefilledAt(config)),
+      createdAt: now.millisecondsSinceEpoch,
+      updatedAt: now.millisecondsSinceEpoch,
+    );
+  }
+
+  ResourcesCompanion _resourceCompanionForInput(
+    ResourceInput input, {
+    required int packId,
+    required DateTime now,
+  }) {
+    return ResourcesCompanion.insert(
+      packId: packId,
+      title: input.title,
+      description: Value(input.description),
+      status: const Value('active'),
+      type: input.type.name,
+      timeAnchorDate: Value(_resourceTimeAnchorDate(input.config)),
+      timeDurationDays: Value(_resourceTimeDurationDays(input.config)),
+      timeExpectedBeforeDays: Value(_resourceTimeInfoBeforeDays(input.config)),
+      timeWarningBeforeDays: Value(
+        _resourceTimeWarningBeforeDays(input.config),
+      ),
+      timeDangerBeforeDays: Value(_resourceTimeDangerBeforeDays(input.config)),
+      quantityCurrent: Value(_resourceQuantityCurrent(input.config)),
+      quantityUnitLabel: Value(_resourceQuantityUnitLabel(input.config)),
+      quantityExpectedThreshold: Value(
+        _resourceQuantityInfoThreshold(input.config),
+      ),
+      quantityWarningThreshold: Value(
+        _resourceQuantityWarningThreshold(input.config),
+      ),
+      quantityDangerThreshold: Value(
+        _resourceQuantityDangerThreshold(input.config),
+      ),
+      lastRefilledAt: Value(_resourceInitialLastRefilledAt(input.config)),
       createdAt: now.millisecondsSinceEpoch,
       updatedAt: now.millisecondsSinceEpoch,
     );

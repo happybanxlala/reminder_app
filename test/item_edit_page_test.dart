@@ -342,7 +342,7 @@ void main() {
     );
     await tester.ensureVisible(find.byKey(const Key('save-button')));
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.byKey(const Key('save-button')));
+    await tester.tap(find.byKey(const Key('save-button')).last);
     await tester.pump(const Duration(milliseconds: 300));
 
     final items = (await tester.runAsync(() => db.select(db.items).get()))!;
@@ -871,6 +871,75 @@ void main() {
     expect(find.text(ReminderUiText.editItem), findsOneWidget);
     expect(find.byKey(const Key('title-field')), findsOneWidget);
   });
+
+  testWidgets('create page records existing resource binding only on save', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = _RecordingCreateItemRepository(db.itemTimelineDao);
+    final pack = ItemPack(
+      id: 1,
+      title: 'Default Item Pack',
+      status: ItemPackStatus.active,
+      isSystemDefault: true,
+      createdAt: DateTime(2026, 4, 1),
+      updatedAt: DateTime(2026, 4, 1),
+    );
+    final resource = Resource(
+      id: 7,
+      packId: pack.id,
+      title: 'Water filter',
+      type: ResourceType.quantityBased,
+      config: const QuantityBasedResourceConfig(
+        currentQuantity: 5,
+        unitLabel: '個',
+        warningThreshold: 2,
+        dangerThreshold: 1,
+      ),
+      createdAt: DateTime(2026, 4, 1),
+      updatedAt: DateTime(2026, 4, 1),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          itemRepositoryProvider.overrideWith((ref) => repository),
+          reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
+          activeItemPacksProvider.overrideWith((ref) => Stream.value([pack])),
+          resourcesProvider.overrideWith(
+            (ref) =>
+                Stream.value([ResourceBundle(resource: resource, pack: pack)]),
+          ),
+        ],
+        child: const MaterialApp(home: ItemEditPage(mode: ItemEditMode.create)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('title-field')),
+      'Replace filter',
+    );
+    await tester.tap(
+      find.byKey(const Key('add-resource-binding-draft-button')),
+    );
+    await tester.pumpAndSettle();
+    expect(repository.recordedBindings, null);
+
+    await tester.tap(find.byKey(const Key('resource-binding-save-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Water filter'), findsOneWidget);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -600));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('save-button')).last);
+    await tester.pumpAndSettle();
+
+    expect(repository.recordedInput?.title, 'Replace filter');
+    expect(repository.recordedBindings, hasLength(1));
+    expect(repository.recordedBindings!.single.existingResourceId, resource.id);
+  });
 }
 
 List<Override> _emptyResourceOverrides() {
@@ -882,6 +951,23 @@ List<Override> _emptyResourceOverrides() {
       (ref, itemId) => Stream.value(const <ResourceConsumptionRule>[]),
     ),
   ];
+}
+
+class _RecordingCreateItemRepository extends ItemRepository {
+  _RecordingCreateItemRepository(super.dao);
+
+  ItemInput? recordedInput;
+  List<ItemResourceBindingInput>? recordedBindings;
+
+  @override
+  Future<int> createItem(
+    ItemInput input, {
+    List<ItemResourceBindingInput> resourceBindings = const [],
+  }) async {
+    recordedInput = input;
+    recordedBindings = resourceBindings;
+    return 42;
+  }
 }
 
 Future<void> _pumpEditableItemRoute(WidgetTester tester) async {

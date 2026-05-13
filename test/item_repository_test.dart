@@ -748,6 +748,210 @@ void main() {
     },
   );
 
+  test(
+    'createItem creates existing resource binding in same transaction',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = ItemRepository(db.itemTimelineDao);
+      final resourceRepository = ResourceRepository(db.itemTimelineDao);
+
+      final packId = await repository.createPack(
+        const ItemPackInput(title: 'Housework'),
+      );
+      final resourceId = await resourceRepository.createResource(
+        ResourceInput(
+          title: 'Water filter',
+          type: ResourceType.quantityBased,
+          config: const QuantityBasedResourceConfig(
+            currentQuantity: 5,
+            unitLabel: '個',
+            warningThreshold: 2,
+            dangerThreshold: 1,
+          ),
+          packId: packId,
+        ),
+      );
+
+      final itemId = await repository.createItem(
+        ItemInput(
+          title: 'Replace filter',
+          type: ItemType.stateBased,
+          config: const StateBasedItemConfig(
+            warningAfter: Duration(days: 12),
+            dangerAfter: Duration(days: 14),
+          ),
+          packId: packId,
+        ),
+        resourceBindings: [
+          ItemResourceBindingInput.existing(resourceId: resourceId),
+        ],
+      );
+
+      final rules = await resourceRepository.listRulesForItem(itemId);
+      expect(rules, hasLength(1));
+      expect(rules.single.resourceId, resourceId);
+      expect(rules.single.consumeAmount, 1);
+    },
+  );
+
+  test(
+    'createItemWithOptionalNewPack creates quantity resource and binding',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = ItemRepository(db.itemTimelineDao);
+      final resourceRepository = ResourceRepository(db.itemTimelineDao);
+
+      final itemId = await repository.createItemWithOptionalNewPack(
+        item: const ItemInput(
+          title: 'Replace filter',
+          type: ItemType.stateBased,
+          config: StateBasedItemConfig(
+            warningAfter: Duration(days: 12),
+            dangerAfter: Duration(days: 14),
+          ),
+        ),
+        newPack: const ItemPackInput(title: 'Water'),
+        resourceBindings: const [
+          ItemResourceBindingInput.newResource(
+            resource: ResourceInput(
+              title: 'Water filter',
+              type: ResourceType.quantityBased,
+              config: QuantityBasedResourceConfig(
+                currentQuantity: 5,
+                unitLabel: '個',
+                warningThreshold: 2,
+                dangerThreshold: 1,
+              ),
+            ),
+          ),
+        ],
+      );
+
+      final rules = await resourceRepository.listRulesForItem(itemId);
+      final resources = await resourceRepository.watchResources().first;
+      final resource = resources.singleWhere(
+        (bundle) => bundle.resource.title == 'Water filter',
+      );
+      final history = await resourceRepository.listActionHistory(
+        resource.resource.id,
+      );
+      expect(rules, hasLength(1));
+      expect(rules.single.resourceId, resource.resource.id);
+      expect(resource.pack.title, 'Water');
+      expect(
+        history.any(
+          (record) => record.actionType == ResourceActionType.created,
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  test(
+    'createItem resource binding failure rolls back item creation',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = ItemRepository(db.itemTimelineDao);
+      final resourceRepository = ResourceRepository(db.itemTimelineDao);
+
+      final itemPackId = await repository.createPack(
+        const ItemPackInput(title: 'Items'),
+      );
+      final resourcePackId = await repository.createPack(
+        const ItemPackInput(title: 'Resources'),
+      );
+      final resourceId = await resourceRepository.createResource(
+        ResourceInput(
+          title: 'Filter',
+          type: ResourceType.quantityBased,
+          config: const QuantityBasedResourceConfig(
+            currentQuantity: 5,
+            unitLabel: '個',
+            warningThreshold: 2,
+            dangerThreshold: 1,
+          ),
+          packId: resourcePackId,
+        ),
+      );
+      final beforeItems = await repository.watchPackManagementItems().first;
+
+      await expectLater(
+        repository.createItem(
+          ItemInput(
+            title: 'Replace filter',
+            type: ItemType.stateBased,
+            config: const StateBasedItemConfig(
+              warningAfter: Duration(days: 12),
+              dangerAfter: Duration(days: 14),
+            ),
+            packId: itemPackId,
+          ),
+          resourceBindings: [
+            ItemResourceBindingInput.existing(resourceId: resourceId),
+          ],
+        ),
+        throwsStateError,
+      );
+
+      final afterItems = await repository.watchPackManagementItems().first;
+      final rules = await db.select(db.resourceConsumptionRules).get();
+      expect(resourcePackId, greaterThan(0));
+      expect(afterItems.length, beforeItems.length);
+      expect(rules, isEmpty);
+    },
+  );
+
+  test('archived quantity resource is not consumed by markDone', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = ItemRepository(db.itemTimelineDao);
+    final resourceRepository = ResourceRepository(db.itemTimelineDao);
+
+    final itemId = await repository.createItem(
+      const ItemInput(
+        title: 'Replace filter',
+        type: ItemType.stateBased,
+        config: StateBasedItemConfig(
+          warningAfter: Duration(days: 12),
+          dangerAfter: Duration(days: 14),
+        ),
+      ),
+    );
+    final resourceId = await resourceRepository.createResource(
+      const ResourceInput(
+        title: 'Filter',
+        type: ResourceType.quantityBased,
+        config: QuantityBasedResourceConfig(
+          currentQuantity: 5,
+          unitLabel: '個',
+          warningThreshold: 2,
+          dangerThreshold: 1,
+        ),
+      ),
+    );
+    await resourceRepository.createConsumptionRule(
+      ResourceConsumptionRuleInput(itemId: itemId, resourceId: resourceId),
+    );
+    expect(await resourceRepository.archiveResource(resourceId), isTrue);
+
+    await repository.markDone(itemId, doneAt: DateTime(2026, 4, 5));
+
+    final resource = await resourceRepository.getResourceById(resourceId);
+    final history = await resourceRepository.listActionHistory(resourceId);
+    expect(
+      (resource!.resource.config as QuantityBasedResourceConfig)
+          .currentQuantity,
+      5,
+    );
+    expect(
+      history.any((record) => record.actionType == ResourceActionType.consumed),
+      isFalse,
+    );
+  });
+
   test('moveItemToPack moves an item to an existing active pack', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);

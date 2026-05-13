@@ -21,6 +21,18 @@ final resourceProvider = FutureProvider.family<ResourceBundle?, int>((ref, id) {
   return ref.watch(resourceRepositoryProvider).getResourceById(id);
 });
 
+final resourceBindingsProvider =
+    StreamProvider.family<List<ResourceBinding>, int>((ref, resourceId) {
+      return ref.watch(resourceRepositoryProvider).watchBindings(resourceId);
+    });
+
+final resourceActionHistoryProvider =
+    StreamProvider.family<List<ResourceActionRecord>, int>((ref, resourceId) {
+      return ref
+          .watch(resourceRepositoryProvider)
+          .watchActionHistory(resourceId);
+    });
+
 final itemConsumptionRulesProvider =
     StreamProvider.family<List<ResourceConsumptionRule>, int>((ref, itemId) {
       return ref.watch(resourceRepositoryProvider).watchRulesForItem(itemId);

@@ -36,6 +36,13 @@ class FeaturePage extends StatelessWidget {
           ),
           SizedBox(height: 12),
           _FeatureEntryCard(
+            itemKey: 'resources-management',
+            title: '資源管理',
+            icon: Icons.inventory_2_outlined,
+            routeName: ResourceManagementPage.routeName,
+          ),
+          SizedBox(height: 12),
+          _FeatureEntryCard(
             itemKey: 'settings',
             title: ReminderUiText.userSettingsFeatureTitle,
             icon: Icons.settings_outlined,

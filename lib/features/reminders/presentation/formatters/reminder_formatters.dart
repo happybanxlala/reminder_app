@@ -66,6 +66,26 @@ class ReminderFormatters {
     return '${itemActionType(record.actionType)} • ${date(record.actionDate)}$payloadText$remarkText';
   }
 
+  static String resourceActionRecord(ResourceActionRecord record) {
+    final amountText = record.amount == null ? '' : ' • 數量 ${record.amount}';
+    final resultingQuantityText = record.resultingQuantity == null
+        ? ''
+        : ' • 結果 ${record.resultingQuantity}';
+    final addedDaysText = record.addedDays == null
+        ? ''
+        : ' • 增加 ${record.addedDays} 天';
+    final resultingDurationText = record.resultingDurationDays == null
+        ? ''
+        : ' • 約 ${record.resultingDurationDays} 天';
+    final sourceText = record.sourceItemActionRecordId == null
+        ? ''
+        : ' • 來自完成紀錄 #${record.sourceItemActionRecordId}';
+    final remarkText = record.remark == null || record.remark!.isEmpty
+        ? ''
+        : ' • ${record.remark}';
+    return '${resourceActionType(record.actionType)} • ${date(record.actionDate)}$amountText$resultingQuantityText$addedDaysText$resultingDurationText$sourceText$remarkText';
+  }
+
   static String milestoneSummary(TimelineMilestoneOccurrence occurrence) {
     return '${occurrence.label} • ${date(occurrence.targetDate)}';
   }
@@ -165,6 +185,15 @@ class ReminderFormatters {
       ItemActionType.done => '完成',
       ItemActionType.skipped => '跳過',
       ItemActionType.deferred => '延期',
+    };
+  }
+
+  static String resourceActionType(ResourceActionType actionType) {
+    return switch (actionType) {
+      ResourceActionType.created => '新增',
+      ResourceActionType.consumed => '消耗',
+      ResourceActionType.refilled => '補充',
+      ResourceActionType.adjusted => '調整',
     };
   }
 
