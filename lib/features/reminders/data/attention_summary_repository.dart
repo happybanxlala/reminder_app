@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import '../domain/attention_summary.dart';
-import '../domain/timeline_milestone_occurrence.dart';
+import '../domain/stage_occurrence.dart';
 import 'home_models.dart';
 import 'home_repository.dart';
 
@@ -16,12 +16,12 @@ class AttentionSummaryRepository {
     final results = await Future.wait<Object>([
       _homeRepository.watchDangerItems(now: current).first,
       _homeRepository.watchWarningItems(now: current).first,
-      _homeRepository.watchUpcomingTimelineMilestones(now: current).first,
+      _homeRepository.watchUpcomingStages(now: current).first,
     ]);
     return _buildSummary(
       dangerItems: results[0] as List<ItemHomeEntry>,
       warningItems: results[1] as List<ItemHomeEntry>,
-      timelineMilestones: results[2] as List<TimelineMilestoneOccurrence>,
+      stages: results[2] as List<StageOccurrence>,
     );
   }
 
@@ -30,11 +30,11 @@ class AttentionSummaryRepository {
     return _combineLatest3(
       _homeRepository.watchDangerItems(now: current),
       _homeRepository.watchWarningItems(now: current),
-      _homeRepository.watchUpcomingTimelineMilestones(now: current),
-      (dangerItems, warningItems, timelineMilestones) => _buildSummary(
+      _homeRepository.watchUpcomingStages(now: current),
+      (dangerItems, warningItems, stages) => _buildSummary(
         dangerItems: dangerItems,
         warningItems: warningItems,
-        timelineMilestones: timelineMilestones,
+        stages: stages,
       ),
     ).distinct();
   }
@@ -42,12 +42,12 @@ class AttentionSummaryRepository {
   AttentionSummary _buildSummary({
     required List<ItemHomeEntry> dangerItems,
     required List<ItemHomeEntry> warningItems,
-    required List<TimelineMilestoneOccurrence> timelineMilestones,
+    required List<StageOccurrence> stages,
   }) {
     return AttentionSummary(
       dangerCount: dangerItems.length,
       warningCount: warningItems.length,
-      timelineUpcomingCount: timelineMilestones.length,
+      stageUpcomingCount: stages.length,
     );
   }
 

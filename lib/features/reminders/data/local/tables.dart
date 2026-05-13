@@ -207,56 +207,74 @@ class ItemActionRecords extends Table {
   IntColumn get updatedAt => integer()();
 }
 
-@DataClassName('TimelineRow')
-class Timelines extends Table {
+@DataClassName('StageTrackerRow')
+class StageTrackers extends Table {
   @override
-  String get tableName => 'timelines';
+  String get tableName => 'stage_trackers';
 
   IntColumn get id => integer().autoIncrement()();
+  IntColumn get packId => integer().nullable().references(ItemPacks, #id)();
   TextColumn get title => text()();
-  IntColumn get startDate => integer()();
-  TextColumn get displayUnit => text()();
-  TextColumn get status => text()();
-  IntColumn get createdAt => integer()();
-  IntColumn get updatedAt => integer()();
-}
-
-@DataClassName('TimelineMilestoneRuleRow')
-class TimelineMilestoneRules extends Table {
-  @override
-  String get tableName => 'timeline_milestone_rules';
-
-  IntColumn get id => integer().autoIncrement()();
-  IntColumn get timelineId => integer().references(Timelines, #id)();
-  TextColumn get type => text()();
-  IntColumn get intervalValue => integer()();
-  TextColumn get intervalUnit => text()();
-  TextColumn get labelTemplate => text().nullable()();
-  IntColumn get reminderOffsetDays =>
-      integer().withDefault(const Constant(0))();
+  TextColumn get subjectName => text().nullable()();
+  IntColumn get trackingStartDate => integer()();
+  IntColumn get trackingEndDate => integer().nullable()();
   TextColumn get status => text().withDefault(const Constant('active'))();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 }
 
-@DataClassName('TimelineMilestoneRecordRow')
-class TimelineMilestoneRecords extends Table {
+@DataClassName('StageRuleRow')
+class StageRules extends Table {
   @override
-  String get tableName => 'timeline_milestone_records';
+  String get tableName => 'stage_rules';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get stageTrackerId => integer().references(StageTrackers, #id)();
+  TextColumn get type => text()();
+  IntColumn get intervalValue => integer()();
+  TextColumn get intervalUnit => text()();
+  TextColumn get labelTemplate => text().nullable()();
+  IntColumn get reminderOffsetDays => integer().nullable()();
+  TextColumn get status => text().withDefault(const Constant('active'))();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+}
+
+@DataClassName('StageRecordRow')
+class StageRecords extends Table {
+  @override
+  String get tableName => 'stage_records';
 
   @override
   List<Set<Column>> get uniqueKeys => [
-    {timelineId, ruleId, occurrenceIndex},
+    {stageTrackerId, stageRuleId, occurrenceIndex},
   ];
 
   IntColumn get id => integer().autoIncrement()();
-  IntColumn get timelineId => integer().references(Timelines, #id)();
-  IntColumn get ruleId => integer().references(TimelineMilestoneRules, #id)();
-  IntColumn get occurrenceIndex => integer()();
-  IntColumn get targetDate => integer()();
-  TextColumn get status => text()();
-  IntColumn get notifiedAt => integer().nullable()();
-  IntColumn get actedAt => integer().nullable()();
+  IntColumn get stageTrackerId => integer().references(StageTrackers, #id)();
+  IntColumn get stageRuleId =>
+      integer().nullable().references(StageRules, #id)();
+  TextColumn get sourceType => text()();
+  IntColumn get occurrenceIndex => integer().nullable()();
+  IntColumn get occurrenceDate => integer()();
+  IntColumn get relativeAmount => integer().nullable()();
+  TextColumn get relativeUnit => text().nullable()();
+  TextColumn get status => text().withDefault(const Constant('normal'))();
+  TextColumn get label => text()();
+  TextColumn get note => text().nullable()();
+  IntColumn get reminderOffsetDays => integer().nullable()();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+}
+
+@DataClassName('StageRelatedItemRow')
+class StageRelatedItems extends Table {
+  @override
+  String get tableName => 'stage_related_items';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get stageRecordId => integer().references(StageRecords, #id)();
+  IntColumn get itemId => integer().references(Items, #id)();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 }

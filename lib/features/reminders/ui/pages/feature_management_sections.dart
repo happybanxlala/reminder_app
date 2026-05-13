@@ -3,14 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/item_repository.dart';
-import '../../data/local/item_timeline_dao.dart';
+import '../../data/local/reminder_dao.dart';
 import '../../data/resource_repository.dart';
 import '../../domain/item.dart';
 import '../../domain/item_pack.dart';
 import '../../domain/item_pack_template.dart';
 import '../../domain/resource.dart';
-import '../../domain/timeline.dart';
-import '../../domain/timeline_milestone_occurrence.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
 import '../../presentation/view_models/management_item_card_view_model.dart';
@@ -18,12 +16,9 @@ import '../../providers/developer_settings_providers.dart';
 import '../../providers/item_providers.dart';
 import '../../providers/resource_providers.dart';
 import '../../providers/settings_providers.dart';
-import '../../providers/timeline_providers.dart';
 import 'item_edit_page.dart';
 import 'item_history_page.dart';
 import 'resource_history_page.dart';
-import 'timeline_edit_page.dart';
-import 'timeline_milestone_history_page.dart';
 import '../widgets/editor_common_fields.dart';
 import '../widgets/item_config_form_section.dart';
 import '../widgets/resource_binding_draft_section.dart';
@@ -138,53 +133,6 @@ class ItemPacksManagementContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const ItemsManagementContent();
-  }
-}
-
-class TimelineManagementContent extends ConsumerWidget {
-  const TimelineManagementContent({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final timelinesAsync = ref.watch(timelinesProvider);
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _SectionHeader(
-          title: ReminderUiText.timelineManagementFeatureTitle,
-          actions: [
-            FilledButton(
-              key: const Key('add-timeline-button'),
-              onPressed: () {
-                context.pushNamed(TimelineEditPage.timelineNewRouteName);
-              },
-              child: const Text(ReminderUiText.addTimeline),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        timelinesAsync.when(
-          data: (items) {
-            if (items.isEmpty) {
-              return const Text(ReminderUiText.noTimelines);
-            }
-            return Column(
-              children: items
-                  .map(
-                    (item) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _TimelineCard(timeline: item),
-                    ),
-                  )
-                  .toList(growable: false),
-            );
-          },
-          error: (error, stack) => Text('讀取失敗: $error'),
-          loading: () => const Text('正在讀取資源...'),
-        ),
-      ],
-    );
   }
 }
 
@@ -2457,176 +2405,5 @@ class _SaveTemplateDialogState extends State<_SaveTemplateDialog> {
         description: _descriptionController.text.trim(),
       ),
     );
-  }
-}
-
-class _TimelineCard extends ConsumerWidget {
-  const _TimelineCard({required this.timeline});
-
-  final Timeline timeline;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final detailAsync = ref.watch(previewTimelineDetailProvider(timeline.id));
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        timeline.title,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(ReminderFormatters.timelineSummary(timeline)),
-                    ],
-                  ),
-                ),
-                Text(ReminderFormatters.timelineStatus(timeline.status)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            detailAsync.when(
-              data: (detail) {
-                final ruleDetails = detail?.milestoneRuleDetails ?? const [];
-                if (ruleDetails.isEmpty) {
-                  return const Text(ReminderUiText.timelineRuleMissingMessage);
-                }
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(ReminderUiText.milestoneRulesTitle),
-                    const SizedBox(height: 8),
-                    ...ruleDetails.map(
-                      (item) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        key: Key(
-                          'timeline-rule-${timeline.id}-${item.rule.id}',
-                        ),
-                        title: Text(
-                          ReminderFormatters.timelineMilestoneRuleSummary(
-                            item.rule,
-                          ),
-                        ),
-                        subtitle: Text(
-                          item.nextMilestone == null
-                              ? ReminderUiText.timelineRuleUpcomingUnavailable
-                              : '${ReminderUiText.timelineRuleNextLabel}：${ReminderFormatters.milestoneSummary(item.nextMilestone!)}',
-                        ),
-                        trailing: Text(
-                          ReminderFormatters.timelineMilestoneRuleStatus(
-                            item.rule.status,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-              error: (error, stack) =>
-                  const Text(ReminderUiText.timelineRuleLoadFailedMessage),
-              loading: () => const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            detailAsync.when(
-              data: (detail) {
-                final firstUpcomingByRule = _firstUpcomingByRule(
-                  detail?.upcomingMilestones ?? const [],
-                );
-                if (firstUpcomingByRule.isEmpty) {
-                  return const Text(ReminderUiText.noTimelineUpcomingMilestone);
-                }
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(ReminderUiText.nextMilestoneLabel),
-                    const SizedBox(height: 8),
-                    ...firstUpcomingByRule.map(
-                      (occurrence) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        key: Key(
-                          'timeline-upcoming-${timeline.id}-${occurrence.ruleId}',
-                        ),
-                        title: Text(occurrence.label),
-                        subtitle: Text(
-                          ReminderFormatters.date(occurrence.targetDate),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-              error: (error, stack) =>
-                  const Text(ReminderUiText.upcomingMilestoneLoadFailedMessage),
-              loading: () => const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                OutlinedButton(
-                  key: Key('timeline-history-${timeline.id}'),
-                  onPressed: () {
-                    context.pushNamed(
-                      TimelineMilestoneHistoryPage.routeName,
-                      pathParameters: {'id': timeline.id.toString()},
-                    );
-                  },
-                  child: const Text(
-                    ReminderUiText.timelineMilestoneHistoryTitle,
-                  ),
-                ),
-                if (timeline.status != TimelineStatus.archived)
-                  OutlinedButton(
-                    key: Key('timeline-edit-${timeline.id}'),
-                    onPressed: () {
-                      context.pushNamed(
-                        TimelineEditPage.timelineEditRouteName,
-                        pathParameters: {'id': timeline.id.toString()},
-                      );
-                    },
-                    child: const Text(ReminderUiText.editAction),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  List<TimelineMilestoneOccurrence> _firstUpcomingByRule(
-    List<TimelineMilestoneOccurrence> items,
-  ) {
-    final byRule = <int, TimelineMilestoneOccurrence>{};
-    for (final item in items) {
-      byRule.putIfAbsent(item.ruleId, () => item);
-    }
-    return byRule.values.toList(growable: false)
-      ..sort((a, b) => a.targetDate.compareTo(b.targetDate));
   }
 }

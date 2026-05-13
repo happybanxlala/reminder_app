@@ -1,12 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../data/local/item_timeline_dao.dart';
+import '../data/local/reminder_dao.dart';
 import '../data/resource_repository.dart';
 import '../domain/resource.dart';
 import 'database_providers.dart';
 
 final resourceRepositoryProvider = Provider<ResourceRepository>((ref) {
-  return ResourceRepository(ref.watch(appDatabaseProvider).itemTimelineDao);
+  return ResourceRepository(ref.watch(appDatabaseProvider).reminderDao);
 });
 
 final resourcesProvider = StreamProvider<List<ResourceBundle>>((ref) {

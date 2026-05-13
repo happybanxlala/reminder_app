@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../data/local/item_timeline_dao.dart';
+import '../../data/local/reminder_dao.dart';
 import '../../domain/item.dart';
 import '../../domain/item_status_service.dart';
 import '../formatters/reminder_formatters.dart';

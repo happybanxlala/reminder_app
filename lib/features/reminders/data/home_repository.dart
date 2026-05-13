@@ -1,37 +1,28 @@
 import 'dart:async';
 
 import '../domain/item.dart';
-import '../domain/timeline.dart';
-import '../domain/timeline_milestone_occurrence.dart';
-import '../domain/timeline_milestone_record.dart';
-import '../domain/timeline_milestone_rule.dart';
-import '../domain/timeline_milestone_service.dart';
+import '../domain/stage_occurrence.dart';
 import 'home_models.dart';
 import 'item_repository.dart';
-import 'timeline_repository.dart';
+import 'stage_tracker_repository.dart';
 
 abstract class HomeAttentionSource {
   Stream<List<ItemHomeEntry>> watchDangerItems({DateTime? now});
 
   Stream<List<ItemHomeEntry>> watchWarningItems({DateTime? now});
 
-  Stream<List<TimelineMilestoneOccurrence>> watchUpcomingTimelineMilestones({
-    DateTime? now,
-  });
+  Stream<List<StageOccurrence>> watchUpcomingStages({DateTime? now});
 }
 
 class HomeRepository implements HomeAttentionSource {
   HomeRepository({
     required ItemRepository itemRepository,
-    required TimelineRepository timelineRepository,
-    TimelineMilestoneService? milestoneService,
+    required StageTrackerRepository stageTrackerRepository,
   }) : _itemRepository = itemRepository,
-       _timelineRepository = timelineRepository,
-       _milestoneService = milestoneService ?? const TimelineMilestoneService();
+       _stageTrackerRepository = stageTrackerRepository;
 
   final ItemRepository _itemRepository;
-  final TimelineRepository _timelineRepository;
-  final TimelineMilestoneService _milestoneService;
+  final StageTrackerRepository _stageTrackerRepository;
 
   @override
   Stream<List<ItemHomeEntry>> watchDangerItems({DateTime? now}) {
@@ -70,49 +61,23 @@ class HomeRepository implements HomeAttentionSource {
   }
 
   @override
-  Stream<List<TimelineMilestoneOccurrence>> watchUpcomingTimelineMilestones({
-    DateTime? now,
-  }) {
+  Stream<List<StageOccurrence>> watchUpcomingStages({DateTime? now}) {
     final current = _normalizeDate(now ?? DateTime.now());
     return _combineLatest(
       _combineLatest(
-        _timelineRepository.watchTimelines(),
-        _timelineRepository.watchMilestoneRules(),
-        (timelines, rules) => (timelines, rules),
+        _stageTrackerRepository.watchStageTrackers(),
+        _stageTrackerRepository.watchStageRules(),
+        (trackers, rules) => (trackers, rules),
       ),
-      _timelineRepository.watchMilestoneRecords(),
-      (tuple, records) => _computeUpcomingOccurrences(
-        timelines: tuple.$1,
-        rules: tuple.$2,
-        records: records,
-        now: current,
-      ),
-    );
-  }
-
-  List<TimelineMilestoneOccurrence> _computeUpcomingOccurrences({
-    required List<Timeline> timelines,
-    required List<TimelineMilestoneRule> rules,
-    required List<TimelineMilestoneRecord> records,
-    required DateTime now,
-  }) {
-    return [
-      for (final timeline in timelines)
-        ..._milestoneService.getUpcomingOccurrences(
-          timeline,
-          rules
-              .where((rule) => rule.timelineId == timeline.id)
-              .toList(growable: false),
-          records
-              .where((record) => record.timelineId == timeline.id)
-              .toList(growable: false),
-          TimelineMilestoneRange(
-            start: now,
-            end: now.add(const Duration(days: 366)),
+      _stageTrackerRepository.watchStageRecords(),
+      (tuple, records) =>
+          _stageTrackerRepository.computeHomeAttentionOccurrences(
+            trackers: tuple.$1,
+            rules: tuple.$2,
+            records: records,
+            now: current,
           ),
-          now: now,
-        ),
-    ]..sort((a, b) => a.targetDate.compareTo(b.targetDate));
+    );
   }
 
   Stream<T> _combineLatest<A, B, T>(

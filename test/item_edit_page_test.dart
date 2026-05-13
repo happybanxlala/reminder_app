@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/item_repository.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
-import 'package:reminder_app/features/reminders/data/local/item_timeline_dao.dart';
+import 'package:reminder_app/features/reminders/data/local/reminder_dao.dart';
 import 'package:reminder_app/features/reminders/domain/attention_policy.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
@@ -281,7 +281,7 @@ void main() {
   ) async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = ItemRepository(db.itemTimelineDao);
+    final repository = ItemRepository(db.reminderDao);
     final now = DateTime(2026, 4, 1).millisecondsSinceEpoch;
 
     await db
@@ -360,7 +360,7 @@ void main() {
   ) async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = ItemRepository(db.itemTimelineDao);
+    final repository = ItemRepository(db.reminderDao);
     final now = DateTime(2026, 4, 1).millisecondsSinceEpoch;
 
     await db
@@ -427,7 +427,7 @@ void main() {
   ) async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = ItemRepository(db.itemTimelineDao);
+    final repository = ItemRepository(db.reminderDao);
     final itemId = await repository.createItem(
       ItemInput(
         title: 'Custom attention',
@@ -506,7 +506,7 @@ void main() {
   ) async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = ItemRepository(db.itemTimelineDao);
+    final repository = ItemRepository(db.reminderDao);
     final itemId = await repository.createItem(
       ItemInput(
         title: 'Return to default',
@@ -840,7 +840,7 @@ void main() {
   ) async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = ItemRepository(db.itemTimelineDao);
+    final repository = ItemRepository(db.reminderDao);
 
     await tester.pumpWidget(
       ProviderScope(
@@ -877,7 +877,7 @@ void main() {
   ) async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = _RecordingCreateItemRepository(db.itemTimelineDao);
+    final repository = _RecordingCreateItemRepository(db.reminderDao);
     final pack = ItemPack(
       id: 1,
       title: 'Default Item Pack',

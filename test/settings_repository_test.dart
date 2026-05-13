@@ -8,7 +8,7 @@ void main() {
   test('settings repository defaults reminder tone to standard', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = SettingsRepository(db.itemTimelineDao);
+    final repository = SettingsRepository(db.reminderDao);
 
     final settings = await repository.getSettings();
 
@@ -20,7 +20,7 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = SettingsRepository(db.itemTimelineDao);
+      final repository = SettingsRepository(db.reminderDao);
 
       final emitted = <ReminderTone>[];
       final subscription = repository

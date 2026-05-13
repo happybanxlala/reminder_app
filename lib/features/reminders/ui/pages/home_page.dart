@@ -3,18 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/home_models.dart';
-import '../../data/local/item_timeline_dao.dart';
+import '../../data/local/reminder_dao.dart';
 import '../../domain/attention_summary.dart';
 import '../../domain/resource.dart';
-import '../../domain/timeline_milestone_occurrence.dart';
+import '../../domain/stage_occurrence.dart';
 import '../../providers/developer_settings_providers.dart';
 import '../../providers/attention_summary_providers.dart';
 import '../../presentation/text/reminder_ui_text.dart';
-import '../../presentation/view_models/item_timeline_card_view_model.dart';
+import '../../presentation/view_models/item_card_view_model.dart';
 import '../../providers/home_providers.dart';
 import '../../providers/item_providers.dart';
 import '../../providers/resource_providers.dart';
-import '../../providers/timeline_providers.dart';
+import '../../providers/stage_tracker_providers.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import 'feature_page.dart';
 import 'item_edit_page.dart';
@@ -60,7 +60,7 @@ class HomeContent extends ConsumerWidget {
     final dangerAsync = ref.watch(dangerHomeEntriesProvider);
     final warningAsync = ref.watch(warningHomeEntriesProvider);
     final resourcesAsync = ref.watch(resourcesProvider);
-    final timelineAsync = ref.watch(upcomingTimelineMilestonesProvider);
+    final stagesAsync = ref.watch(upcomingStagesProvider);
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -126,10 +126,10 @@ class HomeContent extends ConsumerWidget {
         const SizedBox(height: 16),
         _HomeSection(
           title: ReminderUiText.upcomingSectionTitle,
-          child: timelineAsync.when(
-            data: (items) => _TimelineMilestoneList(
+          child: stagesAsync.when(
+            data: (items) => _StageList(
               items: items,
-              emptyMessage: ReminderUiText.noUpcomingTimelineItems,
+              emptyMessage: ReminderUiText.noUpcomingStages,
             ),
             error: (error, stack) => Text('讀取失敗: $error'),
             loading: () => const Center(child: CircularProgressIndicator()),
@@ -151,7 +151,7 @@ class _AttentionSummaryCard extends StatelessWidget {
     final breakdown = ReminderUiText.homeAttentionBreakdownTemplate
         .replaceFirst('{danger}', '${summary.dangerCount}')
         .replaceFirst('{warning}', '${summary.warningCount}')
-        .replaceFirst('{timeline}', '${summary.timelineUpcomingCount}');
+        .replaceFirst('{stage}', '${summary.stageUpcomingCount}');
 
     return Card(
       key: const Key('attention-summary-card'),
@@ -510,13 +510,10 @@ class _ResourceCard extends ConsumerWidget {
   }
 }
 
-class _TimelineMilestoneList extends ConsumerWidget {
-  const _TimelineMilestoneList({
-    required this.items,
-    required this.emptyMessage,
-  });
+class _StageList extends ConsumerWidget {
+  const _StageList({required this.items, required this.emptyMessage});
 
-  final List<TimelineMilestoneOccurrence> items;
+  final List<StageOccurrence> items;
   final String emptyMessage;
 
   @override
@@ -531,35 +528,25 @@ class _TimelineMilestoneList extends ConsumerWidget {
           Builder(
             builder: (context) {
               final occurrence = items[index];
-              final viewModel = MilestoneCardViewModel.fromOccurrence(
-                occurrence,
-              );
+              final viewModel = StageCardViewModel.fromOccurrence(occurrence);
               return Card(
                 child: Column(
                   children: [
                     ListTile(
-                      key: Key('milestone-item-${viewModel.id}'),
+                      key: Key('stage-item-${viewModel.id}'),
                       title: Text(viewModel.title),
                       subtitle: Text(viewModel.subtitle),
-                      trailing: const Text(ReminderUiText.milestoneLabel),
+                      trailing: const Text(ReminderUiText.stageLabel),
                     ),
                     OverflowBar(
                       children: [
                         TextButton(
                           onPressed: () async {
                             await ref
-                                .read(timelineRepositoryProvider)
-                                .noticeOccurrence(occurrence);
+                                .read(stageTrackerRepositoryProvider)
+                                .acknowledgeOccurrence(occurrence);
                           },
-                          child: const Text(ReminderUiText.noticedAction),
-                        ),
-                        TextButton(
-                          onPressed: () async {
-                            await ref
-                                .read(timelineRepositoryProvider)
-                                .skipOccurrence(occurrence);
-                          },
-                          child: const Text(ReminderUiText.skipAction),
+                          child: const Text(ReminderUiText.acknowledgedAction),
                         ),
                       ],
                     ),

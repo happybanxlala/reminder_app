@@ -3,11 +3,10 @@ import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_status_service.dart';
 import 'package:reminder_app/features/reminders/domain/resource.dart';
 import 'package:reminder_app/features/reminders/domain/resource_status_service.dart';
-import 'package:reminder_app/features/reminders/domain/timeline.dart';
-import 'package:reminder_app/features/reminders/domain/timeline_calculator.dart';
-import 'package:reminder_app/features/reminders/domain/timeline_milestone_record.dart';
-import 'package:reminder_app/features/reminders/domain/timeline_milestone_rule.dart';
-import 'package:reminder_app/features/reminders/domain/timeline_milestone_service.dart';
+import 'package:reminder_app/features/reminders/domain/stage_occurrence_service.dart';
+import 'package:reminder_app/features/reminders/domain/stage_record.dart';
+import 'package:reminder_app/features/reminders/domain/stage_rule.dart';
+import 'package:reminder_app/features/reminders/domain/stage_tracker.dart';
 
 void main() {
   test('item status service classifies state-based items', () {
@@ -245,122 +244,105 @@ void main() {
     );
   });
 
-  test('timeline calculator returns display value', () {
-    const calculator = TimelineCalculator();
-    final timeline = Timeline(
+  test('stage occurrence service computes upcoming dynamically', () {
+    const service = StageOccurrenceService();
+    final tracker = StageTracker(
       id: 1,
       title: 'Dating',
-      startDate: DateTime(2026, 4, 10),
-      displayUnit: TimelineDisplayUnit.day,
-      status: TimelineStatus.active,
+      trackingStartDate: DateTime(2026, 4, 10),
+      status: StageTrackerStatus.active,
+      createdAt: DateTime(2026, 4, 10),
+      updatedAt: DateTime(2026, 4, 10),
+    );
+    final rule = StageRule(
+      id: 11,
+      stageTrackerId: 1,
+      type: StageRuleType.everyNDays,
+      intervalValue: 7,
+      intervalUnit: StageIntervalUnit.days,
+      labelTemplate: '滿 {value}{unit}',
+      reminderOffsetDays: 2,
+      status: StageRuleStatus.active,
       createdAt: DateTime(2026, 4, 10),
       updatedAt: DateTime(2026, 4, 10),
     );
 
-    expect(calculator.displayValue(timeline, DateTime(2026, 4, 12)), 3);
+    final upcoming = service.getHomeAttentionOccurrences(
+      tracker,
+      [rule],
+      const [],
+      StageOccurrenceRange(
+        start: DateTime(2026, 4, 15),
+        end: DateTime(2026, 4, 20),
+      ),
+      now: DateTime(2026, 4, 15),
+    );
+
+    expect(upcoming, hasLength(1));
+    expect(upcoming.single.occurrenceDate, DateTime(2026, 4, 17));
+    expect(upcoming.single.label, '滿 7天');
   });
 
   test(
-    'timeline milestone service computes today and upcoming dynamically',
+    'stage occurrence service hides ignored but keeps acknowledged outside home',
     () {
-      const service = TimelineMilestoneService();
-      final timeline = Timeline(
-        id: 1,
-        title: 'Dating',
-        startDate: DateTime(2026, 4, 10),
-        displayUnit: TimelineDisplayUnit.day,
-        status: TimelineStatus.active,
-        createdAt: DateTime(2026, 4, 10),
-        updatedAt: DateTime(2026, 4, 10),
-      );
-      final rule = TimelineMilestoneRule(
-        id: 11,
-        timelineId: 1,
-        type: TimelineMilestoneRuleType.everyNDays,
-        intervalValue: 7,
-        intervalUnit: TimelineMilestoneIntervalUnit.days,
-        labelTemplate: '第 {value}{unit}',
-        reminderOffsetDays: 2,
-        status: TimelineMilestoneRuleStatus.active,
-        createdAt: DateTime(2026, 4, 10),
-        updatedAt: DateTime(2026, 4, 10),
-      );
-
-      final upcoming = service.getUpcomingOccurrences(
-        timeline,
-        [rule],
-        const [],
-        TimelineMilestoneRange(
-          start: DateTime(2026, 4, 15),
-          end: DateTime(2026, 4, 20),
-        ),
-        now: DateTime(2026, 4, 15),
-      );
-      final today = service.getTodayOccurrences(
-        timeline,
-        [rule],
-        const [],
-        now: DateTime(2026, 4, 16),
-      );
-
-      expect(upcoming, hasLength(1));
-      expect(upcoming.single.targetDate, DateTime(2026, 4, 16));
-      expect(upcoming.single.label, '第 7天');
-      expect(today, hasLength(1));
-      expect(today.single.occurrenceIndex, 1);
-      expect(today.single.label, '第 7天');
-    },
-  );
-
-  test(
-    'timeline milestone service merges persisted records into occurrences',
-    () {
-      const service = TimelineMilestoneService();
-      final timeline = Timeline(
+      const service = StageOccurrenceService();
+      final tracker = StageTracker(
         id: 1,
         title: 'Reading',
-        startDate: DateTime(2026, 4, 10),
-        displayUnit: TimelineDisplayUnit.day,
-        status: TimelineStatus.active,
+        trackingStartDate: DateTime(2026, 4, 10),
+        status: StageTrackerStatus.active,
         createdAt: DateTime(2026, 4, 10),
         updatedAt: DateTime(2026, 4, 10),
       );
-      final rule = TimelineMilestoneRule(
+      final rule = StageRule(
         id: 11,
-        timelineId: 1,
-        type: TimelineMilestoneRuleType.everyNDays,
+        stageTrackerId: 1,
+        type: StageRuleType.everyNDays,
         intervalValue: 10,
-        intervalUnit: TimelineMilestoneIntervalUnit.days,
-        labelTemplate: '第 {value}{unit}',
+        intervalUnit: StageIntervalUnit.days,
+        labelTemplate: '滿 {value}{unit}',
         reminderOffsetDays: 0,
-        status: TimelineMilestoneRuleStatus.active,
+        status: StageRuleStatus.active,
         createdAt: DateTime(2026, 4, 1),
         updatedAt: DateTime(2026, 4, 1),
       );
-      final record = TimelineMilestoneRecord(
+      final record = StageRecord(
         id: 1,
-        timelineId: 1,
-        ruleId: 11,
+        stageTrackerId: 1,
+        stageRuleId: 11,
+        sourceType: StageRecordSourceType.generated,
         occurrenceIndex: 1,
-        targetDate: DateTime(2026, 4, 19),
-        status: TimelineMilestoneRecordStatus.noticed,
-        actedAt: DateTime(2026, 4, 19),
+        occurrenceDate: DateTime(2026, 4, 20),
+        status: StageRecordStatus.acknowledged,
+        label: '滿 10天',
         createdAt: DateTime(2026, 4, 19),
         updatedAt: DateTime(2026, 4, 19),
       );
 
-      final occurrences = service.mergeOccurrencesWithRecords(
-        timeline,
+      final schedule = service.mergeOccurrencesWithRecords(
+        tracker,
         [rule],
         [record],
-        TimelineMilestoneRange(
+        StageOccurrenceRange(
           start: DateTime(2026, 4, 18),
           end: DateTime(2026, 4, 21),
         ),
       );
+      final home = service.getHomeAttentionOccurrences(
+        tracker,
+        [rule],
+        [record],
+        StageOccurrenceRange(
+          start: DateTime(2026, 4, 18),
+          end: DateTime(2026, 4, 21),
+        ),
+        now: DateTime(2026, 4, 20),
+      );
 
-      expect(occurrences, hasLength(1));
-      expect(occurrences.single.status, TimelineMilestoneRecordStatus.noticed);
+      expect(schedule, hasLength(1));
+      expect(schedule.single.recordStatus, StageRecordStatus.acknowledged);
+      expect(home, isEmpty);
     },
   );
 }

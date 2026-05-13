@@ -17,7 +17,7 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = ItemRepository(db.itemTimelineDao);
+      final repository = ItemRepository(db.reminderDao);
 
       final itemId = await repository.createItem(
         ItemInput(
@@ -58,7 +58,7 @@ void main() {
   test('state-based anchor date seeds initial baseline snapshot', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = ItemRepository(db.itemTimelineDao);
+    final repository = ItemRepository(db.reminderDao);
 
     final itemId = await repository.createItem(
       ItemInput(
@@ -87,7 +87,7 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = ItemRepository(db.itemTimelineDao);
+      final repository = ItemRepository(db.reminderDao);
 
       final itemId = await repository.createItem(
         ItemInput(
@@ -128,7 +128,7 @@ void main() {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
       var now = DateTime(2026, 4, 1, 9, 0);
-      final repository = ItemRepository(db.itemTimelineDao, clock: () => now);
+      final repository = ItemRepository(db.reminderDao, clock: () => now);
 
       final itemId = await repository.createItem(
         ItemInput(
@@ -171,7 +171,7 @@ void main() {
   test('watchItemsByStatus filters items by computed status', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = ItemRepository(db.itemTimelineDao);
+    final repository = ItemRepository(db.reminderDao);
 
     await repository.createItem(
       ItemInput(
@@ -221,8 +221,8 @@ void main() {
   test('markDone consumes quantity resource through enabled rule', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = ItemRepository(db.itemTimelineDao);
-    final resourceRepository = ResourceRepository(db.itemTimelineDao);
+    final repository = ItemRepository(db.reminderDao);
+    final resourceRepository = ResourceRepository(db.reminderDao);
 
     final itemId = await repository.createItem(
       const ItemInput(
@@ -281,7 +281,7 @@ void main() {
   test('refill quantity resource writes resulting quantity', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = ResourceRepository(db.itemTimelineDao);
+    final repository = ResourceRepository(db.reminderDao);
 
     final resourceId = await repository.createResource(
       const ResourceInput(
@@ -325,7 +325,7 @@ void main() {
   test('refill time resource carries days before depletion only', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = ResourceRepository(db.itemTimelineDao);
+    final repository = ResourceRepository(db.reminderDao);
 
     final beforeId = await repository.createResource(
       ResourceInput(
@@ -374,7 +374,7 @@ void main() {
   test('defer is disabled and does not write action history', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = ItemRepository(db.itemTimelineDao);
+    final repository = ItemRepository(db.reminderDao);
 
     final itemId = await repository.createItem(
       ItemInput(
@@ -421,7 +421,7 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = ItemRepository(db.itemTimelineDao);
+      final repository = ItemRepository(db.reminderDao);
 
       final itemId = await repository.createItem(
         ItemInput(
@@ -462,7 +462,7 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = ItemRepository(db.itemTimelineDao);
+      final repository = ItemRepository(db.reminderDao);
 
       final itemId = await repository.createItem(
         ItemInput(
@@ -514,7 +514,7 @@ void main() {
   test('updateItem stores customized attention policy source', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = ItemRepository(db.itemTimelineDao);
+    final repository = ItemRepository(db.reminderDao);
 
     final itemId = await repository.createItem(
       ItemInput(
@@ -556,7 +556,7 @@ void main() {
   test('fixed custom schedule fields round-trip through repository', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = ItemRepository(db.itemTimelineDao);
+    final repository = ItemRepository(db.reminderDao);
 
     final itemId = await repository.createItem(
       ItemInput(
@@ -607,7 +607,7 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = ItemRepository(db.itemTimelineDao);
+      final repository = ItemRepository(db.reminderDao);
 
       final itemId = await repository.createItem(
         ItemInput(
@@ -649,7 +649,7 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = ItemRepository(db.itemTimelineDao);
+      final repository = ItemRepository(db.reminderDao);
 
       final packId = await repository.createPack(
         const ItemPackInput(title: 'Cat Care', description: 'Cleaning duties'),
@@ -691,7 +691,7 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = ItemRepository(db.itemTimelineDao);
+      final repository = ItemRepository(db.reminderDao);
 
       final itemId = await repository.createItemWithOptionalNewPack(
         item: ItemInput(
@@ -721,7 +721,7 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = ItemRepository(db.itemTimelineDao);
+      final repository = ItemRepository(db.reminderDao);
 
       final packId = await repository.createPack(
         const ItemPackInput(title: 'Cat Care'),
@@ -753,8 +753,8 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = ItemRepository(db.itemTimelineDao);
-      final resourceRepository = ResourceRepository(db.itemTimelineDao);
+      final repository = ItemRepository(db.reminderDao);
+      final resourceRepository = ResourceRepository(db.reminderDao);
 
       final packId = await repository.createPack(
         const ItemPackInput(title: 'Housework'),
@@ -800,8 +800,8 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = ItemRepository(db.itemTimelineDao);
-      final resourceRepository = ResourceRepository(db.itemTimelineDao);
+      final repository = ItemRepository(db.reminderDao);
+      final resourceRepository = ResourceRepository(db.reminderDao);
 
       final itemId = await repository.createItemWithOptionalNewPack(
         item: const ItemInput(
@@ -854,8 +854,8 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = ItemRepository(db.itemTimelineDao);
-      final resourceRepository = ResourceRepository(db.itemTimelineDao);
+      final repository = ItemRepository(db.reminderDao);
+      final resourceRepository = ResourceRepository(db.reminderDao);
 
       final itemPackId = await repository.createPack(
         const ItemPackInput(title: 'Items'),
@@ -907,8 +907,8 @@ void main() {
   test('archived quantity resource is not consumed by markDone', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = ItemRepository(db.itemTimelineDao);
-    final resourceRepository = ResourceRepository(db.itemTimelineDao);
+    final repository = ItemRepository(db.reminderDao);
+    final resourceRepository = ResourceRepository(db.reminderDao);
 
     final itemId = await repository.createItem(
       const ItemInput(
@@ -955,7 +955,7 @@ void main() {
   test('moveItemToPack moves an item to an existing active pack', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = ItemRepository(db.itemTimelineDao);
+    final repository = ItemRepository(db.reminderDao);
 
     final sourcePackId = await repository.createPack(
       const ItemPackInput(title: 'Source'),
@@ -989,7 +989,7 @@ void main() {
   test('moveItemToPack with null pack moves item to system default', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = ItemRepository(db.itemTimelineDao);
+    final repository = ItemRepository(db.reminderDao);
 
     final packId = await repository.createPack(
       const ItemPackInput(title: 'Cat Care'),
@@ -1018,7 +1018,7 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = ItemRepository(db.itemTimelineDao);
+      final repository = ItemRepository(db.reminderDao);
 
       final itemId = await repository.createItem(
         ItemInput(
@@ -1055,7 +1055,7 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = ItemRepository(db.itemTimelineDao);
+      final repository = ItemRepository(db.reminderDao);
 
       final sourcePackId = await repository.createPack(
         const ItemPackInput(title: 'Source'),
@@ -1096,7 +1096,7 @@ void main() {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
       final now = DateTime(2026, 4, 10, 9, 0);
-      final repository = ItemRepository(db.itemTimelineDao, clock: () => now);
+      final repository = ItemRepository(db.reminderDao, clock: () => now);
 
       final template = (await repository.watchTemplates().first).firstWhere(
         (template) => template.id == 'builtin-cat-care',
@@ -1120,7 +1120,7 @@ void main() {
       expect(fixedConfig.dueDate, DateTime(2026, 4, 10));
 
       final resources = await ResourceRepository(
-        db.itemTimelineDao,
+        db.reminderDao,
       ).watchManagedResources().first;
       expect(resources.any((bundle) => bundle.resource.title == '貓乾糧'), isTrue);
     },
@@ -1131,7 +1131,7 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = ItemRepository(db.itemTimelineDao);
+      final repository = ItemRepository(db.reminderDao);
 
       final packId = await repository.createPack(
         const ItemPackInput(title: 'Cat Care', description: 'Daily care'),
@@ -1203,7 +1203,7 @@ void main() {
   test('system default pack cannot be edited or archived', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = ItemRepository(db.itemTimelineDao);
+    final repository = ItemRepository(db.reminderDao);
 
     final defaultPack =
         (await repository.watchPacks(includeArchived: true).first).singleWhere(
@@ -1226,7 +1226,7 @@ void main() {
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = ItemRepository(db.itemTimelineDao);
+      final repository = ItemRepository(db.reminderDao);
 
       final activeId = await repository.createItem(
         ItemInput(
@@ -1280,7 +1280,7 @@ void main() {
   test('archivePack archives items inside the pack', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = ItemRepository(db.itemTimelineDao);
+    final repository = ItemRepository(db.reminderDao);
 
     final packId = await repository.createPack(
       const ItemPackInput(title: 'Food'),
@@ -1333,7 +1333,7 @@ void main() {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
       var now = DateTime(2026, 4, 1, 9, 0);
-      final repository = ItemRepository(db.itemTimelineDao, clock: () => now);
+      final repository = ItemRepository(db.reminderDao, clock: () => now);
 
       final packId = await repository.createPack(
         const ItemPackInput(title: 'Cat Care'),

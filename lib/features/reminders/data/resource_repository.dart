@@ -6,7 +6,7 @@ import '../domain/resource.dart';
 import '../domain/resource_refill_service.dart';
 import '../domain/resource_status_service.dart';
 import 'local/app_database.dart';
-import 'local/item_timeline_dao.dart';
+import 'local/reminder_dao.dart';
 
 class ResourceInput {
   const ResourceInput({
@@ -55,7 +55,7 @@ class ResourceRepository {
     ResourceLifecycleStatus.paused,
   };
 
-  final ItemTimelineDao _dao;
+  final ReminderDao _dao;
   final ResourceStatusService _statusService;
   final ResourceRefillService _refillService;
   final DateTime Function() _clock;

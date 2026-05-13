@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/home_models.dart';
-import 'package:reminder_app/features/reminders/data/local/item_timeline_dao.dart';
+import 'package:reminder_app/features/reminders/data/local/reminder_dao.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
-import 'package:reminder_app/features/reminders/presentation/view_models/item_timeline_card_view_model.dart';
+import 'package:reminder_app/features/reminders/presentation/view_models/item_card_view_model.dart';
 
 void main() {
   test('item card view model maps base statuses when not overridden', () {

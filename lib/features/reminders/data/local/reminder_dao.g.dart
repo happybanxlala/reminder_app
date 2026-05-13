@@ -1,9 +1,9 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'item_timeline_dao.dart';
+part of 'reminder_dao.dart';
 
 // ignore_for_file: type=lint
-mixin _$ItemTimelineDaoMixin on DatabaseAccessor<AppDatabase> {
+mixin _$ReminderDaoMixin on DatabaseAccessor<AppDatabase> {
   $ItemPacksTable get itemPacks => attachedDatabase.itemPacks;
   $ItemsTable get items => attachedDatabase.items;
   $ItemPackTemplatesTable get itemPackTemplates =>
@@ -22,19 +22,19 @@ mixin _$ItemTimelineDaoMixin on DatabaseAccessor<AppDatabase> {
       attachedDatabase.itemActionRecords;
   $ResourceActionRecordsTable get resourceActionRecords =>
       attachedDatabase.resourceActionRecords;
-  $TimelinesTable get timelines => attachedDatabase.timelines;
-  $TimelineMilestoneRulesTable get timelineMilestoneRules =>
-      attachedDatabase.timelineMilestoneRules;
-  $TimelineMilestoneRecordsTable get timelineMilestoneRecords =>
-      attachedDatabase.timelineMilestoneRecords;
+  $StageTrackersTable get stageTrackers => attachedDatabase.stageTrackers;
+  $StageRulesTable get stageRules => attachedDatabase.stageRules;
+  $StageRecordsTable get stageRecords => attachedDatabase.stageRecords;
+  $StageRelatedItemsTable get stageRelatedItems =>
+      attachedDatabase.stageRelatedItems;
   $AppSettingsEntriesTable get appSettingsEntries =>
       attachedDatabase.appSettingsEntries;
-  ItemTimelineDaoManager get managers => ItemTimelineDaoManager(this);
+  ReminderDaoManager get managers => ReminderDaoManager(this);
 }
 
-class ItemTimelineDaoManager {
-  final _$ItemTimelineDaoMixin _db;
-  ItemTimelineDaoManager(this._db);
+class ReminderDaoManager {
+  final _$ReminderDaoMixin _db;
+  ReminderDaoManager(this._db);
   $$ItemPacksTableTableManager get itemPacks =>
       $$ItemPacksTableTableManager(_db.attachedDatabase, _db.itemPacks);
   $$ItemsTableTableManager get items =>
@@ -77,17 +77,16 @@ class ItemTimelineDaoManager {
         _db.attachedDatabase,
         _db.resourceActionRecords,
       );
-  $$TimelinesTableTableManager get timelines =>
-      $$TimelinesTableTableManager(_db.attachedDatabase, _db.timelines);
-  $$TimelineMilestoneRulesTableTableManager get timelineMilestoneRules =>
-      $$TimelineMilestoneRulesTableTableManager(
+  $$StageTrackersTableTableManager get stageTrackers =>
+      $$StageTrackersTableTableManager(_db.attachedDatabase, _db.stageTrackers);
+  $$StageRulesTableTableManager get stageRules =>
+      $$StageRulesTableTableManager(_db.attachedDatabase, _db.stageRules);
+  $$StageRecordsTableTableManager get stageRecords =>
+      $$StageRecordsTableTableManager(_db.attachedDatabase, _db.stageRecords);
+  $$StageRelatedItemsTableTableManager get stageRelatedItems =>
+      $$StageRelatedItemsTableTableManager(
         _db.attachedDatabase,
-        _db.timelineMilestoneRules,
-      );
-  $$TimelineMilestoneRecordsTableTableManager get timelineMilestoneRecords =>
-      $$TimelineMilestoneRecordsTableTableManager(
-        _db.attachedDatabase,
-        _db.timelineMilestoneRecords,
+        _db.stageRelatedItems,
       );
   $$AppSettingsEntriesTableTableManager get appSettingsEntries =>
       $$AppSettingsEntriesTableTableManager(

@@ -1,6 +1,6 @@
 import '../domain/item.dart';
-import '../domain/timeline_milestone_occurrence.dart';
-import 'local/item_timeline_dao.dart';
+import '../domain/stage_occurrence.dart';
+import 'local/reminder_dao.dart';
 
 sealed class HomeEntry {
   const HomeEntry();
@@ -18,8 +18,8 @@ class ItemHomeEntry extends HomeEntry {
   final Duration? elapsed;
 }
 
-class TimelineMilestoneHomeEntry extends HomeEntry {
-  const TimelineMilestoneHomeEntry(this.occurrence);
+class StageHomeEntry extends HomeEntry {
+  const StageHomeEntry(this.occurrence);
 
-  final TimelineMilestoneOccurrence occurrence;
+  final StageOccurrence occurrence;
 }

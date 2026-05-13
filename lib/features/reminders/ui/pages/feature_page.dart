@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../data/local/item_timeline_dao.dart';
+import '../../data/local/reminder_dao.dart';
 import '../../domain/attention_policy.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
@@ -10,6 +10,7 @@ import '../../providers/developer_settings_providers.dart';
 import '../../providers/item_providers.dart';
 import '../../providers/settings_providers.dart';
 import 'feature_management_sections.dart';
+import 'stage_tracker_pages.dart';
 import '../widgets/item_summary_dialog.dart';
 
 typedef PreviewDatePicker =
@@ -40,6 +41,13 @@ class FeaturePage extends StatelessWidget {
             title: '資源管理',
             icon: Icons.inventory_2_outlined,
             routeName: ResourceManagementPage.routeName,
+          ),
+          SizedBox(height: 12),
+          _FeatureEntryCard(
+            itemKey: 'stage-trackers',
+            title: ReminderUiText.stageTrackerManagementFeatureTitle,
+            icon: Icons.auto_graph_outlined,
+            routeName: StageTrackerManagementPage.routeName,
           ),
           SizedBox(height: 12),
           _FeatureEntryCard(
@@ -256,24 +264,6 @@ class ItemPacksManagementPage extends StatelessWidget {
         title: const Text(ReminderUiText.itemsManagementFeatureTitle),
       ),
       body: const ItemsManagementContent(),
-    );
-  }
-}
-
-class TimelineManagementPage extends StatelessWidget {
-  const TimelineManagementPage({super.key});
-
-  static const routeName = 'timeline-management';
-  static const routePath = '/timeline';
-  static const legacyRoutePath = '/feature/timeline-management';
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(ReminderUiText.timelineManagementFeatureTitle),
-      ),
-      body: const TimelineManagementContent(),
     );
   }
 }

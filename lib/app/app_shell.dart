@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../features/reminders/presentation/text/reminder_ui_text.dart';
 import '../features/reminders/ui/pages/feature_page.dart';
 import '../features/reminders/ui/pages/item_edit_page.dart';
-import '../features/reminders/ui/pages/timeline_edit_page.dart';
+import '../features/reminders/ui/pages/stage_tracker_pages.dart';
 
 class AppShell extends StatelessWidget {
   const AppShell({required this.navigationShell, super.key});
@@ -47,9 +47,9 @@ class AppShell extends StatelessWidget {
             label: ReminderUiText.bottomNavManage,
           ),
           NavigationDestination(
-            icon: Icon(Icons.timeline_outlined),
-            selectedIcon: Icon(Icons.timeline),
-            label: ReminderUiText.bottomNavTimeline,
+            icon: Icon(Icons.auto_graph_outlined),
+            selectedIcon: Icon(Icons.auto_graph),
+            label: ReminderUiText.bottomNavStageTracker,
           ),
         ],
       ),
@@ -60,7 +60,7 @@ class AppShell extends StatelessWidget {
     return switch (index) {
       0 => ReminderUiText.bottomNavToday,
       1 => ReminderUiText.manageTitle,
-      2 => ReminderUiText.timelineTitle,
+      2 => ReminderUiText.stageTrackerTitle,
       _ => ReminderUiText.appTitle,
     };
   }
@@ -81,10 +81,10 @@ class _FabForBranch extends StatelessWidget {
         child: const Icon(Icons.add_task),
       ),
       2 => FloatingActionButton(
-        key: const Key('timeline-add-fab'),
+        key: const Key('stage-tracker-add-fab'),
         onPressed: () =>
-            context.pushNamed(TimelineEditPage.timelineNewRouteName),
-        tooltip: ReminderUiText.addTimeline,
+            context.pushNamed(StageTrackerManagementPage.routeName),
+        tooltip: ReminderUiText.addStageTracker,
         child: const Icon(Icons.add),
       ),
       _ => const SizedBox.shrink(),

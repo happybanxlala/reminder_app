@@ -8261,12 +8261,12 @@ class ResourceActionRecordsCompanion
   }
 }
 
-class $TimelinesTable extends Timelines
-    with TableInfo<$TimelinesTable, TimelineRow> {
+class $StageTrackersTable extends StageTrackers
+    with TableInfo<$StageTrackersTable, StageTrackerRow> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
-  $TimelinesTable(this.attachedDatabase, [this._alias]);
+  $StageTrackersTable(this.attachedDatabase, [this._alias]);
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -8280,6 +8280,18 @@ class $TimelinesTable extends Timelines
       'PRIMARY KEY AUTOINCREMENT',
     ),
   );
+  static const VerificationMeta _packIdMeta = const VerificationMeta('packId');
+  @override
+  late final GeneratedColumn<int> packId = GeneratedColumn<int>(
+    'pack_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES item_packs (id)',
+    ),
+  );
   static const VerificationMeta _titleMeta = const VerificationMeta('title');
   @override
   late final GeneratedColumn<String> title = GeneratedColumn<String>(
@@ -8289,27 +8301,38 @@ class $TimelinesTable extends Timelines
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _startDateMeta = const VerificationMeta(
-    'startDate',
+  static const VerificationMeta _subjectNameMeta = const VerificationMeta(
+    'subjectName',
   );
   @override
-  late final GeneratedColumn<int> startDate = GeneratedColumn<int>(
-    'start_date',
+  late final GeneratedColumn<String> subjectName = GeneratedColumn<String>(
+    'subject_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _trackingStartDateMeta = const VerificationMeta(
+    'trackingStartDate',
+  );
+  @override
+  late final GeneratedColumn<int> trackingStartDate = GeneratedColumn<int>(
+    'tracking_start_date',
     aliasedName,
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _displayUnitMeta = const VerificationMeta(
-    'displayUnit',
+  static const VerificationMeta _trackingEndDateMeta = const VerificationMeta(
+    'trackingEndDate',
   );
   @override
-  late final GeneratedColumn<String> displayUnit = GeneratedColumn<String>(
-    'display_unit',
+  late final GeneratedColumn<int> trackingEndDate = GeneratedColumn<int>(
+    'tracking_end_date',
     aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
@@ -8318,7 +8341,8 @@ class $TimelinesTable extends Timelines
     aliasedName,
     false,
     type: DriftSqlType.string,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('active'),
   );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
@@ -8345,9 +8369,11 @@ class $TimelinesTable extends Timelines
   @override
   List<GeneratedColumn> get $columns => [
     id,
+    packId,
     title,
-    startDate,
-    displayUnit,
+    subjectName,
+    trackingStartDate,
+    trackingEndDate,
     status,
     createdAt,
     updatedAt,
@@ -8356,16 +8382,22 @@ class $TimelinesTable extends Timelines
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
-  static const String $name = 'timelines';
+  static const String $name = 'stage_trackers';
   @override
   VerificationContext validateIntegrity(
-    Insertable<TimelineRow> instance, {
+    Insertable<StageTrackerRow> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('pack_id')) {
+      context.handle(
+        _packIdMeta,
+        packId.isAcceptableOrUnknown(data['pack_id']!, _packIdMeta),
+      );
     }
     if (data.containsKey('title')) {
       context.handle(
@@ -8375,32 +8407,40 @@ class $TimelinesTable extends Timelines
     } else if (isInserting) {
       context.missing(_titleMeta);
     }
-    if (data.containsKey('start_date')) {
+    if (data.containsKey('subject_name')) {
       context.handle(
-        _startDateMeta,
-        startDate.isAcceptableOrUnknown(data['start_date']!, _startDateMeta),
+        _subjectNameMeta,
+        subjectName.isAcceptableOrUnknown(
+          data['subject_name']!,
+          _subjectNameMeta,
+        ),
       );
-    } else if (isInserting) {
-      context.missing(_startDateMeta);
     }
-    if (data.containsKey('display_unit')) {
+    if (data.containsKey('tracking_start_date')) {
       context.handle(
-        _displayUnitMeta,
-        displayUnit.isAcceptableOrUnknown(
-          data['display_unit']!,
-          _displayUnitMeta,
+        _trackingStartDateMeta,
+        trackingStartDate.isAcceptableOrUnknown(
+          data['tracking_start_date']!,
+          _trackingStartDateMeta,
         ),
       );
     } else if (isInserting) {
-      context.missing(_displayUnitMeta);
+      context.missing(_trackingStartDateMeta);
+    }
+    if (data.containsKey('tracking_end_date')) {
+      context.handle(
+        _trackingEndDateMeta,
+        trackingEndDate.isAcceptableOrUnknown(
+          data['tracking_end_date']!,
+          _trackingEndDateMeta,
+        ),
+      );
     }
     if (data.containsKey('status')) {
       context.handle(
         _statusMeta,
         status.isAcceptableOrUnknown(data['status']!, _statusMeta),
       );
-    } else if (isInserting) {
-      context.missing(_statusMeta);
     }
     if (data.containsKey('created_at')) {
       context.handle(
@@ -8424,25 +8464,33 @@ class $TimelinesTable extends Timelines
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  TimelineRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+  StageTrackerRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return TimelineRow(
+    return StageTrackerRow(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
       )!,
+      packId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pack_id'],
+      ),
       title: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}title'],
       )!,
-      startDate: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}start_date'],
-      )!,
-      displayUnit: attachedDatabase.typeMapping.read(
+      subjectName: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}display_unit'],
+        data['${effectivePrefix}subject_name'],
+      ),
+      trackingStartDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tracking_start_date'],
       )!,
+      trackingEndDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tracking_end_date'],
+      ),
       status: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}status'],
@@ -8459,24 +8507,28 @@ class $TimelinesTable extends Timelines
   }
 
   @override
-  $TimelinesTable createAlias(String alias) {
-    return $TimelinesTable(attachedDatabase, alias);
+  $StageTrackersTable createAlias(String alias) {
+    return $StageTrackersTable(attachedDatabase, alias);
   }
 }
 
-class TimelineRow extends DataClass implements Insertable<TimelineRow> {
+class StageTrackerRow extends DataClass implements Insertable<StageTrackerRow> {
   final int id;
+  final int? packId;
   final String title;
-  final int startDate;
-  final String displayUnit;
+  final String? subjectName;
+  final int trackingStartDate;
+  final int? trackingEndDate;
   final String status;
   final int createdAt;
   final int updatedAt;
-  const TimelineRow({
+  const StageTrackerRow({
     required this.id,
+    this.packId,
     required this.title,
-    required this.startDate,
-    required this.displayUnit,
+    this.subjectName,
+    required this.trackingStartDate,
+    this.trackingEndDate,
     required this.status,
     required this.createdAt,
     required this.updatedAt,
@@ -8485,37 +8537,55 @@ class TimelineRow extends DataClass implements Insertable<TimelineRow> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
+    if (!nullToAbsent || packId != null) {
+      map['pack_id'] = Variable<int>(packId);
+    }
     map['title'] = Variable<String>(title);
-    map['start_date'] = Variable<int>(startDate);
-    map['display_unit'] = Variable<String>(displayUnit);
+    if (!nullToAbsent || subjectName != null) {
+      map['subject_name'] = Variable<String>(subjectName);
+    }
+    map['tracking_start_date'] = Variable<int>(trackingStartDate);
+    if (!nullToAbsent || trackingEndDate != null) {
+      map['tracking_end_date'] = Variable<int>(trackingEndDate);
+    }
     map['status'] = Variable<String>(status);
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     return map;
   }
 
-  TimelinesCompanion toCompanion(bool nullToAbsent) {
-    return TimelinesCompanion(
+  StageTrackersCompanion toCompanion(bool nullToAbsent) {
+    return StageTrackersCompanion(
       id: Value(id),
+      packId: packId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(packId),
       title: Value(title),
-      startDate: Value(startDate),
-      displayUnit: Value(displayUnit),
+      subjectName: subjectName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(subjectName),
+      trackingStartDate: Value(trackingStartDate),
+      trackingEndDate: trackingEndDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(trackingEndDate),
       status: Value(status),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
   }
 
-  factory TimelineRow.fromJson(
+  factory StageTrackerRow.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return TimelineRow(
+    return StageTrackerRow(
       id: serializer.fromJson<int>(json['id']),
+      packId: serializer.fromJson<int?>(json['packId']),
       title: serializer.fromJson<String>(json['title']),
-      startDate: serializer.fromJson<int>(json['startDate']),
-      displayUnit: serializer.fromJson<String>(json['displayUnit']),
+      subjectName: serializer.fromJson<String?>(json['subjectName']),
+      trackingStartDate: serializer.fromJson<int>(json['trackingStartDate']),
+      trackingEndDate: serializer.fromJson<int?>(json['trackingEndDate']),
       status: serializer.fromJson<String>(json['status']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
@@ -8526,40 +8596,54 @@ class TimelineRow extends DataClass implements Insertable<TimelineRow> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
+      'packId': serializer.toJson<int?>(packId),
       'title': serializer.toJson<String>(title),
-      'startDate': serializer.toJson<int>(startDate),
-      'displayUnit': serializer.toJson<String>(displayUnit),
+      'subjectName': serializer.toJson<String?>(subjectName),
+      'trackingStartDate': serializer.toJson<int>(trackingStartDate),
+      'trackingEndDate': serializer.toJson<int?>(trackingEndDate),
       'status': serializer.toJson<String>(status),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
   }
 
-  TimelineRow copyWith({
+  StageTrackerRow copyWith({
     int? id,
+    Value<int?> packId = const Value.absent(),
     String? title,
-    int? startDate,
-    String? displayUnit,
+    Value<String?> subjectName = const Value.absent(),
+    int? trackingStartDate,
+    Value<int?> trackingEndDate = const Value.absent(),
     String? status,
     int? createdAt,
     int? updatedAt,
-  }) => TimelineRow(
+  }) => StageTrackerRow(
     id: id ?? this.id,
+    packId: packId.present ? packId.value : this.packId,
     title: title ?? this.title,
-    startDate: startDate ?? this.startDate,
-    displayUnit: displayUnit ?? this.displayUnit,
+    subjectName: subjectName.present ? subjectName.value : this.subjectName,
+    trackingStartDate: trackingStartDate ?? this.trackingStartDate,
+    trackingEndDate: trackingEndDate.present
+        ? trackingEndDate.value
+        : this.trackingEndDate,
     status: status ?? this.status,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
-  TimelineRow copyWithCompanion(TimelinesCompanion data) {
-    return TimelineRow(
+  StageTrackerRow copyWithCompanion(StageTrackersCompanion data) {
+    return StageTrackerRow(
       id: data.id.present ? data.id.value : this.id,
+      packId: data.packId.present ? data.packId.value : this.packId,
       title: data.title.present ? data.title.value : this.title,
-      startDate: data.startDate.present ? data.startDate.value : this.startDate,
-      displayUnit: data.displayUnit.present
-          ? data.displayUnit.value
-          : this.displayUnit,
+      subjectName: data.subjectName.present
+          ? data.subjectName.value
+          : this.subjectName,
+      trackingStartDate: data.trackingStartDate.present
+          ? data.trackingStartDate.value
+          : this.trackingStartDate,
+      trackingEndDate: data.trackingEndDate.present
+          ? data.trackingEndDate.value
+          : this.trackingEndDate,
       status: data.status.present ? data.status.value : this.status,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -8568,11 +8652,13 @@ class TimelineRow extends DataClass implements Insertable<TimelineRow> {
 
   @override
   String toString() {
-    return (StringBuffer('TimelineRow(')
+    return (StringBuffer('StageTrackerRow(')
           ..write('id: $id, ')
+          ..write('packId: $packId, ')
           ..write('title: $title, ')
-          ..write('startDate: $startDate, ')
-          ..write('displayUnit: $displayUnit, ')
+          ..write('subjectName: $subjectName, ')
+          ..write('trackingStartDate: $trackingStartDate, ')
+          ..write('trackingEndDate: $trackingEndDate, ')
           ..write('status: $status, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -8583,9 +8669,11 @@ class TimelineRow extends DataClass implements Insertable<TimelineRow> {
   @override
   int get hashCode => Object.hash(
     id,
+    packId,
     title,
-    startDate,
-    displayUnit,
+    subjectName,
+    trackingStartDate,
+    trackingEndDate,
     status,
     createdAt,
     updatedAt,
@@ -8593,81 +8681,95 @@ class TimelineRow extends DataClass implements Insertable<TimelineRow> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is TimelineRow &&
+      (other is StageTrackerRow &&
           other.id == this.id &&
+          other.packId == this.packId &&
           other.title == this.title &&
-          other.startDate == this.startDate &&
-          other.displayUnit == this.displayUnit &&
+          other.subjectName == this.subjectName &&
+          other.trackingStartDate == this.trackingStartDate &&
+          other.trackingEndDate == this.trackingEndDate &&
           other.status == this.status &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
 
-class TimelinesCompanion extends UpdateCompanion<TimelineRow> {
+class StageTrackersCompanion extends UpdateCompanion<StageTrackerRow> {
   final Value<int> id;
+  final Value<int?> packId;
   final Value<String> title;
-  final Value<int> startDate;
-  final Value<String> displayUnit;
+  final Value<String?> subjectName;
+  final Value<int> trackingStartDate;
+  final Value<int?> trackingEndDate;
   final Value<String> status;
   final Value<int> createdAt;
   final Value<int> updatedAt;
-  const TimelinesCompanion({
+  const StageTrackersCompanion({
     this.id = const Value.absent(),
+    this.packId = const Value.absent(),
     this.title = const Value.absent(),
-    this.startDate = const Value.absent(),
-    this.displayUnit = const Value.absent(),
+    this.subjectName = const Value.absent(),
+    this.trackingStartDate = const Value.absent(),
+    this.trackingEndDate = const Value.absent(),
     this.status = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
-  TimelinesCompanion.insert({
+  StageTrackersCompanion.insert({
     this.id = const Value.absent(),
+    this.packId = const Value.absent(),
     required String title,
-    required int startDate,
-    required String displayUnit,
-    required String status,
+    this.subjectName = const Value.absent(),
+    required int trackingStartDate,
+    this.trackingEndDate = const Value.absent(),
+    this.status = const Value.absent(),
     required int createdAt,
     required int updatedAt,
   }) : title = Value(title),
-       startDate = Value(startDate),
-       displayUnit = Value(displayUnit),
-       status = Value(status),
+       trackingStartDate = Value(trackingStartDate),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
-  static Insertable<TimelineRow> custom({
+  static Insertable<StageTrackerRow> custom({
     Expression<int>? id,
+    Expression<int>? packId,
     Expression<String>? title,
-    Expression<int>? startDate,
-    Expression<String>? displayUnit,
+    Expression<String>? subjectName,
+    Expression<int>? trackingStartDate,
+    Expression<int>? trackingEndDate,
     Expression<String>? status,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (packId != null) 'pack_id': packId,
       if (title != null) 'title': title,
-      if (startDate != null) 'start_date': startDate,
-      if (displayUnit != null) 'display_unit': displayUnit,
+      if (subjectName != null) 'subject_name': subjectName,
+      if (trackingStartDate != null) 'tracking_start_date': trackingStartDate,
+      if (trackingEndDate != null) 'tracking_end_date': trackingEndDate,
       if (status != null) 'status': status,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
   }
 
-  TimelinesCompanion copyWith({
+  StageTrackersCompanion copyWith({
     Value<int>? id,
+    Value<int?>? packId,
     Value<String>? title,
-    Value<int>? startDate,
-    Value<String>? displayUnit,
+    Value<String?>? subjectName,
+    Value<int>? trackingStartDate,
+    Value<int?>? trackingEndDate,
     Value<String>? status,
     Value<int>? createdAt,
     Value<int>? updatedAt,
   }) {
-    return TimelinesCompanion(
+    return StageTrackersCompanion(
       id: id ?? this.id,
+      packId: packId ?? this.packId,
       title: title ?? this.title,
-      startDate: startDate ?? this.startDate,
-      displayUnit: displayUnit ?? this.displayUnit,
+      subjectName: subjectName ?? this.subjectName,
+      trackingStartDate: trackingStartDate ?? this.trackingStartDate,
+      trackingEndDate: trackingEndDate ?? this.trackingEndDate,
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -8680,14 +8782,20 @@ class TimelinesCompanion extends UpdateCompanion<TimelineRow> {
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
+    if (packId.present) {
+      map['pack_id'] = Variable<int>(packId.value);
+    }
     if (title.present) {
       map['title'] = Variable<String>(title.value);
     }
-    if (startDate.present) {
-      map['start_date'] = Variable<int>(startDate.value);
+    if (subjectName.present) {
+      map['subject_name'] = Variable<String>(subjectName.value);
     }
-    if (displayUnit.present) {
-      map['display_unit'] = Variable<String>(displayUnit.value);
+    if (trackingStartDate.present) {
+      map['tracking_start_date'] = Variable<int>(trackingStartDate.value);
+    }
+    if (trackingEndDate.present) {
+      map['tracking_end_date'] = Variable<int>(trackingEndDate.value);
     }
     if (status.present) {
       map['status'] = Variable<String>(status.value);
@@ -8703,11 +8811,13 @@ class TimelinesCompanion extends UpdateCompanion<TimelineRow> {
 
   @override
   String toString() {
-    return (StringBuffer('TimelinesCompanion(')
+    return (StringBuffer('StageTrackersCompanion(')
           ..write('id: $id, ')
+          ..write('packId: $packId, ')
           ..write('title: $title, ')
-          ..write('startDate: $startDate, ')
-          ..write('displayUnit: $displayUnit, ')
+          ..write('subjectName: $subjectName, ')
+          ..write('trackingStartDate: $trackingStartDate, ')
+          ..write('trackingEndDate: $trackingEndDate, ')
           ..write('status: $status, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -8716,12 +8826,12 @@ class TimelinesCompanion extends UpdateCompanion<TimelineRow> {
   }
 }
 
-class $TimelineMilestoneRulesTable extends TimelineMilestoneRules
-    with TableInfo<$TimelineMilestoneRulesTable, TimelineMilestoneRuleRow> {
+class $StageRulesTable extends StageRules
+    with TableInfo<$StageRulesTable, StageRuleRow> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
-  $TimelineMilestoneRulesTable(this.attachedDatabase, [this._alias]);
+  $StageRulesTable(this.attachedDatabase, [this._alias]);
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -8735,18 +8845,18 @@ class $TimelineMilestoneRulesTable extends TimelineMilestoneRules
       'PRIMARY KEY AUTOINCREMENT',
     ),
   );
-  static const VerificationMeta _timelineIdMeta = const VerificationMeta(
-    'timelineId',
+  static const VerificationMeta _stageTrackerIdMeta = const VerificationMeta(
+    'stageTrackerId',
   );
   @override
-  late final GeneratedColumn<int> timelineId = GeneratedColumn<int>(
-    'timeline_id',
+  late final GeneratedColumn<int> stageTrackerId = GeneratedColumn<int>(
+    'stage_tracker_id',
     aliasedName,
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES timelines (id)',
+      'REFERENCES stage_trackers (id)',
     ),
   );
   static const VerificationMeta _typeMeta = const VerificationMeta('type');
@@ -8797,10 +8907,9 @@ class $TimelineMilestoneRulesTable extends TimelineMilestoneRules
   late final GeneratedColumn<int> reminderOffsetDays = GeneratedColumn<int>(
     'reminder_offset_days',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
-    defaultValue: const Constant(0),
   );
   static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
@@ -8837,7 +8946,7 @@ class $TimelineMilestoneRulesTable extends TimelineMilestoneRules
   @override
   List<GeneratedColumn> get $columns => [
     id,
-    timelineId,
+    stageTrackerId,
     type,
     intervalValue,
     intervalUnit,
@@ -8851,10 +8960,10 @@ class $TimelineMilestoneRulesTable extends TimelineMilestoneRules
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
-  static const String $name = 'timeline_milestone_rules';
+  static const String $name = 'stage_rules';
   @override
   VerificationContext validateIntegrity(
-    Insertable<TimelineMilestoneRuleRow> instance, {
+    Insertable<StageRuleRow> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -8862,13 +8971,16 @@ class $TimelineMilestoneRulesTable extends TimelineMilestoneRules
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     }
-    if (data.containsKey('timeline_id')) {
+    if (data.containsKey('stage_tracker_id')) {
       context.handle(
-        _timelineIdMeta,
-        timelineId.isAcceptableOrUnknown(data['timeline_id']!, _timelineIdMeta),
+        _stageTrackerIdMeta,
+        stageTrackerId.isAcceptableOrUnknown(
+          data['stage_tracker_id']!,
+          _stageTrackerIdMeta,
+        ),
       );
     } else if (isInserting) {
-      context.missing(_timelineIdMeta);
+      context.missing(_stageTrackerIdMeta);
     }
     if (data.containsKey('type')) {
       context.handle(
@@ -8946,19 +9058,16 @@ class $TimelineMilestoneRulesTable extends TimelineMilestoneRules
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  TimelineMilestoneRuleRow map(
-    Map<String, dynamic> data, {
-    String? tablePrefix,
-  }) {
+  StageRuleRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return TimelineMilestoneRuleRow(
+    return StageRuleRow(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
       )!,
-      timelineId: attachedDatabase.typeMapping.read(
+      stageTrackerId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}timeline_id'],
+        data['${effectivePrefix}stage_tracker_id'],
       )!,
       type: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -8979,7 +9088,7 @@ class $TimelineMilestoneRulesTable extends TimelineMilestoneRules
       reminderOffsetDays: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}reminder_offset_days'],
-      )!,
+      ),
       status: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}status'],
@@ -8996,31 +9105,30 @@ class $TimelineMilestoneRulesTable extends TimelineMilestoneRules
   }
 
   @override
-  $TimelineMilestoneRulesTable createAlias(String alias) {
-    return $TimelineMilestoneRulesTable(attachedDatabase, alias);
+  $StageRulesTable createAlias(String alias) {
+    return $StageRulesTable(attachedDatabase, alias);
   }
 }
 
-class TimelineMilestoneRuleRow extends DataClass
-    implements Insertable<TimelineMilestoneRuleRow> {
+class StageRuleRow extends DataClass implements Insertable<StageRuleRow> {
   final int id;
-  final int timelineId;
+  final int stageTrackerId;
   final String type;
   final int intervalValue;
   final String intervalUnit;
   final String? labelTemplate;
-  final int reminderOffsetDays;
+  final int? reminderOffsetDays;
   final String status;
   final int createdAt;
   final int updatedAt;
-  const TimelineMilestoneRuleRow({
+  const StageRuleRow({
     required this.id,
-    required this.timelineId,
+    required this.stageTrackerId,
     required this.type,
     required this.intervalValue,
     required this.intervalUnit,
     this.labelTemplate,
-    required this.reminderOffsetDays,
+    this.reminderOffsetDays,
     required this.status,
     required this.createdAt,
     required this.updatedAt,
@@ -9029,50 +9137,54 @@ class TimelineMilestoneRuleRow extends DataClass
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
-    map['timeline_id'] = Variable<int>(timelineId);
+    map['stage_tracker_id'] = Variable<int>(stageTrackerId);
     map['type'] = Variable<String>(type);
     map['interval_value'] = Variable<int>(intervalValue);
     map['interval_unit'] = Variable<String>(intervalUnit);
     if (!nullToAbsent || labelTemplate != null) {
       map['label_template'] = Variable<String>(labelTemplate);
     }
-    map['reminder_offset_days'] = Variable<int>(reminderOffsetDays);
+    if (!nullToAbsent || reminderOffsetDays != null) {
+      map['reminder_offset_days'] = Variable<int>(reminderOffsetDays);
+    }
     map['status'] = Variable<String>(status);
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     return map;
   }
 
-  TimelineMilestoneRulesCompanion toCompanion(bool nullToAbsent) {
-    return TimelineMilestoneRulesCompanion(
+  StageRulesCompanion toCompanion(bool nullToAbsent) {
+    return StageRulesCompanion(
       id: Value(id),
-      timelineId: Value(timelineId),
+      stageTrackerId: Value(stageTrackerId),
       type: Value(type),
       intervalValue: Value(intervalValue),
       intervalUnit: Value(intervalUnit),
       labelTemplate: labelTemplate == null && nullToAbsent
           ? const Value.absent()
           : Value(labelTemplate),
-      reminderOffsetDays: Value(reminderOffsetDays),
+      reminderOffsetDays: reminderOffsetDays == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reminderOffsetDays),
       status: Value(status),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
   }
 
-  factory TimelineMilestoneRuleRow.fromJson(
+  factory StageRuleRow.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return TimelineMilestoneRuleRow(
+    return StageRuleRow(
       id: serializer.fromJson<int>(json['id']),
-      timelineId: serializer.fromJson<int>(json['timelineId']),
+      stageTrackerId: serializer.fromJson<int>(json['stageTrackerId']),
       type: serializer.fromJson<String>(json['type']),
       intervalValue: serializer.fromJson<int>(json['intervalValue']),
       intervalUnit: serializer.fromJson<String>(json['intervalUnit']),
       labelTemplate: serializer.fromJson<String?>(json['labelTemplate']),
-      reminderOffsetDays: serializer.fromJson<int>(json['reminderOffsetDays']),
+      reminderOffsetDays: serializer.fromJson<int?>(json['reminderOffsetDays']),
       status: serializer.fromJson<String>(json['status']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
@@ -9083,51 +9195,51 @@ class TimelineMilestoneRuleRow extends DataClass
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
-      'timelineId': serializer.toJson<int>(timelineId),
+      'stageTrackerId': serializer.toJson<int>(stageTrackerId),
       'type': serializer.toJson<String>(type),
       'intervalValue': serializer.toJson<int>(intervalValue),
       'intervalUnit': serializer.toJson<String>(intervalUnit),
       'labelTemplate': serializer.toJson<String?>(labelTemplate),
-      'reminderOffsetDays': serializer.toJson<int>(reminderOffsetDays),
+      'reminderOffsetDays': serializer.toJson<int?>(reminderOffsetDays),
       'status': serializer.toJson<String>(status),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
   }
 
-  TimelineMilestoneRuleRow copyWith({
+  StageRuleRow copyWith({
     int? id,
-    int? timelineId,
+    int? stageTrackerId,
     String? type,
     int? intervalValue,
     String? intervalUnit,
     Value<String?> labelTemplate = const Value.absent(),
-    int? reminderOffsetDays,
+    Value<int?> reminderOffsetDays = const Value.absent(),
     String? status,
     int? createdAt,
     int? updatedAt,
-  }) => TimelineMilestoneRuleRow(
+  }) => StageRuleRow(
     id: id ?? this.id,
-    timelineId: timelineId ?? this.timelineId,
+    stageTrackerId: stageTrackerId ?? this.stageTrackerId,
     type: type ?? this.type,
     intervalValue: intervalValue ?? this.intervalValue,
     intervalUnit: intervalUnit ?? this.intervalUnit,
     labelTemplate: labelTemplate.present
         ? labelTemplate.value
         : this.labelTemplate,
-    reminderOffsetDays: reminderOffsetDays ?? this.reminderOffsetDays,
+    reminderOffsetDays: reminderOffsetDays.present
+        ? reminderOffsetDays.value
+        : this.reminderOffsetDays,
     status: status ?? this.status,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
-  TimelineMilestoneRuleRow copyWithCompanion(
-    TimelineMilestoneRulesCompanion data,
-  ) {
-    return TimelineMilestoneRuleRow(
+  StageRuleRow copyWithCompanion(StageRulesCompanion data) {
+    return StageRuleRow(
       id: data.id.present ? data.id.value : this.id,
-      timelineId: data.timelineId.present
-          ? data.timelineId.value
-          : this.timelineId,
+      stageTrackerId: data.stageTrackerId.present
+          ? data.stageTrackerId.value
+          : this.stageTrackerId,
       type: data.type.present ? data.type.value : this.type,
       intervalValue: data.intervalValue.present
           ? data.intervalValue.value
@@ -9149,9 +9261,9 @@ class TimelineMilestoneRuleRow extends DataClass
 
   @override
   String toString() {
-    return (StringBuffer('TimelineMilestoneRuleRow(')
+    return (StringBuffer('StageRuleRow(')
           ..write('id: $id, ')
-          ..write('timelineId: $timelineId, ')
+          ..write('stageTrackerId: $stageTrackerId, ')
           ..write('type: $type, ')
           ..write('intervalValue: $intervalValue, ')
           ..write('intervalUnit: $intervalUnit, ')
@@ -9167,7 +9279,7 @@ class TimelineMilestoneRuleRow extends DataClass
   @override
   int get hashCode => Object.hash(
     id,
-    timelineId,
+    stageTrackerId,
     type,
     intervalValue,
     intervalUnit,
@@ -9180,9 +9292,9 @@ class TimelineMilestoneRuleRow extends DataClass
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is TimelineMilestoneRuleRow &&
+      (other is StageRuleRow &&
           other.id == this.id &&
-          other.timelineId == this.timelineId &&
+          other.stageTrackerId == this.stageTrackerId &&
           other.type == this.type &&
           other.intervalValue == this.intervalValue &&
           other.intervalUnit == this.intervalUnit &&
@@ -9193,21 +9305,20 @@ class TimelineMilestoneRuleRow extends DataClass
           other.updatedAt == this.updatedAt);
 }
 
-class TimelineMilestoneRulesCompanion
-    extends UpdateCompanion<TimelineMilestoneRuleRow> {
+class StageRulesCompanion extends UpdateCompanion<StageRuleRow> {
   final Value<int> id;
-  final Value<int> timelineId;
+  final Value<int> stageTrackerId;
   final Value<String> type;
   final Value<int> intervalValue;
   final Value<String> intervalUnit;
   final Value<String?> labelTemplate;
-  final Value<int> reminderOffsetDays;
+  final Value<int?> reminderOffsetDays;
   final Value<String> status;
   final Value<int> createdAt;
   final Value<int> updatedAt;
-  const TimelineMilestoneRulesCompanion({
+  const StageRulesCompanion({
     this.id = const Value.absent(),
-    this.timelineId = const Value.absent(),
+    this.stageTrackerId = const Value.absent(),
     this.type = const Value.absent(),
     this.intervalValue = const Value.absent(),
     this.intervalUnit = const Value.absent(),
@@ -9217,9 +9328,9 @@ class TimelineMilestoneRulesCompanion
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
-  TimelineMilestoneRulesCompanion.insert({
+  StageRulesCompanion.insert({
     this.id = const Value.absent(),
-    required int timelineId,
+    required int stageTrackerId,
     required String type,
     required int intervalValue,
     required String intervalUnit,
@@ -9228,15 +9339,15 @@ class TimelineMilestoneRulesCompanion
     this.status = const Value.absent(),
     required int createdAt,
     required int updatedAt,
-  }) : timelineId = Value(timelineId),
+  }) : stageTrackerId = Value(stageTrackerId),
        type = Value(type),
        intervalValue = Value(intervalValue),
        intervalUnit = Value(intervalUnit),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
-  static Insertable<TimelineMilestoneRuleRow> custom({
+  static Insertable<StageRuleRow> custom({
     Expression<int>? id,
-    Expression<int>? timelineId,
+    Expression<int>? stageTrackerId,
     Expression<String>? type,
     Expression<int>? intervalValue,
     Expression<String>? intervalUnit,
@@ -9248,7 +9359,7 @@ class TimelineMilestoneRulesCompanion
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
-      if (timelineId != null) 'timeline_id': timelineId,
+      if (stageTrackerId != null) 'stage_tracker_id': stageTrackerId,
       if (type != null) 'type': type,
       if (intervalValue != null) 'interval_value': intervalValue,
       if (intervalUnit != null) 'interval_unit': intervalUnit,
@@ -9261,21 +9372,21 @@ class TimelineMilestoneRulesCompanion
     });
   }
 
-  TimelineMilestoneRulesCompanion copyWith({
+  StageRulesCompanion copyWith({
     Value<int>? id,
-    Value<int>? timelineId,
+    Value<int>? stageTrackerId,
     Value<String>? type,
     Value<int>? intervalValue,
     Value<String>? intervalUnit,
     Value<String?>? labelTemplate,
-    Value<int>? reminderOffsetDays,
+    Value<int?>? reminderOffsetDays,
     Value<String>? status,
     Value<int>? createdAt,
     Value<int>? updatedAt,
   }) {
-    return TimelineMilestoneRulesCompanion(
+    return StageRulesCompanion(
       id: id ?? this.id,
-      timelineId: timelineId ?? this.timelineId,
+      stageTrackerId: stageTrackerId ?? this.stageTrackerId,
       type: type ?? this.type,
       intervalValue: intervalValue ?? this.intervalValue,
       intervalUnit: intervalUnit ?? this.intervalUnit,
@@ -9293,8 +9404,8 @@ class TimelineMilestoneRulesCompanion
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
-    if (timelineId.present) {
-      map['timeline_id'] = Variable<int>(timelineId.value);
+    if (stageTrackerId.present) {
+      map['stage_tracker_id'] = Variable<int>(stageTrackerId.value);
     }
     if (type.present) {
       map['type'] = Variable<String>(type.value);
@@ -9325,9 +9436,9 @@ class TimelineMilestoneRulesCompanion
 
   @override
   String toString() {
-    return (StringBuffer('TimelineMilestoneRulesCompanion(')
+    return (StringBuffer('StageRulesCompanion(')
           ..write('id: $id, ')
-          ..write('timelineId: $timelineId, ')
+          ..write('stageTrackerId: $stageTrackerId, ')
           ..write('type: $type, ')
           ..write('intervalValue: $intervalValue, ')
           ..write('intervalUnit: $intervalUnit, ')
@@ -9341,12 +9452,12 @@ class TimelineMilestoneRulesCompanion
   }
 }
 
-class $TimelineMilestoneRecordsTable extends TimelineMilestoneRecords
-    with TableInfo<$TimelineMilestoneRecordsTable, TimelineMilestoneRecordRow> {
+class $StageRecordsTable extends StageRecords
+    with TableInfo<$StageRecordsTable, StageRecordRow> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
-  $TimelineMilestoneRecordsTable(this.attachedDatabase, [this._alias]);
+  $StageRecordsTable(this.attachedDatabase, [this._alias]);
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -9360,31 +9471,44 @@ class $TimelineMilestoneRecordsTable extends TimelineMilestoneRecords
       'PRIMARY KEY AUTOINCREMENT',
     ),
   );
-  static const VerificationMeta _timelineIdMeta = const VerificationMeta(
-    'timelineId',
+  static const VerificationMeta _stageTrackerIdMeta = const VerificationMeta(
+    'stageTrackerId',
   );
   @override
-  late final GeneratedColumn<int> timelineId = GeneratedColumn<int>(
-    'timeline_id',
+  late final GeneratedColumn<int> stageTrackerId = GeneratedColumn<int>(
+    'stage_tracker_id',
     aliasedName,
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES timelines (id)',
+      'REFERENCES stage_trackers (id)',
     ),
   );
-  static const VerificationMeta _ruleIdMeta = const VerificationMeta('ruleId');
+  static const VerificationMeta _stageRuleIdMeta = const VerificationMeta(
+    'stageRuleId',
+  );
   @override
-  late final GeneratedColumn<int> ruleId = GeneratedColumn<int>(
-    'rule_id',
+  late final GeneratedColumn<int> stageRuleId = GeneratedColumn<int>(
+    'stage_rule_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES stage_rules (id)',
+    ),
+  );
+  static const VerificationMeta _sourceTypeMeta = const VerificationMeta(
+    'sourceType',
+  );
+  @override
+  late final GeneratedColumn<String> sourceType = GeneratedColumn<String>(
+    'source_type',
     aliasedName,
     false,
-    type: DriftSqlType.int,
+    type: DriftSqlType.string,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES timeline_milestone_rules (id)',
-    ),
   );
   static const VerificationMeta _occurrenceIndexMeta = const VerificationMeta(
     'occurrenceIndex',
@@ -9393,20 +9517,42 @@ class $TimelineMilestoneRecordsTable extends TimelineMilestoneRecords
   late final GeneratedColumn<int> occurrenceIndex = GeneratedColumn<int>(
     'occurrence_index',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.int,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
   );
-  static const VerificationMeta _targetDateMeta = const VerificationMeta(
-    'targetDate',
+  static const VerificationMeta _occurrenceDateMeta = const VerificationMeta(
+    'occurrenceDate',
   );
   @override
-  late final GeneratedColumn<int> targetDate = GeneratedColumn<int>(
-    'target_date',
+  late final GeneratedColumn<int> occurrenceDate = GeneratedColumn<int>(
+    'occurrence_date',
     aliasedName,
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
+  );
+  static const VerificationMeta _relativeAmountMeta = const VerificationMeta(
+    'relativeAmount',
+  );
+  @override
+  late final GeneratedColumn<int> relativeAmount = GeneratedColumn<int>(
+    'relative_amount',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _relativeUnitMeta = const VerificationMeta(
+    'relativeUnit',
+  );
+  @override
+  late final GeneratedColumn<String> relativeUnit = GeneratedColumn<String>(
+    'relative_unit',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
@@ -9415,25 +9561,32 @@ class $TimelineMilestoneRecordsTable extends TimelineMilestoneRecords
     aliasedName,
     false,
     type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('normal'),
+  );
+  static const VerificationMeta _labelMeta = const VerificationMeta('label');
+  @override
+  late final GeneratedColumn<String> label = GeneratedColumn<String>(
+    'label',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _notifiedAtMeta = const VerificationMeta(
-    'notifiedAt',
-  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
   @override
-  late final GeneratedColumn<int> notifiedAt = GeneratedColumn<int>(
-    'notified_at',
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
     aliasedName,
     true,
-    type: DriftSqlType.int,
+    type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _actedAtMeta = const VerificationMeta(
-    'actedAt',
-  );
+  static const VerificationMeta _reminderOffsetDaysMeta =
+      const VerificationMeta('reminderOffsetDays');
   @override
-  late final GeneratedColumn<int> actedAt = GeneratedColumn<int>(
-    'acted_at',
+  late final GeneratedColumn<int> reminderOffsetDays = GeneratedColumn<int>(
+    'reminder_offset_days',
     aliasedName,
     true,
     type: DriftSqlType.int,
@@ -9464,13 +9617,17 @@ class $TimelineMilestoneRecordsTable extends TimelineMilestoneRecords
   @override
   List<GeneratedColumn> get $columns => [
     id,
-    timelineId,
-    ruleId,
+    stageTrackerId,
+    stageRuleId,
+    sourceType,
     occurrenceIndex,
-    targetDate,
+    occurrenceDate,
+    relativeAmount,
+    relativeUnit,
     status,
-    notifiedAt,
-    actedAt,
+    label,
+    note,
+    reminderOffsetDays,
     createdAt,
     updatedAt,
   ];
@@ -9478,10 +9635,10 @@ class $TimelineMilestoneRecordsTable extends TimelineMilestoneRecords
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
-  static const String $name = 'timeline_milestone_records';
+  static const String $name = 'stage_records';
   @override
   VerificationContext validateIntegrity(
-    Insertable<TimelineMilestoneRecordRow> instance, {
+    Insertable<StageRecordRow> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -9489,21 +9646,33 @@ class $TimelineMilestoneRecordsTable extends TimelineMilestoneRecords
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     }
-    if (data.containsKey('timeline_id')) {
+    if (data.containsKey('stage_tracker_id')) {
       context.handle(
-        _timelineIdMeta,
-        timelineId.isAcceptableOrUnknown(data['timeline_id']!, _timelineIdMeta),
+        _stageTrackerIdMeta,
+        stageTrackerId.isAcceptableOrUnknown(
+          data['stage_tracker_id']!,
+          _stageTrackerIdMeta,
+        ),
       );
     } else if (isInserting) {
-      context.missing(_timelineIdMeta);
+      context.missing(_stageTrackerIdMeta);
     }
-    if (data.containsKey('rule_id')) {
+    if (data.containsKey('stage_rule_id')) {
       context.handle(
-        _ruleIdMeta,
-        ruleId.isAcceptableOrUnknown(data['rule_id']!, _ruleIdMeta),
+        _stageRuleIdMeta,
+        stageRuleId.isAcceptableOrUnknown(
+          data['stage_rule_id']!,
+          _stageRuleIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('source_type')) {
+      context.handle(
+        _sourceTypeMeta,
+        sourceType.isAcceptableOrUnknown(data['source_type']!, _sourceTypeMeta),
       );
     } else if (isInserting) {
-      context.missing(_ruleIdMeta);
+      context.missing(_sourceTypeMeta);
     }
     if (data.containsKey('occurrence_index')) {
       context.handle(
@@ -9513,35 +9682,63 @@ class $TimelineMilestoneRecordsTable extends TimelineMilestoneRecords
           _occurrenceIndexMeta,
         ),
       );
-    } else if (isInserting) {
-      context.missing(_occurrenceIndexMeta);
     }
-    if (data.containsKey('target_date')) {
+    if (data.containsKey('occurrence_date')) {
       context.handle(
-        _targetDateMeta,
-        targetDate.isAcceptableOrUnknown(data['target_date']!, _targetDateMeta),
+        _occurrenceDateMeta,
+        occurrenceDate.isAcceptableOrUnknown(
+          data['occurrence_date']!,
+          _occurrenceDateMeta,
+        ),
       );
     } else if (isInserting) {
-      context.missing(_targetDateMeta);
+      context.missing(_occurrenceDateMeta);
+    }
+    if (data.containsKey('relative_amount')) {
+      context.handle(
+        _relativeAmountMeta,
+        relativeAmount.isAcceptableOrUnknown(
+          data['relative_amount']!,
+          _relativeAmountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('relative_unit')) {
+      context.handle(
+        _relativeUnitMeta,
+        relativeUnit.isAcceptableOrUnknown(
+          data['relative_unit']!,
+          _relativeUnitMeta,
+        ),
+      );
     }
     if (data.containsKey('status')) {
       context.handle(
         _statusMeta,
         status.isAcceptableOrUnknown(data['status']!, _statusMeta),
       );
-    } else if (isInserting) {
-      context.missing(_statusMeta);
     }
-    if (data.containsKey('notified_at')) {
+    if (data.containsKey('label')) {
       context.handle(
-        _notifiedAtMeta,
-        notifiedAt.isAcceptableOrUnknown(data['notified_at']!, _notifiedAtMeta),
+        _labelMeta,
+        label.isAcceptableOrUnknown(data['label']!, _labelMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_labelMeta);
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
       );
     }
-    if (data.containsKey('acted_at')) {
+    if (data.containsKey('reminder_offset_days')) {
       context.handle(
-        _actedAtMeta,
-        actedAt.isAcceptableOrUnknown(data['acted_at']!, _actedAtMeta),
+        _reminderOffsetDaysMeta,
+        reminderOffsetDays.isAcceptableOrUnknown(
+          data['reminder_offset_days']!,
+          _reminderOffsetDaysMeta,
+        ),
       );
     }
     if (data.containsKey('created_at')) {
@@ -9567,46 +9764,59 @@ class $TimelineMilestoneRecordsTable extends TimelineMilestoneRecords
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
   List<Set<GeneratedColumn>> get uniqueKeys => [
-    {timelineId, ruleId, occurrenceIndex},
+    {stageTrackerId, stageRuleId, occurrenceIndex},
   ];
   @override
-  TimelineMilestoneRecordRow map(
-    Map<String, dynamic> data, {
-    String? tablePrefix,
-  }) {
+  StageRecordRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return TimelineMilestoneRecordRow(
+    return StageRecordRow(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
       )!,
-      timelineId: attachedDatabase.typeMapping.read(
+      stageTrackerId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}timeline_id'],
+        data['${effectivePrefix}stage_tracker_id'],
       )!,
-      ruleId: attachedDatabase.typeMapping.read(
+      stageRuleId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}rule_id'],
+        data['${effectivePrefix}stage_rule_id'],
+      ),
+      sourceType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_type'],
       )!,
       occurrenceIndex: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}occurrence_index'],
-      )!,
-      targetDate: attachedDatabase.typeMapping.read(
+      ),
+      occurrenceDate: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}target_date'],
+        data['${effectivePrefix}occurrence_date'],
       )!,
+      relativeAmount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}relative_amount'],
+      ),
+      relativeUnit: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}relative_unit'],
+      ),
       status: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}status'],
       )!,
-      notifiedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}notified_at'],
+      label: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}label'],
+      )!,
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
       ),
-      actedAt: attachedDatabase.typeMapping.read(
+      reminderOffsetDays: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}acted_at'],
+        data['${effectivePrefix}reminder_offset_days'],
       ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
@@ -9620,32 +9830,39 @@ class $TimelineMilestoneRecordsTable extends TimelineMilestoneRecords
   }
 
   @override
-  $TimelineMilestoneRecordsTable createAlias(String alias) {
-    return $TimelineMilestoneRecordsTable(attachedDatabase, alias);
+  $StageRecordsTable createAlias(String alias) {
+    return $StageRecordsTable(attachedDatabase, alias);
   }
 }
 
-class TimelineMilestoneRecordRow extends DataClass
-    implements Insertable<TimelineMilestoneRecordRow> {
+class StageRecordRow extends DataClass implements Insertable<StageRecordRow> {
   final int id;
-  final int timelineId;
-  final int ruleId;
-  final int occurrenceIndex;
-  final int targetDate;
+  final int stageTrackerId;
+  final int? stageRuleId;
+  final String sourceType;
+  final int? occurrenceIndex;
+  final int occurrenceDate;
+  final int? relativeAmount;
+  final String? relativeUnit;
   final String status;
-  final int? notifiedAt;
-  final int? actedAt;
+  final String label;
+  final String? note;
+  final int? reminderOffsetDays;
   final int createdAt;
   final int updatedAt;
-  const TimelineMilestoneRecordRow({
+  const StageRecordRow({
     required this.id,
-    required this.timelineId,
-    required this.ruleId,
-    required this.occurrenceIndex,
-    required this.targetDate,
+    required this.stageTrackerId,
+    this.stageRuleId,
+    required this.sourceType,
+    this.occurrenceIndex,
+    required this.occurrenceDate,
+    this.relativeAmount,
+    this.relativeUnit,
     required this.status,
-    this.notifiedAt,
-    this.actedAt,
+    required this.label,
+    this.note,
+    this.reminderOffsetDays,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -9653,55 +9870,81 @@ class TimelineMilestoneRecordRow extends DataClass
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
-    map['timeline_id'] = Variable<int>(timelineId);
-    map['rule_id'] = Variable<int>(ruleId);
-    map['occurrence_index'] = Variable<int>(occurrenceIndex);
-    map['target_date'] = Variable<int>(targetDate);
-    map['status'] = Variable<String>(status);
-    if (!nullToAbsent || notifiedAt != null) {
-      map['notified_at'] = Variable<int>(notifiedAt);
+    map['stage_tracker_id'] = Variable<int>(stageTrackerId);
+    if (!nullToAbsent || stageRuleId != null) {
+      map['stage_rule_id'] = Variable<int>(stageRuleId);
     }
-    if (!nullToAbsent || actedAt != null) {
-      map['acted_at'] = Variable<int>(actedAt);
+    map['source_type'] = Variable<String>(sourceType);
+    if (!nullToAbsent || occurrenceIndex != null) {
+      map['occurrence_index'] = Variable<int>(occurrenceIndex);
+    }
+    map['occurrence_date'] = Variable<int>(occurrenceDate);
+    if (!nullToAbsent || relativeAmount != null) {
+      map['relative_amount'] = Variable<int>(relativeAmount);
+    }
+    if (!nullToAbsent || relativeUnit != null) {
+      map['relative_unit'] = Variable<String>(relativeUnit);
+    }
+    map['status'] = Variable<String>(status);
+    map['label'] = Variable<String>(label);
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    if (!nullToAbsent || reminderOffsetDays != null) {
+      map['reminder_offset_days'] = Variable<int>(reminderOffsetDays);
     }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     return map;
   }
 
-  TimelineMilestoneRecordsCompanion toCompanion(bool nullToAbsent) {
-    return TimelineMilestoneRecordsCompanion(
+  StageRecordsCompanion toCompanion(bool nullToAbsent) {
+    return StageRecordsCompanion(
       id: Value(id),
-      timelineId: Value(timelineId),
-      ruleId: Value(ruleId),
-      occurrenceIndex: Value(occurrenceIndex),
-      targetDate: Value(targetDate),
+      stageTrackerId: Value(stageTrackerId),
+      stageRuleId: stageRuleId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stageRuleId),
+      sourceType: Value(sourceType),
+      occurrenceIndex: occurrenceIndex == null && nullToAbsent
+          ? const Value.absent()
+          : Value(occurrenceIndex),
+      occurrenceDate: Value(occurrenceDate),
+      relativeAmount: relativeAmount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(relativeAmount),
+      relativeUnit: relativeUnit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(relativeUnit),
       status: Value(status),
-      notifiedAt: notifiedAt == null && nullToAbsent
+      label: Value(label),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      reminderOffsetDays: reminderOffsetDays == null && nullToAbsent
           ? const Value.absent()
-          : Value(notifiedAt),
-      actedAt: actedAt == null && nullToAbsent
-          ? const Value.absent()
-          : Value(actedAt),
+          : Value(reminderOffsetDays),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
   }
 
-  factory TimelineMilestoneRecordRow.fromJson(
+  factory StageRecordRow.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return TimelineMilestoneRecordRow(
+    return StageRecordRow(
       id: serializer.fromJson<int>(json['id']),
-      timelineId: serializer.fromJson<int>(json['timelineId']),
-      ruleId: serializer.fromJson<int>(json['ruleId']),
-      occurrenceIndex: serializer.fromJson<int>(json['occurrenceIndex']),
-      targetDate: serializer.fromJson<int>(json['targetDate']),
+      stageTrackerId: serializer.fromJson<int>(json['stageTrackerId']),
+      stageRuleId: serializer.fromJson<int?>(json['stageRuleId']),
+      sourceType: serializer.fromJson<String>(json['sourceType']),
+      occurrenceIndex: serializer.fromJson<int?>(json['occurrenceIndex']),
+      occurrenceDate: serializer.fromJson<int>(json['occurrenceDate']),
+      relativeAmount: serializer.fromJson<int?>(json['relativeAmount']),
+      relativeUnit: serializer.fromJson<String?>(json['relativeUnit']),
       status: serializer.fromJson<String>(json['status']),
-      notifiedAt: serializer.fromJson<int?>(json['notifiedAt']),
-      actedAt: serializer.fromJson<int?>(json['actedAt']),
+      label: serializer.fromJson<String>(json['label']),
+      note: serializer.fromJson<String?>(json['note']),
+      reminderOffsetDays: serializer.fromJson<int?>(json['reminderOffsetDays']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -9711,61 +9954,89 @@ class TimelineMilestoneRecordRow extends DataClass
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
-      'timelineId': serializer.toJson<int>(timelineId),
-      'ruleId': serializer.toJson<int>(ruleId),
-      'occurrenceIndex': serializer.toJson<int>(occurrenceIndex),
-      'targetDate': serializer.toJson<int>(targetDate),
+      'stageTrackerId': serializer.toJson<int>(stageTrackerId),
+      'stageRuleId': serializer.toJson<int?>(stageRuleId),
+      'sourceType': serializer.toJson<String>(sourceType),
+      'occurrenceIndex': serializer.toJson<int?>(occurrenceIndex),
+      'occurrenceDate': serializer.toJson<int>(occurrenceDate),
+      'relativeAmount': serializer.toJson<int?>(relativeAmount),
+      'relativeUnit': serializer.toJson<String?>(relativeUnit),
       'status': serializer.toJson<String>(status),
-      'notifiedAt': serializer.toJson<int?>(notifiedAt),
-      'actedAt': serializer.toJson<int?>(actedAt),
+      'label': serializer.toJson<String>(label),
+      'note': serializer.toJson<String?>(note),
+      'reminderOffsetDays': serializer.toJson<int?>(reminderOffsetDays),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
   }
 
-  TimelineMilestoneRecordRow copyWith({
+  StageRecordRow copyWith({
     int? id,
-    int? timelineId,
-    int? ruleId,
-    int? occurrenceIndex,
-    int? targetDate,
+    int? stageTrackerId,
+    Value<int?> stageRuleId = const Value.absent(),
+    String? sourceType,
+    Value<int?> occurrenceIndex = const Value.absent(),
+    int? occurrenceDate,
+    Value<int?> relativeAmount = const Value.absent(),
+    Value<String?> relativeUnit = const Value.absent(),
     String? status,
-    Value<int?> notifiedAt = const Value.absent(),
-    Value<int?> actedAt = const Value.absent(),
+    String? label,
+    Value<String?> note = const Value.absent(),
+    Value<int?> reminderOffsetDays = const Value.absent(),
     int? createdAt,
     int? updatedAt,
-  }) => TimelineMilestoneRecordRow(
+  }) => StageRecordRow(
     id: id ?? this.id,
-    timelineId: timelineId ?? this.timelineId,
-    ruleId: ruleId ?? this.ruleId,
-    occurrenceIndex: occurrenceIndex ?? this.occurrenceIndex,
-    targetDate: targetDate ?? this.targetDate,
+    stageTrackerId: stageTrackerId ?? this.stageTrackerId,
+    stageRuleId: stageRuleId.present ? stageRuleId.value : this.stageRuleId,
+    sourceType: sourceType ?? this.sourceType,
+    occurrenceIndex: occurrenceIndex.present
+        ? occurrenceIndex.value
+        : this.occurrenceIndex,
+    occurrenceDate: occurrenceDate ?? this.occurrenceDate,
+    relativeAmount: relativeAmount.present
+        ? relativeAmount.value
+        : this.relativeAmount,
+    relativeUnit: relativeUnit.present ? relativeUnit.value : this.relativeUnit,
     status: status ?? this.status,
-    notifiedAt: notifiedAt.present ? notifiedAt.value : this.notifiedAt,
-    actedAt: actedAt.present ? actedAt.value : this.actedAt,
+    label: label ?? this.label,
+    note: note.present ? note.value : this.note,
+    reminderOffsetDays: reminderOffsetDays.present
+        ? reminderOffsetDays.value
+        : this.reminderOffsetDays,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
-  TimelineMilestoneRecordRow copyWithCompanion(
-    TimelineMilestoneRecordsCompanion data,
-  ) {
-    return TimelineMilestoneRecordRow(
+  StageRecordRow copyWithCompanion(StageRecordsCompanion data) {
+    return StageRecordRow(
       id: data.id.present ? data.id.value : this.id,
-      timelineId: data.timelineId.present
-          ? data.timelineId.value
-          : this.timelineId,
-      ruleId: data.ruleId.present ? data.ruleId.value : this.ruleId,
+      stageTrackerId: data.stageTrackerId.present
+          ? data.stageTrackerId.value
+          : this.stageTrackerId,
+      stageRuleId: data.stageRuleId.present
+          ? data.stageRuleId.value
+          : this.stageRuleId,
+      sourceType: data.sourceType.present
+          ? data.sourceType.value
+          : this.sourceType,
       occurrenceIndex: data.occurrenceIndex.present
           ? data.occurrenceIndex.value
           : this.occurrenceIndex,
-      targetDate: data.targetDate.present
-          ? data.targetDate.value
-          : this.targetDate,
+      occurrenceDate: data.occurrenceDate.present
+          ? data.occurrenceDate.value
+          : this.occurrenceDate,
+      relativeAmount: data.relativeAmount.present
+          ? data.relativeAmount.value
+          : this.relativeAmount,
+      relativeUnit: data.relativeUnit.present
+          ? data.relativeUnit.value
+          : this.relativeUnit,
       status: data.status.present ? data.status.value : this.status,
-      notifiedAt: data.notifiedAt.present
-          ? data.notifiedAt.value
-          : this.notifiedAt,
-      actedAt: data.actedAt.present ? data.actedAt.value : this.actedAt,
+      label: data.label.present ? data.label.value : this.label,
+      note: data.note.present ? data.note.value : this.note,
+      reminderOffsetDays: data.reminderOffsetDays.present
+          ? data.reminderOffsetDays.value
+          : this.reminderOffsetDays,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -9773,15 +10044,19 @@ class TimelineMilestoneRecordRow extends DataClass
 
   @override
   String toString() {
-    return (StringBuffer('TimelineMilestoneRecordRow(')
+    return (StringBuffer('StageRecordRow(')
           ..write('id: $id, ')
-          ..write('timelineId: $timelineId, ')
-          ..write('ruleId: $ruleId, ')
+          ..write('stageTrackerId: $stageTrackerId, ')
+          ..write('stageRuleId: $stageRuleId, ')
+          ..write('sourceType: $sourceType, ')
           ..write('occurrenceIndex: $occurrenceIndex, ')
-          ..write('targetDate: $targetDate, ')
+          ..write('occurrenceDate: $occurrenceDate, ')
+          ..write('relativeAmount: $relativeAmount, ')
+          ..write('relativeUnit: $relativeUnit, ')
           ..write('status: $status, ')
-          ..write('notifiedAt: $notifiedAt, ')
-          ..write('actedAt: $actedAt, ')
+          ..write('label: $label, ')
+          ..write('note: $note, ')
+          ..write('reminderOffsetDays: $reminderOffsetDays, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -9791,121 +10066,156 @@ class TimelineMilestoneRecordRow extends DataClass
   @override
   int get hashCode => Object.hash(
     id,
-    timelineId,
-    ruleId,
+    stageTrackerId,
+    stageRuleId,
+    sourceType,
     occurrenceIndex,
-    targetDate,
+    occurrenceDate,
+    relativeAmount,
+    relativeUnit,
     status,
-    notifiedAt,
-    actedAt,
+    label,
+    note,
+    reminderOffsetDays,
     createdAt,
     updatedAt,
   );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is TimelineMilestoneRecordRow &&
+      (other is StageRecordRow &&
           other.id == this.id &&
-          other.timelineId == this.timelineId &&
-          other.ruleId == this.ruleId &&
+          other.stageTrackerId == this.stageTrackerId &&
+          other.stageRuleId == this.stageRuleId &&
+          other.sourceType == this.sourceType &&
           other.occurrenceIndex == this.occurrenceIndex &&
-          other.targetDate == this.targetDate &&
+          other.occurrenceDate == this.occurrenceDate &&
+          other.relativeAmount == this.relativeAmount &&
+          other.relativeUnit == this.relativeUnit &&
           other.status == this.status &&
-          other.notifiedAt == this.notifiedAt &&
-          other.actedAt == this.actedAt &&
+          other.label == this.label &&
+          other.note == this.note &&
+          other.reminderOffsetDays == this.reminderOffsetDays &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
 
-class TimelineMilestoneRecordsCompanion
-    extends UpdateCompanion<TimelineMilestoneRecordRow> {
+class StageRecordsCompanion extends UpdateCompanion<StageRecordRow> {
   final Value<int> id;
-  final Value<int> timelineId;
-  final Value<int> ruleId;
-  final Value<int> occurrenceIndex;
-  final Value<int> targetDate;
+  final Value<int> stageTrackerId;
+  final Value<int?> stageRuleId;
+  final Value<String> sourceType;
+  final Value<int?> occurrenceIndex;
+  final Value<int> occurrenceDate;
+  final Value<int?> relativeAmount;
+  final Value<String?> relativeUnit;
   final Value<String> status;
-  final Value<int?> notifiedAt;
-  final Value<int?> actedAt;
+  final Value<String> label;
+  final Value<String?> note;
+  final Value<int?> reminderOffsetDays;
   final Value<int> createdAt;
   final Value<int> updatedAt;
-  const TimelineMilestoneRecordsCompanion({
+  const StageRecordsCompanion({
     this.id = const Value.absent(),
-    this.timelineId = const Value.absent(),
-    this.ruleId = const Value.absent(),
+    this.stageTrackerId = const Value.absent(),
+    this.stageRuleId = const Value.absent(),
+    this.sourceType = const Value.absent(),
     this.occurrenceIndex = const Value.absent(),
-    this.targetDate = const Value.absent(),
+    this.occurrenceDate = const Value.absent(),
+    this.relativeAmount = const Value.absent(),
+    this.relativeUnit = const Value.absent(),
     this.status = const Value.absent(),
-    this.notifiedAt = const Value.absent(),
-    this.actedAt = const Value.absent(),
+    this.label = const Value.absent(),
+    this.note = const Value.absent(),
+    this.reminderOffsetDays = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
-  TimelineMilestoneRecordsCompanion.insert({
+  StageRecordsCompanion.insert({
     this.id = const Value.absent(),
-    required int timelineId,
-    required int ruleId,
-    required int occurrenceIndex,
-    required int targetDate,
-    required String status,
-    this.notifiedAt = const Value.absent(),
-    this.actedAt = const Value.absent(),
+    required int stageTrackerId,
+    this.stageRuleId = const Value.absent(),
+    required String sourceType,
+    this.occurrenceIndex = const Value.absent(),
+    required int occurrenceDate,
+    this.relativeAmount = const Value.absent(),
+    this.relativeUnit = const Value.absent(),
+    this.status = const Value.absent(),
+    required String label,
+    this.note = const Value.absent(),
+    this.reminderOffsetDays = const Value.absent(),
     required int createdAt,
     required int updatedAt,
-  }) : timelineId = Value(timelineId),
-       ruleId = Value(ruleId),
-       occurrenceIndex = Value(occurrenceIndex),
-       targetDate = Value(targetDate),
-       status = Value(status),
+  }) : stageTrackerId = Value(stageTrackerId),
+       sourceType = Value(sourceType),
+       occurrenceDate = Value(occurrenceDate),
+       label = Value(label),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
-  static Insertable<TimelineMilestoneRecordRow> custom({
+  static Insertable<StageRecordRow> custom({
     Expression<int>? id,
-    Expression<int>? timelineId,
-    Expression<int>? ruleId,
+    Expression<int>? stageTrackerId,
+    Expression<int>? stageRuleId,
+    Expression<String>? sourceType,
     Expression<int>? occurrenceIndex,
-    Expression<int>? targetDate,
+    Expression<int>? occurrenceDate,
+    Expression<int>? relativeAmount,
+    Expression<String>? relativeUnit,
     Expression<String>? status,
-    Expression<int>? notifiedAt,
-    Expression<int>? actedAt,
+    Expression<String>? label,
+    Expression<String>? note,
+    Expression<int>? reminderOffsetDays,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
-      if (timelineId != null) 'timeline_id': timelineId,
-      if (ruleId != null) 'rule_id': ruleId,
+      if (stageTrackerId != null) 'stage_tracker_id': stageTrackerId,
+      if (stageRuleId != null) 'stage_rule_id': stageRuleId,
+      if (sourceType != null) 'source_type': sourceType,
       if (occurrenceIndex != null) 'occurrence_index': occurrenceIndex,
-      if (targetDate != null) 'target_date': targetDate,
+      if (occurrenceDate != null) 'occurrence_date': occurrenceDate,
+      if (relativeAmount != null) 'relative_amount': relativeAmount,
+      if (relativeUnit != null) 'relative_unit': relativeUnit,
       if (status != null) 'status': status,
-      if (notifiedAt != null) 'notified_at': notifiedAt,
-      if (actedAt != null) 'acted_at': actedAt,
+      if (label != null) 'label': label,
+      if (note != null) 'note': note,
+      if (reminderOffsetDays != null)
+        'reminder_offset_days': reminderOffsetDays,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
   }
 
-  TimelineMilestoneRecordsCompanion copyWith({
+  StageRecordsCompanion copyWith({
     Value<int>? id,
-    Value<int>? timelineId,
-    Value<int>? ruleId,
-    Value<int>? occurrenceIndex,
-    Value<int>? targetDate,
+    Value<int>? stageTrackerId,
+    Value<int?>? stageRuleId,
+    Value<String>? sourceType,
+    Value<int?>? occurrenceIndex,
+    Value<int>? occurrenceDate,
+    Value<int?>? relativeAmount,
+    Value<String?>? relativeUnit,
     Value<String>? status,
-    Value<int?>? notifiedAt,
-    Value<int?>? actedAt,
+    Value<String>? label,
+    Value<String?>? note,
+    Value<int?>? reminderOffsetDays,
     Value<int>? createdAt,
     Value<int>? updatedAt,
   }) {
-    return TimelineMilestoneRecordsCompanion(
+    return StageRecordsCompanion(
       id: id ?? this.id,
-      timelineId: timelineId ?? this.timelineId,
-      ruleId: ruleId ?? this.ruleId,
+      stageTrackerId: stageTrackerId ?? this.stageTrackerId,
+      stageRuleId: stageRuleId ?? this.stageRuleId,
+      sourceType: sourceType ?? this.sourceType,
       occurrenceIndex: occurrenceIndex ?? this.occurrenceIndex,
-      targetDate: targetDate ?? this.targetDate,
+      occurrenceDate: occurrenceDate ?? this.occurrenceDate,
+      relativeAmount: relativeAmount ?? this.relativeAmount,
+      relativeUnit: relativeUnit ?? this.relativeUnit,
       status: status ?? this.status,
-      notifiedAt: notifiedAt ?? this.notifiedAt,
-      actedAt: actedAt ?? this.actedAt,
+      label: label ?? this.label,
+      note: note ?? this.note,
+      reminderOffsetDays: reminderOffsetDays ?? this.reminderOffsetDays,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -9917,26 +10227,38 @@ class TimelineMilestoneRecordsCompanion
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
-    if (timelineId.present) {
-      map['timeline_id'] = Variable<int>(timelineId.value);
+    if (stageTrackerId.present) {
+      map['stage_tracker_id'] = Variable<int>(stageTrackerId.value);
     }
-    if (ruleId.present) {
-      map['rule_id'] = Variable<int>(ruleId.value);
+    if (stageRuleId.present) {
+      map['stage_rule_id'] = Variable<int>(stageRuleId.value);
+    }
+    if (sourceType.present) {
+      map['source_type'] = Variable<String>(sourceType.value);
     }
     if (occurrenceIndex.present) {
       map['occurrence_index'] = Variable<int>(occurrenceIndex.value);
     }
-    if (targetDate.present) {
-      map['target_date'] = Variable<int>(targetDate.value);
+    if (occurrenceDate.present) {
+      map['occurrence_date'] = Variable<int>(occurrenceDate.value);
+    }
+    if (relativeAmount.present) {
+      map['relative_amount'] = Variable<int>(relativeAmount.value);
+    }
+    if (relativeUnit.present) {
+      map['relative_unit'] = Variable<String>(relativeUnit.value);
     }
     if (status.present) {
       map['status'] = Variable<String>(status.value);
     }
-    if (notifiedAt.present) {
-      map['notified_at'] = Variable<int>(notifiedAt.value);
+    if (label.present) {
+      map['label'] = Variable<String>(label.value);
     }
-    if (actedAt.present) {
-      map['acted_at'] = Variable<int>(actedAt.value);
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (reminderOffsetDays.present) {
+      map['reminder_offset_days'] = Variable<int>(reminderOffsetDays.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
@@ -9949,15 +10271,382 @@ class TimelineMilestoneRecordsCompanion
 
   @override
   String toString() {
-    return (StringBuffer('TimelineMilestoneRecordsCompanion(')
+    return (StringBuffer('StageRecordsCompanion(')
           ..write('id: $id, ')
-          ..write('timelineId: $timelineId, ')
-          ..write('ruleId: $ruleId, ')
+          ..write('stageTrackerId: $stageTrackerId, ')
+          ..write('stageRuleId: $stageRuleId, ')
+          ..write('sourceType: $sourceType, ')
           ..write('occurrenceIndex: $occurrenceIndex, ')
-          ..write('targetDate: $targetDate, ')
+          ..write('occurrenceDate: $occurrenceDate, ')
+          ..write('relativeAmount: $relativeAmount, ')
+          ..write('relativeUnit: $relativeUnit, ')
           ..write('status: $status, ')
-          ..write('notifiedAt: $notifiedAt, ')
-          ..write('actedAt: $actedAt, ')
+          ..write('label: $label, ')
+          ..write('note: $note, ')
+          ..write('reminderOffsetDays: $reminderOffsetDays, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $StageRelatedItemsTable extends StageRelatedItems
+    with TableInfo<$StageRelatedItemsTable, StageRelatedItemRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $StageRelatedItemsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _stageRecordIdMeta = const VerificationMeta(
+    'stageRecordId',
+  );
+  @override
+  late final GeneratedColumn<int> stageRecordId = GeneratedColumn<int>(
+    'stage_record_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES stage_records (id)',
+    ),
+  );
+  static const VerificationMeta _itemIdMeta = const VerificationMeta('itemId');
+  @override
+  late final GeneratedColumn<int> itemId = GeneratedColumn<int>(
+    'item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES items (id)',
+    ),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    stageRecordId,
+    itemId,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'stage_related_items';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<StageRelatedItemRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('stage_record_id')) {
+      context.handle(
+        _stageRecordIdMeta,
+        stageRecordId.isAcceptableOrUnknown(
+          data['stage_record_id']!,
+          _stageRecordIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_stageRecordIdMeta);
+    }
+    if (data.containsKey('item_id')) {
+      context.handle(
+        _itemIdMeta,
+        itemId.isAcceptableOrUnknown(data['item_id']!, _itemIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_itemIdMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  StageRelatedItemRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return StageRelatedItemRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      stageRecordId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}stage_record_id'],
+      )!,
+      itemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}item_id'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $StageRelatedItemsTable createAlias(String alias) {
+    return $StageRelatedItemsTable(attachedDatabase, alias);
+  }
+}
+
+class StageRelatedItemRow extends DataClass
+    implements Insertable<StageRelatedItemRow> {
+  final int id;
+  final int stageRecordId;
+  final int itemId;
+  final int createdAt;
+  final int updatedAt;
+  const StageRelatedItemRow({
+    required this.id,
+    required this.stageRecordId,
+    required this.itemId,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['stage_record_id'] = Variable<int>(stageRecordId);
+    map['item_id'] = Variable<int>(itemId);
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  StageRelatedItemsCompanion toCompanion(bool nullToAbsent) {
+    return StageRelatedItemsCompanion(
+      id: Value(id),
+      stageRecordId: Value(stageRecordId),
+      itemId: Value(itemId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory StageRelatedItemRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return StageRelatedItemRow(
+      id: serializer.fromJson<int>(json['id']),
+      stageRecordId: serializer.fromJson<int>(json['stageRecordId']),
+      itemId: serializer.fromJson<int>(json['itemId']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'stageRecordId': serializer.toJson<int>(stageRecordId),
+      'itemId': serializer.toJson<int>(itemId),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  StageRelatedItemRow copyWith({
+    int? id,
+    int? stageRecordId,
+    int? itemId,
+    int? createdAt,
+    int? updatedAt,
+  }) => StageRelatedItemRow(
+    id: id ?? this.id,
+    stageRecordId: stageRecordId ?? this.stageRecordId,
+    itemId: itemId ?? this.itemId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  StageRelatedItemRow copyWithCompanion(StageRelatedItemsCompanion data) {
+    return StageRelatedItemRow(
+      id: data.id.present ? data.id.value : this.id,
+      stageRecordId: data.stageRecordId.present
+          ? data.stageRecordId.value
+          : this.stageRecordId,
+      itemId: data.itemId.present ? data.itemId.value : this.itemId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StageRelatedItemRow(')
+          ..write('id: $id, ')
+          ..write('stageRecordId: $stageRecordId, ')
+          ..write('itemId: $itemId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, stageRecordId, itemId, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is StageRelatedItemRow &&
+          other.id == this.id &&
+          other.stageRecordId == this.stageRecordId &&
+          other.itemId == this.itemId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class StageRelatedItemsCompanion extends UpdateCompanion<StageRelatedItemRow> {
+  final Value<int> id;
+  final Value<int> stageRecordId;
+  final Value<int> itemId;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  const StageRelatedItemsCompanion({
+    this.id = const Value.absent(),
+    this.stageRecordId = const Value.absent(),
+    this.itemId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  StageRelatedItemsCompanion.insert({
+    this.id = const Value.absent(),
+    required int stageRecordId,
+    required int itemId,
+    required int createdAt,
+    required int updatedAt,
+  }) : stageRecordId = Value(stageRecordId),
+       itemId = Value(itemId),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<StageRelatedItemRow> custom({
+    Expression<int>? id,
+    Expression<int>? stageRecordId,
+    Expression<int>? itemId,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (stageRecordId != null) 'stage_record_id': stageRecordId,
+      if (itemId != null) 'item_id': itemId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  StageRelatedItemsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? stageRecordId,
+    Value<int>? itemId,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+  }) {
+    return StageRelatedItemsCompanion(
+      id: id ?? this.id,
+      stageRecordId: stageRecordId ?? this.stageRecordId,
+      itemId: itemId ?? this.itemId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (stageRecordId.present) {
+      map['stage_record_id'] = Variable<int>(stageRecordId.value);
+    }
+    if (itemId.present) {
+      map['item_id'] = Variable<int>(itemId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StageRelatedItemsCompanion(')
+          ..write('id: $id, ')
+          ..write('stageRecordId: $stageRecordId, ')
+          ..write('itemId: $itemId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -10291,16 +10980,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $ItemActionRecordsTable(this);
   late final $ResourceActionRecordsTable resourceActionRecords =
       $ResourceActionRecordsTable(this);
-  late final $TimelinesTable timelines = $TimelinesTable(this);
-  late final $TimelineMilestoneRulesTable timelineMilestoneRules =
-      $TimelineMilestoneRulesTable(this);
-  late final $TimelineMilestoneRecordsTable timelineMilestoneRecords =
-      $TimelineMilestoneRecordsTable(this);
+  late final $StageTrackersTable stageTrackers = $StageTrackersTable(this);
+  late final $StageRulesTable stageRules = $StageRulesTable(this);
+  late final $StageRecordsTable stageRecords = $StageRecordsTable(this);
+  late final $StageRelatedItemsTable stageRelatedItems =
+      $StageRelatedItemsTable(this);
   late final $AppSettingsEntriesTable appSettingsEntries =
       $AppSettingsEntriesTable(this);
-  late final ItemTimelineDao itemTimelineDao = ItemTimelineDao(
-    this as AppDatabase,
-  );
+  late final ReminderDao reminderDao = ReminderDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -10316,9 +11003,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     resourceConsumptionRules,
     itemActionRecords,
     resourceActionRecords,
-    timelines,
-    timelineMilestoneRules,
-    timelineMilestoneRecords,
+    stageTrackers,
+    stageRules,
+    stageRecords,
+    stageRelatedItems,
     appSettingsEntries,
   ];
 }
@@ -10380,6 +11068,24 @@ final class $$ItemPacksTableReferences
     ).filter((f) => f.packId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_resourcesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$StageTrackersTable, List<StageTrackerRow>>
+  _stageTrackersRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.stageTrackers,
+    aliasName: $_aliasNameGenerator(db.itemPacks.id, db.stageTrackers.packId),
+  );
+
+  $$StageTrackersTableProcessedTableManager get stageTrackersRefs {
+    final manager = $$StageTrackersTableTableManager(
+      $_db,
+      $_db.stageTrackers,
+    ).filter((f) => f.packId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_stageTrackersRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -10471,6 +11177,31 @@ class $$ItemPacksTableFilterComposer
           }) => $$ResourcesTableFilterComposer(
             $db: $db,
             $table: $db.resources,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> stageTrackersRefs(
+    Expression<bool> Function($$StageTrackersTableFilterComposer f) f,
+  ) {
+    final $$StageTrackersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.stageTrackers,
+      getReferencedColumn: (t) => t.packId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StageTrackersTableFilterComposer(
+            $db: $db,
+            $table: $db.stageTrackers,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -10609,6 +11340,31 @@ class $$ItemPacksTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> stageTrackersRefs<T extends Object>(
+    Expression<T> Function($$StageTrackersTableAnnotationComposer a) f,
+  ) {
+    final $$StageTrackersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.stageTrackers,
+      getReferencedColumn: (t) => t.packId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StageTrackersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.stageTrackers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$ItemPacksTableTableManager
@@ -10624,7 +11380,11 @@ class $$ItemPacksTableTableManager
           $$ItemPacksTableUpdateCompanionBuilder,
           (ItemPackRow, $$ItemPacksTableReferences),
           ItemPackRow,
-          PrefetchHooks Function({bool itemsRefs, bool resourcesRefs})
+          PrefetchHooks Function({
+            bool itemsRefs,
+            bool resourcesRefs,
+            bool stageTrackersRefs,
+          })
         > {
   $$ItemPacksTableTableManager(_$AppDatabase db, $ItemPacksTable table)
     : super(
@@ -10681,54 +11441,89 @@ class $$ItemPacksTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({itemsRefs = false, resourcesRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [
-                if (itemsRefs) db.items,
-                if (resourcesRefs) db.resources,
-              ],
-              addJoins: null,
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (itemsRefs)
-                    await $_getPrefetchedData<
-                      ItemPackRow,
-                      $ItemPacksTable,
-                      ItemRow
-                    >(
-                      currentTable: table,
-                      referencedTable: $$ItemPacksTableReferences
-                          ._itemsRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $$ItemPacksTableReferences(db, table, p0).itemsRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.packId == item.id),
-                      typedResults: items,
-                    ),
-                  if (resourcesRefs)
-                    await $_getPrefetchedData<
-                      ItemPackRow,
-                      $ItemPacksTable,
-                      ResourceRow
-                    >(
-                      currentTable: table,
-                      referencedTable: $$ItemPacksTableReferences
-                          ._resourcesRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $$ItemPacksTableReferences(
-                            db,
-                            table,
-                            p0,
-                          ).resourcesRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.packId == item.id),
-                      typedResults: items,
-                    ),
-                ];
+          prefetchHooksCallback:
+              ({
+                itemsRefs = false,
+                resourcesRefs = false,
+                stageTrackersRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (itemsRefs) db.items,
+                    if (resourcesRefs) db.resources,
+                    if (stageTrackersRefs) db.stageTrackers,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (itemsRefs)
+                        await $_getPrefetchedData<
+                          ItemPackRow,
+                          $ItemPacksTable,
+                          ItemRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ItemPacksTableReferences
+                              ._itemsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ItemPacksTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).itemsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.packId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (resourcesRefs)
+                        await $_getPrefetchedData<
+                          ItemPackRow,
+                          $ItemPacksTable,
+                          ResourceRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ItemPacksTableReferences
+                              ._resourcesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ItemPacksTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).resourcesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.packId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (stageTrackersRefs)
+                        await $_getPrefetchedData<
+                          ItemPackRow,
+                          $ItemPacksTable,
+                          StageTrackerRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ItemPacksTableReferences
+                              ._stageTrackersRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ItemPacksTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).stageTrackersRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.packId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -10745,7 +11540,11 @@ typedef $$ItemPacksTableProcessedTableManager =
       $$ItemPacksTableUpdateCompanionBuilder,
       (ItemPackRow, $$ItemPacksTableReferences),
       ItemPackRow,
-      PrefetchHooks Function({bool itemsRefs, bool resourcesRefs})
+      PrefetchHooks Function({
+        bool itemsRefs,
+        bool resourcesRefs,
+        bool stageTrackersRefs,
+      })
     >;
 typedef $$ItemsTableCreateCompanionBuilder =
     ItemsCompanion Function({
@@ -10871,6 +11670,30 @@ final class $$ItemsTableReferences
 
     final cache = $_typedResult.readTableOrNull(
       _itemActionRecordsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$StageRelatedItemsTable, List<StageRelatedItemRow>>
+  _stageRelatedItemsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.stageRelatedItems,
+        aliasName: $_aliasNameGenerator(
+          db.items.id,
+          db.stageRelatedItems.itemId,
+        ),
+      );
+
+  $$StageRelatedItemsTableProcessedTableManager get stageRelatedItemsRefs {
+    final manager = $$StageRelatedItemsTableTableManager(
+      $_db,
+      $_db.stageRelatedItems,
+    ).filter((f) => f.itemId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _stageRelatedItemsRefsTable($_db),
     );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
@@ -11072,6 +11895,31 @@ class $$ItemsTableFilterComposer extends Composer<_$AppDatabase, $ItemsTable> {
           }) => $$ItemActionRecordsTableFilterComposer(
             $db: $db,
             $table: $db.itemActionRecords,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> stageRelatedItemsRefs(
+    Expression<bool> Function($$StageRelatedItemsTableFilterComposer f) f,
+  ) {
+    final $$StageRelatedItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.stageRelatedItems,
+      getReferencedColumn: (t) => t.itemId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StageRelatedItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.stageRelatedItems,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -11427,6 +12275,32 @@ class $$ItemsTableAnnotationComposer
         );
     return f(composer);
   }
+
+  Expression<T> stageRelatedItemsRefs<T extends Object>(
+    Expression<T> Function($$StageRelatedItemsTableAnnotationComposer a) f,
+  ) {
+    final $$StageRelatedItemsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.stageRelatedItems,
+          getReferencedColumn: (t) => t.itemId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$StageRelatedItemsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.stageRelatedItems,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$ItemsTableTableManager
@@ -11446,6 +12320,7 @@ class $$ItemsTableTableManager
             bool packId,
             bool resourceConsumptionRulesRefs,
             bool itemActionRecordsRefs,
+            bool stageRelatedItemsRefs,
           })
         > {
   $$ItemsTableTableManager(_$AppDatabase db, $ItemsTable table)
@@ -11578,6 +12453,7 @@ class $$ItemsTableTableManager
                 packId = false,
                 resourceConsumptionRulesRefs = false,
                 itemActionRecordsRefs = false,
+                stageRelatedItemsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -11585,6 +12461,7 @@ class $$ItemsTableTableManager
                     if (resourceConsumptionRulesRefs)
                       db.resourceConsumptionRules,
                     if (itemActionRecordsRefs) db.itemActionRecords,
+                    if (stageRelatedItemsRefs) db.stageRelatedItems,
                   ],
                   addJoins:
                       <
@@ -11662,6 +12539,27 @@ class $$ItemsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (stageRelatedItemsRefs)
+                        await $_getPrefetchedData<
+                          ItemRow,
+                          $ItemsTable,
+                          StageRelatedItemRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ItemsTableReferences
+                              ._stageRelatedItemsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ItemsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).stageRelatedItemsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.itemId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -11686,6 +12584,7 @@ typedef $$ItemsTableProcessedTableManager =
         bool packId,
         bool resourceConsumptionRulesRefs,
         bool itemActionRecordsRefs,
+        bool stageRelatedItemsRefs,
       })
     >;
 typedef $$ItemPackTemplatesTableCreateCompanionBuilder =
@@ -16317,91 +17216,105 @@ typedef $$ResourceActionRecordsTableProcessedTableManager =
       ResourceActionRecordRow,
       PrefetchHooks Function({bool resourceId, bool sourceItemActionRecordId})
     >;
-typedef $$TimelinesTableCreateCompanionBuilder =
-    TimelinesCompanion Function({
+typedef $$StageTrackersTableCreateCompanionBuilder =
+    StageTrackersCompanion Function({
       Value<int> id,
+      Value<int?> packId,
       required String title,
-      required int startDate,
-      required String displayUnit,
-      required String status,
+      Value<String?> subjectName,
+      required int trackingStartDate,
+      Value<int?> trackingEndDate,
+      Value<String> status,
       required int createdAt,
       required int updatedAt,
     });
-typedef $$TimelinesTableUpdateCompanionBuilder =
-    TimelinesCompanion Function({
+typedef $$StageTrackersTableUpdateCompanionBuilder =
+    StageTrackersCompanion Function({
       Value<int> id,
+      Value<int?> packId,
       Value<String> title,
-      Value<int> startDate,
-      Value<String> displayUnit,
+      Value<String?> subjectName,
+      Value<int> trackingStartDate,
+      Value<int?> trackingEndDate,
       Value<String> status,
       Value<int> createdAt,
       Value<int> updatedAt,
     });
 
-final class $$TimelinesTableReferences
-    extends BaseReferences<_$AppDatabase, $TimelinesTable, TimelineRow> {
-  $$TimelinesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+final class $$StageTrackersTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $StageTrackersTable, StageTrackerRow> {
+  $$StageTrackersTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
 
-  static MultiTypedResultKey<
-    $TimelineMilestoneRulesTable,
-    List<TimelineMilestoneRuleRow>
-  >
-  _timelineMilestoneRulesRefsTable(_$AppDatabase db) =>
-      MultiTypedResultKey.fromTable(
-        db.timelineMilestoneRules,
-        aliasName: $_aliasNameGenerator(
-          db.timelines.id,
-          db.timelineMilestoneRules.timelineId,
-        ),
+  static $ItemPacksTable _packIdTable(_$AppDatabase db) =>
+      db.itemPacks.createAlias(
+        $_aliasNameGenerator(db.stageTrackers.packId, db.itemPacks.id),
       );
 
-  $$TimelineMilestoneRulesTableProcessedTableManager
-  get timelineMilestoneRulesRefs {
-    final manager = $$TimelineMilestoneRulesTableTableManager(
+  $$ItemPacksTableProcessedTableManager? get packId {
+    final $_column = $_itemColumn<int>('pack_id');
+    if ($_column == null) return null;
+    final manager = $$ItemPacksTableTableManager(
       $_db,
-      $_db.timelineMilestoneRules,
-    ).filter((f) => f.timelineId.id.sqlEquals($_itemColumn<int>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(
-      _timelineMilestoneRulesRefsTable($_db),
+      $_db.itemPacks,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_packIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
     );
+  }
+
+  static MultiTypedResultKey<$StageRulesTable, List<StageRuleRow>>
+  _stageRulesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.stageRules,
+    aliasName: $_aliasNameGenerator(
+      db.stageTrackers.id,
+      db.stageRules.stageTrackerId,
+    ),
+  );
+
+  $$StageRulesTableProcessedTableManager get stageRulesRefs {
+    final manager = $$StageRulesTableTableManager(
+      $_db,
+      $_db.stageRules,
+    ).filter((f) => f.stageTrackerId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_stageRulesRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
 
-  static MultiTypedResultKey<
-    $TimelineMilestoneRecordsTable,
-    List<TimelineMilestoneRecordRow>
-  >
-  _timelineMilestoneRecordsRefsTable(_$AppDatabase db) =>
-      MultiTypedResultKey.fromTable(
-        db.timelineMilestoneRecords,
-        aliasName: $_aliasNameGenerator(
-          db.timelines.id,
-          db.timelineMilestoneRecords.timelineId,
-        ),
-      );
+  static MultiTypedResultKey<$StageRecordsTable, List<StageRecordRow>>
+  _stageRecordsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.stageRecords,
+    aliasName: $_aliasNameGenerator(
+      db.stageTrackers.id,
+      db.stageRecords.stageTrackerId,
+    ),
+  );
 
-  $$TimelineMilestoneRecordsTableProcessedTableManager
-  get timelineMilestoneRecordsRefs {
-    final manager = $$TimelineMilestoneRecordsTableTableManager(
+  $$StageRecordsTableProcessedTableManager get stageRecordsRefs {
+    final manager = $$StageRecordsTableTableManager(
       $_db,
-      $_db.timelineMilestoneRecords,
-    ).filter((f) => f.timelineId.id.sqlEquals($_itemColumn<int>('id')!));
+      $_db.stageRecords,
+    ).filter((f) => f.stageTrackerId.id.sqlEquals($_itemColumn<int>('id')!));
 
-    final cache = $_typedResult.readTableOrNull(
-      _timelineMilestoneRecordsRefsTable($_db),
-    );
+    final cache = $_typedResult.readTableOrNull(_stageRecordsRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
 }
 
-class $$TimelinesTableFilterComposer
-    extends Composer<_$AppDatabase, $TimelinesTable> {
-  $$TimelinesTableFilterComposer({
+class $$StageTrackersTableFilterComposer
+    extends Composer<_$AppDatabase, $StageTrackersTable> {
+  $$StageTrackersTableFilterComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -16418,13 +17331,18 @@ class $$TimelinesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get startDate => $composableBuilder(
-    column: $table.startDate,
+  ColumnFilters<String> get subjectName => $composableBuilder(
+    column: $table.subjectName,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get displayUnit => $composableBuilder(
-    column: $table.displayUnit,
+  ColumnFilters<int> get trackingStartDate => $composableBuilder(
+    column: $table.trackingStartDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get trackingEndDate => $composableBuilder(
+    column: $table.trackingEndDate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -16443,63 +17361,83 @@ class $$TimelinesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  Expression<bool> timelineMilestoneRulesRefs(
-    Expression<bool> Function($$TimelineMilestoneRulesTableFilterComposer f) f,
-  ) {
-    final $$TimelineMilestoneRulesTableFilterComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.timelineMilestoneRules,
-          getReferencedColumn: (t) => t.timelineId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
+  $$ItemPacksTableFilterComposer get packId {
+    final $$ItemPacksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.packId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableFilterComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
                 $removeJoinBuilderFromRootComposer,
-              }) => $$TimelineMilestoneRulesTableFilterComposer(
-                $db: $db,
-                $table: $db.timelineMilestoneRules,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> stageRulesRefs(
+    Expression<bool> Function($$StageRulesTableFilterComposer f) f,
+  ) {
+    final $$StageRulesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.stageRules,
+      getReferencedColumn: (t) => t.stageTrackerId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StageRulesTableFilterComposer(
+            $db: $db,
+            $table: $db.stageRules,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return f(composer);
   }
 
-  Expression<bool> timelineMilestoneRecordsRefs(
-    Expression<bool> Function($$TimelineMilestoneRecordsTableFilterComposer f)
-    f,
+  Expression<bool> stageRecordsRefs(
+    Expression<bool> Function($$StageRecordsTableFilterComposer f) f,
   ) {
-    final $$TimelineMilestoneRecordsTableFilterComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.timelineMilestoneRecords,
-          getReferencedColumn: (t) => t.timelineId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
+    final $$StageRecordsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.stageRecords,
+      getReferencedColumn: (t) => t.stageTrackerId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StageRecordsTableFilterComposer(
+            $db: $db,
+            $table: $db.stageRecords,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
                 $removeJoinBuilderFromRootComposer,
-              }) => $$TimelineMilestoneRecordsTableFilterComposer(
-                $db: $db,
-                $table: $db.timelineMilestoneRecords,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
+          ),
+    );
     return f(composer);
   }
 }
 
-class $$TimelinesTableOrderingComposer
-    extends Composer<_$AppDatabase, $TimelinesTable> {
-  $$TimelinesTableOrderingComposer({
+class $$StageTrackersTableOrderingComposer
+    extends Composer<_$AppDatabase, $StageTrackersTable> {
+  $$StageTrackersTableOrderingComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -16516,13 +17454,18 @@ class $$TimelinesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get startDate => $composableBuilder(
-    column: $table.startDate,
+  ColumnOrderings<String> get subjectName => $composableBuilder(
+    column: $table.subjectName,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get displayUnit => $composableBuilder(
-    column: $table.displayUnit,
+  ColumnOrderings<int> get trackingStartDate => $composableBuilder(
+    column: $table.trackingStartDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get trackingEndDate => $composableBuilder(
+    column: $table.trackingEndDate,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -16540,11 +17483,34 @@ class $$TimelinesTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  $$ItemPacksTableOrderingComposer get packId {
+    final $$ItemPacksTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.packId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableOrderingComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
-class $$TimelinesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $TimelinesTable> {
-  $$TimelinesTableAnnotationComposer({
+class $$StageTrackersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $StageTrackersTable> {
+  $$StageTrackersTableAnnotationComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -16557,11 +17523,18 @@ class $$TimelinesTableAnnotationComposer
   GeneratedColumn<String> get title =>
       $composableBuilder(column: $table.title, builder: (column) => column);
 
-  GeneratedColumn<int> get startDate =>
-      $composableBuilder(column: $table.startDate, builder: (column) => column);
+  GeneratedColumn<String> get subjectName => $composableBuilder(
+    column: $table.subjectName,
+    builder: (column) => column,
+  );
 
-  GeneratedColumn<String> get displayUnit => $composableBuilder(
-    column: $table.displayUnit,
+  GeneratedColumn<int> get trackingStartDate => $composableBuilder(
+    column: $table.trackingStartDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get trackingEndDate => $composableBuilder(
+    column: $table.trackingEndDate,
     builder: (column) => column,
   );
 
@@ -16574,103 +17547,128 @@ class $$TimelinesTableAnnotationComposer
   GeneratedColumn<int> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 
-  Expression<T> timelineMilestoneRulesRefs<T extends Object>(
-    Expression<T> Function($$TimelineMilestoneRulesTableAnnotationComposer a) f,
-  ) {
-    final $$TimelineMilestoneRulesTableAnnotationComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.timelineMilestoneRules,
-          getReferencedColumn: (t) => t.timelineId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
+  $$ItemPacksTableAnnotationComposer get packId {
+    final $$ItemPacksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.packId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
                 $removeJoinBuilderFromRootComposer,
-              }) => $$TimelineMilestoneRulesTableAnnotationComposer(
-                $db: $db,
-                $table: $db.timelineMilestoneRules,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> stageRulesRefs<T extends Object>(
+    Expression<T> Function($$StageRulesTableAnnotationComposer a) f,
+  ) {
+    final $$StageRulesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.stageRules,
+      getReferencedColumn: (t) => t.stageTrackerId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StageRulesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.stageRules,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return f(composer);
   }
 
-  Expression<T> timelineMilestoneRecordsRefs<T extends Object>(
-    Expression<T> Function($$TimelineMilestoneRecordsTableAnnotationComposer a)
-    f,
+  Expression<T> stageRecordsRefs<T extends Object>(
+    Expression<T> Function($$StageRecordsTableAnnotationComposer a) f,
   ) {
-    final $$TimelineMilestoneRecordsTableAnnotationComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.timelineMilestoneRecords,
-          getReferencedColumn: (t) => t.timelineId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
+    final $$StageRecordsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.stageRecords,
+      getReferencedColumn: (t) => t.stageTrackerId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StageRecordsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.stageRecords,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
                 $removeJoinBuilderFromRootComposer,
-              }) => $$TimelineMilestoneRecordsTableAnnotationComposer(
-                $db: $db,
-                $table: $db.timelineMilestoneRecords,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
+          ),
+    );
     return f(composer);
   }
 }
 
-class $$TimelinesTableTableManager
+class $$StageTrackersTableTableManager
     extends
         RootTableManager<
           _$AppDatabase,
-          $TimelinesTable,
-          TimelineRow,
-          $$TimelinesTableFilterComposer,
-          $$TimelinesTableOrderingComposer,
-          $$TimelinesTableAnnotationComposer,
-          $$TimelinesTableCreateCompanionBuilder,
-          $$TimelinesTableUpdateCompanionBuilder,
-          (TimelineRow, $$TimelinesTableReferences),
-          TimelineRow,
+          $StageTrackersTable,
+          StageTrackerRow,
+          $$StageTrackersTableFilterComposer,
+          $$StageTrackersTableOrderingComposer,
+          $$StageTrackersTableAnnotationComposer,
+          $$StageTrackersTableCreateCompanionBuilder,
+          $$StageTrackersTableUpdateCompanionBuilder,
+          (StageTrackerRow, $$StageTrackersTableReferences),
+          StageTrackerRow,
           PrefetchHooks Function({
-            bool timelineMilestoneRulesRefs,
-            bool timelineMilestoneRecordsRefs,
+            bool packId,
+            bool stageRulesRefs,
+            bool stageRecordsRefs,
           })
         > {
-  $$TimelinesTableTableManager(_$AppDatabase db, $TimelinesTable table)
+  $$StageTrackersTableTableManager(_$AppDatabase db, $StageTrackersTable table)
     : super(
         TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
-              $$TimelinesTableFilterComposer($db: db, $table: table),
+              $$StageTrackersTableFilterComposer($db: db, $table: table),
           createOrderingComposer: () =>
-              $$TimelinesTableOrderingComposer($db: db, $table: table),
+              $$StageTrackersTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
-              $$TimelinesTableAnnotationComposer($db: db, $table: table),
+              $$StageTrackersTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
+                Value<int?> packId = const Value.absent(),
                 Value<String> title = const Value.absent(),
-                Value<int> startDate = const Value.absent(),
-                Value<String> displayUnit = const Value.absent(),
+                Value<String?> subjectName = const Value.absent(),
+                Value<int> trackingStartDate = const Value.absent(),
+                Value<int?> trackingEndDate = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
-              }) => TimelinesCompanion(
+              }) => StageTrackersCompanion(
                 id: id,
+                packId: packId,
                 title: title,
-                startDate: startDate,
-                displayUnit: displayUnit,
+                subjectName: subjectName,
+                trackingStartDate: trackingStartDate,
+                trackingEndDate: trackingEndDate,
                 status: status,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -16678,17 +17676,21 @@ class $$TimelinesTableTableManager
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
+                Value<int?> packId = const Value.absent(),
                 required String title,
-                required int startDate,
-                required String displayUnit,
-                required String status,
+                Value<String?> subjectName = const Value.absent(),
+                required int trackingStartDate,
+                Value<int?> trackingEndDate = const Value.absent(),
+                Value<String> status = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
-              }) => TimelinesCompanion.insert(
+              }) => StageTrackersCompanion.insert(
                 id: id,
+                packId: packId,
                 title: title,
-                startDate: startDate,
-                displayUnit: displayUnit,
+                subjectName: subjectName,
+                trackingStartDate: trackingStartDate,
+                trackingEndDate: trackingEndDate,
                 status: status,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -16697,64 +17699,97 @@ class $$TimelinesTableTableManager
               .map(
                 (e) => (
                   e.readTable(table),
-                  $$TimelinesTableReferences(db, table, e),
+                  $$StageTrackersTableReferences(db, table, e),
                 ),
               )
               .toList(),
           prefetchHooksCallback:
               ({
-                timelineMilestoneRulesRefs = false,
-                timelineMilestoneRecordsRefs = false,
+                packId = false,
+                stageRulesRefs = false,
+                stageRecordsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
-                    if (timelineMilestoneRulesRefs) db.timelineMilestoneRules,
-                    if (timelineMilestoneRecordsRefs)
-                      db.timelineMilestoneRecords,
+                    if (stageRulesRefs) db.stageRules,
+                    if (stageRecordsRefs) db.stageRecords,
                   ],
-                  addJoins: null,
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (packId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.packId,
+                                    referencedTable:
+                                        $$StageTrackersTableReferences
+                                            ._packIdTable(db),
+                                    referencedColumn:
+                                        $$StageTrackersTableReferences
+                                            ._packIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
                   getPrefetchedDataCallback: (items) async {
                     return [
-                      if (timelineMilestoneRulesRefs)
+                      if (stageRulesRefs)
                         await $_getPrefetchedData<
-                          TimelineRow,
-                          $TimelinesTable,
-                          TimelineMilestoneRuleRow
+                          StageTrackerRow,
+                          $StageTrackersTable,
+                          StageRuleRow
                         >(
                           currentTable: table,
-                          referencedTable: $$TimelinesTableReferences
-                              ._timelineMilestoneRulesRefsTable(db),
+                          referencedTable: $$StageTrackersTableReferences
+                              ._stageRulesRefsTable(db),
                           managerFromTypedResult: (p0) =>
-                              $$TimelinesTableReferences(
+                              $$StageTrackersTableReferences(
                                 db,
                                 table,
                                 p0,
-                              ).timelineMilestoneRulesRefs,
+                              ).stageRulesRefs,
                           referencedItemsForCurrentItem:
                               (item, referencedItems) => referencedItems.where(
-                                (e) => e.timelineId == item.id,
+                                (e) => e.stageTrackerId == item.id,
                               ),
                           typedResults: items,
                         ),
-                      if (timelineMilestoneRecordsRefs)
+                      if (stageRecordsRefs)
                         await $_getPrefetchedData<
-                          TimelineRow,
-                          $TimelinesTable,
-                          TimelineMilestoneRecordRow
+                          StageTrackerRow,
+                          $StageTrackersTable,
+                          StageRecordRow
                         >(
                           currentTable: table,
-                          referencedTable: $$TimelinesTableReferences
-                              ._timelineMilestoneRecordsRefsTable(db),
+                          referencedTable: $$StageTrackersTableReferences
+                              ._stageRecordsRefsTable(db),
                           managerFromTypedResult: (p0) =>
-                              $$TimelinesTableReferences(
+                              $$StageTrackersTableReferences(
                                 db,
                                 table,
                                 p0,
-                              ).timelineMilestoneRecordsRefs,
+                              ).stageRecordsRefs,
                           referencedItemsForCurrentItem:
                               (item, referencedItems) => referencedItems.where(
-                                (e) => e.timelineId == item.id,
+                                (e) => e.stageTrackerId == item.id,
                               ),
                           typedResults: items,
                         ),
@@ -16766,117 +17801,99 @@ class $$TimelinesTableTableManager
       );
 }
 
-typedef $$TimelinesTableProcessedTableManager =
+typedef $$StageTrackersTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
-      $TimelinesTable,
-      TimelineRow,
-      $$TimelinesTableFilterComposer,
-      $$TimelinesTableOrderingComposer,
-      $$TimelinesTableAnnotationComposer,
-      $$TimelinesTableCreateCompanionBuilder,
-      $$TimelinesTableUpdateCompanionBuilder,
-      (TimelineRow, $$TimelinesTableReferences),
-      TimelineRow,
+      $StageTrackersTable,
+      StageTrackerRow,
+      $$StageTrackersTableFilterComposer,
+      $$StageTrackersTableOrderingComposer,
+      $$StageTrackersTableAnnotationComposer,
+      $$StageTrackersTableCreateCompanionBuilder,
+      $$StageTrackersTableUpdateCompanionBuilder,
+      (StageTrackerRow, $$StageTrackersTableReferences),
+      StageTrackerRow,
       PrefetchHooks Function({
-        bool timelineMilestoneRulesRefs,
-        bool timelineMilestoneRecordsRefs,
+        bool packId,
+        bool stageRulesRefs,
+        bool stageRecordsRefs,
       })
     >;
-typedef $$TimelineMilestoneRulesTableCreateCompanionBuilder =
-    TimelineMilestoneRulesCompanion Function({
+typedef $$StageRulesTableCreateCompanionBuilder =
+    StageRulesCompanion Function({
       Value<int> id,
-      required int timelineId,
+      required int stageTrackerId,
       required String type,
       required int intervalValue,
       required String intervalUnit,
       Value<String?> labelTemplate,
-      Value<int> reminderOffsetDays,
+      Value<int?> reminderOffsetDays,
       Value<String> status,
       required int createdAt,
       required int updatedAt,
     });
-typedef $$TimelineMilestoneRulesTableUpdateCompanionBuilder =
-    TimelineMilestoneRulesCompanion Function({
+typedef $$StageRulesTableUpdateCompanionBuilder =
+    StageRulesCompanion Function({
       Value<int> id,
-      Value<int> timelineId,
+      Value<int> stageTrackerId,
       Value<String> type,
       Value<int> intervalValue,
       Value<String> intervalUnit,
       Value<String?> labelTemplate,
-      Value<int> reminderOffsetDays,
+      Value<int?> reminderOffsetDays,
       Value<String> status,
       Value<int> createdAt,
       Value<int> updatedAt,
     });
 
-final class $$TimelineMilestoneRulesTableReferences
-    extends
-        BaseReferences<
-          _$AppDatabase,
-          $TimelineMilestoneRulesTable,
-          TimelineMilestoneRuleRow
-        > {
-  $$TimelineMilestoneRulesTableReferences(
-    super.$_db,
-    super.$_table,
-    super.$_typedResult,
-  );
+final class $$StageRulesTableReferences
+    extends BaseReferences<_$AppDatabase, $StageRulesTable, StageRuleRow> {
+  $$StageRulesTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static $TimelinesTable _timelineIdTable(_$AppDatabase db) =>
-      db.timelines.createAlias(
-        $_aliasNameGenerator(
-          db.timelineMilestoneRules.timelineId,
-          db.timelines.id,
-        ),
+  static $StageTrackersTable _stageTrackerIdTable(_$AppDatabase db) =>
+      db.stageTrackers.createAlias(
+        $_aliasNameGenerator(db.stageRules.stageTrackerId, db.stageTrackers.id),
       );
 
-  $$TimelinesTableProcessedTableManager get timelineId {
-    final $_column = $_itemColumn<int>('timeline_id')!;
+  $$StageTrackersTableProcessedTableManager get stageTrackerId {
+    final $_column = $_itemColumn<int>('stage_tracker_id')!;
 
-    final manager = $$TimelinesTableTableManager(
+    final manager = $$StageTrackersTableTableManager(
       $_db,
-      $_db.timelines,
+      $_db.stageTrackers,
     ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_timelineIdTable($_db));
+    final item = $_typedResult.readTableOrNull(_stageTrackerIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
     );
   }
 
-  static MultiTypedResultKey<
-    $TimelineMilestoneRecordsTable,
-    List<TimelineMilestoneRecordRow>
-  >
-  _timelineMilestoneRecordsRefsTable(_$AppDatabase db) =>
-      MultiTypedResultKey.fromTable(
-        db.timelineMilestoneRecords,
-        aliasName: $_aliasNameGenerator(
-          db.timelineMilestoneRules.id,
-          db.timelineMilestoneRecords.ruleId,
-        ),
-      );
+  static MultiTypedResultKey<$StageRecordsTable, List<StageRecordRow>>
+  _stageRecordsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.stageRecords,
+    aliasName: $_aliasNameGenerator(
+      db.stageRules.id,
+      db.stageRecords.stageRuleId,
+    ),
+  );
 
-  $$TimelineMilestoneRecordsTableProcessedTableManager
-  get timelineMilestoneRecordsRefs {
-    final manager = $$TimelineMilestoneRecordsTableTableManager(
+  $$StageRecordsTableProcessedTableManager get stageRecordsRefs {
+    final manager = $$StageRecordsTableTableManager(
       $_db,
-      $_db.timelineMilestoneRecords,
-    ).filter((f) => f.ruleId.id.sqlEquals($_itemColumn<int>('id')!));
+      $_db.stageRecords,
+    ).filter((f) => f.stageRuleId.id.sqlEquals($_itemColumn<int>('id')!));
 
-    final cache = $_typedResult.readTableOrNull(
-      _timelineMilestoneRecordsRefsTable($_db),
-    );
+    final cache = $_typedResult.readTableOrNull(_stageRecordsRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
 }
 
-class $$TimelineMilestoneRulesTableFilterComposer
-    extends Composer<_$AppDatabase, $TimelineMilestoneRulesTable> {
-  $$TimelineMilestoneRulesTableFilterComposer({
+class $$StageRulesTableFilterComposer
+    extends Composer<_$AppDatabase, $StageRulesTable> {
+  $$StageRulesTableFilterComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -16928,20 +17945,20 @@ class $$TimelineMilestoneRulesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  $$TimelinesTableFilterComposer get timelineId {
-    final $$TimelinesTableFilterComposer composer = $composerBuilder(
+  $$StageTrackersTableFilterComposer get stageTrackerId {
+    final $$StageTrackersTableFilterComposer composer = $composerBuilder(
       composer: this,
-      getCurrentColumn: (t) => t.timelineId,
-      referencedTable: $db.timelines,
+      getCurrentColumn: (t) => t.stageTrackerId,
+      referencedTable: $db.stageTrackers,
       getReferencedColumn: (t) => t.id,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$TimelinesTableFilterComposer(
+          }) => $$StageTrackersTableFilterComposer(
             $db: $db,
-            $table: $db.timelines,
+            $table: $db.stageTrackers,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -16951,37 +17968,35 @@ class $$TimelineMilestoneRulesTableFilterComposer
     return composer;
   }
 
-  Expression<bool> timelineMilestoneRecordsRefs(
-    Expression<bool> Function($$TimelineMilestoneRecordsTableFilterComposer f)
-    f,
+  Expression<bool> stageRecordsRefs(
+    Expression<bool> Function($$StageRecordsTableFilterComposer f) f,
   ) {
-    final $$TimelineMilestoneRecordsTableFilterComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.timelineMilestoneRecords,
-          getReferencedColumn: (t) => t.ruleId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
+    final $$StageRecordsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.stageRecords,
+      getReferencedColumn: (t) => t.stageRuleId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StageRecordsTableFilterComposer(
+            $db: $db,
+            $table: $db.stageRecords,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
                 $removeJoinBuilderFromRootComposer,
-              }) => $$TimelineMilestoneRecordsTableFilterComposer(
-                $db: $db,
-                $table: $db.timelineMilestoneRecords,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
+          ),
+    );
     return f(composer);
   }
 }
 
-class $$TimelineMilestoneRulesTableOrderingComposer
-    extends Composer<_$AppDatabase, $TimelineMilestoneRulesTable> {
-  $$TimelineMilestoneRulesTableOrderingComposer({
+class $$StageRulesTableOrderingComposer
+    extends Composer<_$AppDatabase, $StageRulesTable> {
+  $$StageRulesTableOrderingComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -17033,20 +18048,20 @@ class $$TimelineMilestoneRulesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  $$TimelinesTableOrderingComposer get timelineId {
-    final $$TimelinesTableOrderingComposer composer = $composerBuilder(
+  $$StageTrackersTableOrderingComposer get stageTrackerId {
+    final $$StageTrackersTableOrderingComposer composer = $composerBuilder(
       composer: this,
-      getCurrentColumn: (t) => t.timelineId,
-      referencedTable: $db.timelines,
+      getCurrentColumn: (t) => t.stageTrackerId,
+      referencedTable: $db.stageTrackers,
       getReferencedColumn: (t) => t.id,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$TimelinesTableOrderingComposer(
+          }) => $$StageTrackersTableOrderingComposer(
             $db: $db,
-            $table: $db.timelines,
+            $table: $db.stageTrackers,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -17057,9 +18072,9 @@ class $$TimelineMilestoneRulesTableOrderingComposer
   }
 }
 
-class $$TimelineMilestoneRulesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $TimelineMilestoneRulesTable> {
-  $$TimelineMilestoneRulesTableAnnotationComposer({
+class $$StageRulesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $StageRulesTable> {
+  $$StageRulesTableAnnotationComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -17101,20 +18116,20 @@ class $$TimelineMilestoneRulesTableAnnotationComposer
   GeneratedColumn<int> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 
-  $$TimelinesTableAnnotationComposer get timelineId {
-    final $$TimelinesTableAnnotationComposer composer = $composerBuilder(
+  $$StageTrackersTableAnnotationComposer get stageTrackerId {
+    final $$StageTrackersTableAnnotationComposer composer = $composerBuilder(
       composer: this,
-      getCurrentColumn: (t) => t.timelineId,
-      referencedTable: $db.timelines,
+      getCurrentColumn: (t) => t.stageTrackerId,
+      referencedTable: $db.stageTrackers,
       getReferencedColumn: (t) => t.id,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$TimelinesTableAnnotationComposer(
+          }) => $$StageTrackersTableAnnotationComposer(
             $db: $db,
-            $table: $db.timelines,
+            $table: $db.stageTrackers,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -17124,89 +18139,73 @@ class $$TimelineMilestoneRulesTableAnnotationComposer
     return composer;
   }
 
-  Expression<T> timelineMilestoneRecordsRefs<T extends Object>(
-    Expression<T> Function($$TimelineMilestoneRecordsTableAnnotationComposer a)
-    f,
+  Expression<T> stageRecordsRefs<T extends Object>(
+    Expression<T> Function($$StageRecordsTableAnnotationComposer a) f,
   ) {
-    final $$TimelineMilestoneRecordsTableAnnotationComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.timelineMilestoneRecords,
-          getReferencedColumn: (t) => t.ruleId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
+    final $$StageRecordsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.stageRecords,
+      getReferencedColumn: (t) => t.stageRuleId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StageRecordsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.stageRecords,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
                 $removeJoinBuilderFromRootComposer,
-              }) => $$TimelineMilestoneRecordsTableAnnotationComposer(
-                $db: $db,
-                $table: $db.timelineMilestoneRecords,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
+          ),
+    );
     return f(composer);
   }
 }
 
-class $$TimelineMilestoneRulesTableTableManager
+class $$StageRulesTableTableManager
     extends
         RootTableManager<
           _$AppDatabase,
-          $TimelineMilestoneRulesTable,
-          TimelineMilestoneRuleRow,
-          $$TimelineMilestoneRulesTableFilterComposer,
-          $$TimelineMilestoneRulesTableOrderingComposer,
-          $$TimelineMilestoneRulesTableAnnotationComposer,
-          $$TimelineMilestoneRulesTableCreateCompanionBuilder,
-          $$TimelineMilestoneRulesTableUpdateCompanionBuilder,
-          (TimelineMilestoneRuleRow, $$TimelineMilestoneRulesTableReferences),
-          TimelineMilestoneRuleRow,
-          PrefetchHooks Function({
-            bool timelineId,
-            bool timelineMilestoneRecordsRefs,
-          })
+          $StageRulesTable,
+          StageRuleRow,
+          $$StageRulesTableFilterComposer,
+          $$StageRulesTableOrderingComposer,
+          $$StageRulesTableAnnotationComposer,
+          $$StageRulesTableCreateCompanionBuilder,
+          $$StageRulesTableUpdateCompanionBuilder,
+          (StageRuleRow, $$StageRulesTableReferences),
+          StageRuleRow,
+          PrefetchHooks Function({bool stageTrackerId, bool stageRecordsRefs})
         > {
-  $$TimelineMilestoneRulesTableTableManager(
-    _$AppDatabase db,
-    $TimelineMilestoneRulesTable table,
-  ) : super(
+  $$StageRulesTableTableManager(_$AppDatabase db, $StageRulesTable table)
+    : super(
         TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
-              $$TimelineMilestoneRulesTableFilterComposer(
-                $db: db,
-                $table: table,
-              ),
+              $$StageRulesTableFilterComposer($db: db, $table: table),
           createOrderingComposer: () =>
-              $$TimelineMilestoneRulesTableOrderingComposer(
-                $db: db,
-                $table: table,
-              ),
+              $$StageRulesTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
-              $$TimelineMilestoneRulesTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
+              $$StageRulesTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                Value<int> timelineId = const Value.absent(),
+                Value<int> stageTrackerId = const Value.absent(),
                 Value<String> type = const Value.absent(),
                 Value<int> intervalValue = const Value.absent(),
                 Value<String> intervalUnit = const Value.absent(),
                 Value<String?> labelTemplate = const Value.absent(),
-                Value<int> reminderOffsetDays = const Value.absent(),
+                Value<int?> reminderOffsetDays = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
-              }) => TimelineMilestoneRulesCompanion(
+              }) => StageRulesCompanion(
                 id: id,
-                timelineId: timelineId,
+                stageTrackerId: stageTrackerId,
                 type: type,
                 intervalValue: intervalValue,
                 intervalUnit: intervalUnit,
@@ -17219,18 +18218,18 @@ class $$TimelineMilestoneRulesTableTableManager
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                required int timelineId,
+                required int stageTrackerId,
                 required String type,
                 required int intervalValue,
                 required String intervalUnit,
                 Value<String?> labelTemplate = const Value.absent(),
-                Value<int> reminderOffsetDays = const Value.absent(),
+                Value<int?> reminderOffsetDays = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
-              }) => TimelineMilestoneRulesCompanion.insert(
+              }) => StageRulesCompanion.insert(
                 id: id,
-                timelineId: timelineId,
+                stageTrackerId: stageTrackerId,
                 type: type,
                 intervalValue: intervalValue,
                 intervalUnit: intervalUnit,
@@ -17244,17 +18243,16 @@ class $$TimelineMilestoneRulesTableTableManager
               .map(
                 (e) => (
                   e.readTable(table),
-                  $$TimelineMilestoneRulesTableReferences(db, table, e),
+                  $$StageRulesTableReferences(db, table, e),
                 ),
               )
               .toList(),
           prefetchHooksCallback:
-              ({timelineId = false, timelineMilestoneRecordsRefs = false}) {
+              ({stageTrackerId = false, stageRecordsRefs = false}) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
-                    if (timelineMilestoneRecordsRefs)
-                      db.timelineMilestoneRecords,
+                    if (stageRecordsRefs) db.stageRecords,
                   ],
                   addJoins:
                       <
@@ -17272,17 +18270,16 @@ class $$TimelineMilestoneRulesTableTableManager
                           dynamic
                         >
                       >(state) {
-                        if (timelineId) {
+                        if (stageTrackerId) {
                           state =
                               state.withJoin(
                                     currentTable: table,
-                                    currentColumn: table.timelineId,
-                                    referencedTable:
-                                        $$TimelineMilestoneRulesTableReferences
-                                            ._timelineIdTable(db),
+                                    currentColumn: table.stageTrackerId,
+                                    referencedTable: $$StageRulesTableReferences
+                                        ._stageTrackerIdTable(db),
                                     referencedColumn:
-                                        $$TimelineMilestoneRulesTableReferences
-                                            ._timelineIdTable(db)
+                                        $$StageRulesTableReferences
+                                            ._stageTrackerIdTable(db)
                                             .id,
                                   )
                                   as T;
@@ -17292,25 +18289,24 @@ class $$TimelineMilestoneRulesTableTableManager
                       },
                   getPrefetchedDataCallback: (items) async {
                     return [
-                      if (timelineMilestoneRecordsRefs)
+                      if (stageRecordsRefs)
                         await $_getPrefetchedData<
-                          TimelineMilestoneRuleRow,
-                          $TimelineMilestoneRulesTable,
-                          TimelineMilestoneRecordRow
+                          StageRuleRow,
+                          $StageRulesTable,
+                          StageRecordRow
                         >(
                           currentTable: table,
-                          referencedTable:
-                              $$TimelineMilestoneRulesTableReferences
-                                  ._timelineMilestoneRecordsRefsTable(db),
+                          referencedTable: $$StageRulesTableReferences
+                              ._stageRecordsRefsTable(db),
                           managerFromTypedResult: (p0) =>
-                              $$TimelineMilestoneRulesTableReferences(
+                              $$StageRulesTableReferences(
                                 db,
                                 table,
                                 p0,
-                              ).timelineMilestoneRecordsRefs,
+                              ).stageRecordsRefs,
                           referencedItemsForCurrentItem:
                               (item, referencedItems) => referencedItems.where(
-                                (e) => e.ruleId == item.id,
+                                (e) => e.stageRuleId == item.id,
                               ),
                           typedResults: items,
                         ),
@@ -17322,111 +18318,128 @@ class $$TimelineMilestoneRulesTableTableManager
       );
 }
 
-typedef $$TimelineMilestoneRulesTableProcessedTableManager =
+typedef $$StageRulesTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
-      $TimelineMilestoneRulesTable,
-      TimelineMilestoneRuleRow,
-      $$TimelineMilestoneRulesTableFilterComposer,
-      $$TimelineMilestoneRulesTableOrderingComposer,
-      $$TimelineMilestoneRulesTableAnnotationComposer,
-      $$TimelineMilestoneRulesTableCreateCompanionBuilder,
-      $$TimelineMilestoneRulesTableUpdateCompanionBuilder,
-      (TimelineMilestoneRuleRow, $$TimelineMilestoneRulesTableReferences),
-      TimelineMilestoneRuleRow,
-      PrefetchHooks Function({
-        bool timelineId,
-        bool timelineMilestoneRecordsRefs,
-      })
+      $StageRulesTable,
+      StageRuleRow,
+      $$StageRulesTableFilterComposer,
+      $$StageRulesTableOrderingComposer,
+      $$StageRulesTableAnnotationComposer,
+      $$StageRulesTableCreateCompanionBuilder,
+      $$StageRulesTableUpdateCompanionBuilder,
+      (StageRuleRow, $$StageRulesTableReferences),
+      StageRuleRow,
+      PrefetchHooks Function({bool stageTrackerId, bool stageRecordsRefs})
     >;
-typedef $$TimelineMilestoneRecordsTableCreateCompanionBuilder =
-    TimelineMilestoneRecordsCompanion Function({
+typedef $$StageRecordsTableCreateCompanionBuilder =
+    StageRecordsCompanion Function({
       Value<int> id,
-      required int timelineId,
-      required int ruleId,
-      required int occurrenceIndex,
-      required int targetDate,
-      required String status,
-      Value<int?> notifiedAt,
-      Value<int?> actedAt,
+      required int stageTrackerId,
+      Value<int?> stageRuleId,
+      required String sourceType,
+      Value<int?> occurrenceIndex,
+      required int occurrenceDate,
+      Value<int?> relativeAmount,
+      Value<String?> relativeUnit,
+      Value<String> status,
+      required String label,
+      Value<String?> note,
+      Value<int?> reminderOffsetDays,
       required int createdAt,
       required int updatedAt,
     });
-typedef $$TimelineMilestoneRecordsTableUpdateCompanionBuilder =
-    TimelineMilestoneRecordsCompanion Function({
+typedef $$StageRecordsTableUpdateCompanionBuilder =
+    StageRecordsCompanion Function({
       Value<int> id,
-      Value<int> timelineId,
-      Value<int> ruleId,
-      Value<int> occurrenceIndex,
-      Value<int> targetDate,
+      Value<int> stageTrackerId,
+      Value<int?> stageRuleId,
+      Value<String> sourceType,
+      Value<int?> occurrenceIndex,
+      Value<int> occurrenceDate,
+      Value<int?> relativeAmount,
+      Value<String?> relativeUnit,
       Value<String> status,
-      Value<int?> notifiedAt,
-      Value<int?> actedAt,
+      Value<String> label,
+      Value<String?> note,
+      Value<int?> reminderOffsetDays,
       Value<int> createdAt,
       Value<int> updatedAt,
     });
 
-final class $$TimelineMilestoneRecordsTableReferences
-    extends
-        BaseReferences<
-          _$AppDatabase,
-          $TimelineMilestoneRecordsTable,
-          TimelineMilestoneRecordRow
-        > {
-  $$TimelineMilestoneRecordsTableReferences(
-    super.$_db,
-    super.$_table,
-    super.$_typedResult,
-  );
+final class $$StageRecordsTableReferences
+    extends BaseReferences<_$AppDatabase, $StageRecordsTable, StageRecordRow> {
+  $$StageRecordsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static $TimelinesTable _timelineIdTable(_$AppDatabase db) =>
-      db.timelines.createAlias(
+  static $StageTrackersTable _stageTrackerIdTable(_$AppDatabase db) =>
+      db.stageTrackers.createAlias(
         $_aliasNameGenerator(
-          db.timelineMilestoneRecords.timelineId,
-          db.timelines.id,
+          db.stageRecords.stageTrackerId,
+          db.stageTrackers.id,
         ),
       );
 
-  $$TimelinesTableProcessedTableManager get timelineId {
-    final $_column = $_itemColumn<int>('timeline_id')!;
+  $$StageTrackersTableProcessedTableManager get stageTrackerId {
+    final $_column = $_itemColumn<int>('stage_tracker_id')!;
 
-    final manager = $$TimelinesTableTableManager(
+    final manager = $$StageTrackersTableTableManager(
       $_db,
-      $_db.timelines,
+      $_db.stageTrackers,
     ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_timelineIdTable($_db));
+    final item = $_typedResult.readTableOrNull(_stageTrackerIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
     );
   }
 
-  static $TimelineMilestoneRulesTable _ruleIdTable(_$AppDatabase db) =>
-      db.timelineMilestoneRules.createAlias(
-        $_aliasNameGenerator(
-          db.timelineMilestoneRecords.ruleId,
-          db.timelineMilestoneRules.id,
-        ),
+  static $StageRulesTable _stageRuleIdTable(_$AppDatabase db) =>
+      db.stageRules.createAlias(
+        $_aliasNameGenerator(db.stageRecords.stageRuleId, db.stageRules.id),
       );
 
-  $$TimelineMilestoneRulesTableProcessedTableManager get ruleId {
-    final $_column = $_itemColumn<int>('rule_id')!;
-
-    final manager = $$TimelineMilestoneRulesTableTableManager(
+  $$StageRulesTableProcessedTableManager? get stageRuleId {
+    final $_column = $_itemColumn<int>('stage_rule_id');
+    if ($_column == null) return null;
+    final manager = $$StageRulesTableTableManager(
       $_db,
-      $_db.timelineMilestoneRules,
+      $_db.stageRules,
     ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_ruleIdTable($_db));
+    final item = $_typedResult.readTableOrNull(_stageRuleIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<$StageRelatedItemsTable, List<StageRelatedItemRow>>
+  _stageRelatedItemsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.stageRelatedItems,
+        aliasName: $_aliasNameGenerator(
+          db.stageRecords.id,
+          db.stageRelatedItems.stageRecordId,
+        ),
+      );
+
+  $$StageRelatedItemsTableProcessedTableManager get stageRelatedItemsRefs {
+    final manager = $$StageRelatedItemsTableTableManager(
+      $_db,
+      $_db.stageRelatedItems,
+    ).filter((f) => f.stageRecordId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _stageRelatedItemsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
     );
   }
 }
 
-class $$TimelineMilestoneRecordsTableFilterComposer
-    extends Composer<_$AppDatabase, $TimelineMilestoneRecordsTable> {
-  $$TimelineMilestoneRecordsTableFilterComposer({
+class $$StageRecordsTableFilterComposer
+    extends Composer<_$AppDatabase, $StageRecordsTable> {
+  $$StageRecordsTableFilterComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -17438,13 +18451,28 @@ class $$TimelineMilestoneRecordsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get sourceType => $composableBuilder(
+    column: $table.sourceType,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get occurrenceIndex => $composableBuilder(
     column: $table.occurrenceIndex,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get targetDate => $composableBuilder(
-    column: $table.targetDate,
+  ColumnFilters<int> get occurrenceDate => $composableBuilder(
+    column: $table.occurrenceDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get relativeAmount => $composableBuilder(
+    column: $table.relativeAmount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get relativeUnit => $composableBuilder(
+    column: $table.relativeUnit,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -17453,13 +18481,18 @@ class $$TimelineMilestoneRecordsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get notifiedAt => $composableBuilder(
-    column: $table.notifiedAt,
+  ColumnFilters<String> get label => $composableBuilder(
+    column: $table.label,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get actedAt => $composableBuilder(
-    column: $table.actedAt,
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get reminderOffsetDays => $composableBuilder(
+    column: $table.reminderOffsetDays,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -17473,20 +18506,20 @@ class $$TimelineMilestoneRecordsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  $$TimelinesTableFilterComposer get timelineId {
-    final $$TimelinesTableFilterComposer composer = $composerBuilder(
+  $$StageTrackersTableFilterComposer get stageTrackerId {
+    final $$StageTrackersTableFilterComposer composer = $composerBuilder(
       composer: this,
-      getCurrentColumn: (t) => t.timelineId,
-      referencedTable: $db.timelines,
+      getCurrentColumn: (t) => t.stageTrackerId,
+      referencedTable: $db.stageTrackers,
       getReferencedColumn: (t) => t.id,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$TimelinesTableFilterComposer(
+          }) => $$StageTrackersTableFilterComposer(
             $db: $db,
-            $table: $db.timelines,
+            $table: $db.stageTrackers,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -17496,34 +18529,58 @@ class $$TimelineMilestoneRecordsTableFilterComposer
     return composer;
   }
 
-  $$TimelineMilestoneRulesTableFilterComposer get ruleId {
-    final $$TimelineMilestoneRulesTableFilterComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.ruleId,
-          referencedTable: $db.timelineMilestoneRules,
-          getReferencedColumn: (t) => t.id,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
+  $$StageRulesTableFilterComposer get stageRuleId {
+    final $$StageRulesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.stageRuleId,
+      referencedTable: $db.stageRules,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StageRulesTableFilterComposer(
+            $db: $db,
+            $table: $db.stageRules,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
                 $removeJoinBuilderFromRootComposer,
-              }) => $$TimelineMilestoneRulesTableFilterComposer(
-                $db: $db,
-                $table: $db.timelineMilestoneRules,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
+          ),
+    );
     return composer;
+  }
+
+  Expression<bool> stageRelatedItemsRefs(
+    Expression<bool> Function($$StageRelatedItemsTableFilterComposer f) f,
+  ) {
+    final $$StageRelatedItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.stageRelatedItems,
+      getReferencedColumn: (t) => t.stageRecordId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StageRelatedItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.stageRelatedItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
   }
 }
 
-class $$TimelineMilestoneRecordsTableOrderingComposer
-    extends Composer<_$AppDatabase, $TimelineMilestoneRecordsTable> {
-  $$TimelineMilestoneRecordsTableOrderingComposer({
+class $$StageRecordsTableOrderingComposer
+    extends Composer<_$AppDatabase, $StageRecordsTable> {
+  $$StageRecordsTableOrderingComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -17535,13 +18592,28 @@ class $$TimelineMilestoneRecordsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get sourceType => $composableBuilder(
+    column: $table.sourceType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get occurrenceIndex => $composableBuilder(
     column: $table.occurrenceIndex,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get targetDate => $composableBuilder(
-    column: $table.targetDate,
+  ColumnOrderings<int> get occurrenceDate => $composableBuilder(
+    column: $table.occurrenceDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get relativeAmount => $composableBuilder(
+    column: $table.relativeAmount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get relativeUnit => $composableBuilder(
+    column: $table.relativeUnit,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -17550,13 +18622,18 @@ class $$TimelineMilestoneRecordsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get notifiedAt => $composableBuilder(
-    column: $table.notifiedAt,
+  ColumnOrderings<String> get label => $composableBuilder(
+    column: $table.label,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get actedAt => $composableBuilder(
-    column: $table.actedAt,
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get reminderOffsetDays => $composableBuilder(
+    column: $table.reminderOffsetDays,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -17570,20 +18647,20 @@ class $$TimelineMilestoneRecordsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  $$TimelinesTableOrderingComposer get timelineId {
-    final $$TimelinesTableOrderingComposer composer = $composerBuilder(
+  $$StageTrackersTableOrderingComposer get stageTrackerId {
+    final $$StageTrackersTableOrderingComposer composer = $composerBuilder(
       composer: this,
-      getCurrentColumn: (t) => t.timelineId,
-      referencedTable: $db.timelines,
+      getCurrentColumn: (t) => t.stageTrackerId,
+      referencedTable: $db.stageTrackers,
       getReferencedColumn: (t) => t.id,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$TimelinesTableOrderingComposer(
+          }) => $$StageTrackersTableOrderingComposer(
             $db: $db,
-            $table: $db.timelines,
+            $table: $db.stageTrackers,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -17593,34 +18670,33 @@ class $$TimelineMilestoneRecordsTableOrderingComposer
     return composer;
   }
 
-  $$TimelineMilestoneRulesTableOrderingComposer get ruleId {
-    final $$TimelineMilestoneRulesTableOrderingComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.ruleId,
-          referencedTable: $db.timelineMilestoneRules,
-          getReferencedColumn: (t) => t.id,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
+  $$StageRulesTableOrderingComposer get stageRuleId {
+    final $$StageRulesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.stageRuleId,
+      referencedTable: $db.stageRules,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StageRulesTableOrderingComposer(
+            $db: $db,
+            $table: $db.stageRules,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
                 $removeJoinBuilderFromRootComposer,
-              }) => $$TimelineMilestoneRulesTableOrderingComposer(
-                $db: $db,
-                $table: $db.timelineMilestoneRules,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
+          ),
+    );
     return composer;
   }
 }
 
-class $$TimelineMilestoneRecordsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $TimelineMilestoneRecordsTable> {
-  $$TimelineMilestoneRecordsTableAnnotationComposer({
+class $$StageRecordsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $StageRecordsTable> {
+  $$StageRecordsTableAnnotationComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -17630,26 +18706,44 @@ class $$TimelineMilestoneRecordsTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
+  GeneratedColumn<String> get sourceType => $composableBuilder(
+    column: $table.sourceType,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get occurrenceIndex => $composableBuilder(
     column: $table.occurrenceIndex,
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get targetDate => $composableBuilder(
-    column: $table.targetDate,
+  GeneratedColumn<int> get occurrenceDate => $composableBuilder(
+    column: $table.occurrenceDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get relativeAmount => $composableBuilder(
+    column: $table.relativeAmount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get relativeUnit => $composableBuilder(
+    column: $table.relativeUnit,
     builder: (column) => column,
   );
 
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
 
-  GeneratedColumn<int> get notifiedAt => $composableBuilder(
-    column: $table.notifiedAt,
+  GeneratedColumn<String> get label =>
+      $composableBuilder(column: $table.label, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<int> get reminderOffsetDays => $composableBuilder(
+    column: $table.reminderOffsetDays,
     builder: (column) => column,
   );
-
-  GeneratedColumn<int> get actedAt =>
-      $composableBuilder(column: $table.actedAt, builder: (column) => column);
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -17657,20 +18751,20 @@ class $$TimelineMilestoneRecordsTableAnnotationComposer
   GeneratedColumn<int> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 
-  $$TimelinesTableAnnotationComposer get timelineId {
-    final $$TimelinesTableAnnotationComposer composer = $composerBuilder(
+  $$StageTrackersTableAnnotationComposer get stageTrackerId {
+    final $$StageTrackersTableAnnotationComposer composer = $composerBuilder(
       composer: this,
-      getCurrentColumn: (t) => t.timelineId,
-      referencedTable: $db.timelines,
+      getCurrentColumn: (t) => t.stageTrackerId,
+      referencedTable: $db.stageTrackers,
       getReferencedColumn: (t) => t.id,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$TimelinesTableAnnotationComposer(
+          }) => $$StageTrackersTableAnnotationComposer(
             $db: $db,
-            $table: $db.timelines,
+            $table: $db.stageTrackers,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -17680,116 +18774,147 @@ class $$TimelineMilestoneRecordsTableAnnotationComposer
     return composer;
   }
 
-  $$TimelineMilestoneRulesTableAnnotationComposer get ruleId {
-    final $$TimelineMilestoneRulesTableAnnotationComposer composer =
+  $$StageRulesTableAnnotationComposer get stageRuleId {
+    final $$StageRulesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.stageRuleId,
+      referencedTable: $db.stageRules,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StageRulesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.stageRules,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> stageRelatedItemsRefs<T extends Object>(
+    Expression<T> Function($$StageRelatedItemsTableAnnotationComposer a) f,
+  ) {
+    final $$StageRelatedItemsTableAnnotationComposer composer =
         $composerBuilder(
           composer: this,
-          getCurrentColumn: (t) => t.ruleId,
-          referencedTable: $db.timelineMilestoneRules,
-          getReferencedColumn: (t) => t.id,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.stageRelatedItems,
+          getReferencedColumn: (t) => t.stageRecordId,
           builder:
               (
                 joinBuilder, {
                 $addJoinBuilderToRootComposer,
                 $removeJoinBuilderFromRootComposer,
-              }) => $$TimelineMilestoneRulesTableAnnotationComposer(
+              }) => $$StageRelatedItemsTableAnnotationComposer(
                 $db: $db,
-                $table: $db.timelineMilestoneRules,
+                $table: $db.stageRelatedItems,
                 $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
                 joinBuilder: joinBuilder,
                 $removeJoinBuilderFromRootComposer:
                     $removeJoinBuilderFromRootComposer,
               ),
         );
-    return composer;
+    return f(composer);
   }
 }
 
-class $$TimelineMilestoneRecordsTableTableManager
+class $$StageRecordsTableTableManager
     extends
         RootTableManager<
           _$AppDatabase,
-          $TimelineMilestoneRecordsTable,
-          TimelineMilestoneRecordRow,
-          $$TimelineMilestoneRecordsTableFilterComposer,
-          $$TimelineMilestoneRecordsTableOrderingComposer,
-          $$TimelineMilestoneRecordsTableAnnotationComposer,
-          $$TimelineMilestoneRecordsTableCreateCompanionBuilder,
-          $$TimelineMilestoneRecordsTableUpdateCompanionBuilder,
-          (
-            TimelineMilestoneRecordRow,
-            $$TimelineMilestoneRecordsTableReferences,
-          ),
-          TimelineMilestoneRecordRow,
-          PrefetchHooks Function({bool timelineId, bool ruleId})
+          $StageRecordsTable,
+          StageRecordRow,
+          $$StageRecordsTableFilterComposer,
+          $$StageRecordsTableOrderingComposer,
+          $$StageRecordsTableAnnotationComposer,
+          $$StageRecordsTableCreateCompanionBuilder,
+          $$StageRecordsTableUpdateCompanionBuilder,
+          (StageRecordRow, $$StageRecordsTableReferences),
+          StageRecordRow,
+          PrefetchHooks Function({
+            bool stageTrackerId,
+            bool stageRuleId,
+            bool stageRelatedItemsRefs,
+          })
         > {
-  $$TimelineMilestoneRecordsTableTableManager(
-    _$AppDatabase db,
-    $TimelineMilestoneRecordsTable table,
-  ) : super(
+  $$StageRecordsTableTableManager(_$AppDatabase db, $StageRecordsTable table)
+    : super(
         TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
-              $$TimelineMilestoneRecordsTableFilterComposer(
-                $db: db,
-                $table: table,
-              ),
+              $$StageRecordsTableFilterComposer($db: db, $table: table),
           createOrderingComposer: () =>
-              $$TimelineMilestoneRecordsTableOrderingComposer(
-                $db: db,
-                $table: table,
-              ),
+              $$StageRecordsTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
-              $$TimelineMilestoneRecordsTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
+              $$StageRecordsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                Value<int> timelineId = const Value.absent(),
-                Value<int> ruleId = const Value.absent(),
-                Value<int> occurrenceIndex = const Value.absent(),
-                Value<int> targetDate = const Value.absent(),
+                Value<int> stageTrackerId = const Value.absent(),
+                Value<int?> stageRuleId = const Value.absent(),
+                Value<String> sourceType = const Value.absent(),
+                Value<int?> occurrenceIndex = const Value.absent(),
+                Value<int> occurrenceDate = const Value.absent(),
+                Value<int?> relativeAmount = const Value.absent(),
+                Value<String?> relativeUnit = const Value.absent(),
                 Value<String> status = const Value.absent(),
-                Value<int?> notifiedAt = const Value.absent(),
-                Value<int?> actedAt = const Value.absent(),
+                Value<String> label = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<int?> reminderOffsetDays = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
-              }) => TimelineMilestoneRecordsCompanion(
+              }) => StageRecordsCompanion(
                 id: id,
-                timelineId: timelineId,
-                ruleId: ruleId,
+                stageTrackerId: stageTrackerId,
+                stageRuleId: stageRuleId,
+                sourceType: sourceType,
                 occurrenceIndex: occurrenceIndex,
-                targetDate: targetDate,
+                occurrenceDate: occurrenceDate,
+                relativeAmount: relativeAmount,
+                relativeUnit: relativeUnit,
                 status: status,
-                notifiedAt: notifiedAt,
-                actedAt: actedAt,
+                label: label,
+                note: note,
+                reminderOffsetDays: reminderOffsetDays,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                required int timelineId,
-                required int ruleId,
-                required int occurrenceIndex,
-                required int targetDate,
-                required String status,
-                Value<int?> notifiedAt = const Value.absent(),
-                Value<int?> actedAt = const Value.absent(),
+                required int stageTrackerId,
+                Value<int?> stageRuleId = const Value.absent(),
+                required String sourceType,
+                Value<int?> occurrenceIndex = const Value.absent(),
+                required int occurrenceDate,
+                Value<int?> relativeAmount = const Value.absent(),
+                Value<String?> relativeUnit = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                required String label,
+                Value<String?> note = const Value.absent(),
+                Value<int?> reminderOffsetDays = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
-              }) => TimelineMilestoneRecordsCompanion.insert(
+              }) => StageRecordsCompanion.insert(
                 id: id,
-                timelineId: timelineId,
-                ruleId: ruleId,
+                stageTrackerId: stageTrackerId,
+                stageRuleId: stageRuleId,
+                sourceType: sourceType,
                 occurrenceIndex: occurrenceIndex,
-                targetDate: targetDate,
+                occurrenceDate: occurrenceDate,
+                relativeAmount: relativeAmount,
+                relativeUnit: relativeUnit,
                 status: status,
-                notifiedAt: notifiedAt,
-                actedAt: actedAt,
+                label: label,
+                note: note,
+                reminderOffsetDays: reminderOffsetDays,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -17797,11 +18922,465 @@ class $$TimelineMilestoneRecordsTableTableManager
               .map(
                 (e) => (
                   e.readTable(table),
-                  $$TimelineMilestoneRecordsTableReferences(db, table, e),
+                  $$StageRecordsTableReferences(db, table, e),
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({timelineId = false, ruleId = false}) {
+          prefetchHooksCallback:
+              ({
+                stageTrackerId = false,
+                stageRuleId = false,
+                stageRelatedItemsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (stageRelatedItemsRefs) db.stageRelatedItems,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (stageTrackerId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.stageTrackerId,
+                                    referencedTable:
+                                        $$StageRecordsTableReferences
+                                            ._stageTrackerIdTable(db),
+                                    referencedColumn:
+                                        $$StageRecordsTableReferences
+                                            ._stageTrackerIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (stageRuleId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.stageRuleId,
+                                    referencedTable:
+                                        $$StageRecordsTableReferences
+                                            ._stageRuleIdTable(db),
+                                    referencedColumn:
+                                        $$StageRecordsTableReferences
+                                            ._stageRuleIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (stageRelatedItemsRefs)
+                        await $_getPrefetchedData<
+                          StageRecordRow,
+                          $StageRecordsTable,
+                          StageRelatedItemRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$StageRecordsTableReferences
+                              ._stageRelatedItemsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$StageRecordsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).stageRelatedItemsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.stageRecordId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$StageRecordsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $StageRecordsTable,
+      StageRecordRow,
+      $$StageRecordsTableFilterComposer,
+      $$StageRecordsTableOrderingComposer,
+      $$StageRecordsTableAnnotationComposer,
+      $$StageRecordsTableCreateCompanionBuilder,
+      $$StageRecordsTableUpdateCompanionBuilder,
+      (StageRecordRow, $$StageRecordsTableReferences),
+      StageRecordRow,
+      PrefetchHooks Function({
+        bool stageTrackerId,
+        bool stageRuleId,
+        bool stageRelatedItemsRefs,
+      })
+    >;
+typedef $$StageRelatedItemsTableCreateCompanionBuilder =
+    StageRelatedItemsCompanion Function({
+      Value<int> id,
+      required int stageRecordId,
+      required int itemId,
+      required int createdAt,
+      required int updatedAt,
+    });
+typedef $$StageRelatedItemsTableUpdateCompanionBuilder =
+    StageRelatedItemsCompanion Function({
+      Value<int> id,
+      Value<int> stageRecordId,
+      Value<int> itemId,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+    });
+
+final class $$StageRelatedItemsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $StageRelatedItemsTable,
+          StageRelatedItemRow
+        > {
+  $$StageRelatedItemsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $StageRecordsTable _stageRecordIdTable(_$AppDatabase db) =>
+      db.stageRecords.createAlias(
+        $_aliasNameGenerator(
+          db.stageRelatedItems.stageRecordId,
+          db.stageRecords.id,
+        ),
+      );
+
+  $$StageRecordsTableProcessedTableManager get stageRecordId {
+    final $_column = $_itemColumn<int>('stage_record_id')!;
+
+    final manager = $$StageRecordsTableTableManager(
+      $_db,
+      $_db.stageRecords,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_stageRecordIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ItemsTable _itemIdTable(_$AppDatabase db) => db.items.createAlias(
+    $_aliasNameGenerator(db.stageRelatedItems.itemId, db.items.id),
+  );
+
+  $$ItemsTableProcessedTableManager get itemId {
+    final $_column = $_itemColumn<int>('item_id')!;
+
+    final manager = $$ItemsTableTableManager(
+      $_db,
+      $_db.items,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_itemIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$StageRelatedItemsTableFilterComposer
+    extends Composer<_$AppDatabase, $StageRelatedItemsTable> {
+  $$StageRelatedItemsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$StageRecordsTableFilterComposer get stageRecordId {
+    final $$StageRecordsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.stageRecordId,
+      referencedTable: $db.stageRecords,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StageRecordsTableFilterComposer(
+            $db: $db,
+            $table: $db.stageRecords,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemsTableFilterComposer get itemId {
+    final $$ItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.itemId,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StageRelatedItemsTableOrderingComposer
+    extends Composer<_$AppDatabase, $StageRelatedItemsTable> {
+  $$StageRelatedItemsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$StageRecordsTableOrderingComposer get stageRecordId {
+    final $$StageRecordsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.stageRecordId,
+      referencedTable: $db.stageRecords,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StageRecordsTableOrderingComposer(
+            $db: $db,
+            $table: $db.stageRecords,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemsTableOrderingComposer get itemId {
+    final $$ItemsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.itemId,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableOrderingComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StageRelatedItemsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $StageRelatedItemsTable> {
+  $$StageRelatedItemsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$StageRecordsTableAnnotationComposer get stageRecordId {
+    final $$StageRecordsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.stageRecordId,
+      referencedTable: $db.stageRecords,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StageRecordsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.stageRecords,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemsTableAnnotationComposer get itemId {
+    final $$ItemsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.itemId,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StageRelatedItemsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $StageRelatedItemsTable,
+          StageRelatedItemRow,
+          $$StageRelatedItemsTableFilterComposer,
+          $$StageRelatedItemsTableOrderingComposer,
+          $$StageRelatedItemsTableAnnotationComposer,
+          $$StageRelatedItemsTableCreateCompanionBuilder,
+          $$StageRelatedItemsTableUpdateCompanionBuilder,
+          (StageRelatedItemRow, $$StageRelatedItemsTableReferences),
+          StageRelatedItemRow,
+          PrefetchHooks Function({bool stageRecordId, bool itemId})
+        > {
+  $$StageRelatedItemsTableTableManager(
+    _$AppDatabase db,
+    $StageRelatedItemsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$StageRelatedItemsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$StageRelatedItemsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$StageRelatedItemsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> stageRecordId = const Value.absent(),
+                Value<int> itemId = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+              }) => StageRelatedItemsCompanion(
+                id: id,
+                stageRecordId: stageRecordId,
+                itemId: itemId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int stageRecordId,
+                required int itemId,
+                required int createdAt,
+                required int updatedAt,
+              }) => StageRelatedItemsCompanion.insert(
+                id: id,
+                stageRecordId: stageRecordId,
+                itemId: itemId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$StageRelatedItemsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({stageRecordId = false, itemId = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -17821,32 +19400,32 @@ class $$TimelineMilestoneRecordsTableTableManager
                       dynamic
                     >
                   >(state) {
-                    if (timelineId) {
+                    if (stageRecordId) {
                       state =
                           state.withJoin(
                                 currentTable: table,
-                                currentColumn: table.timelineId,
+                                currentColumn: table.stageRecordId,
                                 referencedTable:
-                                    $$TimelineMilestoneRecordsTableReferences
-                                        ._timelineIdTable(db),
+                                    $$StageRelatedItemsTableReferences
+                                        ._stageRecordIdTable(db),
                                 referencedColumn:
-                                    $$TimelineMilestoneRecordsTableReferences
-                                        ._timelineIdTable(db)
+                                    $$StageRelatedItemsTableReferences
+                                        ._stageRecordIdTable(db)
                                         .id,
                               )
                               as T;
                     }
-                    if (ruleId) {
+                    if (itemId) {
                       state =
                           state.withJoin(
                                 currentTable: table,
-                                currentColumn: table.ruleId,
+                                currentColumn: table.itemId,
                                 referencedTable:
-                                    $$TimelineMilestoneRecordsTableReferences
-                                        ._ruleIdTable(db),
+                                    $$StageRelatedItemsTableReferences
+                                        ._itemIdTable(db),
                                 referencedColumn:
-                                    $$TimelineMilestoneRecordsTableReferences
-                                        ._ruleIdTable(db)
+                                    $$StageRelatedItemsTableReferences
+                                        ._itemIdTable(db)
                                         .id,
                               )
                               as T;
@@ -17863,19 +19442,19 @@ class $$TimelineMilestoneRecordsTableTableManager
       );
 }
 
-typedef $$TimelineMilestoneRecordsTableProcessedTableManager =
+typedef $$StageRelatedItemsTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
-      $TimelineMilestoneRecordsTable,
-      TimelineMilestoneRecordRow,
-      $$TimelineMilestoneRecordsTableFilterComposer,
-      $$TimelineMilestoneRecordsTableOrderingComposer,
-      $$TimelineMilestoneRecordsTableAnnotationComposer,
-      $$TimelineMilestoneRecordsTableCreateCompanionBuilder,
-      $$TimelineMilestoneRecordsTableUpdateCompanionBuilder,
-      (TimelineMilestoneRecordRow, $$TimelineMilestoneRecordsTableReferences),
-      TimelineMilestoneRecordRow,
-      PrefetchHooks Function({bool timelineId, bool ruleId})
+      $StageRelatedItemsTable,
+      StageRelatedItemRow,
+      $$StageRelatedItemsTableFilterComposer,
+      $$StageRelatedItemsTableOrderingComposer,
+      $$StageRelatedItemsTableAnnotationComposer,
+      $$StageRelatedItemsTableCreateCompanionBuilder,
+      $$StageRelatedItemsTableUpdateCompanionBuilder,
+      (StageRelatedItemRow, $$StageRelatedItemsTableReferences),
+      StageRelatedItemRow,
+      PrefetchHooks Function({bool stageRecordId, bool itemId})
     >;
 typedef $$AppSettingsEntriesTableCreateCompanionBuilder =
     AppSettingsEntriesCompanion Function({
@@ -18094,18 +19673,14 @@ class $AppDatabaseManager {
       $$ItemActionRecordsTableTableManager(_db, _db.itemActionRecords);
   $$ResourceActionRecordsTableTableManager get resourceActionRecords =>
       $$ResourceActionRecordsTableTableManager(_db, _db.resourceActionRecords);
-  $$TimelinesTableTableManager get timelines =>
-      $$TimelinesTableTableManager(_db, _db.timelines);
-  $$TimelineMilestoneRulesTableTableManager get timelineMilestoneRules =>
-      $$TimelineMilestoneRulesTableTableManager(
-        _db,
-        _db.timelineMilestoneRules,
-      );
-  $$TimelineMilestoneRecordsTableTableManager get timelineMilestoneRecords =>
-      $$TimelineMilestoneRecordsTableTableManager(
-        _db,
-        _db.timelineMilestoneRecords,
-      );
+  $$StageTrackersTableTableManager get stageTrackers =>
+      $$StageTrackersTableTableManager(_db, _db.stageTrackers);
+  $$StageRulesTableTableManager get stageRules =>
+      $$StageRulesTableTableManager(_db, _db.stageRules);
+  $$StageRecordsTableTableManager get stageRecords =>
+      $$StageRecordsTableTableManager(_db, _db.stageRecords);
+  $$StageRelatedItemsTableTableManager get stageRelatedItems =>
+      $$StageRelatedItemsTableTableManager(_db, _db.stageRelatedItems);
   $$AppSettingsEntriesTableTableManager get appSettingsEntries =>
       $$AppSettingsEntriesTableTableManager(_db, _db.appSettingsEntries);
 }

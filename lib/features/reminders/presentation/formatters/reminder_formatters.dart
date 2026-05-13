@@ -1,7 +1,7 @@
 import 'package:intl/intl.dart';
 
 import '../../data/home_models.dart';
-import '../../data/local/item_timeline_dao.dart';
+import '../../data/local/reminder_dao.dart';
 import '../../domain/attention_policy.dart';
 import '../../domain/item_action_record.dart';
 import '../../domain/item.dart';
@@ -10,11 +10,11 @@ import '../../domain/repeat_rule.dart';
 import '../../domain/repeat_rule_v2.dart';
 import '../../domain/resource.dart';
 import '../../domain/resource_status_service.dart';
-import '../../domain/timeline.dart';
-import '../../domain/timeline_milestone_occurrence.dart';
-import '../../domain/timeline_milestone_record.dart';
-import '../../domain/timeline_milestone_rule.dart';
-import '../../domain/timeline_milestone_service.dart';
+import '../../domain/stage_occurrence.dart';
+import '../../domain/stage_record.dart';
+import '../../domain/stage_related_item.dart';
+import '../../domain/stage_rule.dart';
+import '../../domain/stage_tracker.dart';
 import '../../domain/item_status_service.dart';
 import '../text/reminder_ui_text.dart';
 
@@ -86,73 +86,106 @@ class ReminderFormatters {
     return '${resourceActionType(record.actionType)} • ${date(record.actionDate)}$amountText$resultingQuantityText$addedDaysText$resultingDurationText$sourceText$remarkText';
   }
 
-  static String milestoneSummary(TimelineMilestoneOccurrence occurrence) {
-    return '${occurrence.label} • ${date(occurrence.targetDate)}';
+  static String stageSummary(StageOccurrence occurrence) {
+    return '${occurrence.label} • ${date(occurrence.occurrenceDate)}';
   }
 
-  static String milestoneHistory(
-    TimelineMilestoneRecordBundle bundle, {
-    TimelineMilestoneService service = const TimelineMilestoneService(),
-  }) {
-    final label = service.formatLabel(
-      bundle.rule,
-      bundle.record.occurrenceIndex,
-    );
-    return '${milestoneStatus(bundle.record.status)} • $label • ${date(bundle.record.targetDate)}';
+  static String stageHistory(StageOccurrence occurrence) {
+    final source = occurrence.isManual ? '重要階段' : '重複階段';
+    return '$source • ${occurrence.label} • ${date(occurrence.occurrenceDate)}';
   }
 
-  static String milestoneHistoryUpdatedAt(
-    TimelineMilestoneRecordBundle bundle,
-  ) {
-    return '${ReminderUiText.updatedAtLabel}：${dateTime(bundle.record.updatedAt)}';
-  }
-
-  static String timelineMilestoneRuleSummary(TimelineMilestoneRule rule) {
+  static String stageRuleSummary(StageRule rule) {
     final unit = switch (rule.intervalUnit) {
-      TimelineMilestoneIntervalUnit.days => '天',
-      TimelineMilestoneIntervalUnit.weeks => '週',
-      TimelineMilestoneIntervalUnit.months => '個月',
-      TimelineMilestoneIntervalUnit.years => '年',
+      StageIntervalUnit.days => '天',
+      StageIntervalUnit.weeks => '週',
+      StageIntervalUnit.months => '個月',
+      StageIntervalUnit.years => '年',
     };
     return '每 ${rule.intervalValue} $unit';
   }
 
-  static String timelineMilestoneRuleStatus(
-    TimelineMilestoneRuleStatus status,
-  ) {
+  static String stageRuleStatus(StageRuleStatus status) {
     return switch (status) {
-      TimelineMilestoneRuleStatus.active => '啟用中',
-      TimelineMilestoneRuleStatus.paused => '已暫停',
-      TimelineMilestoneRuleStatus.archived => '已封存',
+      StageRuleStatus.active => '啟用中',
+      StageRuleStatus.paused => '已暫停',
+      StageRuleStatus.archived => '已封存',
     };
   }
 
-  static String timelineSummary(Timeline timeline) {
-    return '${date(timeline.startDate)} • ${displayUnitLabel(timeline.displayUnit)}';
+  static String stageTrackerSummary(StageTracker tracker, {DateTime? now}) {
+    final progress = stageProgress(tracker, now: now);
+    final range = tracker.trackingEndDate == null
+        ? '持續追蹤'
+        : '追蹤到 ${date(tracker.trackingEndDate!)}';
+    return '$progress • $range';
   }
 
-  static String timelineStatus(TimelineStatus status) {
+  static String stageTrackerStatus(StageTrackerStatus status) {
     return switch (status) {
-      TimelineStatus.active => '啟用中',
-      TimelineStatus.archived => '已封存',
+      StageTrackerStatus.active => '進行中',
+      StageTrackerStatus.archived => '已封存',
     };
   }
 
-  static String displayUnitLabel(TimelineDisplayUnit value) {
+  static String stageRecordStatus(StageRecordStatus value) {
     return switch (value) {
-      TimelineDisplayUnit.day => '天',
-      TimelineDisplayUnit.week => '週',
-      TimelineDisplayUnit.month => '月',
-      TimelineDisplayUnit.year => '年',
+      StageRecordStatus.normal => '一般',
+      StageRecordStatus.acknowledged => '知道了',
+      StageRecordStatus.ignored => '已忽略',
+      StageRecordStatus.archived => '已封存',
     };
   }
 
-  static String milestoneStatus(TimelineMilestoneRecordStatus value) {
-    return switch (value) {
-      TimelineMilestoneRecordStatus.upcoming => '即將到來',
-      TimelineMilestoneRecordStatus.noticed => '已看過',
-      TimelineMilestoneRecordStatus.skipped => '已跳過',
-    };
+  static String stageProgress(StageTracker tracker, {DateTime? now}) {
+    final current = _normalizeDate(now ?? DateTime.now());
+    final start = _normalizeDate(tracker.trackingStartDate);
+    if (current.isBefore(start)) {
+      return '尚未開始追蹤';
+    }
+    final subject = _subjectPrefix(tracker);
+    final years = _wholeMonthsBetween(start, current) ~/ 12;
+    final months = _wholeMonthsBetween(start, current) % 12;
+    final monthBase = DateTime(
+      start.year,
+      start.month + years * 12 + months,
+      start.day,
+    );
+    final days = current.difference(monthBase).inDays;
+    if (years > 0) {
+      final monthText = months > 0 ? ' $months 個月' : '';
+      return '$subject已經 $years 年$monthText';
+    }
+    if (months > 0) {
+      final dayText = days > 0 ? ' $days 天' : '';
+      return '$subject已經 $months 個月$dayText';
+    }
+    return '$subject已經 ${current.difference(start).inDays} 天';
+  }
+
+  static String stageRelativeLabel(
+    StageOccurrence occurrence, {
+    DateTime? now,
+  }) {
+    final current = _normalizeDate(now ?? DateTime.now());
+    final days = occurrence.occurrenceDate.difference(current).inDays;
+    if (days > 0) {
+      return '$days 天後${occurrence.label}';
+    }
+    if (days == 0) {
+      return '今天${occurrence.label}';
+    }
+    return '${-days} 天前${occurrence.label}';
+  }
+
+  static String relatedItemSummary(StageRelatedItemSummary summary) {
+    final pausedText = summary.pausedCount == 0
+        ? ''
+        : '，${summary.pausedCount} 個已暫停';
+    final skippedText = summary.skippedCount == 0
+        ? ''
+        : '，${summary.skippedCount} 個已跳過';
+    return '相關提醒：${summary.doneCount} / ${summary.totalRelevantCount} 已完成$pausedText$skippedText';
   }
 
   static String itemStatus(ItemStatus status) {
@@ -613,12 +646,30 @@ class ReminderFormatters {
     };
   }
 
-  static String timelineMilestoneRuleType(TimelineMilestoneRuleType value) {
+  static String stageRuleType(StageRuleType value) {
     return switch (value) {
-      TimelineMilestoneRuleType.everyNDays => '每 N 天',
-      TimelineMilestoneRuleType.everyNWeeks => '每 N 週',
-      TimelineMilestoneRuleType.everyNMonths => '每 N 個月',
-      TimelineMilestoneRuleType.everyNYears => '每 N 年',
+      StageRuleType.everyNDays => '每天',
+      StageRuleType.everyNWeeks => '每週',
+      StageRuleType.everyNMonths => '每月',
+      StageRuleType.everyNYears => '每年',
     };
+  }
+
+  static DateTime _normalizeDate(DateTime value) {
+    return DateTime(value.year, value.month, value.day);
+  }
+
+  static String _subjectPrefix(StageTracker tracker) {
+    final subject = tracker.subjectName?.trim();
+    return subject == null || subject.isEmpty ? '' : subject;
+  }
+
+  static int _wholeMonthsBetween(DateTime start, DateTime end) {
+    var months = (end.year - start.year) * 12 + end.month - start.month;
+    final candidate = DateTime(end.year, end.month, start.day);
+    if (candidate.isAfter(end)) {
+      months--;
+    }
+    return months.clamp(0, 12000);
   }
 }

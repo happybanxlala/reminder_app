@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../data/item_repository.dart';
-import '../../data/local/item_timeline_dao.dart';
+import '../../data/local/reminder_dao.dart';
 import '../../data/resource_repository.dart';
 import '../../domain/resource.dart';
 

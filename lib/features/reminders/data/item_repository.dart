@@ -12,7 +12,7 @@ import '../domain/resource.dart';
 import '../domain/resource_refill_service.dart';
 import 'builtin_item_pack_templates.dart';
 import 'local/app_database.dart';
-import 'local/item_timeline_dao.dart';
+import 'local/reminder_dao.dart';
 import 'resource_repository.dart';
 
 class ItemInput {
@@ -75,7 +75,7 @@ class ItemRepository {
     ItemActionType.skipped,
   };
 
-  final ItemTimelineDao _dao;
+  final ReminderDao _dao;
   final ItemStatusService _statusService;
   final ItemActionService _actionService;
   final ItemSnapshotUpdateService _snapshotUpdateService;

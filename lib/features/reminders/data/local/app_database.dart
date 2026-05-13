@@ -5,7 +5,7 @@ import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import 'item_timeline_dao.dart';
+import 'reminder_dao.dart';
 import 'tables.dart';
 
 part 'app_database.g.dart';
@@ -22,12 +22,13 @@ part 'app_database.g.dart';
     ResourceConsumptionRules,
     ResourceActionRecords,
     ItemActionRecords,
-    Timelines,
-    TimelineMilestoneRules,
-    TimelineMilestoneRecords,
+    StageTrackers,
+    StageRules,
+    StageRecords,
+    StageRelatedItems,
     AppSettingsEntries,
   ],
-  daos: [ItemTimelineDao],
+  daos: [ReminderDao],
 )
 class AppDatabase extends _$AppDatabase {
   static const systemDefaultPackTitle = 'Default Item Pack';
@@ -37,14 +38,18 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
     onUpgrade: (m, from, to) async {
-      if (from < 6) {
+      if (from < 7) {
         await customStatement('PRAGMA foreign_keys = OFF');
+        await customStatement('DROP TABLE IF EXISTS stage_related_items');
+        await customStatement('DROP TABLE IF EXISTS stage_records');
+        await customStatement('DROP TABLE IF EXISTS stage_rules');
+        await customStatement('DROP TABLE IF EXISTS stage_trackers');
         await customStatement('DROP TABLE IF EXISTS resource_action_records');
         await customStatement(
           'DROP TABLE IF EXISTS resource_consumption_rules',

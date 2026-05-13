@@ -8,8 +8,7 @@ import '../features/reminders/ui/pages/home_page.dart';
 import '../features/reminders/ui/pages/item_edit_page.dart';
 import '../features/reminders/ui/pages/item_history_page.dart';
 import '../features/reminders/ui/pages/resource_history_page.dart';
-import '../features/reminders/ui/pages/timeline_edit_page.dart';
-import '../features/reminders/ui/pages/timeline_milestone_history_page.dart';
+import '../features/reminders/ui/pages/stage_tracker_pages.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -40,9 +39,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: TimelineManagementPage.routePath,
-                name: TimelineManagementPage.routeName,
-                builder: (context, state) => const TimelineManagementContent(),
+                path: StageTrackerManagementPage.routePath,
+                name: StageTrackerManagementPage.routeName,
+                builder: (context, state) =>
+                    const StageTrackerManagementContent(),
               ),
             ],
           ),
@@ -71,10 +71,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: ItemPacksManagementPage.routePath,
         name: ItemPacksManagementPage.routeName,
         builder: (context, state) => const ItemPacksManagementPage(),
-      ),
-      GoRoute(
-        path: TimelineManagementPage.legacyRoutePath,
-        redirect: (context, state) => TimelineManagementPage.routePath,
       ),
       GoRoute(
         path: SettingsPage.routePath,
@@ -123,25 +119,27 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: TimelineEditPage.timelineNewRoutePath,
-        name: TimelineEditPage.timelineNewRouteName,
-        builder: (context, state) =>
-            const TimelineEditPage(mode: TimelineEditMode.create),
-      ),
-      GoRoute(
-        path: TimelineEditPage.timelineEditRoutePath,
-        name: TimelineEditPage.timelineEditRouteName,
+        path: StageTrackerDetailPage.routePath,
+        name: StageTrackerDetailPage.routeName,
         builder: (context, state) {
           final id = int.tryParse(state.pathParameters['id'] ?? '');
-          return TimelineEditPage(mode: TimelineEditMode.edit, id: id);
+          return StageTrackerDetailPage(stageTrackerId: id ?? 0);
         },
       ),
       GoRoute(
-        path: TimelineMilestoneHistoryPage.routePath,
-        name: TimelineMilestoneHistoryPage.routeName,
+        path: StageTrackerSchedulePage.routePath,
+        name: StageTrackerSchedulePage.routeName,
         builder: (context, state) {
           final id = int.tryParse(state.pathParameters['id'] ?? '');
-          return TimelineMilestoneHistoryPage(timelineId: id ?? 0);
+          return StageTrackerSchedulePage(stageTrackerId: id ?? 0);
+        },
+      ),
+      GoRoute(
+        path: StageTrackerHistoryPage.routePath,
+        name: StageTrackerHistoryPage.routeName,
+        builder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '');
+          return StageTrackerHistoryPage(stageTrackerId: id ?? 0);
         },
       ),
     ],

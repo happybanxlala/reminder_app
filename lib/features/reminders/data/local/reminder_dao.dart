@@ -8,14 +8,14 @@ import '../../domain/item_pack.dart';
 import '../../domain/item_pack_template.dart';
 import '../../domain/repeat_rule_v2.dart';
 import '../../domain/resource.dart';
-import '../../domain/timeline.dart';
-import '../../domain/timeline_milestone_occurrence.dart';
-import '../../domain/timeline_milestone_record.dart';
-import '../../domain/timeline_milestone_rule.dart';
+import '../../domain/stage_record.dart';
+import '../../domain/stage_related_item.dart';
+import '../../domain/stage_rule.dart';
+import '../../domain/stage_tracker.dart';
 import 'app_database.dart';
 import 'tables.dart';
 
-part 'item_timeline_dao.g.dart';
+part 'reminder_dao.g.dart';
 
 class ItemBundle {
   const ItemBundle({required this.item, required this.pack});
@@ -58,28 +58,38 @@ class ItemActivityEntry {
   ItemBundle get bundle => ItemBundle(item: item, pack: pack);
 }
 
-class TimelineMilestoneRecordBundle {
-  const TimelineMilestoneRecordBundle({
+class StageRecordBundle {
+  const StageRecordBundle({
     required this.record,
-    required this.rule,
-    required this.timeline,
+    this.rule,
+    required this.stageTracker,
   });
 
-  final TimelineMilestoneRecord record;
-  final TimelineMilestoneRule rule;
-  final Timeline timeline;
+  final StageRecord record;
+  final StageRule? rule;
+  final StageTracker stageTracker;
 }
 
-class TimelineDetailRecord {
-  const TimelineDetailRecord({
-    required this.timeline,
-    required this.milestoneRules,
-    required this.milestoneHistory,
+class StageTrackerDetailRecord {
+  const StageTrackerDetailRecord({
+    required this.stageTracker,
+    required this.stageRules,
+    required this.stageRecords,
   });
 
-  final Timeline timeline;
-  final List<TimelineMilestoneRule> milestoneRules;
-  final List<TimelineMilestoneRecordBundle> milestoneHistory;
+  final StageTracker stageTracker;
+  final List<StageRule> stageRules;
+  final List<StageRecord> stageRecords;
+}
+
+class StageRelatedItemSource {
+  const StageRelatedItemSource({
+    required this.stageTrackerTitle,
+    required this.stageLabel,
+  });
+
+  final String stageTrackerTitle;
+  final String stageLabel;
 }
 
 @DriftAccessor(
@@ -94,15 +104,16 @@ class TimelineDetailRecord {
     ResourceConsumptionRules,
     ResourceActionRecords,
     ItemActionRecords,
-    Timelines,
-    TimelineMilestoneRules,
-    TimelineMilestoneRecords,
+    StageTrackers,
+    StageRules,
+    StageRecords,
+    StageRelatedItems,
     AppSettingsEntries,
   ],
 )
-class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
-    with _$ItemTimelineDaoMixin {
-  ItemTimelineDao(super.attachedDatabase);
+class ReminderDao extends DatabaseAccessor<AppDatabase>
+    with _$ReminderDaoMixin {
+  ReminderDao(super.attachedDatabase);
 
   Future<int> insertItemPack(ItemPacksCompanion entry) {
     return into(itemPacks).insert(entry);
@@ -485,237 +496,247 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
-  Future<int> insertTimeline(TimelinesCompanion entry) {
-    return into(timelines).insert(entry);
+  Future<int> insertStageTracker(StageTrackersCompanion entry) {
+    return into(stageTrackers).insert(entry);
   }
 
-  Future<bool> updateTimelineRecord(TimelineRow entry) {
-    return update(timelines).replace(entry);
+  Future<bool> updateStageTrackerRecord(StageTrackerRow entry) {
+    return update(stageTrackers).replace(entry);
   }
 
-  Future<int> insertTimelineMilestoneRule(
-    TimelineMilestoneRulesCompanion entry,
-  ) {
-    return into(timelineMilestoneRules).insert(entry);
+  Future<int> insertStageRule(StageRulesCompanion entry) {
+    return into(stageRules).insert(entry);
   }
 
-  Future<bool> updateTimelineMilestoneRuleRecord(
-    TimelineMilestoneRuleRow entry,
-  ) {
-    return update(timelineMilestoneRules).replace(entry);
+  Future<bool> updateStageRuleRecord(StageRuleRow entry) {
+    return update(stageRules).replace(entry);
   }
 
-  Future<int> insertTimelineMilestoneRecord(
-    TimelineMilestoneRecordsCompanion entry,
-  ) {
-    return into(timelineMilestoneRecords).insert(entry);
+  Future<int> insertStageRecord(StageRecordsCompanion entry) {
+    return into(stageRecords).insert(entry);
   }
 
-  Future<bool> updateTimelineMilestoneRecordRecord(
-    TimelineMilestoneRecordRow entry,
-  ) {
-    return update(timelineMilestoneRecords).replace(entry);
+  Future<bool> updateStageRecordRecord(StageRecordRow entry) {
+    return update(stageRecords).replace(entry);
   }
 
-  Stream<List<Timeline>> watchTimelines() {
-    final query = select(timelines)
+  Future<int> deleteStageRecordById(int id) {
+    return (delete(stageRecords)..where((t) => t.id.equals(id))).go();
+  }
+
+  Future<int> insertStageRelatedItem(StageRelatedItemsCompanion entry) {
+    return into(stageRelatedItems).insert(entry);
+  }
+
+  Stream<List<StageTracker>> watchStageTrackers({
+    bool includeArchived = false,
+  }) {
+    final query = select(stageTrackers)
       ..orderBy([
         (t) => OrderingTerm.asc(t.status),
         (t) => OrderingTerm.desc(t.updatedAt),
       ]);
+    if (!includeArchived) {
+      query.where((t) => t.status.equals(StageTrackerStatus.active.name));
+    }
     return query.watch().map(
-      (rows) => rows.map(_toTimeline).toList(growable: false),
+      (rows) => rows.map(_toStageTracker).toList(growable: false),
     );
   }
 
-  Future<Timeline?> getTimelineById(int id) async {
+  Future<StageTracker?> getStageTrackerById(int id) async {
     final row = await (select(
-      timelines,
+      stageTrackers,
     )..where((t) => t.id.equals(id))).getSingleOrNull();
-    return row == null ? null : _toTimeline(row);
+    return row == null ? null : _toStageTracker(row);
   }
 
-  Stream<List<TimelineMilestoneRule>> watchTimelineMilestoneRules() {
-    final query = select(timelineMilestoneRules)
+  Stream<List<StageRule>> watchStageRules() {
+    final query = select(stageRules)
       ..orderBy([
-        (t) => OrderingTerm.asc(t.timelineId),
+        (t) => OrderingTerm.asc(t.stageTrackerId),
         (t) => OrderingTerm.asc(t.id),
       ]);
     return query.watch().map(
-      (rows) => rows.map(_toTimelineMilestoneRule).toList(growable: false),
+      (rows) => rows.map(_toStageRule).toList(growable: false),
     );
   }
 
-  Stream<List<TimelineMilestoneRecord>> watchTimelineMilestoneRecords() {
-    final query = select(timelineMilestoneRecords)
+  Stream<List<StageRecord>> watchStageRecords() {
+    final query = select(stageRecords)
       ..orderBy([
-        (t) => OrderingTerm.asc(t.targetDate),
+        (t) => OrderingTerm.asc(t.occurrenceDate),
         (t) => OrderingTerm.asc(t.id),
       ]);
     return query.watch().map(
-      (rows) => rows.map(_toTimelineMilestoneRecord).toList(growable: false),
+      (rows) => rows.map(_toStageRecord).toList(growable: false),
     );
   }
 
-  Future<List<TimelineMilestoneRule>> listTimelineMilestoneRulesForTimeline(
-    int timelineId,
-  ) async {
+  Future<List<StageRule>> listStageRulesForTracker(int stageTrackerId) async {
     final rows =
-        await (select(timelineMilestoneRules)
-              ..where((t) => t.timelineId.equals(timelineId))
+        await (select(stageRules)
+              ..where((t) => t.stageTrackerId.equals(stageTrackerId))
               ..orderBy([(t) => OrderingTerm.asc(t.id)]))
             .get();
-    return rows.map(_toTimelineMilestoneRule).toList(growable: false);
+    return rows.map(_toStageRule).toList(growable: false);
   }
 
-  Future<List<TimelineMilestoneRule>>
-  listVisibleTimelineMilestoneRulesForTimeline(int timelineId) async {
+  Future<List<StageRule>> listVisibleStageRulesForTracker(
+    int stageTrackerId,
+  ) async {
     final rows =
-        await (select(timelineMilestoneRules)
+        await (select(stageRules)
               ..where(
                 (t) =>
-                    t.timelineId.equals(timelineId) &
-                    t.status.isNotValue(
-                      TimelineMilestoneRuleStatus.archived.name,
-                    ),
+                    t.stageTrackerId.equals(stageTrackerId) &
+                    t.status.isNotValue(StageRuleStatus.archived.name),
               )
               ..orderBy([(t) => OrderingTerm.asc(t.id)]))
             .get();
-    return rows.map(_toTimelineMilestoneRule).toList(growable: false);
+    return rows.map(_toStageRule).toList(growable: false);
   }
 
-  Future<TimelineMilestoneRule?> getTimelineMilestoneRuleById(int id) async {
+  Future<List<StageRecord>> listStageRecordsForTracker(
+    int stageTrackerId,
+  ) async {
+    final rows =
+        await (select(stageRecords)
+              ..where((t) => t.stageTrackerId.equals(stageTrackerId))
+              ..orderBy([
+                (t) => OrderingTerm.asc(t.occurrenceDate),
+                (t) => OrderingTerm.asc(t.id),
+              ]))
+            .get();
+    return rows.map(_toStageRecord).toList(growable: false);
+  }
+
+  Future<StageRecord?> getStageRecordById(int id) async {
     final row = await (select(
-      timelineMilestoneRules,
+      stageRecords,
     )..where((t) => t.id.equals(id))).getSingleOrNull();
-    return row == null ? null : _toTimelineMilestoneRule(row);
+    return row == null ? null : _toStageRecord(row);
   }
 
-  Stream<List<TimelineMilestoneRecordBundle>>
-  watchTimelineMilestoneRecordBundles() {
-    return _timelineMilestoneRecordBundleQuery().watch().map(
-      (rows) =>
-          rows.map(_mapTimelineMilestoneRecordBundle).toList(growable: false),
-    );
-  }
-
-  Future<List<TimelineMilestoneRecordBundle>>
-  listTimelineMilestoneRecordBundlesForTimeline(int timelineId) {
-    return _timelineMilestoneRecordBundleQuery(
-      where: (r) => r.timelineId.equals(timelineId),
-    ).get().then(
-      (rows) =>
-          rows.map(_mapTimelineMilestoneRecordBundle).toList(growable: false),
-    );
-  }
-
-  Future<TimelineMilestoneRecord?> getTimelineMilestoneRecordByOccurrence({
-    required int ruleId,
+  Future<StageRecord?> getStageRecordByOccurrence({
+    required int stageRuleId,
     required int occurrenceIndex,
   }) async {
     final row =
-        await (select(timelineMilestoneRecords)..where(
+        await (select(stageRecords)..where(
               (t) =>
-                  t.ruleId.equals(ruleId) &
+                  t.stageRuleId.equals(stageRuleId) &
                   t.occurrenceIndex.equals(occurrenceIndex),
             ))
             .getSingleOrNull();
-    return row == null ? null : _toTimelineMilestoneRecord(row);
+    return row == null ? null : _toStageRecord(row);
   }
 
-  Future<TimelineDetailRecord?> getTimelineDetailRecordById(int id) async {
-    final timeline = await getTimelineById(id);
-    if (timeline == null) {
+  Future<StageTrackerDetailRecord?> getStageTrackerDetailRecordById(
+    int id,
+  ) async {
+    final tracker = await getStageTrackerById(id);
+    if (tracker == null) {
       return null;
     }
-    final rules = await listVisibleTimelineMilestoneRulesForTimeline(id);
-    final records = await listTimelineMilestoneRecordBundlesForTimeline(id);
-    return TimelineDetailRecord(
-      timeline: timeline,
-      milestoneRules: rules,
-      milestoneHistory: records
-          .where(
-            (item) =>
-                item.record.status != TimelineMilestoneRecordStatus.upcoming,
-          )
-          .toList(growable: false),
+    return StageTrackerDetailRecord(
+      stageTracker: tracker,
+      stageRules: await listVisibleStageRulesForTracker(id),
+      stageRecords: await listStageRecordsForTracker(id),
     );
   }
 
-  Future<void> upsertTimelineMilestoneRecordForOccurrence({
-    required TimelineMilestoneOccurrence occurrence,
-    required TimelineMilestoneRecordStatus status,
-    DateTime? notifiedAt,
-    DateTime? actedAt,
-  }) async {
-    final existing = await getTimelineMilestoneRecordByOccurrence(
-      ruleId: occurrence.ruleId,
-      occurrenceIndex: occurrence.occurrenceIndex,
+  Stream<List<StageRecordBundle>> watchStageRecordBundles() {
+    return _stageRecordBundleQuery().watch().map(
+      (rows) => rows.map(_mapStageRecordBundle).toList(growable: false),
     );
-    final now = DateTime.now();
-    if (existing == null) {
-      await insertTimelineMilestoneRecord(
-        TimelineMilestoneRecordsCompanion.insert(
-          timelineId: occurrence.timelineId,
-          ruleId: occurrence.ruleId,
-          occurrenceIndex: occurrence.occurrenceIndex,
-          targetDate: occurrence.targetDate.millisecondsSinceEpoch,
-          status: status.name,
-          notifiedAt: Value(notifiedAt?.millisecondsSinceEpoch),
-          actedAt: Value(actedAt?.millisecondsSinceEpoch),
-          createdAt: now.millisecondsSinceEpoch,
-          updatedAt: now.millisecondsSinceEpoch,
-        ),
-      );
-      return;
+  }
+
+  Future<List<StageRecordBundle>> listStageRecordBundlesForTracker(
+    int stageTrackerId,
+  ) {
+    return _stageRecordBundleQuery(
+      where: (r) => r.stageTrackerId.equals(stageTrackerId),
+    ).get().then(
+      (rows) => rows.map(_mapStageRecordBundle).toList(growable: false),
+    );
+  }
+
+  Future<List<StageRelatedItem>> listStageRelatedItemsForRecord(
+    int stageRecordId,
+  ) async {
+    final rows =
+        await (select(stageRelatedItems)
+              ..where((t) => t.stageRecordId.equals(stageRecordId))
+              ..orderBy([(t) => OrderingTerm.asc(t.id)]))
+            .get();
+    return rows.map(_toStageRelatedItem).toList(growable: false);
+  }
+
+  Future<StageRelatedItemSummary> relatedItemSummaryForRecord(
+    int stageRecordId,
+  ) async {
+    final query = select(stageRelatedItems).join([
+      innerJoin(items, items.id.equalsExp(stageRelatedItems.itemId)),
+    ])..where(stageRelatedItems.stageRecordId.equals(stageRecordId));
+    final rows = await query.get();
+    var done = 0;
+    var active = 0;
+    var paused = 0;
+    var skipped = 0;
+    for (final row in rows) {
+      final item = _toItem(row.readTable(items));
+      if (item.status == ItemLifecycleStatus.archived) {
+        continue;
+      }
+      if (item.status == ItemLifecycleStatus.paused) {
+        paused++;
+        continue;
+      }
+      final actions = await listItemActionRecordsForItem(item.id);
+      if (actions.any((record) => record.actionType == ItemActionType.done)) {
+        done++;
+      } else if (actions.any(
+        (record) => record.actionType == ItemActionType.skipped,
+      )) {
+        skipped++;
+      } else {
+        active++;
+      }
     }
-
-    await updateTimelineMilestoneRecordRecord(
-      TimelineMilestoneRecordRow(
-        id: existing.id,
-        timelineId: existing.timelineId,
-        ruleId: existing.ruleId,
-        occurrenceIndex: existing.occurrenceIndex,
-        targetDate: occurrence.targetDate.millisecondsSinceEpoch,
-        status: status.name,
-        notifiedAt: (notifiedAt ?? existing.notifiedAt)?.millisecondsSinceEpoch,
-        actedAt: (actedAt ?? existing.actedAt)?.millisecondsSinceEpoch,
-        createdAt: existing.createdAt.millisecondsSinceEpoch,
-        updatedAt: now.millisecondsSinceEpoch,
-      ),
+    return StageRelatedItemSummary(
+      doneCount: done,
+      activeCount: active,
+      pausedCount: paused,
+      skippedCount: skipped,
     );
   }
 
-  Future<void> markTimelineMilestoneRecordNoticed(
-    TimelineMilestoneOccurrence occurrence,
-  ) {
-    final now = DateTime.now();
-    return upsertTimelineMilestoneRecordForOccurrence(
-      occurrence: occurrence,
-      status: TimelineMilestoneRecordStatus.noticed,
-      actedAt: now,
-    );
-  }
-
-  Future<void> markTimelineMilestoneRecordSkipped(
-    TimelineMilestoneOccurrence occurrence,
-  ) {
-    final now = DateTime.now();
-    return upsertTimelineMilestoneRecordForOccurrence(
-      occurrence: occurrence,
-      status: TimelineMilestoneRecordStatus.skipped,
-      actedAt: now,
-    );
-  }
-
-  Future<void> markTimelineMilestoneRecordNotified(
-    TimelineMilestoneOccurrence occurrence,
-  ) {
-    final now = DateTime.now();
-    return upsertTimelineMilestoneRecordForOccurrence(
-      occurrence: occurrence,
-      status: TimelineMilestoneRecordStatus.upcoming,
-      notifiedAt: now,
+  Future<StageRelatedItemSource?> getStageRelatedItemSourceForItem(
+    int itemId,
+  ) async {
+    final query =
+        select(stageRelatedItems).join([
+            innerJoin(
+              stageRecords,
+              stageRecords.id.equalsExp(stageRelatedItems.stageRecordId),
+            ),
+            innerJoin(
+              stageTrackers,
+              stageTrackers.id.equalsExp(stageRecords.stageTrackerId),
+            ),
+          ])
+          ..where(stageRelatedItems.itemId.equals(itemId))
+          ..limit(1);
+    final rows = await query.get();
+    if (rows.isEmpty) {
+      return null;
+    }
+    final record = _toStageRecord(rows.single.readTable(stageRecords));
+    final tracker = _toStageTracker(rows.single.readTable(stageTrackers));
+    return StageRelatedItemSource(
+      stageTrackerTitle: tracker.title,
+      stageLabel: record.label,
     );
   }
 
@@ -767,27 +788,26 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
     return query;
   }
 
-  JoinedSelectStatement<HasResultSet, dynamic>
-  _timelineMilestoneRecordBundleQuery({
-    Expression<bool> Function($TimelineMilestoneRecordsTable t)? where,
+  JoinedSelectStatement<HasResultSet, dynamic> _stageRecordBundleQuery({
+    Expression<bool> Function($StageRecordsTable t)? where,
     int? limit,
   }) {
-    final query = select(timelineMilestoneRecords).join([
+    final query = select(stageRecords).join([
       innerJoin(
-        timelines,
-        timelines.id.equalsExp(timelineMilestoneRecords.timelineId),
+        stageTrackers,
+        stageTrackers.id.equalsExp(stageRecords.stageTrackerId),
       ),
-      innerJoin(
-        timelineMilestoneRules,
-        timelineMilestoneRules.id.equalsExp(timelineMilestoneRecords.ruleId),
+      leftOuterJoin(
+        stageRules,
+        stageRules.id.equalsExp(stageRecords.stageRuleId),
       ),
     ]);
     if (where != null) {
-      query.where(where(timelineMilestoneRecords));
+      query.where(where(stageRecords));
     }
     query.orderBy([
-      OrderingTerm.desc(timelineMilestoneRecords.targetDate),
-      OrderingTerm.desc(timelineMilestoneRecords.id),
+      OrderingTerm.desc(stageRecords.occurrenceDate),
+      OrderingTerm.desc(stageRecords.id),
     ]);
     if (limit != null) {
       query.limit(limit);
@@ -883,15 +903,13 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
     return base & items.status.isIn(statuses.map((item) => item.name));
   }
 
-  TimelineMilestoneRecordBundle _mapTimelineMilestoneRecordBundle(
-    TypedResult row,
-  ) {
-    return TimelineMilestoneRecordBundle(
-      record: _toTimelineMilestoneRecord(
-        row.readTable(timelineMilestoneRecords),
-      ),
-      rule: _toTimelineMilestoneRule(row.readTable(timelineMilestoneRules)),
-      timeline: _toTimeline(row.readTable(timelines)),
+  StageRecordBundle _mapStageRecordBundle(TypedResult row) {
+    return StageRecordBundle(
+      record: _toStageRecord(row.readTable(stageRecords)),
+      rule: row.readTableOrNull(stageRules) == null
+          ? null
+          : _toStageRule(row.readTable(stageRules)),
+      stageTracker: _toStageTracker(row.readTable(stageTrackers)),
     );
   }
 
@@ -1185,51 +1203,65 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
-  Timeline _toTimeline(TimelineRow row) {
-    return Timeline(
+  StageTracker _toStageTracker(StageTrackerRow row) {
+    return StageTracker(
       id: row.id,
+      packId: row.packId,
       title: row.title,
-      startDate: DateTime.fromMillisecondsSinceEpoch(row.startDate),
-      displayUnit: TimelineDisplayUnit.values.byName(row.displayUnit),
-      status: TimelineStatus.values.byName(row.status),
+      subjectName: row.subjectName,
+      trackingStartDate: DateTime.fromMillisecondsSinceEpoch(
+        row.trackingStartDate,
+      ),
+      trackingEndDate: row.trackingEndDate == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(row.trackingEndDate!),
+      status: StageTrackerStatus.values.byName(row.status),
       createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
     );
   }
 
-  TimelineMilestoneRule _toTimelineMilestoneRule(TimelineMilestoneRuleRow row) {
-    return TimelineMilestoneRule(
+  StageRule _toStageRule(StageRuleRow row) {
+    return StageRule(
       id: row.id,
-      timelineId: row.timelineId,
-      type: _timelineMilestoneRuleType(row.type),
+      stageTrackerId: row.stageTrackerId,
+      type: _stageRuleType(row.type),
       intervalValue: row.intervalValue,
-      intervalUnit: TimelineMilestoneIntervalUnit.values.byName(
-        row.intervalUnit,
-      ),
+      intervalUnit: StageIntervalUnit.values.byName(row.intervalUnit),
       labelTemplate: row.labelTemplate,
       reminderOffsetDays: row.reminderOffsetDays,
-      status: TimelineMilestoneRuleStatus.values.byName(row.status),
+      status: StageRuleStatus.values.byName(row.status),
       createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
     );
   }
 
-  TimelineMilestoneRecord _toTimelineMilestoneRecord(
-    TimelineMilestoneRecordRow row,
-  ) {
-    return TimelineMilestoneRecord(
+  StageRecord _toStageRecord(StageRecordRow row) {
+    return StageRecord(
       id: row.id,
-      timelineId: row.timelineId,
-      ruleId: row.ruleId,
+      stageTrackerId: row.stageTrackerId,
+      stageRuleId: row.stageRuleId,
+      sourceType: StageRecordSourceType.values.byName(row.sourceType),
       occurrenceIndex: row.occurrenceIndex,
-      targetDate: DateTime.fromMillisecondsSinceEpoch(row.targetDate),
-      status: TimelineMilestoneRecordStatus.values.byName(row.status),
-      notifiedAt: row.notifiedAt == null
+      occurrenceDate: DateTime.fromMillisecondsSinceEpoch(row.occurrenceDate),
+      relativeAmount: row.relativeAmount,
+      relativeUnit: row.relativeUnit == null
           ? null
-          : DateTime.fromMillisecondsSinceEpoch(row.notifiedAt!),
-      actedAt: row.actedAt == null
-          ? null
-          : DateTime.fromMillisecondsSinceEpoch(row.actedAt!),
+          : StageIntervalUnit.values.byName(row.relativeUnit!),
+      status: StageRecordStatus.values.byName(row.status),
+      label: row.label,
+      note: row.note,
+      reminderOffsetDays: row.reminderOffsetDays,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
+    );
+  }
+
+  StageRelatedItem _toStageRelatedItem(StageRelatedItemRow row) {
+    return StageRelatedItem(
+      id: row.id,
+      stageRecordId: row.stageRecordId,
+      itemId: row.itemId,
       createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
     );
@@ -1255,13 +1287,13 @@ class ItemTimelineDao extends DatabaseAccessor<AppDatabase>
     return ReminderTone.values.asNameMap()[value] ?? ReminderTone.standard;
   }
 
-  TimelineMilestoneRuleType _timelineMilestoneRuleType(String value) {
+  StageRuleType _stageRuleType(String value) {
     return switch (value) {
-      'every_n_days' => TimelineMilestoneRuleType.everyNDays,
-      'every_n_weeks' => TimelineMilestoneRuleType.everyNWeeks,
-      'every_n_months' => TimelineMilestoneRuleType.everyNMonths,
-      'every_n_years' => TimelineMilestoneRuleType.everyNYears,
-      _ => TimelineMilestoneRuleType.everyNDays,
+      'every_n_days' => StageRuleType.everyNDays,
+      'every_n_weeks' => StageRuleType.everyNWeeks,
+      'every_n_months' => StageRuleType.everyNMonths,
+      'every_n_years' => StageRuleType.everyNYears,
+      _ => StageRuleType.everyNDays,
     };
   }
 

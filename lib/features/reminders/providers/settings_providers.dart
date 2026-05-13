@@ -6,7 +6,7 @@ import '../domain/attention_policy.dart';
 import 'database_providers.dart';
 
 final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
-  return SettingsRepository(ref.watch(appDatabaseProvider).itemTimelineDao);
+  return SettingsRepository(ref.watch(appDatabaseProvider).reminderDao);
 });
 
 final appSettingsProvider = StreamProvider<AppSettings>((ref) {

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/local/item_timeline_dao.dart';
+import '../../data/local/reminder_dao.dart';
 import '../../presentation/text/reminder_ui_text.dart';
 import '../../presentation/view_models/management_item_card_view_model.dart';
+import '../../providers/stage_tracker_providers.dart';
 
 Future<void> showItemSummaryDialog(
   BuildContext context,
@@ -70,25 +72,49 @@ Future<void> showItemSummaryDialog(
 
   return showDialog<void>(
     context: context,
-    builder: (dialogContext) => AlertDialog(
-      key: Key('item-detail-dialog-${bundle.item.id}'),
-      title: const Text(ReminderUiText.itemDetailTitle),
-      content: SizedBox(
-        width: 420,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: detailRows,
+    builder: (dialogContext) => Consumer(
+      builder: (context, ref, child) {
+        final sourceFuture = ref
+            .read(stageTrackerRepositoryProvider)
+            .getRelatedItemSourceForItem(bundle.item.id);
+        return AlertDialog(
+          key: Key('item-detail-dialog-${bundle.item.id}'),
+          title: const Text(ReminderUiText.itemDetailTitle),
+          content: SizedBox(
+            width: 420,
+            child: FutureBuilder<StageRelatedItemSource?>(
+              future: sourceFuture,
+              builder: (context, snapshot) {
+                final rows = [...detailRows];
+                final source = snapshot.data;
+                if (source != null) {
+                  rows.insert(
+                    1,
+                    _ItemDetailRow(
+                      label: ReminderUiText.relatedItemSourceLabel,
+                      value:
+                          '${source.stageTrackerTitle} · ${source.stageLabel}',
+                    ),
+                  );
+                }
+                return SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: rows,
+                  ),
+                );
+              },
+            ),
           ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(),
-          child: const Text(ReminderUiText.closeAction),
-        ),
-      ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text(ReminderUiText.closeAction),
+            ),
+          ],
+        );
+      },
     ),
   );
 }

@@ -1,7 +1,7 @@
 import '../../data/home_models.dart';
 import '../../domain/item.dart';
 import '../../domain/item_status_service.dart';
-import '../../domain/timeline_milestone_occurrence.dart';
+import '../../domain/stage_occurrence.dart';
 import '../formatters/reminder_formatters.dart';
 
 enum ItemCardDisplayState {
@@ -226,28 +226,29 @@ class ItemCardViewModel {
   }
 }
 
-class MilestoneCardViewModel {
-  const MilestoneCardViewModel({
+class StageCardViewModel {
+  const StageCardViewModel({
     required this.id,
     required this.title,
     required this.subtitle,
     required this.status,
   });
 
-  factory MilestoneCardViewModel.fromOccurrence(
-    TimelineMilestoneOccurrence occurrence,
-  ) {
-    return MilestoneCardViewModel(
+  static StageCardViewModel fromOccurrence(
+    StageOccurrence occurrence, {
+    DateTime? now,
+  }) {
+    return StageCardViewModel(
       id:
-          occurrence.recordId ??
+          occurrence.stageRecordId ??
           Object.hash(
-            occurrence.timelineId,
-            occurrence.ruleId,
+            occurrence.stageTrackerId,
+            occurrence.stageRuleId,
             occurrence.occurrenceIndex,
           ),
-      title: occurrence.timelineTitle,
-      subtitle: ReminderFormatters.milestoneSummary(occurrence),
-      status: occurrence.status.name,
+      title: occurrence.stageTrackerTitle ?? '',
+      subtitle: ReminderFormatters.stageRelativeLabel(occurrence, now: now),
+      status: occurrence.recordStatus?.name ?? 'normal',
     );
   }
 

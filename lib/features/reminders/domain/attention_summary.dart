@@ -2,14 +2,14 @@ class AttentionSummary {
   const AttentionSummary({
     required this.dangerCount,
     required this.warningCount,
-    required this.timelineUpcomingCount,
+    required this.stageUpcomingCount,
   });
 
   final int dangerCount;
   final int warningCount;
-  final int timelineUpcomingCount;
+  final int stageUpcomingCount;
 
-  int get totalCount => dangerCount + warningCount + timelineUpcomingCount;
+  int get totalCount => dangerCount + warningCount + stageUpcomingCount;
 
   bool get hasAttention => totalCount > 0;
 
@@ -21,10 +21,10 @@ class AttentionSummary {
     return other is AttentionSummary &&
         other.dangerCount == dangerCount &&
         other.warningCount == warningCount &&
-        other.timelineUpcomingCount == timelineUpcomingCount;
+        other.stageUpcomingCount == stageUpcomingCount;
   }
 
   @override
   int get hashCode =>
-      Object.hash(dangerCount, warningCount, timelineUpcomingCount);
+      Object.hash(dangerCount, warningCount, stageUpcomingCount);
 }

@@ -5,12 +5,12 @@ import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 
 void main() {
   test(
-    'database uses clean drift schema version 6 and core tables are writable',
+    'database uses clean drift schema version 7 and core tables are writable',
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
 
-      expect(db.schemaVersion, 6);
+      expect(db.schemaVersion, 7);
 
       final packId = await db
           .into(db.itemPacks)
@@ -160,24 +160,23 @@ void main() {
             ),
           );
 
-      final timelineId = await db
-          .into(db.timelines)
+      final stageTrackerId = await db
+          .into(db.stageTrackers)
           .insert(
-            TimelinesCompanion.insert(
-              title: 'Timeline smoke test',
-              startDate: DateTime(2026, 4, 10).millisecondsSinceEpoch,
-              displayUnit: 'day',
-              status: 'active',
+            StageTrackersCompanion.insert(
+              title: 'Stage smoke test',
+              trackingStartDate: DateTime(2026, 4, 10).millisecondsSinceEpoch,
+              status: const Value('active'),
               createdAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
               updatedAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
             ),
           );
 
       final ruleId = await db
-          .into(db.timelineMilestoneRules)
+          .into(db.stageRules)
           .insert(
-            TimelineMilestoneRulesCompanion.insert(
-              timelineId: timelineId,
+            StageRulesCompanion.insert(
+              stageTrackerId: stageTrackerId,
               type: 'every_n_days',
               intervalValue: 1,
               intervalUnit: 'days',
@@ -190,15 +189,16 @@ void main() {
           );
 
       final recordId = await db
-          .into(db.timelineMilestoneRecords)
+          .into(db.stageRecords)
           .insert(
-            TimelineMilestoneRecordsCompanion.insert(
-              timelineId: timelineId,
-              ruleId: ruleId,
-              occurrenceIndex: 1,
-              targetDate: DateTime(2026, 4, 10).millisecondsSinceEpoch,
-              status: 'noticed',
-              actedAt: Value(DateTime(2026, 4, 10).millisecondsSinceEpoch),
+            StageRecordsCompanion.insert(
+              stageTrackerId: stageTrackerId,
+              stageRuleId: Value(ruleId),
+              sourceType: 'generated',
+              occurrenceIndex: const Value(1),
+              occurrenceDate: DateTime(2026, 4, 10).millisecondsSinceEpoch,
+              status: const Value('acknowledged'),
+              label: '滿 1 天',
               createdAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
               updatedAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
             ),
@@ -213,7 +213,7 @@ void main() {
       expect(resourceId, greaterThan(0));
       expect(consumptionRuleId, greaterThan(0));
       expect(resourceActionId, greaterThan(0));
-      expect(timelineId, greaterThan(0));
+      expect(stageTrackerId, greaterThan(0));
       expect(ruleId, greaterThan(0));
       expect(recordId, greaterThan(0));
 
