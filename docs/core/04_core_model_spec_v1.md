@@ -87,6 +87,13 @@ ItemPack {
   updatedAt: DateTime
 }
 ```
+產品語意：
+
+- ItemPack 代表使用者能識別的生活場景，而不只是資料夾或分類。
+- 它用來聚合屬於同一個照顧／責任情境下的 Item、Resource 與 StageTracker。
+- MVP 階段，Pack 可透過新增／編輯 Item、Resource 或 StageTracker 時輕量建立與選擇。
+- 在 Pack 開始承載總覽、導航或管理價值前，不必過早建立完整 Pack 管理頁。
+- 長遠而言，Pack 可成為生活場景入口，例如顯示同一場景下今日要處理的 Item、即將不足的 Resource，以及即將到來的 StageTracker 階段。
 
 規則：
 
