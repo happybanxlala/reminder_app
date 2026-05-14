@@ -81,6 +81,8 @@ ItemPack {
   id: number
   title: string
   description?: string
+  iconEmoji: string
+  orderIndex: number
   status: "active" | "archived"
   isSystemDefault: boolean
   createdAt: DateTime
@@ -89,18 +91,28 @@ ItemPack {
 ```
 產品語意：
 
-- ItemPack 代表使用者能識別的生活場景，而不只是資料夾或分類。
-- 它用來聚合屬於同一個照顧／責任情境下的 Item、Resource 與 StageTracker。
-- MVP 階段，Pack 可透過新增／編輯 Item、Resource 或 StageTracker 時輕量建立與選擇。
-- 在 Pack 開始承載總覽、導航或管理價值前，不必過早建立完整 Pack 管理頁。
-- 長遠而言，Pack 可成為生活場景入口，例如顯示同一場景下今日要處理的 Item、即將不足的 Resource，以及即將到來的 StageTracker 階段。
+- ItemPack 是使用者看到的「生活場景」，而不只是資料夾或分類。
+- ItemPack 用來聚合使用者願意放在同一個生活場景下理解與管理的 Item、Resource 與 StageTracker。
+- Pack 內的 Item、Resource、StageTracker 不要求彼此存在直接行為關聯；Pack 代表使用者視角下的歸屬，而不是 domain object 之間的強關聯。
+- 使用者不需要先主動建立 Pack 才能使用 App；Pack 會在建立 Item / Resource / StageTracker 時自然出現。
+- MVP 階段，Pack 主要作為建立流程中的歸屬選擇、首頁篩選與來源識別，不作為首頁主要分區，也不提供 Pack 詳情頁。
+- 長遠而言，Pack 可發展為生活場景模板，例如「養貓」、「家務」、「健康」、「寶寶」等，但 MVP 建立 Pack 時只建立空生活場景。
 
 規則：
 
-- item pack 用來組織責任、資源與階段追蹤場景，例如：養貓、家務、健康、寶寶
-- system default pack 必須唯一
-- system default pack 可見，但不可改名、不可封存
-- archived pack 不再接受新 item / resource / stage tracker 歸屬
+- ItemPack 用來組織 Item、Resource 與 StageTracker 的生活場景，例如：養貓、家務、健康、寶寶。
+- Item、Resource、StageTracker 都必須歸屬於一個 Pack。
+- 不使用 `packId == null` 表示未分類。
+- 使用者未選擇生活場景時，一律寫入 system default pack。
+- system default pack 顯示名稱為「一般」。
+- system default pack 的 `iconEmoji` 固定為「📌」。
+- system default pack 必須唯一。
+- system default pack 可見，但 MVP 不可改名、不可更改 icon、不可封存、不可刪除。
+- system default pack 代表使用者尚未指定生活場景時的預設歸屬位置，不代表一個具體生活場景。
+- archived pack 不再接受新 Item / Resource / StageTracker 歸屬。
+- 自訂 Pack 可透過設定頁的「生活場景管理」新增、編輯名稱、編輯 emoji、調整排序與封存。
+- Pack 排序由 `orderIndex` 控制；當 `orderIndex` 相同或缺失時，以 `createdAt ascending` 作穩定排序。
+- Pack 管理頁 MVP 只提供「上」「下」調整順序，不做 drag and drop。
 
 ### 3.2 Item
 
@@ -579,6 +591,36 @@ StageTracker 階段可以引導建立相關 Item，但 StageTracker 不直接管
 - 一個 Item MVP 只需支援來自一個 StageRecord；未來若需要可擴充多來源
 - related item 被完成、跳過、暫停或封存時，不回寫 StageRecord status
 
+### 6.7 Archive Pack
+
+封存 Pack 時，system default pack 不可封存。
+
+當使用者封存自訂 Pack，且該 Pack 底下仍有 active / paused Item、Resource 或 active StageTracker 時，UI 必須詢問使用者如何處理內容：
+
+1. 一起封存內容
+2. 移到「一般」
+3. 取消
+
+行為：
+
+- 「一起封存內容」：
+  - Pack status 更新為 `archived`
+  - 該 Pack 底下 active / paused Item 更新為 `archived`
+  - 該 Pack 底下 active / paused Resource 更新為 `archived`
+  - 該 Pack 底下 active StageTracker 更新為 `archived`
+  - 不刪除 ItemActionRecord、ResourceActionRecord、StageRecord 或 StageRelatedItem
+
+- 「移到一般」：
+  - Pack status 更新為 `archived`
+  - 該 Pack 底下 Item / Resource / StageTracker 的 `packId` 更新為 system default pack id
+  - 不改變 Item / Resource / StageTracker 的 lifecycle status
+  - 不刪除任何 history records
+
+- 「取消」：
+  - 不做任何資料修改
+
+封存 Pack 必須在同一個 transaction 內完成，避免留下 partial state。
+
 ## 7. Drift Schema
 
 ### 7.1 items
@@ -651,7 +693,7 @@ updatedAt
 
 ```text
 id
-packId nullable
+packId
 title
 subjectName nullable
 trackingStartDate
@@ -663,7 +705,9 @@ updatedAt
 
 規則：
 
-- `packId == null` 代表全局 StageTracker
+- StageTracker 必須歸屬於一個 Pack。
+- 使用者未選擇生活場景時，StageTracker 歸屬於 system default pack「一般」。
+- MVP 不使用 `packId == null` 表示全局或未分類 StageTracker。
 - UI 不顯示 raw `trackingEndDate`，使用「追蹤範圍」文案
 - `trackingEndDate == null` 代表持續追蹤
 - 到達 `trackingEndDate` 後不自動 archive，而是 presentation 顯示「已完成追蹤」
@@ -742,6 +786,7 @@ updatedAt
 Item = 要做的事
 Resource = 要留意的資源
 StageTracker = 階段追蹤 / 時間推進中的階段提醒
+Pack = 生活場景
 ```
 
 規則：
@@ -761,7 +806,34 @@ StageTracker = 階段追蹤 / 時間推進中的階段提醒
 - quantity-based resource UI 使用「目前 N 個」、「剩 N 個提醒」
 - StageTracker UI 使用「階段追蹤」、「重複階段」、「重要階段」、「從哪一天開始追蹤」、「追蹤範圍」、「知道了」、「忽略這次」等文案
 
-### 8.1 Resource 管理頁
+Pack assignment editing rules：
+
+- 建立 Item / Resource / StageTracker 時可以選擇生活場景。
+- 建立後，Pack 歸屬視為整理 / 搬移行為，不屬於 Item / Resource / StageTracker 本身的細節編輯。
+- Item / Resource / StageTracker 編輯頁中，Pack 只唯讀顯示。
+- MVP 暫時不提供搬移入口。
+- 未來若加入「移到生活場景」，應放在外層列表、管理模式或 overflow menu，而不是主要編輯表單中。
+- 有 ResourceConsumptionRule 關聯的 Item / Resource 若未來支援搬移，必須處理或限制跨 Pack resource binding。
+
+### 8.1 Home
+
+Home Pack filter 規則：
+
+- Home 的主軸仍然是 attention targets，例如今日要處理、快變糟、需要注意。
+- Pack 不作為 Home 的主要分區。
+- Home 上方提供 Pack filter。
+- Pack filter 顯示「全部」與所有 active Pack。
+- Pack filter 必須包含 system default pack「一般」。
+- Pack filter 排序為：
+  1. 「全部」
+  2. system default pack「一般」
+  3. 自訂 active Pack，依 `orderIndex` 排序，fallback 為 `createdAt ascending`
+- Pack filter 與 attention card 上主要顯示 Pack emoji，不顯示 Pack 文字名稱。
+- Pack title 仍需保留於 accessibility label、tooltip / 長按提示、編輯頁與管理頁。
+- 點擊 Pack icon 只篩選 Home attention targets，不進入 Pack detail page。
+- MVP 不提供 Pack detail page。
+
+### 8.2 Resource 管理頁
 
 Resource 管理頁有兩個主要入口：
 
@@ -805,7 +877,7 @@ Resource card actions：
 
 `adjust` 僅適用 quantity-based resource。
 
-### 8.2 Resource History UI
+### 8.3 Resource History UI
 
 Resource history 是 `ResourceActionRecord` 的 UI。
 
@@ -836,7 +908,7 @@ Home 顯示可以是：
 
 MVP 可保留 item sections，並新增 Resource section；presentation model 應朝 `AttentionTarget` 聚合收斂。
 
-### 8.3 StageTracker UI
+### 8.4 StageTracker UI
 
 StageTracker 的使用者名稱是「階段追蹤」。它有自己的主入口，也可以在 Pack 頁面中顯示屬於該 Pack 的 StageTracker。
 
@@ -1001,6 +1073,48 @@ Home card 操作只支援：
 - related items 不受影響
 
 MVP 只提供 snackbar undo，不做已隱藏管理頁。
+
+### 8.5 Pack 管理頁
+Pack 管理頁使用者名稱為「生活場景管理」。
+
+入口：
+
+```text
+設定 > 生活場景管理
+```
+
+頁面顯示：
+
+system default pack「一般」
+active custom packs
+archived packs MVP 可不顯示，或只在未來歷史 / 管理需求中處理
+
+每個 Pack 顯示：
+
+- emoji
+- 名稱
+- 是否為 system default
+- 排序操作
+
+MVP 支援操作：
+
+- 新增自訂 Pack
+- 編輯自訂 Pack 名稱
+- 編輯自訂 Pack emoji
+- 對自訂 Pack 使用「上」「下」調整排序
+- 封存自訂 Pack
+
+MVP 不支援：
+
+- 修改 system default pack 名稱
+- 修改 system default pack emoji
+- 封存 system default pack
+- 刪除 system default pack
+- drag and drop 排序
+- 搜尋 Pack
+- Pack detail page
+- 從 Item / Resource / StageTracker 編輯頁直接修改 Pack
+- 搬移 Item / Resource / StageTracker 到其他 Pack
 
 ## 9. Templates / Demo
 
