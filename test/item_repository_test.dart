@@ -1151,7 +1151,7 @@ void main() {
       );
       final archivedId = await repository.createItem(
         ItemInput(
-          title: 'Old task',
+          title: 'Old item',
           type: ItemType.stateBased,
           packId: packId,
           config: const StateBasedItemConfig(

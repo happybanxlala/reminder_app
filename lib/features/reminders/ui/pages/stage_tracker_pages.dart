@@ -427,7 +427,7 @@ class _StageOccurrenceTile extends ConsumerWidget {
           ? IconButton(
               tooltip: '建立相關提醒',
               onPressed: () => _showRelatedItemDialog(context, ref, occurrence),
-              icon: const Icon(Icons.add_task_outlined),
+              icon: const Icon(Icons.add_circle_outline),
             )
           : null,
     );

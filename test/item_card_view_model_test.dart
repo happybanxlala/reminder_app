@@ -48,7 +48,7 @@ void main() {
           item: Item(
             id: 10,
             packId: 1,
-            title: 'Future task',
+            title: 'Future item',
             type: ItemType.stateBased,
             config: StateBasedItemConfig(
               anchorDate: DateTime(2026, 4, 30),

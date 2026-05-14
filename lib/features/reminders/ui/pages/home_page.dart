@@ -45,7 +45,7 @@ class HomePage extends ConsumerWidget {
         key: const Key('home-add-item-fab'),
         onPressed: () => context.pushNamed(ItemEditPage.createRouteName),
         tooltip: ReminderUiText.addItem,
-        child: const Icon(Icons.add_task),
+        child: const Icon(Icons.add_circle_outline),
       ),
     );
   }

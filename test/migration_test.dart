@@ -5,12 +5,12 @@ import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 
 void main() {
   test(
-    'database uses clean drift schema version 7 and core tables are writable',
+    'database uses initial StageTracker schema version 1 and core tables are writable',
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
 
-      expect(db.schemaVersion, 7);
+      expect(db.schemaVersion, 1);
 
       final packId = await db
           .into(db.itemPacks)

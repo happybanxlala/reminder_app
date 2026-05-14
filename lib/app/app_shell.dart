@@ -78,7 +78,7 @@ class _FabForBranch extends StatelessWidget {
         key: Key(index == 0 ? 'home-add-item-fab' : 'manage-add-item-fab'),
         onPressed: () => context.pushNamed(ItemEditPage.createRouteName),
         tooltip: ReminderUiText.addItem,
-        child: const Icon(Icons.add_task),
+        child: const Icon(Icons.add_circle_outline),
       ),
       2 => FloatingActionButton(
         key: const Key('stage-tracker-add-fab'),

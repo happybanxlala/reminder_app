@@ -38,47 +38,52 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 1;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
     onUpgrade: (m, from, to) async {
-      if (from < 7) {
-        await customStatement('PRAGMA foreign_keys = OFF');
-        await customStatement('DROP TABLE IF EXISTS stage_related_items');
-        await customStatement('DROP TABLE IF EXISTS stage_records');
-        await customStatement('DROP TABLE IF EXISTS stage_rules');
-        await customStatement('DROP TABLE IF EXISTS stage_trackers');
-        await customStatement('DROP TABLE IF EXISTS resource_action_records');
-        await customStatement(
-          'DROP TABLE IF EXISTS resource_consumption_rules',
+      if (from < to) {
+        throw UnsupportedError(
+          'No schema upgrades are defined for this initial schema.',
         );
-        await customStatement('DROP TABLE IF EXISTS resources');
-        await customStatement(
-          'DROP TABLE IF EXISTS resource_consumption_rule_template_items',
-        );
-        await customStatement('DROP TABLE IF EXISTS resource_template_items');
-        await customStatement(
-          'DROP TABLE IF EXISTS timeline_milestone_records',
-        );
-        await customStatement('DROP TABLE IF EXISTS timeline_milestone_rules');
-        await customStatement('DROP TABLE IF EXISTS timelines');
-        await customStatement('DROP TABLE IF EXISTS item_action_records');
-        await customStatement('DROP TABLE IF EXISTS item_template_items');
-        await customStatement('DROP TABLE IF EXISTS item_pack_templates');
-        await customStatement('DROP TABLE IF EXISTS items');
-        await customStatement('DROP TABLE IF EXISTS item_packs');
-        await customStatement('DROP TABLE IF EXISTS app_settings');
-        await m.createAll();
-        await customStatement('PRAGMA foreign_keys = ON');
       }
+      await customStatement('PRAGMA foreign_keys = OFF');
+      await _dropExistingSchemaObjects();
+      await m.createAll();
+      await customStatement('PRAGMA foreign_keys = ON');
     },
     beforeOpen: (details) async {
       await _ensureSystemDefaultPack();
       await _ensureAppSettings();
     },
   );
+
+  Future<void> _dropExistingSchemaObjects() async {
+    final objects = await customSelect('''
+      SELECT type, name
+      FROM sqlite_master
+      WHERE type IN ('trigger', 'view', 'table')
+        AND name NOT LIKE 'sqlite_%'
+      ORDER BY
+        CASE type
+          WHEN 'trigger' THEN 0
+          WHEN 'view' THEN 1
+          ELSE 2
+        END
+      ''').get();
+
+    for (final object in objects) {
+      final type = object.read<String>('type').toUpperCase();
+      final name = _quoteIdentifier(object.read<String>('name'));
+      await customStatement('DROP $type IF EXISTS $name');
+    }
+  }
+
+  String _quoteIdentifier(String value) {
+    return '"${value.replaceAll('"', '""')}"';
+  }
 
   Future<void> _ensureSystemDefaultPack() async {
     final existingDefault = await customSelect('''

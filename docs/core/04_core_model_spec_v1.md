@@ -42,8 +42,6 @@ reminders feature 的核心模型定為：
 - `StageRecord`
 - `StageRelatedItem`
 
-此系統不再以 `Task / TaskTemplate / Task instance` 為核心。
-
 一句話版本：
 
 > `Item` 是要做的事；`Resource` 是要留意的資源；`StageTracker` 是從某一天開始追蹤，提醒未來將到來的重要階段。Item action 可以消耗 Resource，但 Resource 不是 ItemType；StageTracker 可以引導建立 Item，但 StageTracker 本身不是 Item。
@@ -123,7 +121,7 @@ Item {
 - `attentionPolicySource` 記錄提醒策略是系統推導或使用者自訂
 - `lastDoneAt` 是快照欄位與查詢優化欄位，不等於完整歷史
 - `STATE_BASED` 不再以 `lastDoneAt` 作為主要基準，改以 `config.anchorDate`
-- item side 不建立 `TaskTemplate + Task instance`
+- Item 本身承載責任設定、生命週期與目前 attention status 推導所需資料
 - Resource is no longer an ItemType.
 - StageTracker 不是 ItemType；StageTracker 階段若需要行動，應建立相關 Item
 
@@ -372,7 +370,7 @@ ResourceActionRecord {
 
 `ItemStatus` and `ResourceStatus` are separate derived statuses.
 
-StageTracker 不建立 `StageStatus` 作為待辦狀態；階段是否進入 Home 是由階段日期、提醒窗口、record status 與 StageTracker lifecycle 推導的 presentation concern。
+StageTracker 不建立 `StageStatus` 作為 action 或 attention status；階段是否進入 Home 是由階段日期、提醒窗口、record status 與 StageTracker lifecycle 推導的 presentation concern。
 
 Home may aggregate Item、Resource 與 StageTracker stage into `AttentionTarget`，但 aggregation 是 presentation layer，不是 domain 合併。
 
@@ -1080,8 +1078,6 @@ Manual StageRecord:
 
 ## 10. StageTracker Domain
 
-StageTracker 取代舊 Timeline domain。
-
 StageTracker 維持 rule-driven occurrence 模型，但擴充 manual important stages、Home acknowledge / ignore、notes、related Item 關聯與追蹤範圍。
 
 ### 10.1 StageTracker
@@ -1299,16 +1295,9 @@ Home action：
 
 禁止重新引入：
 
-- `Task`
-- `TaskTemplate`
-- `TaskInstance`
 - `ItemType.resourceBased`
 - `ResourceBasedItemConfig`
 - `ResourceBaseItem`
-- `Timeline`
-- `TimelineMilestoneRule`
-- `TimelineMilestoneOccurrence`
-- `TimelineMilestoneRecord`
 
 命名原則：
 

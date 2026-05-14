@@ -21,9 +21,9 @@ StageTracker 模型採 rule-first：
 
 ## Drift Schema Note
 
-- 早期開發期 migration（包含舊 `task` / `responsibility` cutover）已清理。
-- 目前 repository 以乾淨的 Drift schema 為主，不再維護早期 migration 鏈。
-- 現有 `schemaVersion` 仍保留必要的輕量 Drift migration，例如 v1 -> v2 新增固定週期欄位與 pack preset tables。
+- 目前 Drift schema 以 StageTracker 版本作為初始 schema。
+- `schemaVersion` 為 `1`，不維護早期開發期 migration 鏈。
+- 舊開發資料庫可丟棄重建；現行表結構以 `lib/features/reminders/data/local/tables.dart` 為準。
 
 ## Setup
 

@@ -672,7 +672,7 @@ void main() {
                 item: Item(
                   id: 10,
                   packId: 1,
-                  title: 'Daily task',
+                  title: 'Daily item',
                   type: ItemType.fixed,
                   config: FixedItemConfig(
                     scheduleType: FixedScheduleType.daily,
@@ -730,7 +730,7 @@ void main() {
                 item: Item(
                   id: 11,
                   packId: 1,
-                  title: 'Locked daily task',
+                  title: 'Locked daily item',
                   type: ItemType.fixed,
                   config: FixedItemConfig(
                     scheduleType: FixedScheduleType.daily,
