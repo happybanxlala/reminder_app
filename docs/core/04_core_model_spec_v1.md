@@ -1,80 +1,105 @@
 ---
 This is the single source of truth for reminders core model, MVP scope, naming, and behavior.
+Last aligned with repository contents on 2026-05-15.
 ---
 
 # Reminder App Unified Core Spec
 
-本文件是 reminders feature 的唯一實作依據。
+本文件是 `reminders` feature 的核心規格。實作、測試、UI 文案與後續修訂若和舊文件或舊命名衝突，一律以本文件為準。
 
-後續實作若與舊文件、舊註解、舊命名衝突，一律以本文件為準。
+主要語言使用繁體中文；程式模型、enum、table、route、repository API 保留英文技術命名。
 
-## 1. 核心決策
+## 1. 總覽
 
-reminders feature 的核心模型定為：
+### 1.1 產品北極星
+
+> 讓重要的事，不會在無意識中變糟。
+
+Reminder App 關注四種使用者容易忽略的狀態：
+
+- 責任是否正在變糟。
+- 固定週期的責任是否已接近或超過本輪處理時間。
+- 資源是否即將不足或已不足。
+- 一段時間中的重要階段是否已進入提醒窗口。
+
+### 1.2 核心模型邊界
+
+一句話版本：
+
+> `Item` 是要做的事；`Resource` 是要留意的資源；`StageTracker` 是從某一天開始追蹤，提醒將到來的重要階段。`Item` action 可以消耗 `Resource`，但 `Resource` 不是 `ItemType`；`StageTracker` 可以引導建立 `Item`，但 `StageTracker` 本身不是 `Item`。
+
+| 概念 | 責任 |
+| --- | --- |
+| `ItemPack` | 使用者視角的生活場景 |
+| `Item` | 責任、行為、需要被完成的事 |
+| `Resource` | 可被消耗、可補充、可提醒的資源 |
+| `StageTracker` | 時間推進中的階段追蹤 |
+| `ItemActionRecord` | 使用者對責任的操作紀錄 |
+| `ResourceActionRecord` | 資源庫存或可用性變化紀錄 |
+| `StageRecord` | 手動重要階段，或 generated occurrence 的使用者互動紀錄 |
+| `ItemStatus` | `Item` attention status 的推導結果 |
+| `ResourceStatus` | `Resource` 可用性 status 的推導結果 |
+
+Domain 必須保持分離。Home 可以在 presentation layer 聚合 `Item`、`Resource` 與 `StageOccurrence`，但不可把三者合併成同一個 domain object。
+
+### 1.3 已實作模型清單
 
 - `ItemPack`
 - `Item`
 - `ItemConfig`
-- `ItemType`
-- `ItemLifecycleStatus`
-- `ItemStatus`
-- `ItemStatusService`
+- `FixedItemConfig`
+- `StateBasedItemConfig`
 - `ItemActionRecord`
-- `ItemActionType`
 - `AttentionPolicy`
-- `AttentionPolicySource`
+- `AppSettings`
 - `Resource`
 - `ResourceConfig`
-- `ResourceType`
-- `ResourceLifecycleStatus`
-- `ResourceStatus`
-- `ResourceStatusService`
+- `TimeBasedResourceConfig`
+- `QuantityBasedResourceConfig`
 - `ResourceConsumptionRule`
 - `ResourceActionRecord`
-- `ResourceActionType`
-- `ReminderTone`
-- `UsageSpeed`
-- `RepeatRuleV2`
-- `AppSettings`
 - `StageTracker`
 - `StageRule`
 - `StageOccurrence`
 - `StageRecord`
 - `StageRelatedItem`
 
-一句話版本：
+### 1.4 已實作 enum 清單
 
-> `Item` 是要做的事；`Resource` 是要留意的資源；`StageTracker` 是從某一天開始追蹤，提醒未來將到來的重要階段。Item action 可以消耗 Resource，但 Resource 不是 ItemType；StageTracker 可以引導建立 Item，但 StageTracker 本身不是 Item。
+- `ItemType { fixed, stateBased }`
+- `ItemStatus { normal, warning, danger, unknown }`
+- `ItemLifecycleStatus { active, paused, archived }`
+- `FixedScheduleType { daily, weekly, oneTime, everyXDays, everyXWeeks, monthly }`
+- `ItemOverduePolicy { autoAdvance, waitForAction }`
+- `ItemNextCycleStrategy { keepSchedule, shiftByDelay }`
+- `ItemActionType { created, done, skipped, deferred }`
+- `AttentionPolicySource { systemDefault, userCustomized }`
+- `ReminderTone { gentle, standard, early, urgent }`
+- `UsageSpeed { low, medium, high }`
+- `ResourceType { timeBased, quantityBased }`
+- `ResourceLifecycleStatus { active, paused, archived }`
+- `ResourceStatus { normal, warning, danger, unknown }`
+- `ResourceActionType { created, consumed, refilled, adjusted }`
+- `StageTrackerStatus { active, archived }`
+- `StageRuleType { everyNDays, everyNWeeks, everyNMonths, everyNYears }`
+- `StageIntervalUnit { days, weeks, months, years }`
+- `StageRuleStatus { active, paused, archived }`
+- `StageRecordSourceType { generated, manual }`
+- `StageRecordStatus { normal, acknowledged, ignored, archived }`
 
-核心邊界：
+## 2. 已實作模型
 
-| 概念 | 責任 |
-| --- | --- |
-| `Item` | 責任 / 行為 / 需要被完成的事 |
-| `Resource` | 可被消耗、可補充、可提醒的資源 |
-| `StageTracker` | 時間推進中的階段追蹤與階段提醒 |
-| `ItemActionRecord` | user actions on responsibilities |
-| `ResourceActionRecord` | resource stock / availability changes |
-| `StageRecord` | user interactions with computed or manual stages |
-| `ItemStatus` | item 責任狀態推導結果 |
-| `ResourceStatus` | resource 可用性狀態推導結果 |
+### 2.1 ItemPack Domain
 
-## 2. 產品北極星
+#### 產品語意
 
-> 讓重要的事，不會在無意識中變糟。
+`ItemPack` 是使用者看到的「生活場景」。它不是純資料夾，也不是強制的 domain 關聯圖。
 
-系統優先關注：
+`Item`、`Resource`、`StageTracker` 都歸屬於一個 `ItemPack`。Pack 代表使用者願意放在同一個生活脈絡中理解與管理的內容，例如「養貓」、「家務」、「健康」、「寶寶」。
 
-- 哪些責任正在惡化
-- 哪些固定節奏的責任已接近或超過當前週期
-- 哪些資源即將不足或已不足
-- 哪些階段追蹤中的階段已進入提醒窗口
+system default pack 顯示為「一般」，代表使用者尚未指定生活場景時的預設歸屬位置，不代表具體生活場景。
 
-Home 可以聚合 `Item`、`Resource` 與 `StageTracker` 階段成 presentation model，例如 `AttentionTarget`。Domain 必須保持分離。
-
-## 3. Item Domain
-
-### 3.1 ItemPack
+#### 已實作資料模型
 
 ```ts
 ItemPack {
@@ -89,32 +114,66 @@ ItemPack {
   updatedAt: DateTime
 }
 ```
-產品語意：
 
-- ItemPack 是使用者看到的「生活場景」，而不只是資料夾或分類。
-- ItemPack 用來聚合使用者願意放在同一個生活場景下理解與管理的 Item、Resource 與 StageTracker。
-- Pack 內的 Item、Resource、StageTracker 不要求彼此存在直接行為關聯；Pack 代表使用者視角下的歸屬，而不是 domain object 之間的強關聯。
-- 使用者不需要先主動建立 Pack 才能使用 App；Pack 會在建立 Item / Resource / StageTracker 時自然出現。
-- MVP 階段，Pack 主要作為建立流程中的歸屬選擇、首頁篩選與來源識別，不作為首頁主要分區，也不提供 Pack 詳情頁。
-- 長遠而言，Pack 可發展為生活場景模板，例如「養貓」、「家務」、「健康」、「寶寶」等，但 MVP 建立 Pack 時只建立空生活場景。
+`ItemPackInput`：
 
-規則：
+```ts
+ItemPackInput {
+  title: string
+  description?: string
+  iconEmoji: string // default "🏷️"
+}
+```
 
-- ItemPack 用來組織 Item、Resource 與 StageTracker 的生活場景，例如：養貓、家務、健康、寶寶。
-- Item、Resource、StageTracker 都必須歸屬於一個 Pack。
-- 不使用 `packId == null` 表示未分類。
-- 使用者未選擇生活場景時，一律寫入 system default pack。
-- system default pack 顯示名稱為「一般」。
-- system default pack 的 `iconEmoji` 固定為「📌」。
-- system default pack 必須唯一。
-- system default pack 可見，但 MVP 不可改名、不可更改 icon、不可封存、不可刪除。
-- system default pack 代表使用者尚未指定生活場景時的預設歸屬位置，不代表一個具體生活場景。
-- archived pack 不再接受新 Item / Resource / StageTracker 歸屬。
-- 自訂 Pack 可透過設定頁的「生活場景管理」新增、編輯名稱、編輯 emoji、調整排序與封存。
-- Pack 排序由 `orderIndex` 控制；當 `orderIndex` 相同或缺失時，以 `createdAt ascending` 作穩定排序。
-- Pack 管理頁 MVP 只提供「上」「下」調整順序，不做 drag and drop。
+system default pack 常數：
 
-### 3.2 Item
+- title：`一般`
+- iconEmoji：`📌`
+- orderIndex：`0`
+- description：`System default pack`
+
+#### 已實作行為
+
+- `item_packs` 由 Drift 管理，`AppDatabase.beforeOpen` 會確保 system default pack 存在。
+- system default pack 必須維持 active、名稱「一般」、icon `📌`、`orderIndex = 0`。
+- system default pack 不可封存。
+- `Item`、`Resource`、`StageTracker` 建立時若沒有提供 `packId`，repository 會寫入 system default pack。
+- 自訂 Pack 可新增、編輯名稱、編輯 emoji、調整排序、封存。
+- Pack 排序由 `orderIndex` 控制；DAO 排序會把 system default pack 固定在前，再依自訂 Pack 的 `orderIndex`、`createdAt` 穩定排序。
+- Pack 管理頁使用「生活場景管理」文案，支援「上」「下」排序，不支援 drag and drop。
+- 封存自訂 Pack 時，已實作兩種 repository 行為：
+  - `archivePackWithContents`：Pack 封存，底下 active / paused `Item` 與 `Resource` 封存，底下 active `StageTracker` 封存。
+  - `archivePackAndMoveContentsToDefault`：Pack 封存，底下內容移到 system default pack，內容原 lifecycle status 保持不變。
+- 封存 Pack 不刪除 action records、stage records 或 related item links。
+
+#### 範例
+
+```text
+Pack: 養貓 🐱
+Item: 清貓砂
+Resource: 貓砂
+StageTracker: 小米成長
+```
+
+這三個 object 同屬「養貓」生活場景，但彼此不必存在直接行為關聯。
+
+#### MVP 待完成
+
+- Pack 管理頁目前只顯示 active packs；archived packs 的管理入口未完成。
+- Item / Resource / StageTracker 建立後的跨 Pack 搬移入口未提供。
+
+### 2.2 Item Domain
+
+#### 產品語意
+
+`Item` 是要做的事。它承載責任設定、生命週期，以及 attention status 推導所需資料。
+
+`Item` 的 lifecycle status 和 attention status 是兩件事：
+
+- lifecycle status：使用者是否仍管理此責任，使用 `active / paused / archived`。
+- attention status：此責任目前是否需要注意，使用 `normal / warning / danger / unknown`，由 `ItemStatusService` 推導。
+
+#### 已實作資料模型
 
 ```ts
 Item {
@@ -125,26 +184,12 @@ Item {
   type: ItemType
   config: ItemConfig
   attentionPolicySource: "systemDefault" | "userCustomized"
-  status: "active" | "paused" | "archived" // lifecycle status
+  status: "active" | "paused" | "archived"
   lastDoneAt?: DateTime
   createdAt: DateTime
   updatedAt: DateTime
 }
 ```
-
-規則：
-
-- item 屬於一個 pack
-- item 的 lifecycle 與 attention status 分離
-- item 以 `type + config` 為主推導 attention status；部分類型會輔以 `lastDoneAt`
-- `attentionPolicySource` 記錄提醒策略是系統推導或使用者自訂
-- `lastDoneAt` 是快照欄位與查詢優化欄位，不等於完整歷史
-- `STATE_BASED` 不再以 `lastDoneAt` 作為主要基準，改以 `config.anchorDate`
-- Item 本身承載責任設定、生命週期與目前 attention status 推導所需資料
-- Resource is no longer an ItemType.
-- StageTracker 不是 ItemType；StageTracker 階段若需要行動，應建立相關 Item
-
-### 3.3 ItemType
 
 ```dart
 enum ItemType {
@@ -153,40 +198,25 @@ enum ItemType {
 }
 ```
 
-語意：
-
-- `fixed`：有明確日曆週期或 due date 的責任，例如繳費、回診、固定清潔、為某個階段做準備
-- `stateBased`：狀態會隨時間變差的責任，例如清貓砂、換濾水網、整理冰箱
-
-明確淘汰：
-
-- `ItemType.resourceBased`
-- `ResourceBasedItemConfig`
-- Item 上的 resource-based config
-- Item table 上的 `resourceAnchorDate / resourceDurationDays / resourceExpectedBeforeDays / resourceWarningBeforeDays / resourceDangerBeforeDays`
-
-The previous `RESOURCE_BASED ItemType` is removed. Its day-based availability behavior is now represented by `ResourceType.timeBased`.
-
-### 3.4 FixedItemConfig
+`FixedItemConfig`：
 
 ```ts
 FixedItemConfig {
-  scheduleType: "oneTime" | "daily" | "weekly" | "monthly" | "yearly" | "custom"
+  scheduleType: "daily" | "weekly" | "oneTime" | "everyXDays" | "everyXWeeks" | "monthly"
+  scheduleInterval: number
+  monthlyDay?: number
+  repeatRuleV2?: RepeatRuleV2
   anchorDate?: DateTime
   dueDate?: DateTime
-  repeatRule?: RepeatRuleV2
-  overduePolicy: "waitForAction" | "autoComplete"
+  timeOfDay?: string
+  overduePolicy: "autoAdvance" | "waitForAction"
+  infoBefore: Duration
+  warningBefore: Duration
+  dangerBefore: Duration
 }
 ```
 
-規則：
-
-- `fixed` 責任的主要問題是「週期是否到點」
-- `skip` 可用於跳過本輪 fixed 責任
-- `overduePolicy.waitForAction` 會維持待處理直到使用者 action
-- 從 StageTracker 階段建立 Item 時，Item due date 預設等於階段日期，但使用者可以修改
-
-### 3.5 StateBasedItemConfig
+`StateBasedItemConfig`：
 
 ```ts
 StateBasedItemConfig {
@@ -197,14 +227,55 @@ StateBasedItemConfig {
 }
 ```
 
-規則：
+#### 已實作行為
 
-- `stateBased` 責任的主要問題是「距離上次重設基準多久」
-- 完成時將 `anchorDate` 更新為 action date
-- `skip` 可用於表示這次不處理，但不重設狀態基準
-- `warningAfter / dangerAfter` 由 domain service 集中計算，不散落在 widget
+- `fixed` 代表有明確日曆週期或 due date 的責任，例如繳費、回診、固定清潔、為某個階段做準備。
+- `stateBased` 代表狀態會隨時間變差的責任，例如清貓砂、換濾水網、整理冰箱。
+- `ItemRepository.createItem` 會建立 `Item`，並寫入 `ItemActionRecord(created)`。
+- `createItemWithOptionalNewPack` 支援在建立 Item 時同步建立新 Pack。
+- `updateItem` 不允許改變既有 Item 的 `type`。
+- `markDone` 透過 `ItemActionService` 和 `ItemSnapshotUpdateService` 產生 action 並更新 snapshot。
+- `skip` 會寫入 skipped action，並依 `ItemNextCycleStrategy` 處理 fixed cycle。
+- `defer` API 存在，但目前固定回傳 `false`，不寫入歷史。
+- `stateBased` 使用 `config.anchorDate` 作為主要狀態基準；完成時更新 `stateAnchorDate`，`lastDoneAt` 不作為 state-based 主要基準。
+- `fixed` 使用 `anchorDate / dueDate / repeatRuleV2 / overduePolicy` 推導本輪週期。
+- `ItemOverduePolicy.autoAdvance` 可在 read model 推導時虛擬前進到目前週期。
+- `ItemOverduePolicy.waitForAction` 過期後維持待處理，並回傳 danger。
+- active items 進入 Home warning / danger 查詢；paused / archived items 不進入 Home attention query。
 
-### 3.6 ItemActionRecord
+#### 範例
+
+```text
+Item: 替換濾水網
+type: stateBased
+anchorDate: 2026-05-01
+warningAfter: 12 days
+dangerAfter: 14 days
+```
+
+```text
+Item: 繳電費
+type: fixed
+scheduleType: monthly
+monthlyDay: 15
+dueDate: 2026-05-15
+overduePolicy: waitForAction
+warningBefore: 3 days
+dangerBefore: 1 day
+```
+
+#### MVP 待完成
+
+- `ItemNextCycleStrategy.shiftByDelay` 已存在於 domain API，但 UI 主要流程尚未完整暴露為使用者可選策略。
+- `deferred` action type 只保留相容性，不建立新的 deferred record。
+
+### 2.3 ItemActionRecord Domain
+
+#### 產品語意
+
+`ItemActionRecord` 是使用者對責任的歷史紀錄，不是 attention status 的唯一來源。
+
+#### 已實作資料模型
 
 ```ts
 ItemActionRecord {
@@ -219,25 +290,33 @@ ItemActionRecord {
 }
 ```
 
-規則：
+#### 已實作行為
 
-- `ItemActionRecord` records user actions on responsibilities.
-- `ItemActionRecord` 是 history layer，不是 item attention status 的唯一來源
-- `payload` 只保存 item action 附加資訊，不保存 resource refill 資訊
-- item 操作寫入 record 後，仍需同步更新 item snapshot 欄位
-- `deferred` action type 保留給既有資料相容與未來功能恢復；目前 MVP 不會建立新的 deferred record
-- `ItemActionService` 不再要求 `addedDays`，也不再對 resource item 做 special case
+- `payload` 使用 JSON encode / decode，空 payload 存為 `null`。
+- 建立、完成、略過都會形成 history。
+- item 操作寫入 record 後，仍需要同步更新 item snapshot 欄位。
+- `ItemActivityPage` 以 `ItemActionRecord` 顯示近期活動，支援搜尋與載入更多。
 
-## 4. Resource Domain
+#### 範例
 
-### 4.1 Resource
+```text
+done: 使用者在 2026-05-15 完成「清貓砂」。
+skipped: 使用者本輪不處理「整理冰箱」。
+```
 
-`Resource` 代表可用資源，而不是要完成的責任。
+#### MVP 待完成
 
-範例：
+- `deferred` 不在目前 MVP 建立流程中使用。
 
-- 濾水網：目前 5 個，剩 2 個提醒，剩 1 個危急
-- 洗髮精：大約還能用 20 天，剩 3 天提醒，剩 1 天危急
+### 2.4 Resource Domain
+
+#### 產品語意
+
+`Resource` 是要留意的資源，不是要完成的責任。
+
+`Resource` 可以獨立管理，也可以透過 `ResourceConsumptionRule` 被 `ItemActionRecord(done)` 消耗。UI 可以把資源顯示在 Item 編輯頁的「消耗資源」區塊，但 domain 仍保持分離。
+
+#### 已實作資料模型
 
 ```ts
 Resource {
@@ -247,21 +326,12 @@ Resource {
   description?: string
   type: ResourceType
   config: ResourceConfig
-  status: "active" | "paused" | "archived" // lifecycle status
+  status: "active" | "paused" | "archived"
   lastRefilledAt?: DateTime
   createdAt: DateTime
   updatedAt: DateTime
 }
 ```
-
-規則：
-
-- Resource 屬於 pack，可在管理頁或 Home 與 item 聚合顯示
-- Resource lifecycle 使用 `active / paused / archived`
-- Home 只聚合 active resources
-- UI 可以把 Resource 顯示在 Item 編輯頁的「消耗資源」區塊，但 domain 仍保持分離
-
-### 4.2 ResourceType
 
 ```dart
 enum ResourceType {
@@ -270,20 +340,7 @@ enum ResourceType {
 }
 ```
 
-語意：
-
-- `timeBased`：用天數估算可用性，例如洗髮精、貓砂、清潔劑
-- `quantityBased`：用數量估算可用性，例如濾水網、垃圾袋、藥片
-
-### 4.3 ResourceConfig
-
-```dart
-abstract class ResourceConfig {
-  ResourceType get type;
-}
-```
-
-Time-based resource：
+`TimeBasedResourceConfig`：
 
 ```ts
 TimeBasedResourceConfig {
@@ -295,14 +352,7 @@ TimeBasedResourceConfig {
 }
 ```
 
-規則：
-
-- `anchorDate` 當天算第 1 天
-- `durationDays` 是估算可用天數
-- depletion day 顯示 remaining days = `0`
-- UI 文案使用「預計」、「大約」，避免太絕對
-
-Quantity-based resource：
+`QuantityBasedResourceConfig`：
 
 ```ts
 QuantityBasedResourceConfig {
@@ -314,13 +364,51 @@ QuantityBasedResourceConfig {
 }
 ```
 
-規則：
+#### 已實作行為
 
-- quantity 不允許小於 `0`
-- repository 在消耗或調整時將負數結果 clamp 到 `0`
-- `unitLabel` 使用生活單位，例如：個、包、瓶、片
+- `ResourceRepository.createResource` 會建立 `Resource`，並寫入 `ResourceActionRecord(created)`。
+- `updateResource` 不允許改變既有 Resource 的 `type`。
+- `archiveResource` 只更新 lifecycle status，不刪除 action history 或 consumption rules。
+- time-based resource 使用 `anchorDate + durationDays - 1` 推導 depletion date。
+- quantity-based resource 使用 `currentQuantity` 與 warning / danger thresholds 推導狀態。
+- `ResourceStatusService` 對異常或不足資料回傳 `unknown`。
+- `watchResources` 只回傳 active resources；`watchManagedResources` 回傳 active / paused resources。
+- Home 目前有「資源」section，顯示 active resources，並可套用 Pack filter。
+- Resource 管理頁支援新增、編輯、補充、quantity 調整、詳細資訊、歷史紀錄、封存。
+- Resource history route 已實作：`/resource/:id/history`，route name 是 `resource-history`。
 
-### 4.4 ResourceConsumptionRule
+#### 範例
+
+```text
+Resource: 濾水網
+type: quantityBased
+currentQuantity: 5
+unitLabel: 個
+warningThreshold: 2
+dangerThreshold: 1
+```
+
+```text
+Resource: 洗髮精
+type: timeBased
+anchorDate: 2026-05-01
+durationDays: 20
+warningBeforeDays: 3
+dangerBeforeDays: 1
+```
+
+#### MVP 待完成
+
+- Resource 已在 Home 顯示，但尚未納入 `AttentionSummaryRepository` 與 `HomeAttentionSource` 的統一 attention summary 計數。
+- Resource Home section 尚未收斂到單一 Home presentation model。
+
+### 2.5 ResourceConsumptionRule Domain
+
+#### 產品語意
+
+`ResourceConsumptionRule` 連接「完成某個 Item」與「扣除某個 Resource」。
+
+#### 已實作資料模型
 
 ```ts
 ResourceConsumptionRule {
@@ -335,14 +423,19 @@ ResourceConsumptionRule {
 }
 ```
 
-規則：
+#### 已實作行為
 
-- MVP 只支援 `triggerActionType = done`
-- MVP 只支援 item action 消耗 quantity-based resource
-- `consumeAmount` 必須大於 `0`
-- disabled rule 不會套用，但可保留歷史設定
+- 目前 trigger 固定使用 `ItemActionType.done`。
+- 目前只支援消耗 quantity-based resource。
+- `consumeAmount < 1` 時 repository 會存為 `1`。
+- disabled rule 不會套用。
+- 建立 Item 時可帶入 `ItemResourceBindingInput.existing`，綁定同 Pack 的 active quantity-based resource。
+- 建立 Item 時可帶入 `ItemResourceBindingInput.newResource`，同 transaction 建立 quantity-based resource 並插入 consumption rule。
+- 若 resource binding 失敗，create item transaction 會 rollback，不留下 partial item / resource / rule。
+- `markDone` 會在同一個 transaction 內更新 item snapshot、寫入 item done record、套用 enabled rules、扣除 quantity resource、寫入 `ResourceActionRecord(consumed)`。
+- archived resource 不會被 `markDone` 扣量。
 
-範例：
+#### 範例
 
 ```text
 Item: 替換濾水網
@@ -350,22 +443,23 @@ Resource: 濾水網
 Rule: done 時 consume 1 個
 ```
 
-### 4.5 ResourceActionRecord
+#### MVP 待完成
 
-```dart
-enum ResourceActionType {
-  created,
-  consumed,
-  refilled,
-  adjusted,
-}
-```
+- UI 尚未提供完整的既有 rule 編輯、停用、重新啟用管理流程。
+
+### 2.6 ResourceActionRecord Domain
+
+#### 產品語意
+
+`ResourceActionRecord` 記錄資源庫存或可用性變化。
+
+#### 已實作資料模型
 
 ```ts
 ResourceActionRecord {
   id: number
   resourceId: number
-  actionType: ResourceActionType
+  actionType: "created" | "consumed" | "refilled" | "adjusted"
   actionDate: DateTime
   amount?: number
   resultingQuantity?: number
@@ -378,264 +472,587 @@ ResourceActionRecord {
 }
 ```
 
-規則：
+#### 已實作行為
 
-- `ResourceActionRecord` records resource stock / availability changes.
-- quantity consumption / refill / adjustment 記錄 `amount` 與 `resultingQuantity`
-- time refill 記錄 `addedDays` 與 `resultingDurationDays`
-- 由 item done 觸發的 consumption 必須設定 `sourceItemActionRecordId`
+- quantity consumption / refill / adjustment 記錄 `amount` 或 `resultingQuantity`。
+- time-based refill 記錄 `addedDays` 與 `resultingDurationDays`。
+- 由 item done 觸發的 consumed record 會設定 `sourceItemActionRecordId`。
+- `refillResource`：
+  - time-based resource 要求 `addedDays > 0`。
+  - quantity-based resource 要求 `addedQuantity > 0`。
+  - time-based refill 會 carry over 尚未耗盡的剩餘天數。
+- `adjustResourceQuantity`：
+  - 只支援 quantity-based resource。
+  - `newQuantity` 經 `ResourceRefillService.adjustQuantity` 處理，負數 clamp 到 `0`。
 
-## 5. Status 邊界
+#### 範例
 
-`ItemStatus` and `ResourceStatus` are separate derived statuses.
+```text
+refilled: 補充洗髮精 20 天，resultingDurationDays = 20
+consumed: 完成「替換濾水網」後扣除 1 個濾水網，resultingQuantity = 4
+adjusted: 使用者手動把濾水網庫存修正為 3 個
+```
 
-StageTracker 不建立 `StageStatus` 作為 action 或 attention status；階段是否進入 Home 是由階段日期、提醒窗口、record status 與 StageTracker lifecycle 推導的 presentation concern。
+#### MVP 待完成
 
-Home may aggregate Item、Resource 與 StageTracker stage into `AttentionTarget`，但 aggregation 是 presentation layer，不是 domain 合併。
+- Resource history 已有頁面，但 `sourceItemActionRecordId` 目前主要透過格式化文字呈現，尚未提供跳回來源 Item action 的互動入口。
 
-### 5.1 ItemStatus
+### 2.7 StageTracker Domain
 
-```dart
-enum ItemStatus {
-  normal,
-  warning,
-  danger,
-  unknown,
+#### 產品語意
+
+`StageTracker` 是一條從某天開始追蹤的階段線。UI 名稱是「階段追蹤」。
+
+它用來看見時間推進中的重要節點，例如寶寶成長、交往紀念、搬家後保養、復健進度。它不代表一件要完成的事，也不以 done / skipped 作為主要狀態。
+
+#### 已實作資料模型
+
+```ts
+StageTracker {
+  id: number
+  packId: number
+  title: string
+  subjectName?: string
+  trackingStartDate: DateTime
+  trackingEndDate?: DateTime
+  status: "active" | "archived"
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 ```
 
-規則：
+#### 已實作行為
 
-- `fixed` 由 due date / repeat cycle / preview date 推導
-- `stateBased` 由 `anchorDate + warningAfter / dangerAfter` 推導
-- paused / archived item 不應進入 Home attention 聚合
+- `StageTracker` 必須歸屬於一個 Pack。
+- 建立時未指定 `packId` 會寫入 system default pack。
+- `trackingStartDate` 在 UI 顯示為「從哪一天開始追蹤」。
+- `trackingEndDate == null` 代表持續追蹤。
+- 到達 `trackingEndDate` 後不自動 archive，而是由 presentation 分到「已完成追蹤」。
+- active trackers 出現在 StageTracker 管理頁；archived trackers 不出現在一般 watch query。
+- StageTracker 管理 route 已實作：`/feature/stage-trackers`，route name 是 `stage-trackers`。
+- StageTracker detail route 已實作：`/stage-tracker/:id`，route name 是 `stage-tracker-detail`。
+- StageTracker full schedule route 已實作：`/stage-tracker/:id/schedule`，route name 是 `stage-tracker-schedule`。
+- StageTracker history route 已實作：`/stage-tracker/:id/history`，route name 是 `stage-tracker-history`。
+- 建立 StageTracker 後進入 detail dashboard。
+- detail dashboard 顯示目前進度、下一個階段、接下來階段、重複階段列表、加入重複階段、新增重要階段、完整時間表、歷史入口。
 
-### 5.2 ResourceStatus
+#### 範例
 
-```dart
-enum ResourceStatus {
-  normal,
-  warning,
-  danger,
-  unknown,
+```text
+StageTracker:
+  title: 寶寶成長
+  subjectName: 小米
+  trackingStartDate: 2026-05-01
+  trackingEndDate: null
+```
+
+UI 可顯示：
+
+```text
+小米已經 5 個月 20 天
+下一個階段：10 天後滿 6 個月
+```
+
+#### MVP 待完成
+
+- StageTracker 編輯 UI 未完成。
+- StageTracker 封存 UI 未完成；repository 已有 `archiveStageTracker`。
+- archived StageTracker 管理 UI 未完成。
+
+### 2.8 StageRule Domain
+
+#### 產品語意
+
+`StageRule` 是 StageTracker 底下的「重複階段」規則。Rule 是設定，occurrence 是計算結果。
+
+#### 已實作資料模型
+
+```ts
+StageRule {
+  id: number
+  stageTrackerId: number
+  type: "every_n_days" | "every_n_weeks" | "every_n_months" | "every_n_years"
+  intervalValue: number
+  intervalUnit: "days" | "weeks" | "months" | "years"
+  labelTemplate?: string
+  reminderOffsetDays?: number
+  status: "active" | "paused" | "archived"
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 ```
 
-Time-based resource：
+#### 已實作行為
+
+- `createStageRule` 只允許建立在存在且未 archived 的 StageTracker 底下。
+- `intervalValue <= 0` 會丟出 `ArgumentError`。
+- active rule 會產生 generated occurrences。
+- paused rule 不產生 occurrence。
+- archived rule 不出現在 detail 的 visible rule list。
+- `labelTemplate` 支援 `{n}`、`{value}`、`{unit}`。
+- `reminderOffsetDays == null` 時 fallback 到 `StageOccurrenceService.defaultReminderOffsetDays`，目前值是 `0`。
+
+#### 範例
 
 ```text
-if anchorDate == null or durationDays <= 0:
-    status = unknown
-
-depletionDate = anchorDate + durationDays - 1
-remainingDays = depletionDate - now
-
-if remainingDays <= dangerBeforeDays:
-    status = danger
-elif remainingDays <= warningBeforeDays:
-    status = warning
-else:
-    status = normal
+StageRule:
+  type: every_n_months
+  intervalValue: 1
+  intervalUnit: months
+  labelTemplate: 小米滿 {value}{unit}
+  reminderOffsetDays: 7
 ```
 
-Quantity-based resource：
+#### MVP 待完成
+
+- StageRule 編輯 UI 未完成。
+- StageRule 暫停、封存 UI 未完成。
+
+### 2.9 StageOccurrence Domain
+
+#### 產品語意
+
+`StageOccurrence` 是由 `StageTracker + StageRule + StageRecord` 合成的 read model，不是資料表。
+
+generated occurrence 平常由 rule 動態計算；manual occurrence 來自 `StageRecord(sourceType = manual)`。
+
+#### 已實作資料模型
+
+```ts
+StageOccurrence {
+  stageTrackerTitle?: string
+  subjectName?: string
+  stageTrackerId: number
+  stageRuleId?: number
+  stageRecordId?: number
+  sourceType: "generated" | "manual"
+  occurrenceIndex?: number
+  occurrenceDate: DateTime
+  label: string
+  note?: string
+  reminderOffsetDays: number
+  recordStatus?: "normal" | "acknowledged" | "ignored" | "archived"
+  relatedItemSummary?: StageRelatedItemSummary
+}
+```
+
+#### 已實作行為
+
+- `StageOccurrenceService` 動態計算 upcoming、schedule、history、Home attention occurrences。
+- dashboard upcoming 預設取未來 366 天內 manual stages，加上每條 active rule 的下一次 occurrence，排序後由 repository 取前 3 筆。
+- schedule 只顯示未來 occurrence。
+- history 只顯示過去 occurrence，日期由新到舊排序。
+- ignored / archived records 不出現在一般 occurrence lists。
+- acknowledged occurrence 保留在 schedule，但不進 Home attention。
+- Home attention 條件：
+  - StageTracker active。
+  - occurrence 未 ignored、未 archived、未 acknowledged。
+  - current date 已到 `occurrenceDate - reminderOffsetDays`。
+- 同一天排序時 manual occurrence 優先於 generated occurrence。
+
+#### 範例
 
 ```text
-if currentQuantity < 0:
-    status = unknown
-
-if currentQuantity <= dangerThreshold:
-    status = danger
-elif currentQuantity <= warningThreshold:
-    status = warning
-else:
-    status = normal
+寶寶成長：3 天後滿 6 個月
+寶寶成長：副食品階段快到了
 ```
 
-Repository 不應寫入 negative quantity；若外部資料異常小於 `0`，status service 可回傳 `unknown`。
+#### MVP 待完成
 
-## 6. Repository / Transaction 行為
+- Home attention occurrence 已支援「知道了」；「忽略這次」的 UI 入口、確認流程與 undo 尚未完成。
 
-### 6.1 完成 Item
+### 2.10 StageRecord Domain
 
-When completing an Item, matching `ResourceConsumptionRules` are applied in the same transaction.
+#### 產品語意
 
-同一個 transaction 必須包含：
+`StageRecord` 記錄 manual important stage，或 generated occurrence 的使用者互動。UI 上 manual StageRecord 稱為「重要階段」。
 
-1. item snapshot update
-2. `ItemActionRecord(done)` insert
-3. matching enabled resource consumption rules query
-4. quantity resource snapshot update
-5. `ResourceActionRecord(consumed)` insert
+#### 已實作資料模型
 
-規則：
-
-- rule 必須符合 `rule.itemId == item.id`
-- rule 必須 enabled
-- rule trigger 必須為 `done`
-- MVP 僅扣 quantity-based resource
-- resource 必須 active
-- 消耗後 quantity clamp 到 `0`
-- `ResourceActionRecord.sourceItemActionRecordId` 指向剛建立的 `ItemActionRecord(done)`
-
-### 6.2 Refill Resource
-
-建議 repository API：
-
-```dart
-Future<bool> refillResource(
-  int resourceId, {
-  DateTime? actionAt,
-  int? addedDays,
-  int? addedQuantity,
-  String? remark,
-})
+```ts
+StageRecord {
+  id: number
+  stageTrackerId: number
+  stageRuleId?: number
+  sourceType: "generated" | "manual"
+  occurrenceIndex?: number
+  occurrenceDate: DateTime
+  relativeAmount?: number
+  relativeUnit?: "days" | "weeks" | "months" | "years"
+  status: "normal" | "acknowledged" | "ignored" | "archived"
+  label: string
+  note?: string
+  reminderOffsetDays?: number
+  createdAt: DateTime
+  updatedAt: DateTime
+}
 ```
 
-Time-based resource refill：
+#### 已實作行為
 
-- 必須輸入 `addedDays > 0`
-- 若尚未耗盡，要 carry over 剩餘天數
-- 新 `anchorDate = actionDate`
-- 新 `durationDays = remainingCarryDays + addedDays`
-- 寫入 `ResourceActionRecord(refilled)`
+- manual important stage 一建立就寫入 `StageRecord(sourceType = manual, status = normal)`。
+- generated occurrence 只有被 acknowledged、ignored、建立 related item 等互動時才建立 `StageRecord`。
+- generated record 以 `stageRuleId + occurrenceIndex` 作 unique key。
+- `acknowledgeOccurrence` 會 upsert generated record 並設為 `acknowledged`。
+- `ignoreOccurrence` 會 upsert generated record 並設為 `ignored`。
+- `deleteOrArchiveImportantStage`：
+  - 未來 manual stage 會刪除。
+  - 已過去 manual stage 會改為 archived。
+- note 不作為 status。
 
-Quantity-based resource refill：
+#### 範例
 
-- 必須輸入 `addedQuantity > 0`
-- `currentQuantity += addedQuantity`
-- 寫入 `ResourceActionRecord(refilled)`
-- `resultingQuantity = 更新後數量`
-
-### 6.3 Adjust Resource
-
-MVP 支援 manual adjustment：
-
-```dart
-Future<bool> adjustResourceQuantity(
-  int resourceId, {
-  required int newQuantity,
-  DateTime? actionAt,
-  String? remark,
-})
+```text
+Manual StageRecord:
+  label: 副食品階段
+  occurrenceDate: 2026-11-01
+  relativeAmount: 6
+  relativeUnit: months
+  note: 可以先和醫生確認，準備餐具與高腳椅
+  reminderOffsetDays: 14
 ```
 
-規則：
+#### MVP 待完成
 
-- `newQuantity` 若小於 `0`，repository clamp 到 `0`
-- adjustment 用於使用者修正庫存錯誤
-- 寫入 `ResourceActionRecord(adjusted)`
+- important stage 編輯 UI 未完成。
+- important stage 刪除 / 封存 UI 未完成；repository 已有 `deleteOrArchiveImportantStage`。
 
-### 6.4 Create Item with Resource Binding Draft
+### 2.11 StageRelatedItem Domain
 
-新增 item 時，UI 可以先建立「消耗資源」草稿，但確認前不得寫入 DB。
+#### 產品語意
 
-支援草稿：
+`StageRelatedItem` 連接 `StageRecord` 與 `Item`。它表示某個階段引導使用者建立了一件相關提醒。
 
-1. 綁定既有 active quantity-based resource
-2. 建立新的 quantity-based resource draft 並綁定
+#### 已實作資料模型
 
-送出時必須在同一個 transaction 完成：
-
-1. create item
-2. insert `ItemActionRecord(created)`
-3. 若有 new resource draft，create resource
-4. 若有 new resource draft，insert `ResourceActionRecord(created)`
-5. insert `ResourceConsumptionRule`
-
-規則：
-
-- 新增 item 時 MVP 僅支援 quantity-based resource consumption binding
-- time-based resource 仍由 Resource 管理頁手動建立與補充
-- existing resource 選單只顯示同 pack 的 active quantity-based resources
-- new resource 使用 item resolved pack
-- trigger action 固定為 `done`
-- 任一步驟失敗時 transaction 不應留下 partial item / resource / rule
-
-### 6.5 Archive Resource
-
-封存 Resource 只更新 lifecycle status：
-
-```dart
-Future<bool> archiveResource(int resourceId)
+```ts
+StageRelatedItem {
+  id: number
+  stageRecordId: number
+  itemId: number
+  createdAt: DateTime
+  updatedAt: DateTime
+}
 ```
 
-規則：
+```ts
+StageRelatedItemSummary {
+  doneCount: number
+  activeCount: number
+  pausedCount: number
+  skippedCount: number
+}
+```
 
-- archived resource 不出現在 active / managed resource 列表
-- archived resource 的 rules 與 action history 保留
-- archived resource 的 rules 不再由 `markDone` 套用
-- 封存不刪除 `ResourceActionRecord`
+#### 已實作行為
 
-### 6.6 Create Item from Stage
+- 一個 StageRecord 可以關聯多個 Items。
+- 從 generated occurrence 建立 related item 時，repository 會先建立 StageRecord，再建立 Item，再建立 StageRelatedItem。
+- 建立 related item 時，Item type 固定為 `fixed`，`scheduleType = oneTime`，`overduePolicy = waitForAction`。
+- Item due date 預設等於 stage occurrence date；使用者可在 dialog 輸入其他 due date。
+- related item 的完成、略過、暫停、封存不回寫 StageRecord status。
+- related item summary：
+  - archived item 不納入 summary。
+  - done 計入 `doneCount`。
+  - paused 計入 `pausedCount`。
+  - skipped 計入 `skippedCount`。
 
-StageTracker 階段可以引導建立相關 Item，但 StageTracker 不直接管理完成狀態。
+#### 範例
 
-支援來源：
+```text
+StageRecord: 副食品階段
+Related Item: 準備副食品餐具
+```
 
-1. important stage
-2. repeating stage 的某一次 occurrence
+顯示摘要：
 
-當使用者從某個 stage 建立 related item 時，同一個 transaction 應包含：
+```text
+相關提醒：1 / 2 已完成，1 個已暫停，1 個已跳過
+```
 
-1. 若來源是 computed occurrence 且尚無 `StageRecord`，建立 `StageRecord(status = normal)`
-2. create item
-3. insert `ItemActionRecord(created)`
-4. insert `StageRelatedItem(stageRecordId, itemId)`
+#### MVP 待完成
 
-規則：
+- Item 詳情頁顯示「來自：{StageTracker.title} · {StageRecord.label}」的完整 UI 尚未收斂。
 
-- Item due date 預設等於 stage occurrence date，但使用者可修改
-- StageTracker reminder start date 不應被誤用成 Item due date
-- 一個 stage 可以關聯多個 Item
-- 一個 Item MVP 只需支援來自一個 StageRecord；未來若需要可擴充多來源
-- related item 被完成、跳過、暫停或封存時，不回寫 StageRecord status
+### 2.12 AttentionPolicy 與 AppSettings
 
-### 6.7 Archive Pack
+#### 產品語意
 
-封存 Pack 時，system default pack 不可封存。
+`AttentionPolicy` 代表系統或使用者設定的提醒門檻。`AppSettings` 保存目前使用者設定。
 
-當使用者封存自訂 Pack，且該 Pack 底下仍有 active / paused Item、Resource 或 active StageTracker 時，UI 必須詢問使用者如何處理內容：
+#### 已實作資料模型
 
-1. 一起封存內容
-2. 移到「一般」
-3. 取消
+```ts
+AttentionPolicy {
+  warningAfterDays?: number
+  dangerAfterDays?: number
+  warningBeforeDays?: number
+  dangerBeforeDays?: number
+  source: "systemDefault" | "userCustomized"
+}
+```
 
-行為：
+```ts
+AppSettings {
+  reminderTone: "gentle" | "standard" | "early" | "urgent"
+  updatedAt: DateTime
+}
+```
 
-- 「一起封存內容」：
-  - Pack status 更新為 `archived`
-  - 該 Pack 底下 active / paused Item 更新為 `archived`
-  - 該 Pack 底下 active / paused Resource 更新為 `archived`
-  - 該 Pack 底下 active StageTracker 更新為 `archived`
-  - 不刪除 ItemActionRecord、ResourceActionRecord、StageRecord 或 StageRelatedItem
+Drift table `app_settings` 另有固定 `id = 1`、`createdAt`、`updatedAt`。
 
-- 「移到一般」：
-  - Pack status 更新為 `archived`
-  - 該 Pack 底下 Item / Resource / StageTracker 的 `packId` 更新為 system default pack id
-  - 不改變 Item / Resource / StageTracker 的 lifecycle status
-  - 不刪除任何 history records
+#### 已實作行為
 
-- 「取消」：
-  - 不做任何資料修改
+- `AttentionPolicyResolver` 可根據 `ReminderTone` 推導 fixed、flexible、stock 類型的提醒門檻。
+- `AppDatabase.beforeOpen` 會確保 `app_settings` 有 `id = 1` 的 row。
+- 設定頁 route 已實作：`/feature/settings`，route name 是 `settings`。
+- 設定頁目前只暴露 `reminderTone`。
 
-封存 Pack 必須在同一個 transaction 內完成，避免留下 partial state。
+#### 範例
 
-## 7. Drift Schema
+```text
+ReminderTone.standard: 使用較平衡的 warning / danger 門檻。
+ReminderTone.early: 較早提醒使用者。
+```
 
-### 7.1 items
+#### MVP 待完成
 
-`items` 不再保存 resource-based 欄位。
+- 使用者自訂單一 Item / Resource attention policy 的完整 UI 尚未收斂。
 
-移除：
+## 3. 跨 Domain 行為
 
-- `resourceAnchorDate`
-- `resourceDurationDays`
-- `resourceExpectedBeforeDays`
-- `resourceWarningBeforeDays`
-- `resourceDangerBeforeDays`
+### 3.1 完成 Item 並消耗 Resource
 
-### 7.2 resources
+`ItemRepository.markDone` 套用 resource consumption rules 時，同一個 transaction 內包含：
+
+1. 計算 item done action。
+2. 更新 item snapshot。
+3. 插入 `ItemActionRecord(done)`。
+4. 查詢 matching enabled `ResourceConsumptionRule`。
+5. 僅對 active quantity-based resource 扣量。
+6. quantity clamp 到 `0`。
+7. 插入 `ResourceActionRecord(consumed)`，並寫入 `sourceItemActionRecordId`。
+
+Matching rule 條件：
+
+- `rule.itemId == item.id`
+- `rule.isEnabled == true`
+- `rule.triggerActionType == done`
+- resource active
+- resource config 是 `QuantityBasedResourceConfig`
+
+### 3.2 建立 Item 與 Resource Binding Draft
+
+Item 建立頁可以先保留 resource binding draft；使用者儲存前不得寫入 DB。
+
+支援兩種 draft：
+
+- 綁定既有同 Pack active quantity-based resource。
+- 建立新的 quantity-based resource 並綁定。
+
+送出時同一個 transaction 完成：
+
+1. resolve pack。
+2. create item。
+3. insert `ItemActionRecord(created)`。
+4. 若有 new resource draft，create resource。
+5. 若有 new resource draft，insert `ResourceActionRecord(created)`。
+6. insert `ResourceConsumptionRule`。
+
+### 3.3 從 StageOccurrence 建立 Related Item
+
+當使用者從某個 stage 建立 related item 時，同一個 transaction 完成：
+
+1. 若來源是 generated occurrence 且尚無 StageRecord，建立 `StageRecord(status = normal)`。
+2. create fixed one-time item。
+3. insert `ItemActionRecord(created)`。
+4. insert `StageRelatedItem(stageRecordId, itemId)`。
+
+建立出的 Item：
+
+- `type = fixed`
+- `scheduleType = oneTime`
+- `anchorDate = dueDate`
+- `dueDate` 預設為 stage occurrence date
+- `overduePolicy = waitForAction`
+
+### 3.4 封存 Pack
+
+system default pack 不可封存。
+
+自訂 Pack 封存時 UI 提供：
+
+- 一起封存內容。
+- 移到「一般」。
+- 取消。
+
+「一起封存內容」會封存 Pack、active / paused Items、active / paused Resources、active StageTrackers。
+
+「移到一般」會封存 Pack，並把 Items、Resources、StageTrackers 的 `packId` 改成 system default pack id，原 lifecycle status 不變。
+
+## 4. UI 心智模型
+
+### 4.1 使用者語言
+
+```text
+Item = 要做的事
+Resource = 要留意的資源
+StageTracker = 階段追蹤
+StageRule = 重複階段
+Manual StageRecord = 重要階段
+Pack = 生活場景
+```
+
+UI 不顯示 raw domain class 名稱，不把 enum name 當使用者文案。
+
+### 4.2 Home
+
+Home route：`/`，route name：`home`。
+
+Home 已實作：
+
+- attention summary card。
+- Pack filter。
+- Resource section。
+- danger item section。
+- warning item section。
+- upcoming stage section。
+- Stage Home card 的「知道了」 action。
+
+Pack filter：
+
+- 顯示「全部」與所有 active Pack。
+- 包含 system default pack「一般」。
+- chip label 主要顯示 emoji。
+- Pack title 保留於 tooltip / accessibility label。
+- 點擊 Pack icon 只篩選 Home 內容，不進入 Pack detail page。
+
+### 4.3 Item 管理與編輯
+
+Item 管理 route：`/manage`，route name：`items-management`。
+
+Item edit routes：
+
+- create：`/item/new`，route name：`item-new`
+- edit：`/item/:id`，route name：`item-edit`
+
+已實作 UI：
+
+- Item 建立 / 編輯只提供 `fixed` 與 `stateBased`。
+- 建立時可選生活場景；選「之後再說」時寫入 system default pack。
+- 編輯既有 Item 時 Pack 以唯讀顯示。
+- locked pack mode 會隱藏 pack field，並把 Item 建在指定 Pack。
+- Item 編輯頁有「消耗資源」區塊，可綁定 existing quantity-based resource。
+- 建立流程可 inline 新增 Pack。
+
+### 4.4 Resource 管理
+
+Resource 管理 route：`/feature/resources-management`，route name：`resources-management`。
+
+已實作 UI：
+
+- 功能頁與 Item 管理頁都可進入 Resource 管理。
+- Resource 管理頁支援新增資源。
+- 列表顯示 active / paused resources。
+- Resource card 顯示名稱、類型、derived status、數量或預計剩餘天數。
+- card 空白處開 detail dialog。
+- add icon 執行補充。
+- overflow menu 支援調整、編輯、詳細資訊、歷史紀錄、封存。
+- `adjust` 只出現在 quantity-based resource。
+
+Resource history route：`/resource/:id/history`，route name：`resource-history`。
+
+### 4.5 StageTracker UI
+
+StageTracker 管理 route：`/feature/stage-trackers`，route name：`stage-trackers`。
+
+已實作 UI：
+
+- bottom navigation 有階段追蹤主入口。
+- 列表分為「進行中」與「已完成追蹤」。
+- 建立流程填入名稱、對象名稱、開始日期、生活場景。
+- 建立後進入 detail dashboard。
+- detail dashboard 顯示目前進度、下一個階段、接下來階段、重複階段列表。
+- detail dashboard 提供加入重複階段、新增重要階段、查看完整時間表、查看歷史。
+- schedule 頁顯示未來 stages。
+- history 頁顯示過去 stages。
+- stage tile 可建立 related item。
+
+### 4.6 Pack 管理
+
+Pack 管理 route：`/feature/item-packs-management`，route name：`item-packs-management`。
+
+已實作 UI：
+
+- 新增自訂 Pack。
+- 編輯自訂 Pack 名稱、description、emoji。
+- 系統依 Pack 名稱推薦 emoji，使用者可手動選擇。
+- 對自訂 Pack 使用「上」「下」調整排序。
+- 封存自訂 Pack。
+- system default pack 顯示但不可編輯、不可封存。
+
+## 5. Drift Schema
+
+目前 schema version：`2`。
+
+### 5.1 item_packs
+
+```text
+id
+title
+description
+iconEmoji
+orderIndex
+status
+isSystemDefault
+createdAt
+updatedAt
+```
+
+### 5.2 items
+
+```text
+id
+packId
+title
+description
+status
+type
+attentionPolicySource
+fixedScheduleType
+fixedScheduleInterval
+fixedMonthlyDay
+fixedRepeatRuleV2
+fixedAnchorDate
+fixedDueDate
+fixedTimeOfDay
+fixedOverduePolicy
+fixedExpectedBeforeMinutes
+fixedWarningBeforeMinutes
+fixedDangerBeforeMinutes
+stateAnchorDate
+stateExpectedAfterMinutes
+stateWarningAfterMinutes
+stateDangerAfterMinutes
+lastDoneAt
+createdAt
+updatedAt
+```
+
+### 5.3 item_action_records
+
+```text
+id
+itemId
+actionType
+actionDate
+remark
+payload
+createdAt
+updatedAt
+```
+
+### 5.4 resources
 
 ```text
 id
@@ -659,7 +1076,7 @@ createdAt
 updatedAt
 ```
 
-### 7.3 resource_consumption_rules
+### 5.5 resource_consumption_rules
 
 ```text
 id
@@ -672,7 +1089,7 @@ createdAt
 updatedAt
 ```
 
-### 7.4 resource_action_records
+### 5.6 resource_action_records
 
 ```text
 id
@@ -689,80 +1106,61 @@ createdAt
 updatedAt
 ```
 
-### 7.5 stage_trackers
+### 5.7 stage_trackers
 
 ```text
 id
 packId
 title
-subjectName nullable
+subjectName
 trackingStartDate
-trackingEndDate nullable
-status // active | archived
+trackingEndDate
+status
 createdAt
 updatedAt
 ```
 
-規則：
-
-- StageTracker 必須歸屬於一個 Pack。
-- 使用者未選擇生活場景時，StageTracker 歸屬於 system default pack「一般」。
-- MVP 不使用 `packId == null` 表示全局或未分類 StageTracker。
-- UI 不顯示 raw `trackingEndDate`，使用「追蹤範圍」文案
-- `trackingEndDate == null` 代表持續追蹤
-- 到達 `trackingEndDate` 後不自動 archive，而是 presentation 顯示「已完成追蹤」
-
-### 7.6 stage_rules
+### 5.8 stage_rules
 
 ```text
 id
 stageTrackerId
-type // every_n_days | every_n_weeks | every_n_months | every_n_years
+type
 intervalValue
-intervalUnit // days | weeks | months | years
-labelTemplate nullable
-reminderOffsetDays nullable
-status // active | paused | archived
+intervalUnit
+labelTemplate
+reminderOffsetDays
+status
 createdAt
 updatedAt
 ```
 
-規則：
-
-- `reminderOffsetDays == null` 時使用 StageTracker default reminder offset（若實作有設定欄位）或 app default
-- MVP UI 使用「重複階段」文案，不顯示 raw enum
-- 一個 StageTracker 可以有多條 active rules
-
-### 7.7 stage_records
+### 5.9 stage_records
 
 ```text
 id
 stageTrackerId
-stageRuleId nullable
-sourceType // generated | manual
-occurrenceIndex nullable
+stageRuleId
+sourceType
+occurrenceIndex
 occurrenceDate
-relativeAmount nullable
-relativeUnit nullable // days | weeks | months | years
-status // normal | acknowledged | ignored | archived
+relativeAmount
+relativeUnit
+status
 label
-note nullable
-reminderOffsetDays nullable
+note
+reminderOffsetDays
 createdAt
 updatedAt
 ```
 
-語意：
+Unique key：
 
-- manual important stage 一建立就有 `StageRecord(sourceType = manual)`
-- generated occurrence 平常是計算結果；只有使用者互動時才建立 `StageRecord(sourceType = generated)`
-- generated record 必須能對應回 rule 與 occurrence，可使用 `stageRuleId + occurrenceIndex` 或 `stageRuleId + occurrenceDate`
-- `acknowledged` 表示使用者按過「知道了」，Home 不再顯示這次提示
-- `ignored` 表示使用者忽略這次 occurrence，Home / StageTracker 主頁 / 歷史頁都不顯示
-- `archived` 主要用於已過去的 manual stage；未來 manual stage 可直接刪除
-- `note` 可用於 manual stage 或有互動的 generated occurrence
+```text
+stageTrackerId + stageRuleId + occurrenceIndex
+```
 
-### 7.8 stage_related_items
+### 5.10 stage_related_items
 
 ```text
 id
@@ -772,660 +1170,58 @@ createdAt
 updatedAt
 ```
 
-規則：
-
-- 一個 stage record 可以關聯多個 items
-- related item 的 lifecycle/status 不應自動改變 stage record status
-- ignored stage record 不影響相關 Item
-
-舊資料不重要；schema upgrade 可 drop/recreate 或等價 reset schema。
-
-所有既有 StageTracker 若缺少 packId，schema reset / migration 時應歸屬於 system default pack。
-
-## 8. UI 心智模型
+### 5.11 app_settings
 
 ```text
-Item = 要做的事
-Resource = 要留意的資源
-StageTracker = 階段追蹤 / 時間推進中的階段提醒
-Pack = 生活場景
+id
+reminderTone
+createdAt
+updatedAt
 ```
 
-規則：
-
-- Item 建立 / 編輯頁只提供 `fixed / stateBased`
-- Resource 可以 appear attached to Item in UI, but remains separate in domain.
-- StageTracker 可以建立 related Item，但 StageTracker 本身不管理完成狀態
-- Item 編輯頁可以有「消耗資源」區塊
-- 新增 consumption rule 時只選 existing quantity-based resource
-- 新增 item 時可以先建立 resource binding draft；確認前不得寫入 resource / rule
-- create item + new resource + consumption rule 必須同 transaction
-- trigger action MVP 固定為 done
-- Resource 管理頁支援建立 / 編輯 / 補充 / quantity 調整 / 封存
-- StageTracker 管理頁支援建立 / 編輯 / 封存 / 重複階段 / 重要階段 / 歷史 / 完整時間表
-- UI 文案使用生活語言，不顯示 raw enum 或 raw config 欄位名
-- time-based resource UI 使用「大約還能用幾天」、「預計剩 N 天」
-- quantity-based resource UI 使用「目前 N 個」、「剩 N 個提醒」
-- StageTracker UI 使用「階段追蹤」、「重複階段」、「重要階段」、「從哪一天開始追蹤」、「追蹤範圍」、「知道了」、「忽略這次」等文案
-
-Pack UI 規則：
-
-- 使用者介面使用「生活場景」稱呼 Pack，不直接顯示 raw `ItemPack` 命名。
-- 建立 Item / Resource / StageTracker 時，在輸入名稱後立即顯示生活場景選擇器。
-- 建立流程中的生活場景選擇器預設顯示「之後再說」。
-- 選擇「之後再說」時，實際寫入 system default pack id。
-- 在編輯頁、管理頁、列表等非建立語境中，system default pack 顯示為「一般」。
-- 生活場景選擇器使用選單 / picker，不使用純 emoji chip 作為主要選擇方式。
-- 選單項目顯示 `iconEmoji + title`。
-- MVP 生活場景選單不支援搜尋。
-- 生活場景選擇器提供「+ 新增生活場景」。
-- 點擊「+ 新增生活場景」時，在原流程中以 dialog / bottom sheet 建立 Pack，不離開目前建立流程。
-- inline 建立 Pack 只需要輸入名稱與 emoji。
-- 系統可根據 Pack 名稱建議 emoji，但使用者可以手動更改。
-- inline 建立 Pack 成功後，自動選中該 Pack。
-
-Pack assignment editing rules：
-
-- 建立 Item / Resource / StageTracker 時可以選擇生活場景。
-- 建立後，Pack 歸屬視為整理 / 搬移行為，不屬於 Item / Resource / StageTracker 本身的細節編輯。
-- Item / Resource / StageTracker 編輯頁中，Pack 只唯讀顯示。
-- MVP 暫時不提供搬移入口。
-- 未來若加入「移到生活場景」，應放在外層列表、管理模式或 overflow menu，而不是主要編輯表單中。
-- 有 ResourceConsumptionRule 關聯的 Item / Resource 若未來支援搬移，必須處理或限制跨 Pack resource binding。
-
-### 8.1 Home
-
-Home Pack filter 規則：
-
-- Home 的主軸仍然是 attention targets，例如今日要處理、快變糟、需要注意。
-- Pack 不作為 Home 的主要分區。
-- Home 上方提供 Pack filter。
-- Pack filter 顯示「全部」與所有 active Pack。
-- Pack filter 必須包含 system default pack「一般」。
-- Pack filter 排序為：
-  1. 「全部」
-  2. system default pack「一般」
-  3. 自訂 active Pack，依 `orderIndex` 排序，fallback 為 `createdAt ascending`
-- Pack filter 與 attention card 上主要顯示 Pack emoji，不顯示 Pack 文字名稱。
-- Pack title 仍需保留於 accessibility label、tooltip / 長按提示、編輯頁與管理頁。
-- 點擊 Pack icon 只篩選 Home attention targets，不進入 Pack detail page。
-- MVP 不提供 Pack detail page。
-
-### 8.2 Resource 管理頁
-
-Resource 管理頁有兩個主要入口：
-
-1. 功能頁
-2. Item 管理頁
-
-Route：
-
-```text
-name: resources-management
-path: /feature/resources-management
-```
-
-頁面必須包含：
-
-- 返回 / 前往 Item 管理頁入口
-- 新增資源 action
-- active / paused resource 列表
-- resource card
-
-Resource card summary 顯示：
-
-- 名稱
-- 類型
-- derived `ResourceStatus`
-- 數量或預計剩餘天數
-
-Resource card 空白處點擊開 detail dialog。Detail 內容：
-
-- 名稱
-- 備註
-- 資源類型
-- time-based：天數估算、預計可用到、提醒準則
-- quantity-based：目前數量、單位、提醒準則
-- quantity-based 額外顯示綁定 items：item 名稱、consume amount、rule enabled 狀態
-
-Resource card actions：
-
-- add button = 補充
-- overflow menu = 調整、編輯、詳細資訊、歷史紀錄、封存
-
-`adjust` 僅適用 quantity-based resource。
-
-### 8.3 Resource History UI
-
-Resource history 是 `ResourceActionRecord` 的 UI。
-
-Route：
-
-```text
-name: resource-history
-path: /resource/:id/history
-```
-
-列表顯示：
-
-- action type：created / consumed / refilled / adjusted
-- action date
-- amount / added days
-- resulting quantity / resulting duration days
-- remark
-- `sourceItemActionRecordId`（若來自 item done 消耗）
-
-Home 顯示可以是：
-
-```text
-快變糟
-- 替換濾水網：已到處理日
-- 濾水網：剩 2 個
-- 洗髮精：預計剩 3 天
-```
-
-MVP 可保留 item sections，並新增 Resource section；presentation model 應朝 `AttentionTarget` 聚合收斂。
-
-### 8.4 StageTracker UI
-
-StageTracker 的使用者名稱是「階段追蹤」。它有自己的主入口，也可以在 Pack 頁面中顯示屬於該 Pack 的 StageTracker。
-
-主入口 Route 建議：
-
-```text
-name: stage-trackers
-path: /feature/stage-trackers
-```
-
-詳情 Route 建議：
-
-```text
-name: stage-tracker-detail
-path: /stage-tracker/:id
-```
-
-完整時間表 Route 建議：
-
-```text
-name: stage-tracker-schedule
-path: /stage-tracker/:id/schedule
-```
-
-歷史 Route 建議：
-
-```text
-name: stage-tracker-history
-path: /stage-tracker/:id/history
-```
-
-#### StageTracker list
-
-StageTracker 列表分為：
-
-```text
-進行中
-已完成追蹤
-```
-
-不顯示 archived StageTracker。
-
-卡片顯示：
-
-- title
-- Pack emoji 作為生活場景來源標記；Pack title 保留於 accessibility label / tooltip / 長按提示
-- subjectName-aware progress，例如「小米已經 5 個月 20 天」
-- 下一個階段，例如「下一個階段：10 天後滿 6 個月」
-
-#### Create StageTracker
-
-建立流程採用「極簡建立 + 建立後引導補設定」。
-
-建立時填：
-
-- 名稱
-- 對象名稱，可留空
-- 從哪一天開始追蹤
-- 生活場景；未選擇時寫入 system default pack「一般」
-
-建立後進入 detail dashboard，顯示引導：
-
-- 加入重複階段
-- 新增重要階段
-
-MVP 不做生日 / 紀念日快捷模板。
-
-#### StageTracker detail dashboard
-
-詳情頁是進度儀表板，不是日記牆。
-
-顯示：
-
-- 目前進度，由 presentation layer 自動自然語言格式化，不要求使用者選 displayUnit
-- 下一個階段
-- 接下來 3 個階段
-- 「查看更多」入口
-- 歷史入口
-- 加入重複階段 / 新增重要階段入口
-
-主頁不顯示過去階段。
-
-接下來列表規則：
-
-- 預設顯示 3 個
-- 同一條重複階段規則只顯示最近一期
-- 日期排序；同一天時重要階段優先，重複階段在後
-
-#### Full schedule
-
-完整時間表只顯示未來階段。
-
-規則：
-
-- 顯示所有 upcoming 重要階段
-- 顯示所有 upcoming 重複階段 occurrence
-- 同一條重複規則可以出現多期
-- 不顯示過去階段
-
-#### History
-
-歷史頁顯示已過去階段，最近在最上面。
-
-歷史項目顯示：
-
-- 標題
-- 日期
-- 來源：重複階段 / 重要階段
-- 備註（若有）
-- 相關提醒摘要（若有）
-
-相關提醒摘要計算：
-
-- done 計入完成數
-- archived item 忽略
-- paused item 另外顯示
-- skipped item 另外顯示
-
-例如：
-
-```text
-相關提醒：1 / 2 已完成，1 個已暫停，1 個已跳過
-```
-
-#### Home attention
-
-StageTracker 階段只有進入提醒窗口時才出現在 Home。
-
-Home card 操作只支援：
-
-```text
-知道了
-```
-
-語意：
-
-- 收起這次 Home 提示
-- 不代表完成
-- 不代表略過
-- 不代表刪除
-- 不支援延後提醒
-
-按「知道了」後，若是 generated occurrence 且尚無 record，建立 `StageRecord(status = acknowledged)`。
-
-#### Ignore occurrence
-
-使用者可以對 generated occurrence 執行「忽略這次」。
-
-效果：
-
-- Home 不顯示
-- StageTracker 主頁不顯示
-- 歷史頁不顯示
-- 下一期 occurrence 仍照常產生
-
-若該 occurrence 已有 note 或 related items，必須先提示確認。
-
-忽略後資料保留：
-
-- note 保留
-- related item 關聯保留
-- related items 不受影響
-
-MVP 只提供 snackbar undo，不做已隱藏管理頁。
-
-### 8.5 Pack 管理頁
-Pack 管理頁使用者名稱為「生活場景管理」。
-
-入口：
-
-```text
-設定 > 生活場景管理
-```
-
-頁面顯示：
-
-system default pack「一般」
-active custom packs
-archived packs MVP 可不顯示，或只在未來歷史 / 管理需求中處理
-
-每個 Pack 顯示：
-
-- emoji
-- 名稱
-- 是否為 system default
-- 排序操作
-
-MVP 支援操作：
-
-- 新增自訂 Pack
-- 編輯自訂 Pack 名稱
-- 編輯自訂 Pack emoji
-- 對自訂 Pack 使用「上」「下」調整排序
-- 封存自訂 Pack
-
-MVP 不支援：
-
-- 修改 system default pack 名稱
-- 修改 system default pack emoji
-- 封存 system default pack
-- 刪除 system default pack
-- drag and drop 排序
-- 搜尋 Pack
-- Pack detail page
-- 從 Item / Resource / StageTracker 編輯頁直接修改 Pack
-- 搬移 Item / Resource / StageTracker 到其他 Pack
-
-## 9. Templates / Demo
-
-Built-in template 若需要 resource 行為，必須建立：
-
-1. `Resource`
-2. 需要時建立 `Item`
-3. 需要時建立 `ResourceConsumptionRule`
-
-Built-in template 若需要階段追蹤行為，必須建立：
-
-1. `StageTracker`
-2. 需要時建立 `StageRule`
-3. 需要時建立 manual `StageRecord`
-4. 需要時建立 related `Item`
-5. 需要時建立 `StageRelatedItem`
-
-示例：
-
-```text
-Pack: 家務 / 濾水
-
-Item:
-  title: 替換濾水網
-  type: stateBased
-  anchorDate: today
-  warningAfter: 12 days
-  dangerAfter: 14 days
-
-Resource:
-  title: 濾水網
-  type: quantityBased
-  currentQuantity: 5
-  unitLabel: 個
-  warningThreshold: 2
-  dangerThreshold: 1
-
-ConsumptionRule:
-  item = 替換濾水網
-  resource = 濾水網
-  trigger = done
-  consumeAmount = 1
-```
-
-```text
-Pack: 個人護理
-
-Resource:
-  title: 洗髮精
-  type: timeBased
-  anchorDate: today
-  durationDays: 20
-  warningBeforeDays: 3
-  dangerBeforeDays: 1
-```
-
-```text
-Pack: 寶寶
-
-StageTracker:
-  title: 寶寶成長
-  subjectName: 小米
-  trackingStartDate: birth date
-  trackingEndDate: null
-  status: active
-
-StageRule:
-  type: every_n_months
-  intervalValue: 1
-  intervalUnit: months
-  labelTemplate: 小米滿 {n} 個月
-  reminderOffsetDays: 7
-
-Manual StageRecord:
-  label: 副食品階段
-  occurrenceDate: birth date + 6 months
-  relativeAmount: 6
-  relativeUnit: months
-  note: 可以先和醫生確認，準備餐具與高腳椅
-  reminderOffsetDays: 14
-```
-
-## 10. StageTracker Domain
-
-StageTracker 維持 rule-driven occurrence 模型，但擴充 manual important stages、Home acknowledge / ignore、notes、related Item 關聯與追蹤範圍。
-
-### 10.1 StageTracker
-
-`StageTracker` 代表一條從某天開始追蹤的階段線。
-
-```ts
-StageTracker {
-  id: number
-  packId: number
-  title: string
-  subjectName?: string
-  trackingStartDate: DateTime
-  trackingEndDate?: DateTime
-  status: "active" | "archived"
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-```
-
-語意：
-
-- UI 名稱是「階段追蹤」
-- StageTracker 必須歸屬於一個 Pack。
-- 使用者未選擇生活場景時，StageTracker 歸屬於 system default pack「一般」。
-- MVP 不使用 `packId == null` 表示全局或未分類 StageTracker。
-- `subjectName` 用於讓 UI 顯示更自然，例如「小米已經 5 個月 20 天」
-- `trackingStartDate` 在 UI 顯示為「從哪一天開始追蹤」
-- `trackingEndDate` 在 UI 顯示為「追蹤範圍」中的「追蹤到指定日期」
-- 不要求使用者設定 display unit；目前進度由 presentation layer 自動格式化
-- 到達 `trackingEndDate` 後不自動 archived，而是在列表顯示「已完成追蹤」
-- archived StageTracker 不出現在 Home、主列表、Pack 頁面或一般搜尋
-- MVP 不支援刪除整條 StageTracker，只支援 archived
-- MVP 暫不提供 archived StageTracker 管理 UI
-
-### 10.2 StageRule
-
-`StageRule` 是重複階段規則。
-
-```ts
-StageRule {
-  id: number
-  stageTrackerId: number
-  type: "every_n_days" | "every_n_weeks" | "every_n_months" | "every_n_years"
-  intervalValue: number
-  intervalUnit: "days" | "weeks" | "months" | "years"
-  labelTemplate?: string
-  reminderOffsetDays?: number
-  status: "active" | "paused" | "archived"
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-```
-
-規則：
-
-- UI 名稱是「重複階段」
-- occurrence 是計算結果，不是預生成資料
-- 一條 StageTracker 可以有多條 StageRule
-- `intervalValue` 必須大於 `0`
-- `labelTemplate` 可選；預設使用系統文案，例如「滿 1 個月」、「第 1 週」
-- `reminderOffsetDays` 可覆蓋 StageTracker default reminder；若為 null，使用 StageTracker / app default
-- paused rule 不產生 Home attention，但保留設定
-- archived rule 不出現在 active rule list
-- 同一天多個 rule occurrence 不自動合併；使用者可忽略不需要的單次 occurrence
-
-### 10.3 StageOccurrence
-
-`StageOccurrence` 是由 StageTracker + StageRule + StageRecord 計算出的 presentation/domain read model，不是資料表。
-
-```ts
-StageOccurrence {
-  stageTrackerId: number
-  stageRuleId?: number
-  stageRecordId?: number
-  sourceType: "generated" | "manual"
-  occurrenceIndex?: number
-  occurrenceDate: DateTime
-  label: string
-  note?: string
-  reminderOffsetDays: number
-  recordStatus?: "normal" | "acknowledged" | "ignored" | "archived"
-  relatedItemSummary?: StageRelatedItemSummary
-}
-```
-
-規則：
-
-- generated occurrence 由 active StageRule 計算
-- manual occurrence 由 manual StageRecord 取得
-- generated occurrence 若沒有互動，不需要 StageRecord
-- generated occurrence 若被 acknowledged / ignored / note edited / related item created，必須建立 StageRecord
-- ignored occurrence 不進 Home、主頁、完整時間表或歷史頁
-- archived manual stage 不出現在一般歷史頁
-- Home attention 條件：active StageTracker、未 ignored、未 acknowledged、進入 reminder window、未過期或在合理顯示窗口內
-
-### 10.4 StageRecord
-
-`StageRecord` 記錄 manual important stage，或 generated occurrence 的使用者互動。
-
-```ts
-StageRecord {
-  id: number
-  stageTrackerId: number
-  stageRuleId?: number
-  sourceType: "generated" | "manual"
-  occurrenceIndex?: number
-  occurrenceDate: DateTime
-  relativeAmount?: number
-  relativeUnit?: "days" | "weeks" | "months" | "years"
-  status: "normal" | "acknowledged" | "ignored" | "archived"
-  label: string
-  note?: string
-  reminderOffsetDays?: number
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-```
-
-語意：
-
-- UI 上 manual StageRecord 叫「重要階段」
-- manual stage 一建立就寫入 StageRecord
-- generated occurrence 只有互動時才建立 StageRecord
-- `status = normal`：有 record，但沒有 acknowledged / ignored / archived
-- `status = acknowledged`：使用者按過「知道了」，Home 不再顯示這次提示
-- `status = ignored`：使用者忽略這次 stage，Home / StageTracker 主頁 / 完整時間表 / 歷史頁都不顯示
-- `status = archived`：已過去 manual stage 被封存；未來 manual stage 可直接刪除
-- note 與 related item 不作為 status
-- 若已有 note 或 related items，忽略前必須提示使用者確認
-
-### 10.5 StageRelatedItem
-
-`StageRelatedItem` 連接 StageRecord 與 Item。
-
-```ts
-StageRelatedItem {
-  id: number
-  stageRecordId: number
-  itemId: number
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-```
-
-規則：
-
-- 一個 StageRecord 可以有多個 related items
-- Item 詳情可顯示「來自：{StageTracker.title} · {StageRecord.label}」
-- Stage detail / history 可顯示 related item summary
-- related item 狀態不回寫 StageRecord status
-- ignored StageRecord 不影響 related item
-- archived Item 不納入 related item summary
-- skipped Item 不計入完成數，但另外顯示
-- paused Item 不計入分母，但另外顯示
-
-```ts
-StageRelatedItemSummary {
-  doneCount: number
-  activeCount: number
-  pausedCount: number
-  skippedCount: number
-}
-```
-
-顯示範例：
-
-```text
-相關提醒：1 / 2 已完成，1 個已暫停，1 個已跳過
-```
-
-### 10.6 StageTracker 與 Home Attention
-
-StageTracker stage 可以進入 Home attention，但仍是獨立 domain。
-
-Home card 文案範例：
-
-```text
-寶寶成長：3 天後滿 6 個月
-```
-
-或 manual important stage：
-
-```text
-寶寶成長：副食品階段快到了
-```
-
-Home action：
-
-```text
-知道了
-```
-
-規則：
-
-- 「知道了」只收起本次 Home 提示
-- 「知道了」不代表完成、不代表 skip、不代表 snooze
-- MVP 不支援 snooze
-- 按「知道了」後，若無 StageRecord，建立 `StageRecord(status = acknowledged)`；若已有 StageRecord，更新 status 為 acknowledged，除非 status 是 ignored / archived
-
-## 11. 命名規則
-
-必須使用：
+## 6. MVP 待完成
+
+本章只列產品已明確要收斂，但目前 repo 尚未完整實作的 MVP 項目。這些項目不可寫入「已實作行為」。
+
+- Resource attention summary：把 Resource 納入 `AttentionSummaryRepository` 與 `HomeAttentionSource`，使 badge / summary 計數包含需要注意的資源。
+- Home presentation model 收斂：將 Item、Resource、StageOccurrence 的 Home 顯示整合到單一 presentation model；Domain 仍保持分離。
+- Stage ignore UI：提供 generated occurrence 的「忽略這次」入口、確認流程與 snackbar undo。
+- StageTracker 編輯與封存 UI：接上既有 repository 能力。
+- StageRule 編輯、暫停、封存 UI：接上既有 status model。
+- important stage 編輯、刪除 / 封存 UI：接上 `deleteOrArchiveImportantStage`。
+- ResourceConsumptionRule 管理 UI：編輯 consume amount、停用、重新啟用。
+- Item related stage source 顯示：在 Item 詳情或摘要中清楚呈現來源 StageTracker / StageRecord。
+- archived Pack / StageTracker 的管理入口。
+
+## 7. 非 MVP / 長線方向
+
+本章列暫不納入 MVP 的方向。實作前必須另行更新 core spec。
+
+- Pack detail page。
+- 建立後跨 Pack 搬移 Item / Resource / StageTracker。
+- snooze。
+- deferred action 恢復。
+- time-based resource 由 Item action 自動消耗。
+- 生日、紀念日、生活場景模板。
+- archived StageTracker 的完整瀏覽與還原流程。
+- Resource history 跳回來源 Item action。
+- 多來源 related item。
+- Pack 搜尋與 drag and drop 排序。
+
+## 8. 命名規則
+
+### 8.1 必須使用
 
 - `ItemPack`
 - `Item`
+- `ItemConfig`
+- `FixedItemConfig`
+- `StateBasedItemConfig`
 - `ItemActionRecord`
 - `Resource`
 - `ResourceConfig`
+- `TimeBasedResourceConfig`
+- `QuantityBasedResourceConfig`
 - `ResourceConsumptionRule`
 - `ResourceActionRecord`
 - `StageTracker`
@@ -1433,19 +1229,24 @@ Home action：
 - `StageOccurrence`
 - `StageRecord`
 - `StageRelatedItem`
+- `AttentionPolicy`
+- `AppSettings`
 
-禁止重新引入：
+### 8.2 禁止重新引入
 
-- `ItemType.resourceBased`
-- `ResourceBasedItemConfig`
-- `ResourceBaseItem`
+- 把 Resource 放回 Item type。
+- 把 Resource availability config 放回 Item table。
+- 把 StageTracker 當成 Item。
+- 用完成、略過、延後等 Item action 直接表示 StageTracker 階段狀態。
+- 在 UI 顯示 raw domain class name 或 raw enum name。
 
-命名原則：
+### 8.3 UI 文案原則
 
-- 程式碼命名維持英文、清楚、domain-driven
-- UI 文案使用繁體中文與生活語意
-- Resource domain 一律優先使用 `Resource`，不要使用 `ResourceBaseItem`
-- StageTracker domain 在 UI 上使用「階段追蹤」
-- StageRule 在 UI 上使用「重複階段」
-- Manual StageRecord 在 UI 上使用「重要階段」
-- 不在 UI 顯示 raw `StageTracker / StageRule / StageOccurrence / StageRecord` 命名
+- Pack 使用「生活場景」。
+- Item 使用「提醒」、「要做的事」或具體責任名稱。
+- Resource 使用「資源」、「庫存」、「可用天數」等生活語言。
+- StageTracker 使用「階段追蹤」。
+- StageRule 使用「重複階段」。
+- manual StageRecord 使用「重要階段」。
+- acknowledged 使用「知道了」。
+- ignored 使用「忽略這次」。
