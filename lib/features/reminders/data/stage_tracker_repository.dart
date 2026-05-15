@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../domain/attention_policy.dart';
 import '../domain/item.dart';
+import '../domain/item_pack.dart';
 import '../domain/stage_occurrence.dart';
 import '../domain/stage_occurrence_service.dart';
 import '../domain/stage_record.dart';
@@ -97,9 +98,10 @@ class StageTrackerRepository {
   Future<int> createStageTracker(StageTrackerInput input) async {
     final now = _clock();
     return _dao.attachedDatabase.transaction(() async {
+      final packId = await _resolvePackId(input.packId, now);
       final trackerId = await _dao.insertStageTracker(
         StageTrackersCompanion.insert(
-          packId: Value(input.packId),
+          packId: packId,
           title: input.title,
           subjectName: Value(_nullableTrim(input.subjectName)),
           trackingStartDate: _normalizeDate(
@@ -295,6 +297,52 @@ class StageTrackerRepository {
         labelTemplate: Value(_nullableTrim(input.labelTemplate)),
         reminderOffsetDays: Value(input.reminderOffsetDays),
         status: Value(input.status.name),
+        createdAt: now.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
+      ),
+    );
+  }
+
+  Future<int> _resolvePackId(int? packId, DateTime now) async {
+    final resolvedPackId = packId ?? await _ensureDefaultPackId(now);
+    final pack = await _dao.getItemPackById(resolvedPackId);
+    if (pack == null) {
+      throw StateError('Item pack not found.');
+    }
+    if (pack.status != ItemPackStatus.active) {
+      throw StateError('Archived item pack cannot accept stage trackers.');
+    }
+    return resolvedPackId;
+  }
+
+  Future<int> _ensureDefaultPackId(DateTime now) async {
+    final defaultPack = await _dao.getSystemDefaultPack();
+    if (defaultPack != null) {
+      if (defaultPack.title != AppDatabase.systemDefaultPackTitle ||
+          defaultPack.iconEmoji != AppDatabase.systemDefaultPackIconEmoji ||
+          defaultPack.status != ItemPackStatus.active ||
+          defaultPack.orderIndex != AppDatabase.systemDefaultPackOrderIndex) {
+        await _dao.updateItemPackFields(
+          defaultPack.id,
+          ItemPacksCompanion(
+            title: const Value(AppDatabase.systemDefaultPackTitle),
+            iconEmoji: const Value(AppDatabase.systemDefaultPackIconEmoji),
+            orderIndex: const Value(AppDatabase.systemDefaultPackOrderIndex),
+            status: const Value('active'),
+            updatedAt: Value(now.millisecondsSinceEpoch),
+          ),
+        );
+      }
+      return defaultPack.id;
+    }
+    return _dao.insertItemPack(
+      ItemPacksCompanion.insert(
+        title: AppDatabase.systemDefaultPackTitle,
+        description: const Value(AppDatabase.systemDefaultPackDescription),
+        iconEmoji: const Value(AppDatabase.systemDefaultPackIconEmoji),
+        orderIndex: const Value(AppDatabase.systemDefaultPackOrderIndex),
+        status: const Value('active'),
+        isSystemDefault: const Value(true),
         createdAt: now.millisecondsSinceEpoch,
         updatedAt: now.millisecondsSinceEpoch,
       ),

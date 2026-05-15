@@ -430,16 +430,17 @@ String _resourceThresholdSummary(ResourceConfig config) {
   };
 }
 
-class _ResourceFormDialog extends StatefulWidget {
+class _ResourceFormDialog extends ConsumerStatefulWidget {
   const _ResourceFormDialog({this.resource});
 
   final Resource? resource;
 
   @override
-  State<_ResourceFormDialog> createState() => _ResourceFormDialogState();
+  ConsumerState<_ResourceFormDialog> createState() =>
+      _ResourceFormDialogState();
 }
 
-class _ResourceFormDialogState extends State<_ResourceFormDialog> {
+class _ResourceFormDialogState extends ConsumerState<_ResourceFormDialog> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -451,6 +452,7 @@ class _ResourceFormDialogState extends State<_ResourceFormDialog> {
   final _warningQuantityController = TextEditingController(text: '2');
   final _dangerQuantityController = TextEditingController(text: '1');
   ResourceType _type = ResourceType.quantityBased;
+  int? _selectedPackId;
 
   @override
   void initState() {
@@ -462,6 +464,7 @@ class _ResourceFormDialogState extends State<_ResourceFormDialog> {
     _type = resource.type;
     _titleController.text = resource.title;
     _descriptionController.text = resource.description ?? '';
+    _selectedPackId = resource.packId;
     switch (resource.config) {
       case TimeBasedResourceConfig config:
         _durationController.text = '${config.durationDays}';
@@ -493,6 +496,8 @@ class _ResourceFormDialogState extends State<_ResourceFormDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final packsAsync = ref.watch(activeItemPacksProvider);
+    final packs = packsAsync.valueOrNull ?? const <ItemPack>[];
     return AlertDialog(
       title: Text(widget.resource == null ? '新增資源' : '編輯資源'),
       content: SizedBox(
@@ -511,6 +516,53 @@ class _ResourceFormDialogState extends State<_ResourceFormDialog> {
                       (value ?? '').trim().isEmpty ? '請輸入名稱' : null,
                 ),
                 const SizedBox(height: 12),
+                if (widget.resource == null) ...[
+                  DropdownButtonFormField<int?>(
+                    key: const Key('resource-pack-field'),
+                    initialValue: _selectedPackId,
+                    decoration: const InputDecoration(
+                      labelText: ReminderUiText.packFieldLabel,
+                    ),
+                    items: [
+                      const DropdownMenuItem<int?>(
+                        value: null,
+                        child: Text(ReminderUiText.unassignedPackOption),
+                      ),
+                      ...packs.map(
+                        (pack) => DropdownMenuItem<int?>(
+                          value: pack.id,
+                          child: Text(packDisplayLabel(pack)),
+                        ),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedPackId = value;
+                      });
+                    },
+                  ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      key: const Key('resource-add-pack-button'),
+                      onPressed: _createPackInline,
+                      icon: const Icon(Icons.add),
+                      label: const Text(ReminderUiText.addItemPack),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ] else ...[
+                  InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: ReminderUiText.packFieldLabel,
+                    ),
+                    child: Text(
+                      _packReadonlyLabel(packs, widget.resource!.packId),
+                      key: const Key('resource-pack-readonly'),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 TextFormField(
                   controller: _descriptionController,
                   decoration: const InputDecoration(labelText: '備註'),
@@ -614,9 +666,35 @@ class _ResourceFormDialogState extends State<_ResourceFormDialog> {
         description: _normalizeOptionalText(_descriptionController.text),
         type: _type,
         config: config,
-        packId: widget.resource?.packId,
+        packId: widget.resource?.packId ?? _selectedPackId,
       ),
     );
+  }
+
+  Future<void> _createPackInline() async {
+    final input = await showDialog<ItemPackInput>(
+      context: context,
+      builder: (dialogContext) => const PackFormDialog(),
+    );
+    if (input == null || !mounted) {
+      return;
+    }
+    final packId = await ref.read(itemRepositoryProvider).createPack(input);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _selectedPackId = packId;
+    });
+  }
+
+  String _packReadonlyLabel(List<ItemPack> packs, int packId) {
+    for (final pack in packs) {
+      if (pack.id == packId) {
+        return packDisplayLabel(pack);
+      }
+    }
+    return ReminderUiText.unassignedPackTitle;
   }
 
   int _positiveInt(TextEditingController controller) {

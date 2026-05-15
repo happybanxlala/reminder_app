@@ -15,6 +15,7 @@ import '../../providers/resource_providers.dart';
 import '../../providers/settings_providers.dart';
 import '../widgets/editor_common_fields.dart';
 import '../widgets/item_config_form_section.dart';
+import '../widgets/pack_picker.dart';
 import '../widgets/resource_binding_draft_section.dart';
 
 enum ItemEditMode { create, edit }
@@ -155,6 +156,15 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
                       _selectedPackId = value;
                     });
                   },
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    key: const Key('create-item-add-pack-button'),
+                    onPressed: _createPackInline,
+                    icon: const Icon(Icons.add),
+                    label: const Text(ReminderUiText.addItemPack),
+                  ),
                 ),
               ],
               const SizedBox(height: 12),
@@ -347,9 +357,9 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
   ) {
     final options = <_PackOption>[
       const _PackOption(id: null, label: ReminderUiText.unassignedPackOption),
-      ...activePacks
-          .where((pack) => !pack.isSystemDefault)
-          .map((pack) => _PackOption(id: pack.id, label: pack.title)),
+      ...activePacks.map(
+        (pack) => _PackOption(id: pack.id, label: packDisplayLabel(pack)),
+      ),
     ];
 
     final pack = currentPack;
@@ -370,19 +380,18 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
 
   String _readOnlyPackLabel(ItemPack? pack) {
     if (pack == null || pack.isSystemDefault) {
-      return ReminderUiText.unassignedPackTitle;
+      return pack == null
+          ? ReminderUiText.unassignedPackTitle
+          : packDisplayLabel(pack);
     }
     if (pack.status == ItemPackStatus.archived) {
-      return '${pack.title} (${ReminderUiText.archivedPackSuffix})';
+      return '${packDisplayLabel(pack)} (${ReminderUiText.archivedPackSuffix})';
     }
-    return pack.title;
+    return packDisplayLabel(pack);
   }
 
   String _packLabel(ItemPack pack) {
-    if (!pack.isSystemDefault) {
-      return pack.title;
-    }
-    return '${pack.title} (${ReminderUiText.systemDefaultPackLabel})';
+    return packDisplayLabel(pack);
   }
 
   int? _resolvedPackId(List<ItemPack> activePacks) {
@@ -398,6 +407,23 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       }
     }
     return null;
+  }
+
+  Future<void> _createPackInline() async {
+    final input = await showDialog<ItemPackInput>(
+      context: context,
+      builder: (dialogContext) => const PackFormDialog(),
+    );
+    if (input == null || !mounted) {
+      return;
+    }
+    final packId = await ref.read(itemRepositoryProvider).createPack(input);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _selectedPackId = packId;
+    });
   }
 
   String? _normalizeOptionalText(String value) {

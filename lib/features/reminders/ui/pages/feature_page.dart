@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../data/local/reminder_dao.dart';
 import '../../domain/attention_policy.dart';
+import '../../domain/item_pack.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
 import '../../providers/developer_settings_providers.dart';
@@ -12,6 +13,7 @@ import '../../providers/settings_providers.dart';
 import 'feature_management_sections.dart';
 import 'stage_tracker_pages.dart';
 import '../widgets/item_summary_dialog.dart';
+import '../widgets/pack_picker.dart';
 
 typedef PreviewDatePicker =
     Future<DateTime?> Function(BuildContext context, DateTime initialDate);
@@ -261,9 +263,9 @@ class ItemPacksManagementPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(ReminderUiText.itemsManagementFeatureTitle),
+        title: const Text(ReminderUiText.itemPacksManagementFeatureTitle),
       ),
-      body: const ItemsManagementContent(),
+      body: const PackManagementContent(),
     );
   }
 }
@@ -323,11 +325,219 @@ class SettingsPage extends ConsumerWidget {
             ReminderFormatters.reminderToneDescription(currentTone),
             key: const Key('reminder-tone-description'),
           ),
+          const SizedBox(height: 24),
+          ListTile(
+            key: const Key('pack-management-settings-entry'),
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.category_outlined),
+            title: const Text(ReminderUiText.itemPacksManagementFeatureTitle),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.pushNamed(ItemPacksManagementPage.routeName),
+          ),
         ],
       ),
     );
   }
 }
+
+class PackManagementContent extends ConsumerWidget {
+  const PackManagementContent({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final packsAsync = ref.watch(activeItemPacksProvider);
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FilledButton.icon(
+            key: const Key('pack-management-add'),
+            onPressed: () => _showPackDialog(context, ref),
+            icon: const Icon(Icons.add),
+            label: const Text(ReminderUiText.addItemPack),
+          ),
+        ),
+        const SizedBox(height: 16),
+        packsAsync.when(
+          data: (packs) {
+            if (packs.isEmpty) {
+              return const Text(ReminderUiText.noItemPacks);
+            }
+            final customPacks = packs
+                .where((pack) => !pack.isSystemDefault)
+                .toList(growable: false);
+            return Column(
+              children: [
+                for (final pack in packs)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _PackManagementTile(
+                      pack: pack,
+                      customPacks: customPacks,
+                    ),
+                  ),
+              ],
+            );
+          },
+          error: (error, stack) => Text('讀取失敗: $error'),
+          loading: () => const Center(child: CircularProgressIndicator()),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showPackDialog(
+    BuildContext context,
+    WidgetRef ref, {
+    ItemPack? pack,
+  }) async {
+    final input = await showDialog<ItemPackInput>(
+      context: context,
+      builder: (dialogContext) => PackFormDialog(pack: pack),
+    );
+    if (input == null || !context.mounted) {
+      return;
+    }
+    final repository = ref.read(itemRepositoryProvider);
+    if (pack == null) {
+      await repository.createPack(input);
+    } else {
+      await repository.updatePack(pack.id, input);
+    }
+  }
+}
+
+class _PackManagementTile extends ConsumerWidget {
+  const _PackManagementTile({required this.pack, required this.customPacks});
+
+  final ItemPack pack;
+  final List<ItemPack> customPacks;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final customIndex = customPacks.indexWhere((item) => item.id == pack.id);
+    final isSystemDefault = pack.isSystemDefault;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        key: Key('pack-management-pack-${pack.id}'),
+        leading: Text(
+          pack.iconEmoji,
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        title: Text(pack.title),
+        subtitle: Text(
+          isSystemDefault ? ReminderUiText.systemDefaultPackLabel : '自訂生活場景',
+        ),
+        trailing: isSystemDefault
+            ? null
+            : Wrap(
+                spacing: 4,
+                children: [
+                  IconButton(
+                    key: Key('pack-up-${pack.id}'),
+                    onPressed: customIndex > 0
+                        ? () => ref
+                              .read(itemRepositoryProvider)
+                              .movePackUp(pack.id)
+                        : null,
+                    tooltip: '上',
+                    icon: const Icon(Icons.keyboard_arrow_up),
+                  ),
+                  IconButton(
+                    key: Key('pack-down-${pack.id}'),
+                    onPressed:
+                        customIndex >= 0 && customIndex < customPacks.length - 1
+                        ? () => ref
+                              .read(itemRepositoryProvider)
+                              .movePackDown(pack.id)
+                        : null,
+                    tooltip: '下',
+                    icon: const Icon(Icons.keyboard_arrow_down),
+                  ),
+                  IconButton(
+                    key: Key('pack-edit-${pack.id}'),
+                    onPressed: () => _showEditDialog(context, ref),
+                    tooltip: ReminderUiText.editAction,
+                    icon: const Icon(Icons.edit_outlined),
+                  ),
+                  IconButton(
+                    key: Key('pack-archive-${pack.id}'),
+                    onPressed: () => _showArchiveDialog(context, ref),
+                    tooltip: ReminderUiText.archiveAction,
+                    icon: const Icon(Icons.archive_outlined),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Future<void> _showEditDialog(BuildContext context, WidgetRef ref) async {
+    final input = await showDialog<ItemPackInput>(
+      context: context,
+      builder: (dialogContext) => PackFormDialog(pack: pack),
+    );
+    if (input == null || !context.mounted) {
+      return;
+    }
+    await ref.read(itemRepositoryProvider).updatePack(pack.id, input);
+  }
+
+  Future<void> _showArchiveDialog(BuildContext context, WidgetRef ref) async {
+    final repository = ref.read(itemRepositoryProvider);
+    final contentCount = await repository.countPackManagedContents(pack.id);
+    if (!context.mounted) {
+      return;
+    }
+    if (contentCount == 0) {
+      await repository.archivePackWithContents(pack.id);
+      return;
+    }
+    final action = await showDialog<_ArchivePackAction>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text(ReminderUiText.archivePackConfirmTitle),
+        content: const Text(ReminderUiText.archivePackConfirmMessage),
+        actions: [
+          TextButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(_ArchivePackAction.cancel),
+            child: Text(
+              MaterialLocalizations.of(dialogContext).cancelButtonLabel,
+            ),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(_ArchivePackAction.move),
+            child: const Text('移到「一般」'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(_ArchivePackAction.archive),
+            child: const Text('一起封存內容'),
+          ),
+        ],
+      ),
+    );
+    if (action == null || action == _ArchivePackAction.cancel) {
+      return;
+    }
+    switch (action) {
+      case _ArchivePackAction.archive:
+        await repository.archivePackWithContents(pack.id);
+        return;
+      case _ArchivePackAction.move:
+        await repository.archivePackAndMoveContentsToDefault(pack.id);
+        return;
+      case _ArchivePackAction.cancel:
+        return;
+    }
+  }
+}
+
+enum _ArchivePackAction { archive, move, cancel }
 
 class DeveloperSettingsPage extends ConsumerWidget {
   const DeveloperSettingsPage({super.key, this.pickDate});

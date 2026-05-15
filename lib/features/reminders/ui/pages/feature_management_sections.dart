@@ -7,7 +7,6 @@ import '../../data/local/reminder_dao.dart';
 import '../../data/resource_repository.dart';
 import '../../domain/item.dart';
 import '../../domain/item_pack.dart';
-import '../../domain/item_pack_template.dart';
 import '../../domain/resource.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
@@ -21,13 +20,13 @@ import 'item_history_page.dart';
 import 'resource_history_page.dart';
 import '../widgets/editor_common_fields.dart';
 import '../widgets/item_config_form_section.dart';
+import '../widgets/pack_picker.dart';
 import '../widgets/resource_binding_draft_section.dart';
 import '../widgets/item_summary_dialog.dart';
 
 part 'feature_management_items.dart';
 part 'feature_management_resources.dart';
 part 'feature_management_dialogs.dart';
-part 'feature_management_templates.dart';
 
 class ItemsManagementContent extends ConsumerStatefulWidget {
   const ItemsManagementContent({super.key});
@@ -62,11 +61,6 @@ class _ItemsManagementContentState
                     icon: const Icon(Icons.inventory_2_outlined),
                     label: const Text('資源管理'),
                   ),
-                  OutlinedButton(
-                    key: const Key('apply-template-button'),
-                    onPressed: () => _showTemplatePickerDialog(context, ref),
-                    child: const Text(ReminderUiText.applyTemplateAction),
-                  ),
                   FilledButton(
                     key: const Key('add-item-button'),
                     onPressed: () => _showCreateItemDialog(context, ref),
@@ -92,11 +86,6 @@ class _ItemsManagementContentState
                       context.pushNamed(ResourceManagementPage.routeName),
                   icon: const Icon(Icons.inventory_2_outlined),
                   label: const Text('資源管理'),
-                ),
-                OutlinedButton(
-                  key: const Key('apply-template-button'),
-                  onPressed: () => _showTemplatePickerDialog(context, ref),
-                  child: const Text(ReminderUiText.applyTemplateAction),
                 ),
                 FilledButton(
                   key: const Key('add-item-button'),

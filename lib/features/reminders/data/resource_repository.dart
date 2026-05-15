@@ -369,16 +369,31 @@ class ResourceRepository {
   }
 
   Future<int> _ensureDefaultPackId(DateTime now) async {
-    final packs = await _dao.listItemPacks(includeArchived: true);
-    for (final pack in packs) {
-      if (pack.isSystemDefault) {
-        return pack.id;
+    final defaultPack = await _dao.getSystemDefaultPack();
+    if (defaultPack != null) {
+      if (defaultPack.title != AppDatabase.systemDefaultPackTitle ||
+          defaultPack.iconEmoji != AppDatabase.systemDefaultPackIconEmoji ||
+          defaultPack.status != ItemPackStatus.active ||
+          defaultPack.orderIndex != AppDatabase.systemDefaultPackOrderIndex) {
+        await _dao.updateItemPackFields(
+          defaultPack.id,
+          ItemPacksCompanion(
+            title: const Value(AppDatabase.systemDefaultPackTitle),
+            iconEmoji: const Value(AppDatabase.systemDefaultPackIconEmoji),
+            orderIndex: const Value(AppDatabase.systemDefaultPackOrderIndex),
+            status: const Value('active'),
+            updatedAt: Value(now.millisecondsSinceEpoch),
+          ),
+        );
       }
+      return defaultPack.id;
     }
     return _dao.insertItemPack(
       ItemPacksCompanion.insert(
         title: AppDatabase.systemDefaultPackTitle,
         description: const Value(AppDatabase.systemDefaultPackDescription),
+        iconEmoji: const Value(AppDatabase.systemDefaultPackIconEmoji),
+        orderIndex: const Value(AppDatabase.systemDefaultPackOrderIndex),
         status: const Value('active'),
         isSystemDefault: const Value(true),
         createdAt: now.millisecondsSinceEpoch,

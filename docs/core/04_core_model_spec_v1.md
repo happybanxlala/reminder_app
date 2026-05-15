@@ -780,6 +780,8 @@ updatedAt
 
 舊資料不重要；schema upgrade 可 drop/recreate 或等價 reset schema。
 
+所有既有 StageTracker 若缺少 packId，schema reset / migration 時應歸屬於 system default pack。
+
 ## 8. UI 心智模型
 
 ```text
@@ -805,6 +807,22 @@ Pack = 生活場景
 - time-based resource UI 使用「大約還能用幾天」、「預計剩 N 天」
 - quantity-based resource UI 使用「目前 N 個」、「剩 N 個提醒」
 - StageTracker UI 使用「階段追蹤」、「重複階段」、「重要階段」、「從哪一天開始追蹤」、「追蹤範圍」、「知道了」、「忽略這次」等文案
+
+Pack UI 規則：
+
+- 使用者介面使用「生活場景」稱呼 Pack，不直接顯示 raw `ItemPack` 命名。
+- 建立 Item / Resource / StageTracker 時，在輸入名稱後立即顯示生活場景選擇器。
+- 建立流程中的生活場景選擇器預設顯示「之後再說」。
+- 選擇「之後再說」時，實際寫入 system default pack id。
+- 在編輯頁、管理頁、列表等非建立語境中，system default pack 顯示為「一般」。
+- 生活場景選擇器使用選單 / picker，不使用純 emoji chip 作為主要選擇方式。
+- 選單項目顯示 `iconEmoji + title`。
+- MVP 生活場景選單不支援搜尋。
+- 生活場景選擇器提供「+ 新增生活場景」。
+- 點擊「+ 新增生活場景」時，在原流程中以 dialog / bottom sheet 建立 Pack，不離開目前建立流程。
+- inline 建立 Pack 只需要輸入名稱與 emoji。
+- 系統可根據 Pack 名稱建議 emoji，但使用者可以手動更改。
+- inline 建立 Pack 成功後，自動選中該 Pack。
 
 Pack assignment editing rules：
 
@@ -954,7 +972,7 @@ StageTracker 列表分為：
 卡片顯示：
 
 - title
-- pack title 或「全局」
+- Pack emoji 作為生活場景來源標記；Pack title 保留於 accessibility label / tooltip / 長按提示
 - subjectName-aware progress，例如「小米已經 5 個月 20 天」
 - 下一個階段，例如「下一個階段：10 天後滿 6 個月」
 
@@ -967,7 +985,7 @@ StageTracker 列表分為：
 - 名稱
 - 對象名稱，可留空
 - 從哪一天開始追蹤
-- 所屬 Pack / 全局
+- 生活場景；未選擇時寫入 system default pack「一般」
 
 建立後進入 detail dashboard，顯示引導：
 
@@ -1208,7 +1226,7 @@ StageTracker 維持 rule-driven occurrence 模型，但擴充 manual important s
 ```ts
 StageTracker {
   id: number
-  packId?: number
+  packId: number
   title: string
   subjectName?: string
   trackingStartDate: DateTime
@@ -1222,7 +1240,9 @@ StageTracker {
 語意：
 
 - UI 名稱是「階段追蹤」
-- `packId == null` 代表全局 StageTracker
+- StageTracker 必須歸屬於一個 Pack。
+- 使用者未選擇生活場景時，StageTracker 歸屬於 system default pack「一般」。
+- MVP 不使用 `packId == null` 表示全局或未分類 StageTracker。
 - `subjectName` 用於讓 UI 顯示更自然，例如「小米已經 5 個月 20 天」
 - `trackingStartDate` 在 UI 顯示為「從哪一天開始追蹤」
 - `trackingEndDate` 在 UI 顯示為「追蹤範圍」中的「追蹤到指定日期」

@@ -61,8 +61,8 @@ void main() {
     await tester.tap(find.byKey(const Key('pack-field')));
     await tester.pumpAndSettle();
     expect(find.text('Default Item Pack'), findsNothing);
-    expect(find.text('Cat Care').last, findsOneWidget);
-    await tester.tap(find.text('Cat Care').last);
+    expect(find.text('🏷️ Cat Care').last, findsOneWidget);
+    await tester.tap(find.text('🏷️ Cat Care').last);
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('item-type-field')));
@@ -212,7 +212,7 @@ void main() {
     );
     expect(find.byKey(const Key('pack-field')), findsNothing);
     expect(find.byKey(const Key('pack-readonly')), findsOneWidget);
-    expect(find.text(ReminderUiText.unassignedPackTitle), findsOneWidget);
+    expect(find.text('📌 一般'), findsOneWidget);
   });
 
   testWidgets('editor keeps archived current pack visible while editing', (
@@ -271,7 +271,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Archived Pack (${ReminderUiText.archivedPackSuffix})'),
+      find.text('🏷️ Archived Pack (${ReminderUiText.archivedPackSuffix})'),
       findsOneWidget,
     );
   });
@@ -340,7 +340,11 @@ void main() {
       find.byKey(const Key('expected-interval-field')),
       '21',
     );
-    await tester.ensureVisible(find.byKey(const Key('save-button')));
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('save-button')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.byKey(const Key('save-button')).last);
     await tester.pump(const Duration(milliseconds: 300));
@@ -407,7 +411,11 @@ void main() {
       find.byKey(const Key('expected-interval-field')),
       '21',
     );
-    await tester.ensureVisible(find.byKey(const Key('save-button')));
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('save-button')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.byKey(const Key('save-button')));
     await tester.pump(const Duration(milliseconds: 300));
@@ -921,9 +929,15 @@ void main() {
       find.byKey(const Key('title-field')),
       'Replace filter',
     );
-    await tester.tap(
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.pump();
+    await tester.ensureVisible(
       find.byKey(const Key('add-resource-binding-draft-button')),
     );
+    final addBindingButton = tester.widget<TextButton>(
+      find.byKey(const Key('add-resource-binding-draft-button')),
+    );
+    addBindingButton.onPressed!();
     await tester.pumpAndSettle();
     expect(repository.recordedBindings, null);
 

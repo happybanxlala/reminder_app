@@ -14,10 +14,6 @@ part 'app_database.g.dart';
   tables: [
     ItemPacks,
     Items,
-    ItemPackTemplates,
-    ItemTemplateItems,
-    ResourceTemplateItems,
-    ResourceConsumptionRuleTemplateItems,
     Resources,
     ResourceConsumptionRules,
     ResourceActionRecords,
@@ -31,28 +27,24 @@ part 'app_database.g.dart';
   daos: [ReminderDao],
 )
 class AppDatabase extends _$AppDatabase {
-  static const systemDefaultPackTitle = 'Default Item Pack';
+  static const systemDefaultPackTitle = '一般';
+  static const systemDefaultPackIconEmoji = '📌';
+  static const systemDefaultPackOrderIndex = 0;
   static const systemDefaultPackDescription = 'System default pack';
 
   AppDatabase() : super(_openConnection());
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
     onUpgrade: (m, from, to) async {
-      if (from < to) {
-        throw UnsupportedError(
-          'No schema upgrades are defined for this initial schema.',
-        );
+      if (from < 2) {
+        await _upgradeToV2(m);
       }
-      await customStatement('PRAGMA foreign_keys = OFF');
-      await _dropExistingSchemaObjects();
-      await m.createAll();
-      await customStatement('PRAGMA foreign_keys = ON');
     },
     beforeOpen: (details) async {
       await _ensureSystemDefaultPack();
@@ -60,29 +52,65 @@ class AppDatabase extends _$AppDatabase {
     },
   );
 
-  Future<void> _dropExistingSchemaObjects() async {
-    final objects = await customSelect('''
-      SELECT type, name
-      FROM sqlite_master
-      WHERE type IN ('trigger', 'view', 'table')
-        AND name NOT LIKE 'sqlite_%'
-      ORDER BY
-        CASE type
-          WHEN 'trigger' THEN 0
-          WHEN 'view' THEN 1
-          ELSE 2
-        END
-      ''').get();
-
-    for (final object in objects) {
-      final type = object.read<String>('type').toUpperCase();
-      final name = _quoteIdentifier(object.read<String>('name'));
-      await customStatement('DROP $type IF EXISTS $name');
-    }
-  }
-
-  String _quoteIdentifier(String value) {
-    return '"${value.replaceAll('"', '""')}"';
+  Future<void> _upgradeToV2(Migrator m) async {
+    await customStatement('PRAGMA foreign_keys = OFF');
+    await m.addColumn(itemPacks, itemPacks.iconEmoji);
+    await m.addColumn(itemPacks, itemPacks.orderIndex);
+    await _ensureSystemDefaultPack();
+    final defaultPackId = await _systemDefaultPackId();
+    await customStatement('''
+      UPDATE stage_trackers
+      SET pack_id = $defaultPackId
+      WHERE pack_id IS NULL
+      ''');
+    await customStatement('''
+      CREATE TABLE stage_trackers_new (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        pack_id INTEGER NOT NULL REFERENCES item_packs(id),
+        title TEXT NOT NULL,
+        subject_name TEXT NULL,
+        tracking_start_date INTEGER NOT NULL,
+        tracking_end_date INTEGER NULL,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+      ''');
+    await customStatement('''
+      INSERT INTO stage_trackers_new (
+        id,
+        pack_id,
+        title,
+        subject_name,
+        tracking_start_date,
+        tracking_end_date,
+        status,
+        created_at,
+        updated_at
+      )
+      SELECT
+        id,
+        pack_id,
+        title,
+        subject_name,
+        tracking_start_date,
+        tracking_end_date,
+        status,
+        created_at,
+        updated_at
+      FROM stage_trackers
+      ''');
+    await customStatement('DROP TABLE stage_trackers');
+    await customStatement(
+      'ALTER TABLE stage_trackers_new RENAME TO stage_trackers',
+    );
+    await customStatement(
+      'DROP TABLE IF EXISTS resource_consumption_rule_template_items',
+    );
+    await customStatement('DROP TABLE IF EXISTS resource_template_items');
+    await customStatement('DROP TABLE IF EXISTS item_template_items');
+    await customStatement('DROP TABLE IF EXISTS item_pack_templates');
+    await customStatement('PRAGMA foreign_keys = ON');
   }
 
   Future<void> _ensureSystemDefaultPack() async {
@@ -98,7 +126,9 @@ class AppDatabase extends _$AppDatabase {
       await customStatement('''
         UPDATE item_packs
         SET status = 'active',
-            title = '$systemDefaultPackTitle'
+            title = '$systemDefaultPackTitle',
+            icon_emoji = '$systemDefaultPackIconEmoji',
+            order_index = $systemDefaultPackOrderIndex
         WHERE is_system_default = 1
         ''');
       return;
@@ -107,7 +137,7 @@ class AppDatabase extends _$AppDatabase {
     final titledDefault = await customSelect('''
       SELECT id
       FROM item_packs
-      WHERE title = '$systemDefaultPackTitle'
+      WHERE title IN ('$systemDefaultPackTitle', 'Default Item Pack')
       LIMIT 1
       ''').getSingleOrNull();
     if (titledDefault != null) {
@@ -115,7 +145,9 @@ class AppDatabase extends _$AppDatabase {
         UPDATE item_packs
         SET is_system_default = 1,
             status = 'active',
-            title = '$systemDefaultPackTitle'
+            title = '$systemDefaultPackTitle',
+            icon_emoji = '$systemDefaultPackIconEmoji',
+            order_index = $systemDefaultPackOrderIndex
         WHERE id = ${titledDefault.read<int>('id')}
         ''');
       return;
@@ -125,12 +157,24 @@ class AppDatabase extends _$AppDatabase {
       ItemPacksCompanion.insert(
         title: systemDefaultPackTitle,
         description: const Value(systemDefaultPackDescription),
+        iconEmoji: const Value(systemDefaultPackIconEmoji),
+        orderIndex: const Value(systemDefaultPackOrderIndex),
         status: const Value('active'),
         isSystemDefault: const Value(true),
         createdAt: now,
         updatedAt: now,
       ),
     );
+  }
+
+  Future<int> _systemDefaultPackId() async {
+    final row = await customSelect('''
+      SELECT id
+      FROM item_packs
+      WHERE is_system_default = 1
+      LIMIT 1
+      ''').getSingle();
+    return row.read<int>('id');
   }
 
   Future<void> _ensureAppSettings() async {

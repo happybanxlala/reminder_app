@@ -5,7 +5,6 @@ import '../../domain/attention_policy.dart';
 import '../../domain/item.dart';
 import '../../domain/item_action_record.dart';
 import '../../domain/item_pack.dart';
-import '../../domain/item_pack_template.dart';
 import '../../domain/repeat_rule_v2.dart';
 import '../../domain/resource.dart';
 import '../../domain/stage_record.dart';
@@ -96,10 +95,6 @@ class StageRelatedItemSource {
   tables: [
     ItemPacks,
     Items,
-    ItemPackTemplates,
-    ItemTemplateItems,
-    ResourceTemplateItems,
-    ResourceConsumptionRuleTemplateItems,
     Resources,
     ResourceConsumptionRules,
     ResourceActionRecords,
@@ -141,24 +136,6 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     return into(resourceActionRecords).insert(entry);
   }
 
-  Future<int> insertItemPackTemplate(ItemPackTemplatesCompanion entry) {
-    return into(itemPackTemplates).insert(entry);
-  }
-
-  Future<int> insertItemTemplateItem(ItemTemplateItemsCompanion entry) {
-    return into(itemTemplateItems).insert(entry);
-  }
-
-  Future<int> insertResourceTemplateItem(ResourceTemplateItemsCompanion entry) {
-    return into(resourceTemplateItems).insert(entry);
-  }
-
-  Future<int> insertResourceConsumptionRuleTemplateItem(
-    ResourceConsumptionRuleTemplateItemsCompanion entry,
-  ) {
-    return into(resourceConsumptionRuleTemplateItems).insert(entry);
-  }
-
   Stream<AppSettings> watchAppSettings() {
     return (select(
       appSettingsEntries,
@@ -190,23 +167,15 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     return update(itemPacks).replace(entry);
   }
 
-  Future<bool> updateItemRecord(ItemRow entry) {
-    return update(items).replace(entry);
+  Future<bool> updateItemPackFields(int id, ItemPacksCompanion entry) async {
+    final updatedRows = await (update(
+      itemPacks,
+    )..where((t) => t.id.equals(id))).write(entry);
+    return updatedRows > 0;
   }
 
-  Future<int> deleteItemPackTemplate(int id) {
-    return transaction(() async {
-      await (delete(
-        resourceConsumptionRuleTemplateItems,
-      )..where((t) => t.templateId.equals(id))).go();
-      await (delete(
-        resourceTemplateItems,
-      )..where((t) => t.templateId.equals(id))).go();
-      await (delete(
-        itemTemplateItems,
-      )..where((t) => t.templateId.equals(id))).go();
-      return (delete(itemPackTemplates)..where((t) => t.id.equals(id))).go();
-    });
+  Future<bool> updateItemRecord(ItemRow entry) {
+    return update(items).replace(entry);
   }
 
   Future<bool> updateItemFields(int id, ItemsCompanion entry) async {
@@ -265,23 +234,13 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     return row == null ? null : _toItemPack(row);
   }
 
-  Stream<List<ItemPackTemplate>> watchCustomItemPackTemplates() {
-    final query = select(itemPackTemplates)
-      ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]);
-    return query.watch().asyncMap((rows) async {
-      final result = <ItemPackTemplate>[];
-      for (final row in rows) {
-        result.add(await _toItemPackTemplate(row));
-      }
-      return result;
-    });
-  }
-
-  Future<ItemPackTemplate?> getCustomItemPackTemplateById(int id) async {
-    final row = await (select(
-      itemPackTemplates,
-    )..where((t) => t.id.equals(id))).getSingleOrNull();
-    return row == null ? null : _toItemPackTemplate(row);
+  Future<ItemPack?> getSystemDefaultPack() async {
+    final row =
+        await (select(itemPacks)
+              ..where((t) => t.isSystemDefault.equals(true))
+              ..limit(1))
+            .getSingleOrNull();
+    return row == null ? null : _toItemPack(row);
   }
 
   Future<int> countItemsForPack(
@@ -292,6 +251,36 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     final query = selectOnly(items)
       ..addColumns([countExpression])
       ..where(_itemStatusPredicate(items.packId.equals(packId), statuses));
+    final row = await query.getSingle();
+    return row.read(countExpression) ?? 0;
+  }
+
+  Future<int> countResourcesForPack(
+    int packId, {
+    Set<ResourceLifecycleStatus>? statuses,
+  }) async {
+    final countExpression = resources.id.count();
+    final query = selectOnly(resources)
+      ..addColumns([countExpression])
+      ..where(resources.packId.equals(packId));
+    if (statuses != null) {
+      query.where(resources.status.isIn(statuses.map((item) => item.name)));
+    }
+    final row = await query.getSingle();
+    return row.read(countExpression) ?? 0;
+  }
+
+  Future<int> countStageTrackersForPack(
+    int packId, {
+    Set<StageTrackerStatus>? statuses,
+  }) async {
+    final countExpression = stageTrackers.id.count();
+    final query = selectOnly(stageTrackers)
+      ..addColumns([countExpression])
+      ..where(stageTrackers.packId.equals(packId));
+    if (statuses != null) {
+      query.where(stageTrackers.status.isIn(statuses.map((item) => item.name)));
+    }
     final row = await query.getSingle();
     return row.read(countExpression) ?? 0;
   }
@@ -488,9 +477,90 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     ItemLifecycleStatus status,
   ) async {
     final now = DateTime.now();
-    return (update(items)..where((t) => t.packId.equals(packId))).write(
+    return (update(items)..where(
+          (t) =>
+              t.packId.equals(packId) &
+              t.status.isIn(const ['active', 'paused']),
+        ))
+        .write(
+          ItemsCompanion(
+            status: Value(status.name),
+            updatedAt: Value(now.millisecondsSinceEpoch),
+          ),
+        );
+  }
+
+  Future<int> updateResourcesStatusForPack(
+    int packId,
+    ResourceLifecycleStatus status,
+  ) async {
+    final now = DateTime.now();
+    return (update(resources)..where(
+          (t) =>
+              t.packId.equals(packId) &
+              t.status.isIn(const ['active', 'paused']),
+        ))
+        .write(
+          ResourcesCompanion(
+            status: Value(status.name),
+            updatedAt: Value(now.millisecondsSinceEpoch),
+          ),
+        );
+  }
+
+  Future<int> updateStageTrackersStatusForPack(
+    int packId,
+    StageTrackerStatus status,
+  ) async {
+    final now = DateTime.now();
+    return (update(stageTrackers)..where(
+          (t) =>
+              t.packId.equals(packId) &
+              t.status.equals(StageTrackerStatus.active.name),
+        ))
+        .write(
+          StageTrackersCompanion(
+            status: Value(status.name),
+            updatedAt: Value(now.millisecondsSinceEpoch),
+          ),
+        );
+  }
+
+  Future<int> moveItemsToPack(int sourcePackId, int destinationPackId) async {
+    final now = DateTime.now();
+    return (update(items)..where((t) => t.packId.equals(sourcePackId))).write(
       ItemsCompanion(
-        status: Value(status.name),
+        packId: Value(destinationPackId),
+        updatedAt: Value(now.millisecondsSinceEpoch),
+      ),
+    );
+  }
+
+  Future<int> moveResourcesToPack(
+    int sourcePackId,
+    int destinationPackId,
+  ) async {
+    final now = DateTime.now();
+    return (update(
+      resources,
+    )..where((t) => t.packId.equals(sourcePackId))).write(
+      ResourcesCompanion(
+        packId: Value(destinationPackId),
+        updatedAt: Value(now.millisecondsSinceEpoch),
+      ),
+    );
+  }
+
+  Future<int> moveStageTrackersToPack(
+    int sourcePackId,
+    int destinationPackId,
+  ) async {
+    final now = DateTime.now();
+    return (update(
+      stageTrackers,
+    )..where((t) => t.packId.equals(sourcePackId))).write(
+      StageTrackersCompanion(
+        packId: Value(destinationPackId),
         updatedAt: Value(now.millisecondsSinceEpoch),
       ),
     );
@@ -941,99 +1011,12 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
       id: row.id,
       title: row.title,
       description: row.description,
+      iconEmoji: row.iconEmoji,
+      orderIndex: row.orderIndex,
       status: ItemPackStatus.values.byName(row.status),
       isSystemDefault: row.isSystemDefault,
       createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
-    );
-  }
-
-  Future<ItemPackTemplate> _toItemPackTemplate(ItemPackTemplateRow row) async {
-    final itemRows =
-        await (select(itemTemplateItems)
-              ..where((t) => t.templateId.equals(row.id))
-              ..orderBy([(t) => OrderingTerm.asc(t.id)]))
-            .get();
-    final resourceRows =
-        await (select(resourceTemplateItems)
-              ..where((t) => t.templateId.equals(row.id))
-              ..orderBy([(t) => OrderingTerm.asc(t.id)]))
-            .get();
-    final ruleRows =
-        await (select(resourceConsumptionRuleTemplateItems)
-              ..where((t) => t.templateId.equals(row.id))
-              ..orderBy([(t) => OrderingTerm.asc(t.id)]))
-            .get();
-    return ItemPackTemplate(
-      id: 'custom-${row.id}',
-      source: ItemPackTemplateSource.custom,
-      name: row.name,
-      category: row.category,
-      description: row.description,
-      items: itemRows.map(_toItemPackTemplateItem).toList(growable: false),
-      resources: resourceRows
-          .map(_toResourceTemplateItem)
-          .toList(growable: false),
-      consumptionRules: ruleRows
-          .map(_toResourceConsumptionRuleTemplate)
-          .toList(growable: false),
-      createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
-    );
-  }
-
-  ItemPackTemplateItem _toItemPackTemplateItem(ItemTemplateItemRow row) {
-    final itemType = _itemTypeFromRow(row.type);
-    return ItemPackTemplateItem(
-      logicalId: row.logicalId,
-      title: row.title,
-      description: row.description,
-      type: itemType,
-      config: _toTemplateItemConfig(row, itemType),
-      attentionPolicySource: _attentionPolicySource(row.attentionPolicySource),
-    );
-  }
-
-  ResourceTemplateItem _toResourceTemplateItem(ResourceTemplateItemRow row) {
-    final type = ResourceType.values.byName(row.type);
-    return ResourceTemplateItem(
-      logicalId: row.logicalId,
-      title: row.title,
-      description: row.description,
-      type: type,
-      config: _toResourceTemplateConfig(row, type),
-    );
-  }
-
-  ResourceConfig _toResourceTemplateConfig(
-    ResourceTemplateItemRow row,
-    ResourceType type,
-  ) {
-    return switch (type) {
-      ResourceType.timeBased => TimeBasedResourceConfig(
-        durationDays: row.timeDurationDays ?? 1,
-        infoBeforeDays: row.timeExpectedBeforeDays ?? 0,
-        warningBeforeDays: row.timeWarningBeforeDays ?? 0,
-        dangerBeforeDays: row.timeDangerBeforeDays ?? 0,
-      ),
-      ResourceType.quantityBased => QuantityBasedResourceConfig(
-        currentQuantity: row.quantityCurrent ?? 0,
-        unitLabel: row.quantityUnitLabel ?? '個',
-        infoThreshold: row.quantityExpectedThreshold,
-        warningThreshold: row.quantityWarningThreshold ?? 0,
-        dangerThreshold: row.quantityDangerThreshold ?? 0,
-      ),
-    };
-  }
-
-  ResourceConsumptionRuleTemplate _toResourceConsumptionRuleTemplate(
-    ResourceConsumptionRuleTemplateRow row,
-  ) {
-    return ResourceConsumptionRuleTemplate(
-      itemLogicalId: row.itemLogicalId,
-      resourceLogicalId: row.resourceLogicalId,
-      triggerActionType: ItemActionType.values.byName(row.triggerActionType),
-      consumeAmount: row.consumeAmount,
     );
   }
 
@@ -1085,33 +1068,6 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
         anchorDate: row.stateAnchorDate == null
             ? null
             : DateTime.fromMillisecondsSinceEpoch(row.stateAnchorDate!),
-        infoAfter: Duration(minutes: row.stateExpectedAfterMinutes ?? 0),
-        warningAfter: Duration(minutes: row.stateWarningAfterMinutes ?? 0),
-        dangerAfter: Duration(minutes: row.stateDangerAfterMinutes ?? 0),
-      ),
-    };
-  }
-
-  ItemConfig _toTemplateItemConfig(ItemTemplateItemRow row, ItemType type) {
-    return switch (type) {
-      ItemType.fixed => FixedItemConfig(
-        scheduleType: FixedScheduleType.values.byName(
-          _fixedScheduleTypeFromRow(
-            row.fixedScheduleType ?? FixedScheduleType.oneTime.name,
-          ),
-        ),
-        scheduleInterval: row.fixedScheduleInterval ?? 1,
-        monthlyDay: row.fixedMonthlyDay,
-        repeatRuleV2: RepeatRuleV2.parse(row.fixedRepeatRuleV2),
-        timeOfDay: row.fixedTimeOfDay,
-        overduePolicy: ItemOverduePolicy.values.byName(
-          row.fixedOverduePolicy ?? ItemOverduePolicy.autoAdvance.name,
-        ),
-        infoBefore: Duration(minutes: row.fixedExpectedBeforeMinutes ?? 0),
-        warningBefore: Duration(minutes: row.fixedWarningBeforeMinutes ?? 0),
-        dangerBefore: Duration(minutes: row.fixedDangerBeforeMinutes ?? 0),
-      ),
-      ItemType.stateBased => StateBasedItemConfig(
         infoAfter: Duration(minutes: row.stateExpectedAfterMinutes ?? 0),
         warningAfter: Duration(minutes: row.stateWarningAfterMinutes ?? 0),
         dangerAfter: Duration(minutes: row.stateDangerAfterMinutes ?? 0),
@@ -1313,7 +1269,8 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
 
   List<OrderingTerm Function($ItemPacksTable)> get _itemPackOrdering => [
     (t) => OrderingTerm.desc(t.isSystemDefault),
-    (t) => OrderingTerm.desc(t.updatedAt),
+    (t) => OrderingTerm.asc(t.orderIndex),
+    (t) => OrderingTerm.asc(t.createdAt),
     (t) => OrderingTerm.asc(t.id),
   ];
 }

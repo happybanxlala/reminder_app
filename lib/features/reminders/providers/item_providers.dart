@@ -4,7 +4,6 @@ import '../domain/item_action_record.dart';
 import '../data/item_repository.dart';
 import '../data/local/reminder_dao.dart';
 import '../domain/item_pack.dart';
-import '../domain/item_pack_template.dart';
 import 'developer_settings_providers.dart';
 import 'database_providers.dart';
 
@@ -25,10 +24,6 @@ final itemRepositoryProvider = Provider<ItemRepository>((ref) {
 
 final itemPacksProvider = StreamProvider<List<ItemPack>>((ref) {
   return ref.watch(itemRepositoryProvider).watchPacks(includeArchived: true);
-});
-
-final itemPackTemplatesProvider = StreamProvider<List<ItemPackTemplate>>((ref) {
-  return ref.watch(itemRepositoryProvider).watchTemplates();
 });
 
 final activeItemPacksProvider = StreamProvider<List<ItemPack>>((ref) {

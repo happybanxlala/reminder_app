@@ -6,15 +6,6 @@ part of 'reminder_dao.dart';
 mixin _$ReminderDaoMixin on DatabaseAccessor<AppDatabase> {
   $ItemPacksTable get itemPacks => attachedDatabase.itemPacks;
   $ItemsTable get items => attachedDatabase.items;
-  $ItemPackTemplatesTable get itemPackTemplates =>
-      attachedDatabase.itemPackTemplates;
-  $ItemTemplateItemsTable get itemTemplateItems =>
-      attachedDatabase.itemTemplateItems;
-  $ResourceTemplateItemsTable get resourceTemplateItems =>
-      attachedDatabase.resourceTemplateItems;
-  $ResourceConsumptionRuleTemplateItemsTable
-  get resourceConsumptionRuleTemplateItems =>
-      attachedDatabase.resourceConsumptionRuleTemplateItems;
   $ResourcesTable get resources => attachedDatabase.resources;
   $ResourceConsumptionRulesTable get resourceConsumptionRules =>
       attachedDatabase.resourceConsumptionRules;
@@ -39,27 +30,6 @@ class ReminderDaoManager {
       $$ItemPacksTableTableManager(_db.attachedDatabase, _db.itemPacks);
   $$ItemsTableTableManager get items =>
       $$ItemsTableTableManager(_db.attachedDatabase, _db.items);
-  $$ItemPackTemplatesTableTableManager get itemPackTemplates =>
-      $$ItemPackTemplatesTableTableManager(
-        _db.attachedDatabase,
-        _db.itemPackTemplates,
-      );
-  $$ItemTemplateItemsTableTableManager get itemTemplateItems =>
-      $$ItemTemplateItemsTableTableManager(
-        _db.attachedDatabase,
-        _db.itemTemplateItems,
-      );
-  $$ResourceTemplateItemsTableTableManager get resourceTemplateItems =>
-      $$ResourceTemplateItemsTableTableManager(
-        _db.attachedDatabase,
-        _db.resourceTemplateItems,
-      );
-  $$ResourceConsumptionRuleTemplateItemsTableTableManager
-  get resourceConsumptionRuleTemplateItems =>
-      $$ResourceConsumptionRuleTemplateItemsTableTableManager(
-        _db.attachedDatabase,
-        _db.resourceConsumptionRuleTemplateItems,
-      );
   $$ResourcesTableTableManager get resources =>
       $$ResourcesTableTableManager(_db.attachedDatabase, _db.resources);
   $$ResourceConsumptionRulesTableTableManager get resourceConsumptionRules =>

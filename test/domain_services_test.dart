@@ -248,6 +248,7 @@ void main() {
     const service = StageOccurrenceService();
     final tracker = StageTracker(
       id: 1,
+      packId: 1,
       title: 'Dating',
       trackingStartDate: DateTime(2026, 4, 10),
       status: StageTrackerStatus.active,
@@ -289,6 +290,7 @@ void main() {
       const service = StageOccurrenceService();
       final tracker = StageTracker(
         id: 1,
+        packId: 1,
         title: 'Reading',
         trackingStartDate: DateTime(2026, 4, 10),
         status: StageTrackerStatus.active,

@@ -12,6 +12,7 @@ import '../../presentation/text/reminder_ui_text.dart';
 import '../../providers/developer_settings_providers.dart';
 import '../../providers/item_providers.dart';
 import '../../providers/stage_tracker_providers.dart';
+import '../widgets/pack_picker.dart';
 
 part 'stage_tracker_dialogs.dart';
 
@@ -315,16 +316,13 @@ class _TrackerGroup extends StatelessWidget {
     );
   }
 
-  String _packTitle(int? packId, List<ItemPack> packs) {
-    if (packId == null) {
-      return '全局';
-    }
+  String _packTitle(int packId, List<ItemPack> packs) {
     for (final pack in packs) {
       if (pack.id == packId) {
-        return pack.isSystemDefault ? '全局' : pack.title;
+        return packDisplayLabel(pack);
       }
     }
-    return '全局';
+    return ReminderUiText.unassignedPackTitle;
   }
 }
 

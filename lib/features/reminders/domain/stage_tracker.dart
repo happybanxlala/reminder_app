@@ -3,7 +3,7 @@ enum StageTrackerStatus { active, archived }
 class StageTracker {
   const StageTracker({
     required this.id,
-    this.packId,
+    required this.packId,
     required this.title,
     this.subjectName,
     required this.trackingStartDate,
@@ -14,7 +14,7 @@ class StageTracker {
   });
 
   final int id;
-  final int? packId;
+  final int packId;
   final String title;
   final String? subjectName;
   final DateTime trackingStartDate;

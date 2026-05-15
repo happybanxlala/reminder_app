@@ -85,16 +85,15 @@ class ResourceBindingDraftSection extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                const Expanded(child: Text('消耗資源')),
-                TextButton.icon(
-                  key: const Key('add-resource-binding-draft-button'),
-                  onPressed: () => _addDraft(context, quantityResources),
-                  icon: const Icon(Icons.add),
-                  label: const Text('綁定資源'),
-                ),
-              ],
+            const Text('消耗資源'),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                key: const Key('add-resource-binding-draft-button'),
+                onPressed: () => _addDraft(context, quantityResources),
+                icon: const Icon(Icons.add),
+                label: const Text('綁定資源'),
+              ),
             ),
             const SizedBox(height: 8),
             if (drafts.isEmpty)

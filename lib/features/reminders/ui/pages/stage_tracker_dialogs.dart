@@ -4,7 +4,8 @@ Future<void> _showCreateStageTrackerDialog(
   BuildContext context,
   WidgetRef ref,
 ) async {
-  final packs = ref.read(itemPacksProvider).valueOrNull ?? const <ItemPack>[];
+  final packs =
+      ref.read(activeItemPacksProvider).valueOrNull ?? const <ItemPack>[];
   final input = await showDialog<StageTrackerInput>(
     context: context,
     builder: (dialogContext) => _StageTrackerFormDialog(packs: packs),
@@ -83,17 +84,18 @@ Future<void> _showRelatedItemDialog(
   ref.invalidate(stageTrackerDetailProvider(occurrence.stageTrackerId));
 }
 
-class _StageTrackerFormDialog extends StatefulWidget {
+class _StageTrackerFormDialog extends ConsumerStatefulWidget {
   const _StageTrackerFormDialog({required this.packs});
 
   final List<ItemPack> packs;
 
   @override
-  State<_StageTrackerFormDialog> createState() =>
+  ConsumerState<_StageTrackerFormDialog> createState() =>
       _StageTrackerFormDialogState();
 }
 
-class _StageTrackerFormDialogState extends State<_StageTrackerFormDialog> {
+class _StageTrackerFormDialogState
+    extends ConsumerState<_StageTrackerFormDialog> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _subjectController = TextEditingController();
@@ -155,23 +157,30 @@ class _StageTrackerFormDialogState extends State<_StageTrackerFormDialog> {
                   key: const Key('stage-tracker-pack-field'),
                   initialValue: _packId,
                   decoration: const InputDecoration(
-                    labelText: '${ReminderUiText.packFieldLabel} / 全局',
+                    labelText: ReminderUiText.packFieldLabel,
                   ),
                   items: [
                     const DropdownMenuItem<int?>(
                       value: null,
-                      child: Text('全局'),
+                      child: Text(ReminderUiText.unassignedPackOption),
                     ),
-                    ...widget.packs
-                        .where((pack) => !pack.isSystemDefault)
-                        .map(
-                          (pack) => DropdownMenuItem<int?>(
-                            value: pack.id,
-                            child: Text(pack.title),
-                          ),
-                        ),
+                    ...widget.packs.map(
+                      (pack) => DropdownMenuItem<int?>(
+                        value: pack.id,
+                        child: Text(packDisplayLabel(pack)),
+                      ),
+                    ),
                   ],
                   onChanged: (value) => setState(() => _packId = value),
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    key: const Key('stage-tracker-add-pack-button'),
+                    onPressed: _createPackInline,
+                    icon: const Icon(Icons.add),
+                    label: const Text(ReminderUiText.addItemPack),
+                  ),
                 ),
               ],
             ),
@@ -203,6 +212,23 @@ class _StageTrackerFormDialogState extends State<_StageTrackerFormDialog> {
         packId: _packId,
       ),
     );
+  }
+
+  Future<void> _createPackInline() async {
+    final input = await showDialog<ItemPackInput>(
+      context: context,
+      builder: (dialogContext) => const PackFormDialog(),
+    );
+    if (input == null || !mounted) {
+      return;
+    }
+    final packId = await ref.read(itemRepositoryProvider).createPack(input);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _packId = packId;
+    });
   }
 }
 

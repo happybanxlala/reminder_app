@@ -5,12 +5,11 @@ import '../domain/item.dart';
 import '../domain/item_action_record.dart';
 import '../domain/item_action_service.dart';
 import '../domain/item_pack.dart';
-import '../domain/item_pack_template.dart';
 import '../domain/item_snapshot_update_service.dart';
 import '../domain/item_status_service.dart';
 import '../domain/resource.dart';
 import '../domain/resource_refill_service.dart';
-import 'builtin_item_pack_templates.dart';
+import '../domain/stage_tracker.dart';
 import 'local/app_database.dart';
 import 'local/reminder_dao.dart';
 import 'resource_repository.dart';
@@ -51,6 +50,8 @@ class ItemResourceBindingInput {
   final int consumeAmount;
 }
 
+enum ArchivePackMode { archiveWithContents, moveContentsToDefault }
+
 class ItemRepository {
   ItemRepository(
     this._dao, {
@@ -83,11 +84,6 @@ class ItemRepository {
 
   Stream<List<ItemPack>> watchPacks({bool includeArchived = false}) =>
       _dao.watchItemPacks(includeArchived: includeArchived);
-
-  Stream<List<ItemPackTemplate>> watchTemplates() =>
-      _dao.watchCustomItemPackTemplates().map(
-        (customTemplates) => [...builtinItemPackTemplates, ...customTemplates],
-      );
 
   Stream<List<ItemBundle>> watchItems() =>
       _dao.watchItemBundles(statuses: const {ItemLifecycleStatus.active});
@@ -147,19 +143,6 @@ class ItemRepository {
 
   Future<ItemPack?> getPackById(int id) => _dao.getItemPackById(id);
 
-  Future<ItemPackTemplate?> getTemplateById(String id) async {
-    for (final template in builtinItemPackTemplates) {
-      if (template.id == id) {
-        return template;
-      }
-    }
-    final customId = int.tryParse(id.replaceFirst('custom-', ''));
-    if (customId == null) {
-      return null;
-    }
-    return _dao.getCustomItemPackTemplateById(customId);
-  }
-
   Future<int> createItem(
     ItemInput input, {
     List<ItemResourceBindingInput> resourceBindings = const [],
@@ -191,7 +174,13 @@ class ItemRepository {
     return _dao.attachedDatabase.transaction(() async {
       final createdPackId = newPack == null
           ? null
-          : await _dao.insertItemPack(_packCompanion(newPack, now: now));
+          : await _dao.insertItemPack(
+              _packCompanion(
+                newPack,
+                now: now,
+                orderIndex: await _nextCustomPackOrderIndex(),
+              ),
+            );
       final packId = createdPackId ?? await _resolvePackId(item.packId, now);
       final itemId = await _createItemRecord(
         _copyItemInput(item, packId: packId),
@@ -205,34 +194,6 @@ class ItemRepository {
         now: now,
       );
       return itemId;
-    });
-  }
-
-  Future<bool> moveItemToPack(
-    int id, {
-    int? packId,
-    ItemPackInput? newPack,
-  }) async {
-    final existing = await getItemById(id);
-    if (existing == null) {
-      return false;
-    }
-    final now = _clock();
-    return _dao.attachedDatabase.transaction(() async {
-      final resolvedPackId = newPack != null
-          ? await _dao.insertItemPack(_packCompanion(newPack, now: now))
-          : packId ?? await _ensureDefaultPackId(now);
-      await _assertPackCanAcceptItems(
-        resolvedPackId,
-        existingItem: existing.item,
-      );
-      return _dao.updateItemFields(
-        id,
-        ItemsCompanion(
-          packId: Value(resolvedPackId),
-          updatedAt: Value(now.millisecondsSinceEpoch),
-        ),
-      );
     });
   }
 
@@ -349,7 +310,13 @@ class ItemRepository {
 
   Future<int> createPack(ItemPackInput input) async {
     final now = _clock();
-    return _dao.insertItemPack(_packCompanion(input, now: now));
+    return _dao.insertItemPack(
+      _packCompanion(
+        input,
+        now: now,
+        orderIndex: await _nextCustomPackOrderIndex(),
+      ),
+    );
   }
 
   Future<bool> updatePack(int id, ItemPackInput input) async {
@@ -365,6 +332,8 @@ class ItemRepository {
         id: existing.id,
         title: input.title,
         description: input.description,
+        iconEmoji: _normalizePackIcon(input.iconEmoji),
+        orderIndex: existing.orderIndex,
         status: existing.status.name,
         isSystemDefault: existing.isSystemDefault,
         createdAt: existing.createdAt.millisecondsSinceEpoch,
@@ -384,188 +353,75 @@ class ItemRepository {
     return _dao.countItemsForPack(id, statuses: managedItemStatuses);
   }
 
+  Future<int> countPackManagedContents(int id) async {
+    final itemCount = await _dao.countItemsForPack(
+      id,
+      statuses: managedItemStatuses,
+    );
+    final resourceCount = await _dao.countResourcesForPack(
+      id,
+      statuses: ResourceRepository.managedResourceStatuses,
+    );
+    final stageTrackerCount = await _dao.countStageTrackersForPack(
+      id,
+      statuses: const {StageTrackerStatus.active},
+    );
+    return itemCount + resourceCount + stageTrackerCount;
+  }
+
   Future<bool> archivePack(int id) async {
+    return archivePackWithContents(id);
+  }
+
+  Future<bool> archivePackWithContents(int id) async {
     final existing = await getPackById(id);
     if (existing == null || !await canArchivePack(id)) {
       return false;
     }
     final now = _clock();
-    final updated = await _dao.updateItemPackRecord(
-      ItemPackRow(
-        id: existing.id,
-        title: existing.title,
-        description: existing.description,
-        status: ItemPackStatus.archived.name,
-        isSystemDefault: existing.isSystemDefault,
-        createdAt: existing.createdAt.millisecondsSinceEpoch,
-        updatedAt: now.millisecondsSinceEpoch,
-      ),
-    );
-    if (!updated) {
-      return false;
-    }
-    await _dao.updateItemsStatusForPack(id, ItemLifecycleStatus.archived);
-    return true;
-  }
-
-  Future<int> applyTemplate(ItemPackTemplate template) async {
-    final now = _clock();
-    final today = _normalizeDate(now);
     return _dao.attachedDatabase.transaction(() async {
-      final packId = await _dao.insertItemPack(
-        _packCompanion(
-          ItemPackInput(
-            title: '${template.name}(模版)',
-            description: template.description,
-          ),
-          now: now,
-        ),
+      final updated = await _archivePackRecord(existing, now);
+      if (!updated) {
+        return false;
+      }
+      await _dao.updateItemsStatusForPack(id, ItemLifecycleStatus.archived);
+      await _dao.updateResourcesStatusForPack(
+        id,
+        ResourceLifecycleStatus.archived,
       );
-      final itemIdsByLogicalId = <String, int>{};
-      for (final templateItem in template.items) {
-        final itemId = await _createItemRecord(
-          ItemInput(
-            title: templateItem.title,
-            description: templateItem.description,
-            type: templateItem.type,
-            config: _configForTemplateApply(templateItem.config, today),
-            attentionPolicySource: templateItem.attentionPolicySource,
-            packId: packId,
-          ),
-          now: now,
-        );
-        if (templateItem.logicalId != null) {
-          itemIdsByLogicalId[templateItem.logicalId!] = itemId;
-        }
-        await _insertCreatedAction(itemId, now: now);
-      }
-      final resourceIdsByLogicalId = <String, int>{};
-      for (final templateResource in template.resources) {
-        final resourceId = await _dao.insertResource(
-          _resourceCompanionForTemplate(
-            templateResource,
-            packId: packId,
-            today: today,
-            now: now,
-          ),
-        );
-        resourceIdsByLogicalId[templateResource.logicalId] = resourceId;
-        await _dao.insertResourceActionRecord(
-          ResourceActionRecordsCompanion.insert(
-            resourceId: resourceId,
-            actionType: ResourceActionType.created.name,
-            actionDate: today.millisecondsSinceEpoch,
-            createdAt: now.millisecondsSinceEpoch,
-            updatedAt: now.millisecondsSinceEpoch,
-          ),
-        );
-      }
-      for (final rule in template.consumptionRules) {
-        final itemId = itemIdsByLogicalId[rule.itemLogicalId];
-        final resourceId = resourceIdsByLogicalId[rule.resourceLogicalId];
-        if (itemId == null || resourceId == null) {
-          continue;
-        }
-        await _dao.insertResourceConsumptionRule(
-          ResourceConsumptionRulesCompanion.insert(
-            resourceId: resourceId,
-            itemId: itemId,
-            triggerActionType: Value(rule.triggerActionType.name),
-            consumeAmount: Value(
-              rule.consumeAmount < 1 ? 1 : rule.consumeAmount,
-            ),
-            isEnabled: Value(rule.isEnabled),
-            createdAt: now.millisecondsSinceEpoch,
-            updatedAt: now.millisecondsSinceEpoch,
-          ),
-        );
-      }
-      return packId;
+      await _dao.updateStageTrackersStatusForPack(
+        id,
+        StageTrackerStatus.archived,
+      );
+      return true;
     });
   }
 
-  Future<int?> savePackAsTemplate(
-    int packId,
-    ItemPackTemplateInput input,
-  ) async {
-    final pack = await getPackById(packId);
-    if (pack == null || pack.isSystemDefault) {
-      return null;
-    }
-    final items = await _dao.listItemBundles(statuses: managedItemStatuses);
-    final packItems = items
-        .where((bundle) => bundle.item.packId == packId)
-        .toList(growable: false);
-    final resources = await _dao.listResourceBundles(
-      statuses: ResourceLifecycleStatus.values.toSet(),
-    );
-    final packResources = resources
-        .where((bundle) => bundle.resource.packId == packId)
-        .toList(growable: false);
-    final packResourceIds = packResources
-        .map((bundle) => bundle.resource.id)
-        .toSet();
-    final rules = <ResourceConsumptionRule>[];
-    for (final bundle in packItems) {
-      final itemRules = await _dao.listConsumptionRulesForItem(bundle.item.id);
-      rules.addAll(
-        itemRules.where((rule) => packResourceIds.contains(rule.resourceId)),
-      );
+  Future<bool> archivePackAndMoveContentsToDefault(int id) async {
+    final existing = await getPackById(id);
+    if (existing == null || !await canArchivePack(id)) {
+      return false;
     }
     final now = _clock();
     return _dao.attachedDatabase.transaction(() async {
-      final templateId = await _dao.insertItemPackTemplate(
-        ItemPackTemplatesCompanion.insert(
-          name: input.name,
-          category: input.category,
-          description: input.description,
-          createdAt: now.millisecondsSinceEpoch,
-          updatedAt: now.millisecondsSinceEpoch,
-        ),
-      );
-      for (final bundle in packItems) {
-        await _dao.insertItemTemplateItem(
-          _templateItemCompanion(
-            bundle.item,
-            templateId: templateId,
-            logicalId: _itemTemplateLogicalId(bundle.item.id),
-            now: now,
-          ),
-        );
+      final defaultPackId = await _ensureDefaultPackId(now);
+      final updated = await _archivePackRecord(existing, now);
+      if (!updated) {
+        return false;
       }
-      for (final bundle in packResources) {
-        await _dao.insertResourceTemplateItem(
-          _resourceTemplateItemCompanion(
-            bundle.resource,
-            templateId: templateId,
-            logicalId: _resourceTemplateLogicalId(bundle.resource.id),
-            now: now,
-          ),
-        );
-      }
-      for (final rule in rules) {
-        await _dao.insertResourceConsumptionRuleTemplateItem(
-          ResourceConsumptionRuleTemplateItemsCompanion.insert(
-            templateId: templateId,
-            itemLogicalId: _itemTemplateLogicalId(rule.itemId),
-            resourceLogicalId: _resourceTemplateLogicalId(rule.resourceId),
-            triggerActionType: Value(rule.triggerActionType.name),
-            consumeAmount: Value(rule.consumeAmount),
-            createdAt: now.millisecondsSinceEpoch,
-            updatedAt: now.millisecondsSinceEpoch,
-          ),
-        );
-      }
-      return templateId;
+      await _dao.moveItemsToPack(id, defaultPackId);
+      await _dao.moveResourcesToPack(id, defaultPackId);
+      await _dao.moveStageTrackersToPack(id, defaultPackId);
+      return true;
     });
   }
 
-  Future<bool> deleteCustomTemplate(String id) async {
-    final customId = int.tryParse(id.replaceFirst('custom-', ''));
-    if (customId == null) {
-      return false;
-    }
-    return await _dao.deleteItemPackTemplate(customId) > 0;
+  Future<bool> movePackUp(int id) async {
+    return _moveCustomPack(id, -1);
+  }
+
+  Future<bool> movePackDown(int id) async {
+    return _moveCustomPack(id, 1);
   }
 
   Future<bool> pauseItem(int id) async {
@@ -818,7 +674,7 @@ class ItemRepository {
     }
     final resource = bundle.resource;
     if (resource.packId != packId) {
-      throw StateError('只能綁定同一個責任包內的資源');
+      throw StateError('只能綁定同一個生活場景內的資源');
     }
     if (resource.status != ResourceLifecycleStatus.active ||
         resource.config is! QuantityBasedResourceConfig) {
@@ -872,40 +728,6 @@ class ItemRepository {
     );
   }
 
-  ResourcesCompanion _resourceCompanionForTemplate(
-    ResourceTemplateItem templateResource, {
-    required int packId,
-    required DateTime today,
-    required DateTime now,
-  }) {
-    final config = _resourceConfigForTemplateApply(
-      templateResource.config,
-      today,
-    );
-    return ResourcesCompanion.insert(
-      packId: packId,
-      title: templateResource.title,
-      description: Value(templateResource.description),
-      status: const Value('active'),
-      type: templateResource.type.name,
-      timeAnchorDate: Value(_resourceTimeAnchorDate(config)),
-      timeDurationDays: Value(_resourceTimeDurationDays(config)),
-      timeExpectedBeforeDays: Value(_resourceTimeInfoBeforeDays(config)),
-      timeWarningBeforeDays: Value(_resourceTimeWarningBeforeDays(config)),
-      timeDangerBeforeDays: Value(_resourceTimeDangerBeforeDays(config)),
-      quantityCurrent: Value(_resourceQuantityCurrent(config)),
-      quantityUnitLabel: Value(_resourceQuantityUnitLabel(config)),
-      quantityExpectedThreshold: Value(_resourceQuantityInfoThreshold(config)),
-      quantityWarningThreshold: Value(
-        _resourceQuantityWarningThreshold(config),
-      ),
-      quantityDangerThreshold: Value(_resourceQuantityDangerThreshold(config)),
-      lastRefilledAt: Value(_resourceInitialLastRefilledAt(config)),
-      createdAt: now.millisecondsSinceEpoch,
-      updatedAt: now.millisecondsSinceEpoch,
-    );
-  }
-
   ResourcesCompanion _resourceCompanionForInput(
     ResourceInput input, {
     required int packId,
@@ -944,10 +766,13 @@ class ItemRepository {
   ItemPacksCompanion _packCompanion(
     ItemPackInput input, {
     required DateTime now,
+    int? orderIndex,
   }) {
     return ItemPacksCompanion.insert(
       title: input.title,
       description: Value(input.description),
+      iconEmoji: Value(_normalizePackIcon(input.iconEmoji)),
+      orderIndex: Value(orderIndex ?? 0),
       status: const Value('active'),
       isSystemDefault: const Value(false),
       createdAt: now.millisecondsSinceEpoch,
@@ -955,169 +780,32 @@ class ItemRepository {
     );
   }
 
-  ItemTemplateItemsCompanion _templateItemCompanion(
-    Item item, {
-    required int templateId,
-    String? logicalId,
-    required DateTime now,
-  }) {
-    return ItemTemplateItemsCompanion.insert(
-      templateId: templateId,
-      logicalId: Value(logicalId),
-      title: item.title,
-      description: Value(item.description),
-      type: item.type.name,
-      attentionPolicySource: Value(item.attentionPolicySource.name),
-      fixedScheduleType: Value(_fixedScheduleType(item.config)),
-      fixedScheduleInterval: Value(_fixedScheduleInterval(item.config)),
-      fixedMonthlyDay: Value(_fixedMonthlyDay(item.config)),
-      fixedRepeatRuleV2: Value(_fixedRepeatRuleV2(item.config)),
-      fixedTimeOfDay: Value(_fixedTimeOfDay(item.config)),
-      fixedOverduePolicy: Value(_fixedOverduePolicy(item.config)),
-      fixedExpectedBeforeMinutes: Value(
-        _durationMinutes(_fixedInfoBefore(item.config)),
-      ),
-      fixedWarningBeforeMinutes: Value(
-        _durationMinutes(_fixedWarningBefore(item.config)),
-      ),
-      fixedDangerBeforeMinutes: Value(
-        _durationMinutes(_fixedDangerBefore(item.config)),
-      ),
-      stateExpectedAfterMinutes: Value(
-        _durationMinutes(_stateInfoAfter(item.config)),
-      ),
-      stateWarningAfterMinutes: Value(
-        _durationMinutes(_stateWarningAfter(item.config)),
-      ),
-      stateDangerAfterMinutes: Value(
-        _durationMinutes(_stateDangerAfter(item.config)),
-      ),
-      createdAt: now.millisecondsSinceEpoch,
-      updatedAt: now.millisecondsSinceEpoch,
-    );
-  }
-
-  ResourceTemplateItemsCompanion _resourceTemplateItemCompanion(
-    Resource resource, {
-    required int templateId,
-    required String logicalId,
-    required DateTime now,
-  }) {
-    final config = resource.config;
-    return ResourceTemplateItemsCompanion.insert(
-      templateId: templateId,
-      logicalId: logicalId,
-      title: resource.title,
-      description: Value(resource.description),
-      type: resource.type.name,
-      timeDurationDays: Value(_resourceTimeDurationDays(config)),
-      timeExpectedBeforeDays: Value(_resourceTimeInfoBeforeDays(config)),
-      timeWarningBeforeDays: Value(_resourceTimeWarningBeforeDays(config)),
-      timeDangerBeforeDays: Value(_resourceTimeDangerBeforeDays(config)),
-      quantityCurrent: Value(_resourceQuantityCurrent(config)),
-      quantityUnitLabel: Value(_resourceQuantityUnitLabel(config)),
-      quantityExpectedThreshold: Value(_resourceQuantityInfoThreshold(config)),
-      quantityWarningThreshold: Value(
-        _resourceQuantityWarningThreshold(config),
-      ),
-      quantityDangerThreshold: Value(_resourceQuantityDangerThreshold(config)),
-      createdAt: now.millisecondsSinceEpoch,
-      updatedAt: now.millisecondsSinceEpoch,
-    );
-  }
-
-  String _itemTemplateLogicalId(int itemId) => 'item-$itemId';
-
-  String _resourceTemplateLogicalId(int resourceId) => 'resource-$resourceId';
-
-  ItemConfig _configForTemplateApply(ItemConfig config, DateTime today) {
-    return switch (config) {
-      FixedItemConfig fixed => FixedItemConfig(
-        scheduleType: fixed.scheduleType,
-        scheduleInterval: fixed.scheduleInterval,
-        monthlyDay: fixed.monthlyDay ?? today.day,
-        anchorDate: today,
-        dueDate: _templateFixedDueDate(fixed, today),
-        timeOfDay: fixed.timeOfDay,
-        overduePolicy: fixed.overduePolicy,
-        infoBefore: fixed.infoBefore,
-        warningBefore: fixed.warningBefore,
-        dangerBefore: fixed.dangerBefore,
-      ),
-      StateBasedItemConfig state => StateBasedItemConfig(
-        anchorDate: today,
-        infoAfter: state.infoAfter,
-        warningAfter: state.warningAfter,
-        dangerAfter: state.dangerAfter,
-      ),
-      _ => config,
-    };
-  }
-
-  ResourceConfig _resourceConfigForTemplateApply(
-    ResourceConfig config,
-    DateTime today,
-  ) {
-    return switch (config) {
-      TimeBasedResourceConfig time => TimeBasedResourceConfig(
-        anchorDate: time.anchorDate ?? today,
-        durationDays: time.durationDays,
-        infoBeforeDays: time.infoBeforeDays,
-        warningBeforeDays: time.warningBeforeDays,
-        dangerBeforeDays: time.dangerBeforeDays,
-      ),
-      QuantityBasedResourceConfig quantity => QuantityBasedResourceConfig(
-        currentQuantity: quantity.currentQuantity < 0
-            ? 0
-            : quantity.currentQuantity,
-        unitLabel: quantity.unitLabel,
-        infoThreshold: quantity.infoThreshold,
-        warningThreshold: quantity.warningThreshold,
-        dangerThreshold: quantity.dangerThreshold,
-      ),
-      _ => config,
-    };
-  }
-
-  DateTime _templateFixedDueDate(FixedItemConfig config, DateTime today) {
-    final interval = config.scheduleInterval < 1 ? 1 : config.scheduleInterval;
-    return switch (config.scheduleType) {
-      FixedScheduleType.daily || FixedScheduleType.oneTime => today,
-      FixedScheduleType.weekly => today.add(const Duration(days: 6)),
-      FixedScheduleType.everyXDays => today.add(Duration(days: interval - 1)),
-      FixedScheduleType.everyXWeeks => today.add(
-        Duration(days: interval * 7 - 1),
-      ),
-      FixedScheduleType.monthly => _addMonthsClamped(
-        today,
-        interval,
-        preferredDay: config.monthlyDay ?? today.day,
-      ).subtract(const Duration(days: 1)),
-    };
-  }
-
-  DateTime _addMonthsClamped(
-    DateTime value,
-    int months, {
-    required int preferredDay,
-  }) {
-    final targetMonth = DateTime(value.year, value.month + months);
-    final lastDay = DateTime(targetMonth.year, targetMonth.month + 1, 0).day;
-    final day = preferredDay.clamp(1, lastDay);
-    return DateTime(targetMonth.year, targetMonth.month, day);
-  }
-
   Future<int> _ensureDefaultPackId(DateTime now) async {
-    final packs = await _dao.listItemPacks(includeArchived: true);
-    for (final pack in packs) {
-      if (pack.isSystemDefault) {
-        return pack.id;
+    final defaultPack = await _dao.getSystemDefaultPack();
+    if (defaultPack != null) {
+      if (defaultPack.title != AppDatabase.systemDefaultPackTitle ||
+          defaultPack.iconEmoji != AppDatabase.systemDefaultPackIconEmoji ||
+          defaultPack.status != ItemPackStatus.active ||
+          defaultPack.orderIndex != AppDatabase.systemDefaultPackOrderIndex) {
+        await _dao.updateItemPackFields(
+          defaultPack.id,
+          ItemPacksCompanion(
+            title: const Value(AppDatabase.systemDefaultPackTitle),
+            iconEmoji: const Value(AppDatabase.systemDefaultPackIconEmoji),
+            orderIndex: const Value(AppDatabase.systemDefaultPackOrderIndex),
+            status: const Value('active'),
+            updatedAt: Value(now.millisecondsSinceEpoch),
+          ),
+        );
       }
+      return defaultPack.id;
     }
     return _dao.insertItemPack(
       ItemPacksCompanion.insert(
         title: AppDatabase.systemDefaultPackTitle,
         description: const Value(AppDatabase.systemDefaultPackDescription),
+        iconEmoji: const Value(AppDatabase.systemDefaultPackIconEmoji),
+        orderIndex: const Value(AppDatabase.systemDefaultPackOrderIndex),
         status: const Value('active'),
         isSystemDefault: const Value(true),
         createdAt: now.millisecondsSinceEpoch,
@@ -1141,6 +829,69 @@ class ItemRepository {
       return;
     }
     throw StateError('Archived item pack cannot accept items.');
+  }
+
+  Future<int> _nextCustomPackOrderIndex() async {
+    final packs = await _dao.listItemPacks(includeArchived: true);
+    final customOrderIndexes = packs
+        .where((pack) => !pack.isSystemDefault)
+        .map((pack) => pack.orderIndex);
+    if (customOrderIndexes.isEmpty) {
+      return 1;
+    }
+    return customOrderIndexes.reduce((a, b) => a > b ? a : b) + 1;
+  }
+
+  Future<bool> _archivePackRecord(ItemPack existing, DateTime now) {
+    return _dao.updateItemPackRecord(
+      ItemPackRow(
+        id: existing.id,
+        title: existing.title,
+        description: existing.description,
+        iconEmoji: existing.iconEmoji,
+        orderIndex: existing.orderIndex,
+        status: ItemPackStatus.archived.name,
+        isSystemDefault: existing.isSystemDefault,
+        createdAt: existing.createdAt.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
+      ),
+    );
+  }
+
+  Future<bool> _moveCustomPack(int id, int delta) async {
+    final packs = (await _dao.listItemPacks())
+        .where((pack) => !pack.isSystemDefault)
+        .toList(growable: false);
+    final index = packs.indexWhere((pack) => pack.id == id);
+    final targetIndex = index + delta;
+    if (index < 0 || targetIndex < 0 || targetIndex >= packs.length) {
+      return false;
+    }
+    final reordered = [...packs];
+    final moving = reordered.removeAt(index);
+    reordered.insert(targetIndex, moving);
+    final now = _clock();
+    return _dao.attachedDatabase.transaction(() async {
+      for (var i = 0; i < reordered.length; i++) {
+        final pack = reordered[i];
+        await _dao.updateItemPackFields(
+          pack.id,
+          ItemPacksCompanion(
+            orderIndex: Value(i + 1),
+            updatedAt: Value(now.millisecondsSinceEpoch),
+          ),
+        );
+      }
+      return true;
+    });
+  }
+
+  String _normalizePackIcon(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return '🏷️';
+    }
+    return trimmed;
   }
 
   String? _fixedScheduleType(ItemConfig config) {

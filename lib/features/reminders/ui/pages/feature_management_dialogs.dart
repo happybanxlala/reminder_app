@@ -1,175 +1,5 @@
 part of 'feature_management_sections.dart';
 
-class _MoveItemDialog extends ConsumerStatefulWidget {
-  const _MoveItemDialog({required this.bundle});
-
-  final ItemBundle bundle;
-
-  @override
-  ConsumerState<_MoveItemDialog> createState() => _MoveItemDialogState();
-}
-
-class _MoveItemDialogState extends ConsumerState<_MoveItemDialog> {
-  static const _unassignedPackValue = 'unassigned';
-  static const _newPackValue = 'new-pack';
-
-  late String _selectedPackValue;
-  ItemPackInput? _pendingPack;
-  bool _isSaving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedPackValue = widget.bundle.pack.isSystemDefault
-        ? _unassignedPackValue
-        : _packValue(widget.bundle.pack.id);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final activePacksAsync = ref.watch(activeItemPacksProvider);
-    return AlertDialog(
-      title: const Text(ReminderUiText.moveItemTitle),
-      content: SizedBox(
-        width: 480,
-        child: activePacksAsync.when(
-          data: (packs) => Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.bundle.item.title,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                key: const Key('move-pack-field'),
-                initialValue: _selectedPackValue,
-                decoration: const InputDecoration(
-                  labelText: ReminderUiText.moveDestinationFieldLabel,
-                ),
-                items: _packOptions(packs),
-                onChanged: _isSaving
-                    ? null
-                    : (value) {
-                        if (value == null) {
-                          return;
-                        }
-                        setState(() {
-                          _selectedPackValue = value;
-                        });
-                      },
-              ),
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: OutlinedButton(
-                  key: const Key('move-item-add-pack-button'),
-                  onPressed: _isSaving
-                      ? null
-                      : () async {
-                          final input = await showDialog<ItemPackInput>(
-                            context: context,
-                            builder: (dialogContext) => const _PackFormDialog(),
-                          );
-                          if (input == null) {
-                            return;
-                          }
-                          setState(() {
-                            _pendingPack = input;
-                            _selectedPackValue = _newPackValue;
-                          });
-                        },
-                  child: const Text(ReminderUiText.addItemPack),
-                ),
-              ),
-            ],
-          ),
-          error: (error, stack) => Text('讀取失敗: $error'),
-          loading: () => const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: CircularProgressIndicator()),
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
-          child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
-        ),
-        FilledButton(
-          key: const Key('move-item-confirm-button'),
-          onPressed: _isSaving ? null : _submit,
-          child: const Text(ReminderUiText.confirmAction),
-        ),
-      ],
-    );
-  }
-
-  List<DropdownMenuItem<String>> _packOptions(List<ItemPack> packs) {
-    return [
-      const DropdownMenuItem<String>(
-        value: _unassignedPackValue,
-        child: Text(ReminderUiText.unassignedPackOption),
-      ),
-      ...packs
-          .where((pack) => !pack.isSystemDefault)
-          .map(
-            (pack) => DropdownMenuItem<String>(
-              value: _packValue(pack.id),
-              child: Text(pack.title),
-            ),
-          ),
-      if (_pendingPack != null)
-        DropdownMenuItem<String>(
-          value: _newPackValue,
-          child: Text(
-            '${_pendingPack!.title} (${ReminderUiText.pendingPackSuffix})',
-          ),
-        ),
-    ];
-  }
-
-  Future<void> _submit() async {
-    final repository = ref.read(itemRepositoryProvider);
-    final newPack = _selectedPackValue == _newPackValue ? _pendingPack : null;
-    final packId = switch (_selectedPackValue) {
-      _unassignedPackValue => null,
-      _newPackValue => null,
-      _ => int.tryParse(_selectedPackValue.replaceFirst('pack-', '')),
-    };
-
-    setState(() {
-      _isSaving = true;
-    });
-    try {
-      await repository.moveItemToPack(
-        widget.bundle.item.id,
-        packId: packId,
-        newPack: newPack,
-      );
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
-    } on StateError catch (error) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message.toString())));
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSaving = false;
-        });
-      }
-    }
-  }
-
-  String _packValue(int id) => 'pack-$id';
-}
-
 class _CreateItemDialog extends ConsumerStatefulWidget {
   const _CreateItemDialog({this.initialPackId});
 
@@ -181,7 +11,6 @@ class _CreateItemDialog extends ConsumerStatefulWidget {
 
 class _CreateItemDialogState extends ConsumerState<_CreateItemDialog> {
   static const _unassignedPackValue = 'unassigned';
-  static const _newPackValue = 'new-pack';
 
   final _stepOneFormKey = GlobalKey<FormState>();
   final _stepTwoFormKey = GlobalKey<FormState>();
@@ -190,7 +19,6 @@ class _CreateItemDialogState extends ConsumerState<_CreateItemDialog> {
 
   int _stepIndex = 0;
   late String _selectedPackValue;
-  ItemPackInput? _pendingPack;
   List<ResourceBindingDraft> _resourceBindingDrafts = const [];
   bool _isSaving = false;
 
@@ -256,21 +84,12 @@ class _CreateItemDialogState extends ConsumerState<_CreateItemDialog> {
         value: _unassignedPackValue,
         child: Text(ReminderUiText.unassignedPackOption),
       ),
-      ...packs
-          .where((pack) => !pack.isSystemDefault)
-          .map(
-            (pack) => DropdownMenuItem<String>(
-              value: _packValue(pack.id),
-              child: Text(pack.title),
-            ),
-          ),
-      if (_pendingPack != null)
-        DropdownMenuItem<String>(
-          value: _newPackValue,
-          child: Text(
-            '${_pendingPack!.title} (${ReminderUiText.pendingPackSuffix})',
-          ),
+      ...packs.map(
+        (pack) => DropdownMenuItem<String>(
+          value: _packValue(pack.id),
+          child: Text(packDisplayLabel(pack)),
         ),
+      ),
     ];
 
     return [
@@ -321,19 +140,7 @@ class _CreateItemDialogState extends ConsumerState<_CreateItemDialog> {
         alignment: Alignment.centerLeft,
         child: OutlinedButton(
           key: const Key('create-item-add-pack-button'),
-          onPressed: () async {
-            final input = await showDialog<ItemPackInput>(
-              context: context,
-              builder: (dialogContext) => const _PackFormDialog(),
-            );
-            if (input == null) {
-              return;
-            }
-            setState(() {
-              _pendingPack = input;
-              _selectedPackValue = _newPackValue;
-            });
-          },
+          onPressed: _createPackInline,
           child: const Text(ReminderUiText.addItemPack),
         ),
       ),
@@ -422,10 +229,8 @@ class _CreateItemDialogState extends ConsumerState<_CreateItemDialog> {
     }
 
     final repository = ref.read(itemRepositoryProvider);
-    final newPack = _selectedPackValue == _newPackValue ? _pendingPack : null;
     final packId = switch (_selectedPackValue) {
       _unassignedPackValue => null,
-      _newPackValue => null,
       _ => int.tryParse(_selectedPackValue.replaceFirst('pack-', '')),
     };
 
@@ -433,14 +238,13 @@ class _CreateItemDialogState extends ConsumerState<_CreateItemDialog> {
       _isSaving = true;
     });
     try {
-      await repository.createItemWithOptionalNewPack(
-        item: ItemInput(
+      await repository.createItem(
+        ItemInput(
           title: _titleController.text.trim(),
           type: _configController.type,
           config: _configController.buildConfigForCreate(),
           packId: packId,
         ),
-        newPack: newPack,
         resourceBindings: _resourceBindingDrafts
             .map((draft) => draft.toInput())
             .toList(growable: false),
@@ -467,9 +271,6 @@ class _CreateItemDialogState extends ConsumerState<_CreateItemDialog> {
   String _packValue(int id) => 'pack-$id';
 
   int? _resolvedPackId(List<ItemPack> packs) {
-    if (_selectedPackValue == _newPackValue) {
-      return null;
-    }
     if (_selectedPackValue == _unassignedPackValue) {
       for (final pack in packs) {
         if (pack.isSystemDefault) {
@@ -479,6 +280,23 @@ class _CreateItemDialogState extends ConsumerState<_CreateItemDialog> {
       return null;
     }
     return int.tryParse(_selectedPackValue.replaceFirst('pack-', ''));
+  }
+
+  Future<void> _createPackInline() async {
+    final input = await showDialog<ItemPackInput>(
+      context: context,
+      builder: (dialogContext) => const PackFormDialog(),
+    );
+    if (input == null || !mounted) {
+      return;
+    }
+    final packId = await ref.read(itemRepositoryProvider).createPack(input);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _selectedPackValue = _packValue(packId);
+    });
   }
 }
 
@@ -503,105 +321,5 @@ class _SectionHeader extends StatelessWidget {
         ],
       ],
     );
-  }
-}
-
-class _PackFormDialog extends StatefulWidget {
-  const _PackFormDialog({this.pack});
-
-  final ItemPack? pack;
-
-  @override
-  State<_PackFormDialog> createState() => _PackFormDialogState();
-}
-
-class _PackFormDialogState extends State<_PackFormDialog> {
-  final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _titleController;
-  late final TextEditingController _descriptionController;
-
-  bool get _isEdit => widget.pack != null;
-
-  @override
-  void initState() {
-    super.initState();
-    _titleController = TextEditingController(text: widget.pack?.title ?? '');
-    _descriptionController = TextEditingController(
-      text: widget.pack?.description ?? '',
-    );
-  }
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _descriptionController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(
-        _isEdit ? ReminderUiText.editItemPack : ReminderUiText.addItemPack,
-      ),
-      content: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextFormField(
-              key: const Key('pack-title-field'),
-              controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: ReminderUiText.packTitleFieldLabel,
-              ),
-              validator: (value) {
-                if ((value ?? '').trim().isEmpty) {
-                  return '請輸入責任包名稱';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              key: const Key('pack-description-field'),
-              controller: _descriptionController,
-              decoration: const InputDecoration(
-                labelText: ReminderUiText.packDescriptionFieldLabel,
-              ),
-              maxLines: 2,
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
-        ),
-        FilledButton(
-          key: const Key('pack-save-button'),
-          onPressed: _submit,
-          child: const Text(ReminderUiText.saveAction),
-        ),
-      ],
-    );
-  }
-
-  void _submit() {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-    Navigator.of(context).pop(
-      ItemPackInput(
-        title: _titleController.text.trim(),
-        description: _normalizeOptionalText(_descriptionController.text),
-      ),
-    );
-  }
-
-  String? _normalizeOptionalText(String value) {
-    final normalized = value.trim();
-    return normalized.isEmpty ? null : normalized;
   }
 }

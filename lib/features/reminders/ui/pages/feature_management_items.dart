@@ -11,46 +11,6 @@ Future<void> _showCreateItemDialog(
   );
 }
 
-Future<void> _showTemplatePickerDialog(
-  BuildContext context,
-  WidgetRef ref,
-) async {
-  await showDialog<void>(
-    context: context,
-    builder: (dialogContext) => const _TemplatePickerDialog(),
-  );
-}
-
-Future<void> _showPackDialog(
-  BuildContext context,
-  WidgetRef ref, {
-  ItemPack? pack,
-}) async {
-  if (pack?.isSystemDefault ?? false) {
-    return;
-  }
-  final input = await showDialog<ItemPackInput>(
-    context: context,
-    builder: (dialogContext) => _PackFormDialog(pack: pack),
-  );
-  if (input == null || !context.mounted) {
-    return;
-  }
-
-  final repository = ref.read(itemRepositoryProvider);
-  if (pack == null) {
-    await repository.createPack(input);
-    return;
-  }
-
-  final updated = await repository.updatePack(pack.id, input);
-  if (!updated && context.mounted) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('此 pack 目前不可編輯。')));
-  }
-}
-
 class _ItemManagementGroupCard extends ConsumerWidget {
   const _ItemManagementGroupCard({
     required this.group,
@@ -97,9 +57,7 @@ class _ItemManagementGroupCard extends ConsumerWidget {
                             crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               Text(
-                                isUnassigned
-                                    ? ReminderUiText.unassignedPackTitle
-                                    : pack.title,
+                                packDisplayLabel(pack),
                                 style: Theme.of(context).textTheme.titleMedium,
                               ),
                             ],
@@ -132,14 +90,6 @@ class _ItemManagementGroupCard extends ConsumerWidget {
                       tooltip: ReminderUiText.addItem,
                       icon: const Icon(Icons.add),
                     ),
-                    if (!isUnassigned)
-                      IconButton(
-                        key: Key('pack-overflow-${pack.id}'),
-                        onPressed: () =>
-                            _showPackActionSheet(context, ref, pack),
-                        tooltip: ReminderUiText.itemActionMenuTitle,
-                        icon: const Icon(Icons.more_vert),
-                      ),
                     IconButton(
                       key: Key('pack-toggle-${pack.id}'),
                       onPressed: onToggle,
@@ -280,116 +230,11 @@ class _ManagedItemCard extends ConsumerWidget {
   }
 }
 
-enum _PackMenuAction { edit, saveAsTemplate, archive }
-
-Future<void> _showPackActionSheet(
-  BuildContext context,
-  WidgetRef ref,
-  ItemPack pack,
-) async {
-  final selected = await showModalBottomSheet<_PackMenuAction>(
-    context: context,
-    showDragHandle: true,
-    builder: (sheetContext) => SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _ItemActionSheetTile(
-              key: Key('pack-menu-edit-${pack.id}'),
-              label: ReminderUiText.editAction,
-              onTap: () => Navigator.of(sheetContext).pop(_PackMenuAction.edit),
-            ),
-            const Divider(height: 16),
-            _ItemActionSheetTile(
-              key: Key('pack-menu-save-template-${pack.id}'),
-              label: ReminderUiText.saveAsTemplateAction,
-              onTap: () => Navigator.of(
-                sheetContext,
-              ).pop(_PackMenuAction.saveAsTemplate),
-            ),
-            const Divider(height: 16),
-            _ItemActionSheetTile(
-              key: Key('pack-menu-archive-${pack.id}'),
-              label: ReminderUiText.archiveAction,
-              isDestructive: true,
-              onTap: () =>
-                  Navigator.of(sheetContext).pop(_PackMenuAction.archive),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-  if (selected == null || !context.mounted) {
-    return;
-  }
-
-  final repository = ref.read(itemRepositoryProvider);
-  switch (selected) {
-    case _PackMenuAction.edit:
-      await _showPackDialog(context, ref, pack: pack);
-      return;
-    case _PackMenuAction.saveAsTemplate:
-      final input = await showDialog<ItemPackTemplateInput>(
-        context: context,
-        builder: (dialogContext) => _SaveTemplateDialog(pack: pack),
-      );
-      if (input == null || !context.mounted) {
-        return;
-      }
-      final savedId = await repository.savePackAsTemplate(pack.id, input);
-      if (savedId != null && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text(ReminderUiText.templateSavedMessage)),
-        );
-      }
-      return;
-    case _PackMenuAction.archive:
-      final canArchive = await repository.canArchivePack(pack.id);
-      if (!context.mounted || !canArchive) {
-        return;
-      }
-      final managedItemCount = await repository.countPackManagedItems(pack.id);
-      if (!context.mounted) {
-        return;
-      }
-      if (managedItemCount > 0) {
-        final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: const Text(ReminderUiText.archivePackConfirmTitle),
-            content: const Text(ReminderUiText.archivePackConfirmMessage),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: Text(
-                  MaterialLocalizations.of(dialogContext).cancelButtonLabel,
-                ),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: const Text(ReminderUiText.archiveAction),
-              ),
-            ],
-          ),
-        );
-        if (confirmed != true || !context.mounted) {
-          return;
-        }
-      }
-      await repository.archivePack(pack.id);
-      return;
-  }
-}
-
 enum _ManagedItemMenuAction {
   complete,
   skip,
   details,
   history,
-  move,
   pause,
   resume,
   archive,
@@ -455,12 +300,6 @@ Future<void> _showManagedItemActionSheet(
                   sheetContext,
                 ).pop(_ManagedItemMenuAction.history),
               ),
-              _ItemActionSheetTile(
-                key: Key('item-menu-move-${bundle.item.id}'),
-                label: ReminderUiText.moveAction,
-                onTap: () =>
-                    Navigator.of(sheetContext).pop(_ManagedItemMenuAction.move),
-              ),
               const Divider(height: 16),
               _ItemActionSheetTile(
                 key: Key(
@@ -522,12 +361,6 @@ Future<void> _showManagedItemActionSheet(
       context.pushNamed(
         ItemHistoryPage.routeName,
         pathParameters: {'id': bundle.item.id.toString()},
-      );
-      return;
-    case _ManagedItemMenuAction.move:
-      await showDialog<void>(
-        context: context,
-        builder: (dialogContext) => _MoveItemDialog(bundle: bundle),
       );
       return;
     case _ManagedItemMenuAction.pause:

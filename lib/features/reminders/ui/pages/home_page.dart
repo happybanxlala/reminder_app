@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../data/home_models.dart';
 import '../../data/local/reminder_dao.dart';
 import '../../domain/attention_summary.dart';
+import '../../domain/item_pack.dart';
 import '../../domain/resource.dart';
+import '../../domain/stage_tracker.dart';
 import '../../domain/stage_occurrence.dart';
 import '../../providers/developer_settings_providers.dart';
 import '../../providers/attention_summary_providers.dart';
@@ -19,6 +21,7 @@ import '../../presentation/formatters/reminder_formatters.dart';
 import 'feature_page.dart';
 import 'item_edit_page.dart';
 import 'item_history_page.dart';
+import '../widgets/pack_picker.dart';
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
@@ -51,16 +54,27 @@ class HomePage extends ConsumerWidget {
   }
 }
 
-class HomeContent extends ConsumerWidget {
+class HomeContent extends ConsumerStatefulWidget {
   const HomeContent({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeContent> createState() => _HomeContentState();
+}
+
+class _HomeContentState extends ConsumerState<HomeContent> {
+  int? _selectedPackId;
+
+  @override
+  Widget build(BuildContext context) {
     final summaryAsync = ref.watch(attentionSummaryProvider);
     final dangerAsync = ref.watch(dangerHomeEntriesProvider);
     final warningAsync = ref.watch(warningHomeEntriesProvider);
     final resourcesAsync = ref.watch(resourcesProvider);
     final stagesAsync = ref.watch(upcomingStagesProvider);
+    final packsAsync = ref.watch(activeItemPacksProvider);
+    final trackersAsync = ref.watch(stageTrackersProvider);
+    final packs = packsAsync.valueOrNull ?? const <ItemPack>[];
+    final trackers = trackersAsync.valueOrNull ?? const <StageTracker>[];
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -81,16 +95,27 @@ class HomeContent extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 16),
+        _HomePackFilter(
+          packs: packs,
+          selectedPackId: _selectedPackId,
+          onChanged: (packId) {
+            setState(() {
+              _selectedPackId = packId;
+            });
+          },
+        ),
+        const SizedBox(height: 16),
         resourcesAsync.when(
           data: (resources) {
-            if (resources.isEmpty) {
+            final filteredResources = _filterResources(resources);
+            if (filteredResources.isEmpty) {
               return const SizedBox.shrink();
             }
             return Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: _HomeSection(
                 title: '資源',
-                child: _ResourceList(resources: resources),
+                child: _ResourceList(resources: filteredResources),
               ),
             );
           },
@@ -104,7 +129,7 @@ class HomeContent extends ConsumerWidget {
           title: ReminderUiText.dangerTab,
           child: dangerAsync.when(
             data: (items) => _ItemList(
-              items: items,
+              items: _filterItems(items),
               emptyMessage: ReminderUiText.noDangerItems,
             ),
             error: (error, stack) => Text('讀取失敗: $error'),
@@ -116,7 +141,7 @@ class HomeContent extends ConsumerWidget {
           title: ReminderUiText.warningTab,
           child: warningAsync.when(
             data: (items) => _ItemList(
-              items: items,
+              items: _filterItems(items),
               emptyMessage: ReminderUiText.noWarningItems,
             ),
             error: (error, stack) => Text('讀取失敗: $error'),
@@ -128,7 +153,9 @@ class HomeContent extends ConsumerWidget {
           title: ReminderUiText.upcomingSectionTitle,
           child: stagesAsync.when(
             data: (items) => _StageList(
-              items: items,
+              items: _filterStages(items, trackers),
+              packs: packs,
+              trackers: trackers,
               emptyMessage: ReminderUiText.noUpcomingStages,
             ),
             error: (error, stack) => Text('讀取失敗: $error'),
@@ -136,6 +163,92 @@ class HomeContent extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+
+  List<ItemHomeEntry> _filterItems(List<ItemHomeEntry> items) {
+    final packId = _selectedPackId;
+    if (packId == null) {
+      return items;
+    }
+    return items
+        .where((entry) => entry.bundle.item.packId == packId)
+        .toList(growable: false);
+  }
+
+  List<ResourceBundle> _filterResources(List<ResourceBundle> resources) {
+    final packId = _selectedPackId;
+    if (packId == null) {
+      return resources;
+    }
+    return resources
+        .where((entry) => entry.resource.packId == packId)
+        .toList(growable: false);
+  }
+
+  List<StageOccurrence> _filterStages(
+    List<StageOccurrence> stages,
+    List<StageTracker> trackers,
+  ) {
+    final packId = _selectedPackId;
+    if (packId == null) {
+      return stages;
+    }
+    final trackerPackIds = {
+      for (final tracker in trackers) tracker.id: tracker.packId,
+    };
+    return stages
+        .where((entry) => trackerPackIds[entry.stageTrackerId] == packId)
+        .toList(growable: false);
+  }
+}
+
+class _HomePackFilter extends StatelessWidget {
+  const _HomePackFilter({
+    required this.packs,
+    required this.selectedPackId,
+    required this.onChanged,
+  });
+
+  final List<ItemPack> packs;
+  final int? selectedPackId;
+  final ValueChanged<int?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              key: const Key('home-pack-filter-all'),
+              label: const Text('全部'),
+              selected: selectedPackId == null,
+              onSelected: (_) => onChanged(null),
+            ),
+          ),
+          for (final pack in packs)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Tooltip(
+                message: pack.title,
+                child: Semantics(
+                  label: '生活場景 ${pack.title}',
+                  button: true,
+                  selected: selectedPackId == pack.id,
+                  child: ChoiceChip(
+                    key: Key('home-pack-filter-${pack.id}'),
+                    label: Text(pack.iconEmoji),
+                    selected: selectedPackId == pack.id,
+                    onSelected: (_) => onChanged(pack.id),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -275,6 +388,14 @@ class _ItemCardState extends ConsumerState<_ItemCard> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      Tooltip(
+                        message: widget.entry.bundle.pack.title,
+                        child: Semantics(
+                          label: '生活場景 ${widget.entry.bundle.pack.title}',
+                          child: Text(widget.entry.bundle.pack.iconEmoji),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Flexible(
                         child: Text(
                           viewModel.title,
@@ -325,8 +446,8 @@ class _ItemCardState extends ConsumerState<_ItemCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _ItemDetailRow(
-                          label: 'Pack',
-                          value: viewModel.packTitle,
+                          label: ReminderUiText.packFieldLabel,
+                          value: packDisplayLabel(widget.entry.bundle.pack),
                         ),
                         if (viewModel.note != null)
                           _ItemDetailRow(label: 'Note', value: viewModel.note!),
@@ -497,7 +618,13 @@ class _ResourceCard extends ConsumerWidget {
       margin: EdgeInsets.zero,
       child: ListTile(
         key: Key('resource-card-${resource.id}'),
-        leading: const Icon(Icons.inventory_2_outlined),
+        leading: Tooltip(
+          message: bundle.pack.title,
+          child: Semantics(
+            label: '生活場景 ${bundle.pack.title}',
+            child: Text(bundle.pack.iconEmoji),
+          ),
+        ),
         title: Text(resource.title),
         subtitle: Text(
           '${ReminderFormatters.resourceStatus(status)} • ${ReminderFormatters.resourceSummary(resource, now: now)}',
@@ -511,9 +638,16 @@ class _ResourceCard extends ConsumerWidget {
 }
 
 class _StageList extends ConsumerWidget {
-  const _StageList({required this.items, required this.emptyMessage});
+  const _StageList({
+    required this.items,
+    required this.packs,
+    required this.trackers,
+    required this.emptyMessage,
+  });
 
   final List<StageOccurrence> items;
+  final List<ItemPack> packs;
+  final List<StageTracker> trackers;
   final String emptyMessage;
 
   @override
@@ -529,11 +663,21 @@ class _StageList extends ConsumerWidget {
             builder: (context) {
               final occurrence = items[index];
               final viewModel = StageCardViewModel.fromOccurrence(occurrence);
+              final pack = _packForOccurrence(occurrence);
               return Card(
                 child: Column(
                   children: [
                     ListTile(
                       key: Key('stage-item-${viewModel.id}'),
+                      leading: pack == null
+                          ? null
+                          : Tooltip(
+                              message: pack.title,
+                              child: Semantics(
+                                label: '生活場景 ${pack.title}',
+                                child: Text(pack.iconEmoji),
+                              ),
+                            ),
                       title: Text(viewModel.title),
                       subtitle: Text(viewModel.subtitle),
                       trailing: const Text(ReminderUiText.stageLabel),
@@ -558,6 +702,21 @@ class _StageList extends ConsumerWidget {
         ],
       ],
     );
+  }
+
+  ItemPack? _packForOccurrence(StageOccurrence occurrence) {
+    final tracker = trackers
+        .where((item) => item.id == occurrence.stageTrackerId)
+        .firstOrNull;
+    if (tracker == null) {
+      return null;
+    }
+    for (final pack in packs) {
+      if (pack.id == tracker.packId) {
+        return pack;
+      }
+    }
+    return null;
   }
 }
 
