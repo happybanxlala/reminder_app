@@ -9,16 +9,7 @@ class ResourceManagementPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('資源管理'),
-        actions: [
-          TextButton.icon(
-            onPressed: () => context.go('/manage'),
-            icon: const Icon(Icons.checklist_outlined),
-            label: const Text(ReminderUiText.itemsManagementFeatureTitle),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('資源管理')),
       body: const ResourceManagementContent(),
     );
   }

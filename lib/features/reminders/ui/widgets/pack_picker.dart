@@ -38,30 +38,39 @@ class PackFormDialog extends StatefulWidget {
 class _PackFormDialogState extends State<PackFormDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _titleController;
-  late final TextEditingController _emojiController;
   late final TextEditingController _descriptionController;
-  bool _emojiWasEdited = false;
+  late String _selectedIcon;
+  bool _iconWasSelected = false;
+
+  static const _iconOptions = [
+    _PackIconOption('🏷️', '一般標籤'),
+    _PackIconOption('📌', '固定事項'),
+    _PackIconOption('🏠', '家務'),
+    _PackIconOption('🩺', '健康'),
+    _PackIconOption('👶', '寶寶'),
+    _PackIconOption('🐱', '貓'),
+    _PackIconOption('🐶', '狗'),
+    _PackIconOption('🍽️', '飲食'),
+    _PackIconOption('🧹', '清潔'),
+    _PackIconOption('💊', '用藥'),
+    _PackIconOption('📚', '學習'),
+    _PackIconOption('💼', '工作'),
+  ];
 
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.pack?.title ?? '');
-    _emojiController = TextEditingController(
-      text: widget.pack?.iconEmoji ?? '🏷️',
-    );
+    _selectedIcon = widget.pack?.iconEmoji ?? '🏷️';
     _descriptionController = TextEditingController(
       text: widget.pack?.description ?? '',
     );
-    _titleController.addListener(_suggestEmojiIfNeeded);
-    _emojiController.addListener(() {
-      _emojiWasEdited = true;
-    });
+    _titleController.addListener(_suggestIconIfNeeded);
   }
 
   @override
   void dispose() {
     _titleController.dispose();
-    _emojiController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
@@ -91,14 +100,27 @@ class _PackFormDialogState extends State<PackFormDialog> {
                     (value ?? '').trim().isEmpty ? '請輸入名稱' : null,
               ),
               const SizedBox(height: 12),
-              TextFormField(
+              KeyedSubtree(
                 key: const Key('pack-emoji-field'),
-                controller: _emojiController,
-                decoration: const InputDecoration(
-                  labelText: ReminderUiText.packEmojiFieldLabel,
+                child: DropdownButtonFormField<String>(
+                  key: ValueKey(_selectedIcon),
+                  initialValue: _selectedIcon,
+                  decoration: const InputDecoration(
+                    labelText: ReminderUiText.packEmojiFieldLabel,
+                  ),
+                  items: _iconMenuItems(),
+                  onChanged: (value) {
+                    if (value == null) {
+                      return;
+                    }
+                    setState(() {
+                      _selectedIcon = value;
+                      _iconWasSelected = true;
+                    });
+                  },
+                  validator: (value) =>
+                      (value ?? '').trim().isEmpty ? '請選擇 emoji' : null,
                 ),
-                validator: (value) =>
-                    (value ?? '').trim().isEmpty ? '請輸入 emoji' : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -126,14 +148,32 @@ class _PackFormDialogState extends State<PackFormDialog> {
     );
   }
 
-  void _suggestEmojiIfNeeded() {
-    if (_emojiWasEdited || widget.pack != null) {
+  List<DropdownMenuItem<String>> _iconMenuItems() {
+    final options = [
+      if (_iconOptions.every((option) => option.value != _selectedIcon))
+        _PackIconOption(_selectedIcon, '目前圖示'),
+      ..._iconOptions,
+    ];
+    return options
+        .map(
+          (option) => DropdownMenuItem<String>(
+            value: option.value,
+            child: Text('${option.value} ${option.label}'),
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  void _suggestIconIfNeeded() {
+    if (_iconWasSelected || widget.pack != null) {
       return;
     }
     final suggested = suggestPackEmoji(_titleController.text);
-    if (_emojiController.text != suggested) {
-      _emojiController.text = suggested;
-      _emojiWasEdited = false;
+    if (_selectedIcon != suggested) {
+      setState(() {
+        _selectedIcon = suggested;
+        _iconWasSelected = false;
+      });
     }
   }
 
@@ -145,7 +185,7 @@ class _PackFormDialogState extends State<PackFormDialog> {
       ItemPackInput(
         title: _titleController.text.trim(),
         description: _normalizeOptionalText(_descriptionController.text),
-        iconEmoji: _emojiController.text.trim(),
+        iconEmoji: _selectedIcon.trim(),
       ),
     );
   }
@@ -154,4 +194,11 @@ class _PackFormDialogState extends State<PackFormDialog> {
     final normalized = value.trim();
     return normalized.isEmpty ? null : normalized;
   }
+}
+
+class _PackIconOption {
+  const _PackIconOption(this.value, this.label);
+
+  final String value;
+  final String label;
 }

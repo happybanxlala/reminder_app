@@ -11,7 +11,6 @@ import '../../providers/developer_settings_providers.dart';
 import '../../providers/item_providers.dart';
 import '../../providers/settings_providers.dart';
 import 'feature_management_sections.dart';
-import 'stage_tracker_pages.dart';
 import '../widgets/item_summary_dialog.dart';
 import '../widgets/pack_picker.dart';
 
@@ -46,10 +45,10 @@ class FeaturePage extends StatelessWidget {
           ),
           SizedBox(height: 12),
           _FeatureEntryCard(
-            itemKey: 'stage-trackers',
-            title: ReminderUiText.stageTrackerManagementFeatureTitle,
-            icon: Icons.auto_graph_outlined,
-            routeName: StageTrackerManagementPage.routeName,
+            itemKey: 'item-packs-management',
+            title: ReminderUiText.itemPacksManagementFeatureTitle,
+            icon: Icons.category_outlined,
+            routeName: ItemPacksManagementPage.routeName,
           ),
           SizedBox(height: 12),
           _FeatureEntryCard(
@@ -325,15 +324,6 @@ class SettingsPage extends ConsumerWidget {
             ReminderFormatters.reminderToneDescription(currentTone),
             key: const Key('reminder-tone-description'),
           ),
-          const SizedBox(height: 24),
-          ListTile(
-            key: const Key('pack-management-settings-entry'),
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.category_outlined),
-            title: const Text(ReminderUiText.itemPacksManagementFeatureTitle),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.pushNamed(ItemPacksManagementPage.routeName),
-          ),
         ],
       ),
     );
@@ -456,22 +446,46 @@ class _PackManagementTile extends ConsumerWidget {
                     tooltip: '下',
                     icon: const Icon(Icons.keyboard_arrow_down),
                   ),
-                  IconButton(
-                    key: Key('pack-edit-${pack.id}'),
-                    onPressed: () => _showEditDialog(context, ref),
-                    tooltip: ReminderUiText.editAction,
-                    icon: const Icon(Icons.edit_outlined),
-                  ),
-                  IconButton(
-                    key: Key('pack-archive-${pack.id}'),
-                    onPressed: () => _showArchiveDialog(context, ref),
-                    tooltip: ReminderUiText.archiveAction,
-                    icon: const Icon(Icons.archive_outlined),
+                  PopupMenuButton<_PackManagementMenuAction>(
+                    key: Key('pack-overflow-${pack.id}'),
+                    tooltip: ReminderUiText.itemActionMenuTitle,
+                    onSelected: (action) =>
+                        _handleMenuAction(context, ref, action),
+                    itemBuilder: (menuContext) => [
+                      const PopupMenuItem(
+                        value: _PackManagementMenuAction.edit,
+                        child: Text(ReminderUiText.editAction),
+                      ),
+                      PopupMenuItem(
+                        value: _PackManagementMenuAction.archive,
+                        child: Text(
+                          ReminderUiText.archiveAction,
+                          style: TextStyle(
+                            color: Theme.of(menuContext).colorScheme.error,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
       ),
     );
+  }
+
+  Future<void> _handleMenuAction(
+    BuildContext context,
+    WidgetRef ref,
+    _PackManagementMenuAction action,
+  ) async {
+    switch (action) {
+      case _PackManagementMenuAction.edit:
+        await _showEditDialog(context, ref);
+        return;
+      case _PackManagementMenuAction.archive:
+        await _showArchiveDialog(context, ref);
+        return;
+    }
   }
 
   Future<void> _showEditDialog(BuildContext context, WidgetRef ref) async {
@@ -538,6 +552,8 @@ class _PackManagementTile extends ConsumerWidget {
 }
 
 enum _ArchivePackAction { archive, move, cancel }
+
+enum _PackManagementMenuAction { edit, archive }
 
 class DeveloperSettingsPage extends ConsumerWidget {
   const DeveloperSettingsPage({super.key, this.pickDate});
