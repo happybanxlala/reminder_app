@@ -1,13 +1,15 @@
-# ⚠️ AI IGNORE
+# Core Spec Revision Guide
 
-This document is for personal notes and exploration only.
+This document is a revision and organization guide for maintaining the core spec.
 
-DO NOT use this file as:
-- source of truth
-- implementation reference
-- product specification
+It is NOT a product specification, implementation reference, or source of truth.
 
-Use only documents under `/docs/core/` for implementation decisions.
+Use it only when revising `docs/04_core_model_spec_v1.md` to keep the spec structured, factual, and aligned with the current repo.
+
+Implementation decisions must be based on:
+1. Current repo code
+2. `docs/04_core_model_spec_v1.md`
+3. Tests
 
 ---
 

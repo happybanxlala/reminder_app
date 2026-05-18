@@ -1,3 +1,16 @@
+# ⚠️ AI IGNORE
+
+This document is for personal notes and exploration only.
+
+DO NOT use this file as:
+- source of truth
+- implementation reference
+- product specification
+
+Use only documents under `/docs/core/` for implementation decisions.
+
+---
+
 背景：關於Default item pack，實際是item 沒有綁定pack，然後系統給予一個產品語意中不存在的pack(Default item pack)，方便資料管理。
 
 1. [UI]整合「itemsManagement」和「itemsManagement」兩個功能頁為一頁:

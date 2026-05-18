@@ -1,3 +1,16 @@
+# ⚠️ AI IGNORE
+
+This document is for personal notes and exploration only.
+
+DO NOT use this file as:
+- source of truth
+- implementation reference
+- product specification
+
+Use only documents under `/docs/core/` for implementation decisions.
+
+---
+
 ## 新 item record data model
 
 使用者對item 作出完成/跳過時，會建立record。用於查看使用者動態及items的歷史紀錄
