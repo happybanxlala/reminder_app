@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../features/reminders/presentation/text/reminder_ui_text.dart';
 import '../features/reminders/ui/pages/feature_page.dart';
 import '../features/reminders/ui/pages/item_edit_page.dart';
-import '../features/reminders/ui/pages/stage_tracker_pages.dart';
 
 class AppShell extends StatelessWidget {
   const AppShell({required this.navigationShell, super.key});
@@ -80,13 +79,7 @@ class _FabForBranch extends StatelessWidget {
         tooltip: ReminderUiText.addItem,
         child: const Icon(Icons.add_circle_outline),
       ),
-      2 => FloatingActionButton(
-        key: const Key('stage-tracker-add-fab'),
-        onPressed: () =>
-            context.pushNamed(StageTrackerManagementPage.routeName),
-        tooltip: ReminderUiText.addStageTracker,
-        child: const Icon(Icons.add),
-      ),
+      2 => const SizedBox.shrink(key: Key('stage-tracker-add-fab')),
       _ => const SizedBox.shrink(),
     };
   }

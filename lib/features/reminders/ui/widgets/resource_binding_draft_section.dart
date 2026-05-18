@@ -85,7 +85,7 @@ class ResourceBindingDraftSection extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('消耗資源'),
+            // const Text('消耗資源'),
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(

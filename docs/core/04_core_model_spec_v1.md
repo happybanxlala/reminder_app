@@ -912,6 +912,7 @@ Home route：`/`，route name：`home`。
 Home 已實作：
 
 - attention summary card。
+- attention summary card 的日期 badge 顯示目前生效日期，格式為 `yyyy/MM/dd`；developer preview date 啟用時跟隨覆蓋日期。
 - Pack filter。
 - Resource section。
 - danger item section。
@@ -923,7 +924,10 @@ Pack filter：
 
 - 顯示「全部」與所有 active Pack。
 - 包含 system default pack「一般」。
-- chip label 主要顯示 emoji。
+- 「全部」選取時顯示剔號。
+- 未選取 Pack chip 只顯示 emoji。
+- 選取 Pack chip 顯示 emoji 與 Pack title，不顯示剔號，hover / pressed 時不顯示陰影。
+- Pack chip 以固定 label layout 顯示 emoji，避免選取狀態切換時 emoji 位置跳動。
 - Pack title 保留於 tooltip / accessibility label。
 - 點擊 Pack icon 只篩選 Home 內容，不進入 Pack detail page。
 

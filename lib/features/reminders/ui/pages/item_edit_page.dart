@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../app/theme/reminder_theme.dart';
 import '../../data/item_repository.dart';
 import '../../data/local/reminder_dao.dart';
 import '../../data/resource_repository.dart';
@@ -17,6 +18,7 @@ import '../widgets/editor_common_fields.dart';
 import '../widgets/item_config_form_section.dart';
 import '../widgets/pack_picker.dart';
 import '../widgets/resource_binding_draft_section.dart';
+import '../widgets/reminder_components.dart';
 
 enum ItemEditMode { create, edit }
 
@@ -118,7 +120,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
         body: Form(
           key: _formKey,
           child: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(ReminderSpacing.page),
             children: [
               EditorTitleField(controller: _titleController),
               const SizedBox(height: 12),
@@ -568,17 +570,16 @@ class _ResourceConsumptionSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final rulesAsync = ref.watch(itemConsumptionRulesProvider(itemId));
     final resourcesAsync = ref.watch(resourcesProvider);
-    return Card(
+    return ReminderPaperCard(
       key: const Key('resource-consumption-section'),
-      margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.zero,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Expanded(child: Text('消耗資源')),
+                // const Expanded(child: Text('消耗資源')),
                 TextButton.icon(
                   key: const Key('add-resource-rule-button'),
                   onPressed: () => _showAddResourceRuleDialog(context, ref),

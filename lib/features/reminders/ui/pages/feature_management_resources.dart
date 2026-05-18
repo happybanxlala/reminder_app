@@ -21,7 +21,7 @@ class ResourceManagementContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(ReminderSpacing.page),
       children: const [ResourceManagementSection()],
     );
   }
@@ -58,17 +58,19 @@ class ResourceManagementSection extends ConsumerWidget {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: ReminderSpacing.listGap),
         resourcesAsync.when(
           data: (resources) {
             if (resources.isEmpty) {
-              return const Text('目前沒有要留意的資源。');
+              return const ReminderEmptyState(message: '目前沒有要留意的資源。');
             }
             return Column(
               children: resources
                   .map(
                     (bundle) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.only(
+                        bottom: ReminderSpacing.listGap,
+                      ),
                       child: _ManagedResourceCard(
                         bundle: bundle,
                         previewDate: previewDate,
@@ -99,30 +101,62 @@ class _ManagedResourceCard extends ConsumerWidget {
     final repository = ref.watch(resourceRepositoryProvider);
     final resource = bundle.resource;
     final status = repository.statusFor(resource, now: previewDate);
-    return Card(
+    final palette = context.reminderPalette;
+    return ReminderRailCard(
       key: Key('resource-card-${resource.id}'),
-      margin: EdgeInsets.zero,
-      child: ListTile(
+      railColor: _resourceManagementStatusColor(status, palette),
+      padding: const EdgeInsets.all(ReminderSpacing.cardCompact),
+      child: InkWell(
         onTap: () => _showResourceDetailDialog(
           context,
           resource: resource,
           status: status,
           previewDate: previewDate,
         ),
-        leading: const Icon(Icons.inventory_2_outlined),
-        title: Text(resource.title),
-        subtitle: Text(
-          '${ReminderFormatters.resourceType(resource.type)}｜${ReminderFormatters.resourceStatus(status)}｜${ReminderFormatters.resourceSummary(resource, now: previewDate)}',
-        ),
-        trailing: Wrap(
-          spacing: 4,
+        child: Row(
           children: [
-            IconButton(
+            ReminderIconBubble(
+              size: 54,
+              backgroundColor: palette.statusWarningContainer,
+              child: Icon(
+                Icons.inventory_2_outlined,
+                color: palette.domainResource,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        resource.title,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      ReminderBadge(
+                        label: ReminderFormatters.resourceType(resource.type),
+                        color: palette.domainResource,
+                        backgroundColor: palette.statusWarningContainer,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${ReminderFormatters.resourceStatus(status)} · ${ReminderFormatters.resourceSummary(resource, now: previewDate)}',
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
               key: Key('resource-refill-${resource.id}'),
               onPressed: () =>
                   _showResourceRefillDialog(context, ref, resource),
-              tooltip: '補充',
-              icon: const Icon(Icons.add_circle_outline),
+              child: const Text('補充'),
             ),
             PopupMenuButton<_ManagedResourceMenuAction>(
               key: Key('resource-overflow-${resource.id}'),
@@ -276,6 +310,18 @@ class _ManagedResourceCard extends ConsumerWidget {
           actionAt: previewDate,
         );
   }
+}
+
+Color _resourceManagementStatusColor(
+  ResourceStatus status,
+  ReminderPalette palette,
+) {
+  return switch (status) {
+    ResourceStatus.normal => palette.statusNormal,
+    ResourceStatus.warning => palette.statusWarning,
+    ResourceStatus.danger => palette.statusDanger,
+    ResourceStatus.unknown => palette.statusUnknown,
+  };
 }
 
 Future<void> _showResourceDetailDialog(

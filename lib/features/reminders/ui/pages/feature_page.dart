@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/theme/reminder_theme.dart';
 import '../../data/local/reminder_dao.dart';
 import '../../domain/attention_policy.dart';
 import '../../domain/item_pack.dart';
@@ -11,8 +12,10 @@ import '../../providers/developer_settings_providers.dart';
 import '../../providers/item_providers.dart';
 import '../../providers/settings_providers.dart';
 import 'feature_management_sections.dart';
+import 'stage_tracker_pages.dart';
 import '../widgets/item_summary_dialog.dart';
 import '../widgets/pack_picker.dart';
+import '../widgets/reminder_components.dart';
 
 typedef PreviewDatePicker =
     Future<DateTime?> Function(BuildContext context, DateTime initialDate);
@@ -25,44 +28,88 @@ class FeaturePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.reminderPalette;
     return Scaffold(
-      appBar: AppBar(title: const Text(ReminderUiText.featurePageTitle)),
+      appBar: AppBar(title: const Text(ReminderUiText.manageTitle)),
       body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: const [
-          _FeatureEntryCard(
-            itemKey: 'item-activity',
-            title: ReminderUiText.itemActivityFeatureTitle,
-            icon: Icons.dynamic_feed_outlined,
-            routeName: ItemActivityPage.routeName,
+        padding: const EdgeInsets.all(ReminderSpacing.page),
+        children: [
+          Text(
+            '整理你的生活照顧系統',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              color: palette.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: ReminderSpacing.section),
+          _FeatureEntryCard(
+            itemKey: 'items-management',
+            title: '要照顧的事',
+            subtitle: '清潔、檢查、維護與需要完成的生活責任',
+            icon: Icons.checklist_outlined,
+            routeName: ItemsManagementPage.routeName,
+          ),
+          const SizedBox(height: 12),
           _FeatureEntryCard(
             itemKey: 'resources-management',
-            title: '資源管理',
+            title: '資源',
+            subtitle: '追蹤庫存、補充與會耗盡的東西',
             icon: Icons.inventory_2_outlined,
             routeName: ResourceManagementPage.routeName,
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           _FeatureEntryCard(
             itemKey: 'item-packs-management',
-            title: ReminderUiText.itemPacksManagementFeatureTitle,
+            title: '生活場景',
+            subtitle: '用家務、健康、寵物或家庭脈絡分組',
             icon: Icons.category_outlined,
             routeName: ItemPacksManagementPage.routeName,
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
+          _FeatureEntryCard(
+            itemKey: 'stage-tracking',
+            title: ReminderUiText.stageTrackerTitle,
+            subtitle: '追蹤成長、重複階段與重要時間點',
+            icon: Icons.auto_graph_outlined,
+            routeName: StageTrackerManagementPage.routeName,
+          ),
+          const SizedBox(height: 12),
+          _FeatureEntryCard(
+            itemKey: 'item-activity',
+            title: ReminderUiText.itemActivityFeatureTitle,
+            subtitle: '查看最近處理、延期與跳過的紀錄',
+            icon: Icons.dynamic_feed_outlined,
+            routeName: ItemActivityPage.routeName,
+          ),
+          const SizedBox(height: 12),
           _FeatureEntryCard(
             itemKey: 'settings',
-            title: ReminderUiText.userSettingsFeatureTitle,
+            title: '設定',
+            subtitle: '調整提醒風格、外觀與開發者工具',
             icon: Icons.settings_outlined,
             routeName: SettingsPage.routeName,
           ),
-          SizedBox(height: 12),
-          _FeatureEntryCard(
-            itemKey: 'developer-settings',
-            title: ReminderUiText.developerSettingsFeatureTitle,
-            icon: Icons.code_outlined,
-            routeName: DeveloperSettingsPage.routeName,
+          const SizedBox(height: ReminderSpacing.section),
+          ReminderPaperCard(
+            backgroundColor: palette.surfaceWarm,
+            child: Row(
+              children: [
+                ReminderIconBubble(
+                  backgroundColor: palette.primaryWarmContainer,
+                  child: Icon(
+                    Icons.favorite_border,
+                    color: palette.primaryWarm,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    '平靜的系統，讓小責任保持可見。',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -113,7 +160,7 @@ class _ItemActivityPageState extends ConsumerState<ItemActivityPage> {
         title: const Text(ReminderUiText.itemActivityFeatureTitle),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(ReminderSpacing.page),
         children: [
           TextField(
             key: const Key('item-activity-search-field'),
@@ -139,7 +186,7 @@ class _ItemActivityPageState extends ConsumerState<ItemActivityPage> {
                     ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: ReminderSpacing.listGap),
           if (state.isLoading)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
@@ -156,7 +203,7 @@ class _ItemActivityPageState extends ConsumerState<ItemActivityPage> {
           else ...[
             ...state.items.map(
               (entry) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.only(bottom: ReminderSpacing.listGap),
                 child: _ActivityEntryCard(
                   entry: entry,
                   previewDate: previewDate,
@@ -216,6 +263,7 @@ class _ActivityEntryCard extends StatelessWidget {
           entry.bundle,
           previewDate: previewDate,
         ),
+        leading: const Icon(Icons.history_outlined),
         title: Text(entry.itemTitle),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -285,44 +333,51 @@ class SettingsPage extends ConsumerWidget {
         title: const Text(ReminderUiText.userSettingsFeatureTitle),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(ReminderSpacing.page),
         children: [
-          Text(
-            ReminderUiText.reminderToneSettingsTitle,
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 8),
-          const Text(ReminderUiText.reminderToneSettingsDescription),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<ReminderTone>(
-            key: const Key('reminder-tone-field'),
-            initialValue: currentTone,
-            decoration: const InputDecoration(
-              labelText: ReminderUiText.reminderToneSettingsTitle,
-            ),
-            items: ReminderTone.values
-                .map(
-                  (tone) => DropdownMenuItem(
-                    value: tone,
-                    child: Text(ReminderFormatters.reminderTone(tone)),
+          ReminderPaperCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ReminderSectionHeader(
+                  title: ReminderUiText.reminderToneSettingsTitle,
+                  icon: Icons.notifications_active_outlined,
+                ),
+                const SizedBox(height: 8),
+                const Text(ReminderUiText.reminderToneSettingsDescription),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<ReminderTone>(
+                  key: const Key('reminder-tone-field'),
+                  initialValue: currentTone,
+                  decoration: const InputDecoration(
+                    labelText: ReminderUiText.reminderToneSettingsTitle,
                   ),
-                )
-                .toList(growable: false),
-            onChanged: settingsAsync.isLoading
-                ? null
-                : (value) async {
-                    if (value == null) {
-                      return;
-                    }
-                    await ref
-                        .read(settingsRepositoryProvider)
-                        .updateReminderTone(value);
-                  },
-          ),
-          const SizedBox(height: 8),
-          Text(
-            ReminderFormatters.reminderToneDescription(currentTone),
-            key: const Key('reminder-tone-description'),
+                  items: ReminderTone.values
+                      .map(
+                        (tone) => DropdownMenuItem(
+                          value: tone,
+                          child: Text(ReminderFormatters.reminderTone(tone)),
+                        ),
+                      )
+                      .toList(growable: false),
+                  onChanged: settingsAsync.isLoading
+                      ? null
+                      : (value) async {
+                          if (value == null) {
+                            return;
+                          }
+                          await ref
+                              .read(settingsRepositoryProvider)
+                              .updateReminderTone(value);
+                        },
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  ReminderFormatters.reminderToneDescription(currentTone),
+                  key: const Key('reminder-tone-description'),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -337,7 +392,7 @@ class PackManagementContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final packsAsync = ref.watch(activeItemPacksProvider);
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(ReminderSpacing.page),
       children: [
         Align(
           alignment: Alignment.centerLeft,
@@ -348,7 +403,7 @@ class PackManagementContent extends ConsumerWidget {
             label: const Text(ReminderUiText.addItemPack),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: ReminderSpacing.section),
         packsAsync.when(
           data: (packs) {
             if (packs.isEmpty) {
@@ -573,11 +628,11 @@ class DeveloperSettingsPage extends ConsumerWidget {
         title: const Text(ReminderUiText.developerSettingsFeatureTitle),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(ReminderSpacing.page),
         children: [
-          Card(
+          ReminderPaperCard(
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.zero,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -680,25 +735,53 @@ class _FeatureEntryCard extends StatelessWidget {
   const _FeatureEntryCard({
     required this.itemKey,
     required this.title,
+    required this.subtitle,
     required this.icon,
     required this.routeName,
   });
 
   final String itemKey;
   final String title;
+  final String subtitle;
   final IconData icon;
   final String routeName;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
+    final palette = context.reminderPalette;
+    return ReminderPaperCard(
+      onTap: () => _openRoute(context),
+      padding: const EdgeInsets.all(18),
+      child: Row(
         key: Key('feature-entry-$itemKey'),
-        leading: Icon(icon),
-        title: Text(title),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () => context.pushNamed(routeName),
+        children: [
+          ReminderIconBubble(
+            size: 64,
+            child: Icon(icon, color: palette.primaryWarm, size: 30),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 4),
+                Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right, color: palette.primaryWarm),
+        ],
       ),
     );
+  }
+
+  void _openRoute(BuildContext context) {
+    if (routeName == ItemsManagementPage.routeName ||
+        routeName == StageTrackerManagementPage.routeName) {
+      context.goNamed(routeName);
+      return;
+    }
+    context.pushNamed(routeName);
   }
 }

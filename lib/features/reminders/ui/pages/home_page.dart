@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/theme/reminder_theme.dart';
 import '../../data/home_models.dart';
 import '../../data/local/reminder_dao.dart';
 import '../../domain/attention_summary.dart';
@@ -22,6 +23,7 @@ import 'feature_page.dart';
 import 'item_edit_page.dart';
 import 'item_history_page.dart';
 import '../widgets/pack_picker.dart';
+import '../widgets/reminder_components.dart';
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
@@ -73,14 +75,16 @@ class _HomeContentState extends ConsumerState<HomeContent> {
     final stagesAsync = ref.watch(upcomingStagesProvider);
     final packsAsync = ref.watch(activeItemPacksProvider);
     final trackersAsync = ref.watch(stageTrackersProvider);
+    final previewDate = ref.watch(effectivePreviewDateProvider);
     final packs = packsAsync.valueOrNull ?? const <ItemPack>[];
     final trackers = trackersAsync.valueOrNull ?? const <StageTracker>[];
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(ReminderSpacing.page),
       children: [
         summaryAsync.when(
-          data: (summary) => _AttentionSummaryCard(summary: summary),
+          data: (summary) =>
+              _AttentionSummaryCard(summary: summary, previewDate: previewDate),
           error: (error, stack) => Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -94,7 +98,7 @@ class _HomeContentState extends ConsumerState<HomeContent> {
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: ReminderSpacing.section),
         _HomePackFilter(
           packs: packs,
           selectedPackId: _selectedPackId,
@@ -104,29 +108,10 @@ class _HomeContentState extends ConsumerState<HomeContent> {
             });
           },
         ),
-        const SizedBox(height: 16),
-        resourcesAsync.when(
-          data: (resources) {
-            final filteredResources = _filterResources(resources);
-            if (filteredResources.isEmpty) {
-              return const SizedBox.shrink();
-            }
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: _HomeSection(
-                title: '資源',
-                child: _ResourceList(resources: filteredResources),
-              ),
-            );
-          },
-          error: (error, stack) => Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: _HomeSection(title: '資源', child: Text('讀取失敗: $error')),
-          ),
-          loading: () => const SizedBox.shrink(),
-        ),
+        const SizedBox(height: ReminderSpacing.section),
         _HomeSection(
           title: ReminderUiText.dangerTab,
+          icon: Icons.error_outline,
           child: dangerAsync.when(
             data: (items) => _ItemList(
               items: _filterItems(items),
@@ -136,9 +121,10 @@ class _HomeContentState extends ConsumerState<HomeContent> {
             loading: () => const Center(child: CircularProgressIndicator()),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: ReminderSpacing.section),
         _HomeSection(
           title: ReminderUiText.warningTab,
+          icon: Icons.visibility_outlined,
           child: warningAsync.when(
             data: (items) => _ItemList(
               items: _filterItems(items),
@@ -148,9 +134,35 @@ class _HomeContentState extends ConsumerState<HomeContent> {
             loading: () => const Center(child: CircularProgressIndicator()),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: ReminderSpacing.section),
+        resourcesAsync.when(
+          data: (resources) {
+            final filteredResources = _filterResources(resources);
+            if (filteredResources.isEmpty) {
+              return const SizedBox.shrink();
+            }
+            return Padding(
+              padding: const EdgeInsets.only(bottom: ReminderSpacing.section),
+              child: _HomeSection(
+                title: '資源',
+                icon: Icons.inventory_2_outlined,
+                child: _ResourceList(resources: filteredResources),
+              ),
+            );
+          },
+          error: (error, stack) => Padding(
+            padding: const EdgeInsets.only(bottom: ReminderSpacing.section),
+            child: _HomeSection(
+              title: '資源',
+              icon: Icons.inventory_2_outlined,
+              child: Text('讀取失敗: $error'),
+            ),
+          ),
+          loading: () => const SizedBox.shrink(),
+        ),
         _HomeSection(
           title: ReminderUiText.upcomingSectionTitle,
+          icon: Icons.event_available_outlined,
           child: stagesAsync.when(
             data: (items) => _StageList(
               items: _filterStages(items, trackers),
@@ -162,6 +174,7 @@ class _HomeContentState extends ConsumerState<HomeContent> {
             loading: () => const Center(child: CircularProgressIndicator()),
           ),
         ),
+        const ReminderFooterMark(),
       ],
     );
   }
@@ -216,6 +229,7 @@ class _HomePackFilter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.reminderPalette;
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -224,9 +238,14 @@ class _HomePackFilter extends StatelessWidget {
             padding: const EdgeInsets.only(right: 8),
             child: ChoiceChip(
               key: const Key('home-pack-filter-all'),
+              avatar: selectedPackId == null
+                  ? Icon(Icons.check, size: 18, color: palette.primaryWarmDark)
+                  : null,
               label: const Text('全部'),
               selected: selectedPackId == null,
+              showCheckmark: false,
               onSelected: (_) => onChanged(null),
+              selectedColor: palette.primaryWarmContainer,
             ),
           ),
           for (final pack in packs)
@@ -238,11 +257,31 @@ class _HomePackFilter extends StatelessWidget {
                   label: '生活場景 ${pack.title}',
                   button: true,
                   selected: selectedPackId == pack.id,
-                  child: ChoiceChip(
-                    key: Key('home-pack-filter-${pack.id}'),
-                    label: Text(pack.iconEmoji),
-                    selected: selectedPackId == pack.id,
-                    onSelected: (_) => onChanged(pack.id),
+                  child: Builder(
+                    builder: (context) {
+                      final selected = selectedPackId == pack.id;
+                      return ChoiceChip(
+                        key: Key('home-pack-filter-${pack.id}'),
+                        label: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(pack.iconEmoji),
+                            if (selected) ...[
+                              const SizedBox(width: 6),
+                              Text(pack.title),
+                            ],
+                          ],
+                        ),
+                        selected: selected,
+                        showCheckmark: false,
+                        elevation: 0,
+                        pressElevation: 0,
+                        shadowColor: Colors.transparent,
+                        selectedShadowColor: Colors.transparent,
+                        onSelected: (_) => onChanged(pack.id),
+                        selectedColor: palette.primaryWarmContainer,
+                      );
+                    },
                   ),
                 ),
               ),
@@ -254,67 +293,64 @@ class _HomePackFilter extends StatelessWidget {
 }
 
 class _AttentionSummaryCard extends StatelessWidget {
-  const _AttentionSummaryCard({required this.summary});
+  const _AttentionSummaryCard({
+    required this.summary,
+    required this.previewDate,
+  });
 
   final AttentionSummary summary;
+  final DateTime previewDate;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final palette = context.reminderPalette;
     final breakdown = ReminderUiText.homeAttentionBreakdownTemplate
         .replaceFirst('{danger}', '${summary.dangerCount}')
         .replaceFirst('{warning}', '${summary.warningCount}')
         .replaceFirst('{stage}', '${summary.stageUpcomingCount}');
 
-    return Card(
+    return ReminderPaperCard(
       key: const Key('attention-summary-card'),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: summary.hasAttention
-                    ? const Color(0xFFFFF3E0)
-                    : const Color(0xFFE8F5E9),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                summary.hasAttention
-                    ? Icons.notifications_active_outlined
-                    : Icons.check_circle_outline,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    summary.hasAttention
-                        ? '今天有 ${summary.totalCount} 件事需要處理'
-                        : ReminderUiText.homeAttentionStable,
-                    key: const Key('attention-summary-title'),
-                    style: theme.textTheme.titleMedium,
+      backgroundColor: palette.surfaceWarm,
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ReminderBadge(
+                  label: ReminderFormatters.date(previewDate),
+                  icon: Icons.calendar_today_outlined,
+                  color: palette.primaryWarmDark,
+                  backgroundColor: palette.primaryWarmContainer,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  summary.hasAttention
+                      ? '今天有 ${summary.totalCount} 件事需要處理'
+                      : ReminderUiText.homeAttentionStable,
+                  key: const Key('attention-summary-title'),
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
                   ),
-                  if (summary.hasAttention) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      breakdown,
-                      key: const Key('attention-summary-breakdown'),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
+                ),
+                if (summary.hasAttention) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    breakdown,
+                    key: const Key('attention-summary-breakdown'),
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: palette.textSecondary,
                     ),
-                  ],
+                  ),
                 ],
-              ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -329,13 +365,13 @@ class _ItemList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
-      return Text(emptyMessage);
+      return ReminderEmptyState(message: emptyMessage);
     }
     final previewDate = ref.watch(effectivePreviewDateProvider);
     return Column(
       children: [
         for (var index = 0; index < items.length; index++) ...[
-          if (index > 0) const SizedBox(height: 12),
+          if (index > 0) const SizedBox(height: ReminderSpacing.listGap),
           _ItemCard(entry: items[index], previewDate: previewDate),
         ],
       ],
@@ -358,90 +394,93 @@ class _ItemCardState extends ConsumerState<_ItemCard> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.reminderPalette;
     final baseViewModel = ItemCardViewModel.fromEntry(
       widget.entry,
       now: widget.previewDate,
     );
     final viewModel = baseViewModel.copyWith(isExpanded: _isExpanded);
+    final stateColor = _itemStateColor(viewModel.displayState, palette);
 
-    return Card(
+    return ReminderRailCard(
       key: Key('item-card-${viewModel.id}'),
-      clipBehavior: Clip.antiAlias,
+      railColor: stateColor,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            key: Key('item-header-${viewModel.id}'),
-            color: _headerColor(viewModel.displayState),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Checkbox(
-                  key: Key('item-checkbox-${viewModel.id}'),
-                  value: false,
-                  onChanged: viewModel.canComplete
-                      ? (_) => _handleComplete(viewModel)
-                      : null,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Tooltip(
+                message: widget.entry.bundle.pack.title,
+                child: Semantics(
+                  label: '生活場景 ${widget.entry.bundle.pack.title}',
+                  child: ReminderIconBubble(
+                    size: 58,
+                    child: Text(widget.entry.bundle.pack.iconEmoji),
+                  ),
                 ),
-                Expanded(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Tooltip(
-                        message: widget.entry.bundle.pack.title,
-                        child: Semantics(
-                          label: '生活場景 ${widget.entry.bundle.pack.title}',
-                          child: Text(widget.entry.bundle.pack.iconEmoji),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
                           viewModel.title,
                           key: Key('item-${viewModel.id}'),
-                          style: Theme.of(context).textTheme.titleMedium,
+                          style: Theme.of(context).textTheme.titleLarge,
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      _ItemTypeBadge(
-                        label: viewModel.badgeLabel,
-                        key: Key('item-badge-${viewModel.id}'),
+                        _ItemTypeBadge(
+                          label: viewModel.badgeLabel,
+                          key: Key('item-badge-${viewModel.id}'),
+                        ),
+                      ],
+                    ),
+                    if (viewModel.trailingLabel != null) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        viewModel.trailingLabel!,
+                        key: Key('item-tail-${viewModel.id}'),
+                        style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ],
-                  ),
+                  ],
                 ),
-                if (viewModel.trailingLabel != null) ...[
-                  const SizedBox(width: 16),
-                  Text(
-                    viewModel.trailingLabel!,
-                    key: Key('item-tail-${viewModel.id}'),
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-                IconButton(
-                  key: Key('item-expand-${viewModel.id}'),
-                  onPressed: () {
-                    setState(() {
-                      _isExpanded = !_isExpanded;
-                    });
-                  },
-                  tooltip: _isExpanded
-                      ? ReminderUiText.collapseAction
-                      : ReminderUiText.expandAction,
-                  icon: Icon(
-                    _isExpanded ? Icons.expand_less : Icons.expand_more,
-                  ),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton(
+                key: Key('item-checkbox-${viewModel.id}'),
+                onPressed: viewModel.canComplete
+                    ? () => _handleComplete(viewModel)
+                    : null,
+                child: const Text(ReminderUiText.completeAction),
+              ),
+              IconButton(
+                key: Key('item-expand-${viewModel.id}'),
+                onPressed: () {
+                  setState(() {
+                    _isExpanded = !_isExpanded;
+                  });
+                },
+                tooltip: _isExpanded
+                    ? ReminderUiText.collapseAction
+                    : ReminderUiText.expandAction,
+                icon: Icon(_isExpanded ? Icons.expand_less : Icons.expand_more),
+              ),
+            ],
           ),
           AnimatedSize(
             duration: const Duration(milliseconds: 180),
             child: viewModel.isExpanded
                 ? Container(
                     key: Key('item-content-${viewModel.id}'),
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                    padding: const EdgeInsets.only(top: 14),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -450,7 +489,7 @@ class _ItemCardState extends ConsumerState<_ItemCard> {
                           value: packDisplayLabel(widget.entry.bundle.pack),
                         ),
                         if (viewModel.note != null)
-                          _ItemDetailRow(label: 'Note', value: viewModel.note!),
+                          _ItemDetailRow(label: '備註', value: viewModel.note!),
                         if (viewModel.anchorDateLabel != null)
                           _ItemDetailRow(
                             label: '開始日期',
@@ -522,13 +561,11 @@ class _ItemTypeBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).dividerColor),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(label, style: Theme.of(context).textTheme.labelMedium),
+    final palette = context.reminderPalette;
+    return ReminderBadge(
+      label: label,
+      color: palette.primaryWarmDark,
+      backgroundColor: palette.primaryWarmContainer,
     );
   }
 }
@@ -550,7 +587,7 @@ class _ItemDetailRow extends StatelessWidget {
             '$label：',
             style: Theme.of(
               context,
-            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
           Text(value, style: Theme.of(context).textTheme.bodyMedium),
         ],
@@ -559,14 +596,14 @@ class _ItemDetailRow extends StatelessWidget {
   }
 }
 
-Color _headerColor(ItemCardDisplayState state) {
+Color _itemStateColor(ItemCardDisplayState state, ReminderPalette palette) {
   return switch (state) {
-    ItemCardDisplayState.normal => const Color(0xFFE8F5E9),
-    ItemCardDisplayState.warning => const Color(0xFFFFF8E1),
-    ItemCardDisplayState.danger => const Color(0xFFFFEBEE),
-    ItemCardDisplayState.overdue => const Color(0xFFEF9A9A),
-    ItemCardDisplayState.notStarted => Colors.white,
-    ItemCardDisplayState.unknown => const Color(0xFFF5F5F5),
+    ItemCardDisplayState.normal => palette.statusNormal,
+    ItemCardDisplayState.warning => palette.statusWarning,
+    ItemCardDisplayState.danger => palette.statusDanger,
+    ItemCardDisplayState.overdue => palette.statusDanger,
+    ItemCardDisplayState.notStarted => palette.statusUnknown,
+    ItemCardDisplayState.unknown => palette.statusUnknown,
   };
 }
 
@@ -590,12 +627,12 @@ class _ResourceList extends ConsumerWidget {
         })
         .toList(growable: false);
     if (attentionResources.isEmpty) {
-      return const Text('目前沒有需要留意的資源。');
+      return const ReminderEmptyState(message: '目前沒有需要留意的資源。');
     }
     return Column(
       children: [
         for (var index = 0; index < attentionResources.length; index++) ...[
-          if (index > 0) const SizedBox(height: 12),
+          if (index > 0) const SizedBox(height: ReminderSpacing.listGap),
           _ResourceCard(bundle: attentionResources[index], now: previewDate),
         ],
       ],
@@ -611,30 +648,83 @@ class _ResourceCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.reminderPalette;
     final repository = ref.watch(resourceRepositoryProvider);
     final resource = bundle.resource;
     final status = repository.statusFor(resource, now: now);
-    return Card(
-      margin: EdgeInsets.zero,
-      child: ListTile(
-        key: Key('resource-card-${resource.id}'),
-        leading: Tooltip(
-          message: bundle.pack.title,
-          child: Semantics(
-            label: '生活場景 ${bundle.pack.title}',
-            child: Text(bundle.pack.iconEmoji),
+    return ReminderRailCard(
+      key: Key('resource-card-${resource.id}'),
+      railColor: _resourceStatusColor(status, palette),
+      child: Row(
+        children: [
+          Tooltip(
+            message: bundle.pack.title,
+            child: Semantics(
+              label: '生活場景 ${bundle.pack.title}',
+              child: ReminderIconBubble(
+                size: 58,
+                child: Text(bundle.pack.iconEmoji),
+              ),
+            ),
           ),
-        ),
-        title: Text(resource.title),
-        subtitle: Text(
-          '${ReminderFormatters.resourceStatus(status)} • ${ReminderFormatters.resourceSummary(resource, now: now)}',
-        ),
-        trailing: Text(
-          ReminderFormatters.resourceTrailingLabel(resource, now: now),
-        ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      resource.title,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    ReminderBadge(
+                      label: '庫存',
+                      icon: Icons.inventory_2_outlined,
+                      color: palette.domainResource,
+                      backgroundColor: palette.statusWarningContainer,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '${ReminderFormatters.resourceStatus(status)} · ${ReminderFormatters.resourceSummary(resource, now: now)}',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          ReminderBadge(
+            label: ReminderFormatters.resourceTrailingLabel(resource, now: now),
+            color: _resourceStatusColor(status, palette),
+            backgroundColor: _resourceStatusContainer(status, palette),
+          ),
+        ],
       ),
     );
   }
+}
+
+Color _resourceStatusColor(ResourceStatus status, ReminderPalette palette) {
+  return switch (status) {
+    ResourceStatus.normal => palette.statusNormal,
+    ResourceStatus.warning => palette.statusWarning,
+    ResourceStatus.danger => palette.statusDanger,
+    ResourceStatus.unknown => palette.statusUnknown,
+  };
+}
+
+Color _resourceStatusContainer(ResourceStatus status, ReminderPalette palette) {
+  return switch (status) {
+    ResourceStatus.normal => palette.statusNormalContainer,
+    ResourceStatus.warning => palette.statusWarningContainer,
+    ResourceStatus.danger => palette.statusDangerContainer,
+    ResourceStatus.unknown => palette.statusUnknownContainer,
+  };
 }
 
 class _StageList extends ConsumerWidget {
@@ -653,37 +743,68 @@ class _StageList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
-      return Text(emptyMessage);
+      return ReminderEmptyState(message: emptyMessage);
     }
+    final palette = context.reminderPalette;
     return Column(
       children: [
         for (var index = 0; index < items.length; index++) ...[
-          if (index > 0) const SizedBox(height: 12),
+          if (index > 0) const SizedBox(height: ReminderSpacing.listGap),
           Builder(
             builder: (context) {
               final occurrence = items[index];
               final viewModel = StageCardViewModel.fromOccurrence(occurrence);
               final pack = _packForOccurrence(occurrence);
-              return Card(
+              return ReminderRailCard(
+                railColor: palette.domainStage,
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    ListTile(
+                    Row(
                       key: Key('stage-item-${viewModel.id}'),
-                      leading: pack == null
-                          ? null
-                          : Tooltip(
-                              message: pack.title,
-                              child: Semantics(
-                                label: '生活場景 ${pack.title}',
+                      children: [
+                        if (pack != null) ...[
+                          Tooltip(
+                            message: pack.title,
+                            child: Semantics(
+                              label: '生活場景 ${pack.title}',
+                              child: ReminderIconBubble(
+                                size: 58,
                                 child: Text(pack.iconEmoji),
                               ),
                             ),
-                      title: Text(viewModel.title),
-                      subtitle: Text(viewModel.subtitle),
-                      trailing: const Text(ReminderUiText.stageLabel),
-                    ),
-                    OverflowBar(
-                      children: [
+                          ),
+                          const SizedBox(width: 12),
+                        ],
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 6,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text(
+                                    viewModel.title,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.titleLarge,
+                                  ),
+                                  ReminderBadge(
+                                    label: ReminderUiText.stageLabel,
+                                    icon: Icons.auto_graph_outlined,
+                                    color: palette.domainStage,
+                                    backgroundColor:
+                                        palette.statusNormalContainer,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(viewModel.subtitle),
+                            ],
+                          ),
+                        ),
                         TextButton(
                           onPressed: () async {
                             await ref
@@ -721,25 +842,21 @@ class _StageList extends ConsumerWidget {
 }
 
 class _HomeSection extends StatelessWidget {
-  const _HomeSection({required this.title, required this.child});
+  const _HomeSection({required this.title, required this.child, this.icon});
 
   final String title;
   final Widget child;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 12),
-            child,
-          ],
-        ),
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ReminderSectionHeader(title: title, icon: icon),
+        const SizedBox(height: 12),
+        child,
+      ],
     );
   }
 }

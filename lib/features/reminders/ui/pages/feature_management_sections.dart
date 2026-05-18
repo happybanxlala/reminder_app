@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/theme/reminder_theme.dart';
 import '../../data/item_repository.dart';
 import '../../data/local/reminder_dao.dart';
 import '../../data/resource_repository.dart';
@@ -23,6 +24,7 @@ import '../widgets/item_config_form_section.dart';
 import '../widgets/pack_picker.dart';
 import '../widgets/resource_binding_draft_section.dart';
 import '../widgets/item_summary_dialog.dart';
+import '../widgets/reminder_components.dart';
 
 part 'feature_management_items.dart';
 part 'feature_management_resources.dart';
@@ -49,7 +51,7 @@ class _ItemsManagementContentState
       data: (groups) {
         if (groups.isEmpty) {
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(ReminderSpacing.page),
             children: [
               _SectionHeader(
                 title: ReminderUiText.itemsManagementFeatureTitle,
@@ -68,14 +70,16 @@ class _ItemsManagementContentState
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              const Text(ReminderUiText.noDefaultItemPack),
+              const SizedBox(height: ReminderSpacing.listGap),
+              const ReminderEmptyState(
+                message: ReminderUiText.noDefaultItemPack,
+              ),
             ],
           );
         }
 
         return ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(ReminderSpacing.page),
           children: [
             _SectionHeader(
               title: ReminderUiText.itemsManagementFeatureTitle,
@@ -94,10 +98,10 @@ class _ItemsManagementContentState
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: ReminderSpacing.listGap),
             ...groups.map(
               (group) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.only(bottom: ReminderSpacing.listGap),
                 child: _ItemManagementGroupCard(
                   group: group,
                   previewDate: previewDate,

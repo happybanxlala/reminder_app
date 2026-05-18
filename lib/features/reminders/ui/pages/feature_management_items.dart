@@ -30,99 +30,101 @@ class _ItemManagementGroupCard extends ConsumerWidget {
     final items = group.items;
     final isUnassigned = group.isUnassigned;
 
-    return Card(
+    return ReminderPaperCard(
       key: Key('pack-section-${pack.id}'),
-      clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: InkWell(
-                    key: Key('pack-header-${pack.id}'),
-                    onTap: onToggle,
-                    borderRadius: BorderRadius.circular(8),
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              Text(
-                                packDisplayLabel(pack),
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                            ],
-                          ),
-                          if (!isUnassigned &&
-                              (pack.description ?? '').trim().isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(pack.description!.trim()),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: InkWell(
+                  key: Key('pack-header-${pack.id}'),
+                  onTap: onToggle,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            ReminderIconBubble(
+                              size: 40,
+                              child: Text(pack.iconEmoji),
+                            ),
+                            Text(
+                              isUnassigned ? pack.title : pack.title,
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
                           ],
+                        ),
+                        if (!isUnassigned &&
+                            (pack.description ?? '').trim().isNotEmpty) ...[
                           const SizedBox(height: 4),
-                          Text(
-                            '${items.length} ${ReminderUiText.itemCountLabel}',
-                          ),
+                          Text(pack.description!.trim()),
                         ],
-                      ),
+                        const SizedBox(height: 4),
+                        ReminderBadge(
+                          label:
+                              '${items.length} ${ReminderUiText.itemCountLabel}',
+                          icon: Icons.checklist_outlined,
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                Wrap(
-                  spacing: 4,
-                  runSpacing: 4,
-                  children: [
-                    IconButton(
-                      key: Key('pack-add-item-${pack.id}'),
-                      onPressed: () => _showCreateItemDialog(
-                        context,
-                        ref,
-                        initialPackId: isUnassigned ? null : pack.id,
-                      ),
-                      tooltip: ReminderUiText.addItem,
-                      icon: const Icon(Icons.add),
+              ),
+              Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                children: [
+                  IconButton(
+                    key: Key('pack-add-item-${pack.id}'),
+                    onPressed: () => _showCreateItemDialog(
+                      context,
+                      ref,
+                      initialPackId: isUnassigned ? null : pack.id,
                     ),
-                    IconButton(
-                      key: Key('pack-toggle-${pack.id}'),
-                      onPressed: onToggle,
-                      tooltip: expanded
-                          ? ReminderUiText.collapseAction
-                          : ReminderUiText.expandAction,
-                      icon: Icon(
-                        expanded
-                            ? Icons.expand_less_outlined
-                            : Icons.expand_more_outlined,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            if (expanded) ...[
-              const SizedBox(height: 12),
-              if (items.isEmpty)
-                const Text(ReminderUiText.emptyPackHint)
-              else
-                ...items.map(
-                  (item) => Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: _ManagedItemCard(
-                      bundle: item,
-                      previewDate: previewDate,
+                    tooltip: ReminderUiText.addItem,
+                    icon: const Icon(Icons.add),
+                  ),
+                  IconButton(
+                    key: Key('pack-toggle-${pack.id}'),
+                    onPressed: onToggle,
+                    tooltip: expanded
+                        ? ReminderUiText.collapseAction
+                        : ReminderUiText.expandAction,
+                    icon: Icon(
+                      expanded
+                          ? Icons.expand_less_outlined
+                          : Icons.expand_more_outlined,
                     ),
                   ),
-                ),
+                ],
+              ),
             ],
+          ),
+          if (expanded) ...[
+            const SizedBox(height: ReminderSpacing.listGap),
+            if (items.isEmpty)
+              const ReminderEmptyState(message: ReminderUiText.emptyPackHint)
+            else
+              ...items.map(
+                (item) => Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: _ManagedItemCard(
+                    bundle: item,
+                    previewDate: previewDate,
+                  ),
+                ),
+              ),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -141,56 +143,52 @@ class _ManagedItemCard extends ConsumerWidget {
       now: previewDate,
     );
 
-    return Card(
+    final palette = context.reminderPalette;
+    return ReminderRailCard(
       key: Key('item-card-${bundle.item.id}'),
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
+      railColor: viewModel.status.color,
+      padding: const EdgeInsets.all(ReminderSpacing.cardCompact),
       child: InkWell(
         onTap: () =>
             showItemSummaryDialog(context, bundle, previewDate: previewDate),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.zero,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              ReminderIconBubble(
+                size: 44,
+                backgroundColor: palette.primaryWarmContainer,
+                child: Icon(viewModel.typeIcon, color: palette.primaryWarm),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          viewModel.typeIcon,
-                          key: Key('item-type-icon-${bundle.item.id}'),
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            bundle.item.title,
-                            style: Theme.of(context).textTheme.titleSmall,
-                          ),
-                        ),
-                      ],
+                    Text(
+                      bundle.item.title,
+                      style: Theme.of(context).textTheme.titleMedium,
+                      key: Key('item-type-icon-${bundle.item.id}'),
                     ),
                     const SizedBox(height: 6),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
                       children: [
-                        if (viewModel.isPaused) ...[
-                          const Icon(
-                            Icons.pause_circle_outline,
-                            size: 16,
-                            color: Colors.grey,
-                          ),
-                          const SizedBox(width: 4),
-                        ],
-                        Expanded(
-                          child: Text(
-                            viewModel.status.label,
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: viewModel.status.color),
+                        ReminderBadge(
+                          label: viewModel.typeLabel,
+                          color: palette.primaryWarmDark,
+                          backgroundColor: palette.primaryWarmContainer,
+                        ),
+                        ReminderBadge(
+                          label: viewModel.status.label,
+                          icon: viewModel.isPaused
+                              ? Icons.pause_circle_outline
+                              : null,
+                          color: viewModel.status.color,
+                          backgroundColor: viewModel.status.color.withValues(
+                            alpha: 0.12,
                           ),
                         ),
                       ],

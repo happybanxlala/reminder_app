@@ -311,10 +311,7 @@ class _SectionHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
+        ReminderSectionHeader(title: title, icon: Icons.tune_outlined),
         if (actions.isNotEmpty) ...[
           const SizedBox(height: 12),
           Wrap(spacing: 8, runSpacing: 8, children: actions),
