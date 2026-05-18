@@ -4,8 +4,9 @@ class ReminderUiText {
   static const appTitle = 'Reminder App';
   static const homeTitle = '今天';
   static const homeAttentionStable = '目前都很穩定';
+  static const homeAttentionTitleTemplate = '今天有 {total} 項需要留意';
   static const homeAttentionBreakdownTemplate =
-      '快變糟 {danger} 件・需留意 {warning} 件・階段提醒 {stage} 件';
+      '{danger} 項需要處理・{warning} 項要留意・{stage} 個階段快到了';
   static const manageTitle = '管理';
   static const bottomNavToday = '今天';
   static const bottomNavManage = '管理';
@@ -38,8 +39,8 @@ class ReminderUiText {
   static const itemHistoryTitle = '要照顧的事操作紀錄';
   static const editItemPack = '編輯生活場景';
   static const editStageTracker = '編輯階段追蹤';
-  static const noDangerItems = '目前沒有需要處理的事。';
-  static const noWarningItems = '目前沒有要留意的事。';
+  static const noDangerItems = '目前沒有需要立即處理的項目。';
+  static const noWarningItems = '目前沒有需要留意的項目。';
   static const noUpcomingStages = '目前沒有即將到來的階段。';
   static const noItemHistory = '此要照顧的事目前沒有操作紀錄。';
   static const noRecentActivity = '最近 30 天沒有動態。';
@@ -88,6 +89,7 @@ class ReminderUiText {
   static const developerPreviewDateResetAction = '還原今天';
   static const nextStageLabel = '下一個階段';
   static const completeAction = '完成';
+  static const restoreIncompleteAction = '恢復成未完成';
   static const skipAction = '跳過';
   static const deferAction = '延期';
   static const acknowledgedAction = '知道了';
@@ -97,6 +99,9 @@ class ReminderUiText {
   static const resumeAction = '恢復';
   static const archiveAction = '封存';
   static const viewAllAction = '查看全部';
+  static const todayCompletedTitle = '今天已完成';
+  static String todayCompletedSummary(int count) => '今天已完成 $count 項';
+  static const restoredIncompleteMessage = '已恢復成未完成';
   static const loadMoreAction = '載入更多';
   static const collapseAction = '收起';
   static const expandAction = '展開';

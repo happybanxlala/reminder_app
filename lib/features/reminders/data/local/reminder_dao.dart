@@ -57,6 +57,34 @@ class ItemActivityEntry {
   ItemBundle get bundle => ItemBundle(item: item, pack: pack);
 }
 
+class ItemActionEntry {
+  const ItemActionEntry({
+    required this.record,
+    required this.item,
+    required this.pack,
+  });
+
+  final ItemActionRecord record;
+  final Item item;
+  final ItemPack pack;
+
+  int get packId => pack.id;
+}
+
+class ResourceActionEntry {
+  const ResourceActionEntry({
+    required this.record,
+    required this.resource,
+    required this.pack,
+  });
+
+  final ResourceActionRecord record;
+  final Resource resource;
+  final ItemPack pack;
+
+  int get packId => pack.id;
+}
+
 class StageRecordBundle {
   const StageRecordBundle({
     required this.record,
@@ -67,6 +95,15 @@ class StageRecordBundle {
   final StageRecord record;
   final StageRule? rule;
   final StageTracker stageTracker;
+}
+
+class StageActionEntry {
+  const StageActionEntry({required this.record, required this.stageTracker});
+
+  final StageRecord record;
+  final StageTracker stageTracker;
+
+  int get packId => stageTracker.packId;
 }
 
 class StageTrackerDetailRecord {
@@ -122,6 +159,23 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     return into(itemActionRecords).insert(entry);
   }
 
+  Future<ItemActionRecord?> getItemActionRecordById(int id) async {
+    final row = await (select(
+      itemActionRecords,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _toItemActionRecord(row);
+  }
+
+  Future<bool> updateItemActionRecordFields(
+    int id,
+    ItemActionRecordsCompanion entry,
+  ) async {
+    final updatedRows = await (update(
+      itemActionRecords,
+    )..where((t) => t.id.equals(id))).write(entry);
+    return updatedRows > 0;
+  }
+
   Future<int> insertResource(ResourcesCompanion entry) {
     return into(resources).insert(entry);
   }
@@ -134,6 +188,16 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
 
   Future<int> insertResourceActionRecord(ResourceActionRecordsCompanion entry) {
     return into(resourceActionRecords).insert(entry);
+  }
+
+  Future<bool> updateResourceActionRecordFields(
+    int id,
+    ResourceActionRecordsCompanion entry,
+  ) async {
+    final updatedRows = await (update(
+      resourceActionRecords,
+    )..where((t) => t.id.equals(id))).write(entry);
+    return updatedRows > 0;
   }
 
   Stream<AppSettings> watchAppSettings() {
@@ -388,29 +452,57 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
   }
 
   Stream<List<ResourceActionRecord>> watchResourceActionRecordsForResource(
-    int resourceId,
-  ) {
+    int resourceId, {
+    bool includeReverted = false,
+  }) {
     final query = select(resourceActionRecords)
-      ..where((t) => t.resourceId.equals(resourceId))
-      ..orderBy([
-        (t) => OrderingTerm.desc(t.actionDate),
-        (t) => OrderingTerm.desc(t.id),
-      ]);
+      ..where((t) => t.resourceId.equals(resourceId));
+    if (!includeReverted) {
+      query.where(
+        (t) =>
+            t.isReverted.equals(false) &
+            t.actionType.isNotValue(ResourceActionType.reverted.name),
+      );
+    }
+    query.orderBy([
+      (t) => OrderingTerm.desc(t.actionDate),
+      (t) => OrderingTerm.desc(t.id),
+    ]);
     return query.watch().map(
       (rows) => rows.map(_toResourceActionRecord).toList(growable: false),
     );
   }
 
   Future<List<ResourceActionRecord>> listResourceActionRecordsForResource(
-    int resourceId,
+    int resourceId, {
+    bool includeReverted = false,
+  }) async {
+    final query = select(resourceActionRecords)
+      ..where((t) => t.resourceId.equals(resourceId));
+    if (!includeReverted) {
+      query.where(
+        (t) =>
+            t.isReverted.equals(false) &
+            t.actionType.isNotValue(ResourceActionType.reverted.name),
+      );
+    }
+    query.orderBy([
+      (t) => OrderingTerm.desc(t.actionDate),
+      (t) => OrderingTerm.desc(t.id),
+    ]);
+    final rows = await query.get();
+    return rows.map(_toResourceActionRecord).toList(growable: false);
+  }
+
+  Future<List<ResourceActionRecord>> listResourceConsumedRecordsForItemAction(
+    int itemActionRecordId,
   ) async {
     final rows =
-        await (select(resourceActionRecords)
-              ..where((t) => t.resourceId.equals(resourceId))
-              ..orderBy([
-                (t) => OrderingTerm.desc(t.actionDate),
-                (t) => OrderingTerm.desc(t.id),
-              ]))
+        await (select(resourceActionRecords)..where(
+              (t) =>
+                  t.sourceItemActionRecordId.equals(itemActionRecordId) &
+                  t.actionType.equals(ResourceActionType.consumed.name),
+            ))
             .get();
     return rows.map(_toResourceActionRecord).toList(growable: false);
   }
@@ -439,6 +531,68 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
               ]))
             .get();
     return rows.map(_toItemActionRecord).toList(growable: false);
+  }
+
+  Stream<List<ItemActionEntry>> watchItemActionEntriesForDateRange({
+    required Set<ItemActionType> actionTypes,
+    required DateTime actionDateFrom,
+    required DateTime actionDateBefore,
+    bool includeReverted = false,
+  }) {
+    return _itemActionEntryQuery(
+      actionTypes: actionTypes,
+      actionDateFrom: actionDateFrom,
+      actionDateBefore: actionDateBefore,
+      includeReverted: includeReverted,
+    ).watch().map(
+      (rows) => rows.map(_mapItemActionEntry).toList(growable: false),
+    );
+  }
+
+  Stream<List<ResourceActionEntry>> watchResourceActionEntriesForDateRange({
+    required Set<ResourceActionType> actionTypes,
+    required DateTime actionDateFrom,
+    required DateTime actionDateBefore,
+    bool includeReverted = false,
+  }) {
+    return _resourceActionEntryQuery(
+      actionTypes: actionTypes,
+      actionDateFrom: actionDateFrom,
+      actionDateBefore: actionDateBefore,
+      includeReverted: includeReverted,
+    ).watch().map(
+      (rows) => rows.map(_mapResourceActionEntry).toList(growable: false),
+    );
+  }
+
+  Stream<List<StageActionEntry>>
+  watchAcknowledgedStageActionEntriesForDateRange({
+    required DateTime updatedAtFrom,
+    required DateTime updatedAtBefore,
+  }) {
+    final query =
+        select(stageRecords).join([
+            innerJoin(
+              stageTrackers,
+              stageTrackers.id.equalsExp(stageRecords.stageTrackerId),
+            ),
+          ])
+          ..where(
+            stageRecords.status.equals(StageRecordStatus.acknowledged.name) &
+                stageRecords.updatedAt.isBiggerOrEqualValue(
+                  updatedAtFrom.millisecondsSinceEpoch,
+                ) &
+                stageRecords.updatedAt.isSmallerThanValue(
+                  updatedAtBefore.millisecondsSinceEpoch,
+                ),
+          )
+          ..orderBy([
+            OrderingTerm.desc(stageRecords.updatedAt),
+            OrderingTerm.desc(stageRecords.id),
+          ]);
+    return query.watch().map(
+      (rows) => rows.map(_mapStageActionEntry).toList(growable: false),
+    );
   }
 
   Future<List<ItemActivityEntry>> listItemActivityEntries({
@@ -764,10 +918,14 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
         continue;
       }
       final actions = await listItemActionRecordsForItem(item.id);
-      if (actions.any((record) => record.actionType == ItemActionType.done)) {
+      if (actions.any(
+        (record) =>
+            record.actionType == ItemActionType.done && !record.isReverted,
+      )) {
         done++;
       } else if (actions.any(
-        (record) => record.actionType == ItemActionType.skipped,
+        (record) =>
+            record.actionType == ItemActionType.skipped && !record.isReverted,
       )) {
         skipped++;
       } else {
@@ -941,6 +1099,71 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     return activityQuery;
   }
 
+  JoinedSelectStatement<HasResultSet, dynamic> _itemActionEntryQuery({
+    required Set<ItemActionType> actionTypes,
+    required DateTime actionDateFrom,
+    required DateTime actionDateBefore,
+    required bool includeReverted,
+  }) {
+    final query =
+        select(itemActionRecords).join([
+          innerJoin(items, items.id.equalsExp(itemActionRecords.itemId)),
+          innerJoin(itemPacks, itemPacks.id.equalsExp(items.packId)),
+        ])..where(
+          itemActionRecords.actionType.isIn(
+                actionTypes.map((item) => item.name),
+              ) &
+              itemActionRecords.actionDate.isBiggerOrEqualValue(
+                actionDateFrom.millisecondsSinceEpoch,
+              ) &
+              itemActionRecords.actionDate.isSmallerThanValue(
+                actionDateBefore.millisecondsSinceEpoch,
+              ),
+        );
+    if (!includeReverted) {
+      query.where(itemActionRecords.isReverted.equals(false));
+    }
+    query.orderBy([
+      OrderingTerm.desc(itemActionRecords.actionDate),
+      OrderingTerm.desc(itemActionRecords.id),
+    ]);
+    return query;
+  }
+
+  JoinedSelectStatement<HasResultSet, dynamic> _resourceActionEntryQuery({
+    required Set<ResourceActionType> actionTypes,
+    required DateTime actionDateFrom,
+    required DateTime actionDateBefore,
+    required bool includeReverted,
+  }) {
+    final query =
+        select(resourceActionRecords).join([
+          innerJoin(
+            resources,
+            resources.id.equalsExp(resourceActionRecords.resourceId),
+          ),
+          innerJoin(itemPacks, itemPacks.id.equalsExp(resources.packId)),
+        ])..where(
+          resourceActionRecords.actionType.isIn(
+                actionTypes.map((item) => item.name),
+              ) &
+              resourceActionRecords.actionDate.isBiggerOrEqualValue(
+                actionDateFrom.millisecondsSinceEpoch,
+              ) &
+              resourceActionRecords.actionDate.isSmallerThanValue(
+                actionDateBefore.millisecondsSinceEpoch,
+              ),
+        );
+    if (!includeReverted) {
+      query.where(resourceActionRecords.isReverted.equals(false));
+    }
+    query.orderBy([
+      OrderingTerm.desc(resourceActionRecords.actionDate),
+      OrderingTerm.desc(resourceActionRecords.id),
+    ]);
+    return query;
+  }
+
   ItemBundle _mapItemBundle(TypedResult row) {
     return ItemBundle(
       item: _toItem(row.readTable(items)),
@@ -952,6 +1175,22 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     return ItemActivityEntry(
       record: _toItemActionRecord(row.readTable(itemActionRecords)),
       item: _toItem(row.readTable(items)),
+      pack: _toItemPack(row.readTable(itemPacks)),
+    );
+  }
+
+  ItemActionEntry _mapItemActionEntry(TypedResult row) {
+    return ItemActionEntry(
+      record: _toItemActionRecord(row.readTable(itemActionRecords)),
+      item: _toItem(row.readTable(items)),
+      pack: _toItemPack(row.readTable(itemPacks)),
+    );
+  }
+
+  ResourceActionEntry _mapResourceActionEntry(TypedResult row) {
+    return ResourceActionEntry(
+      record: _toResourceActionRecord(row.readTable(resourceActionRecords)),
+      resource: _toResource(row.readTable(resources)),
       pack: _toItemPack(row.readTable(itemPacks)),
     );
   }
@@ -983,6 +1222,13 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  StageActionEntry _mapStageActionEntry(TypedResult row) {
+    return StageActionEntry(
+      record: _toStageRecord(row.readTable(stageRecords)),
+      stageTracker: _toStageTracker(row.readTable(stageTrackers)),
+    );
+  }
+
   List<String> _matchingActionTypeNames(String query) {
     final normalized = query.trim().toLowerCase();
     if (normalized.isEmpty) {
@@ -1003,6 +1249,7 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     maybeAdd(ItemActionType.done, ['done', 'complete', '完成']);
     maybeAdd(ItemActionType.skipped, ['skipped', 'skip', '跳過']);
     maybeAdd(ItemActionType.deferred, ['deferred', 'defer', '延期']);
+    maybeAdd(ItemActionType.reverted, ['reverted', 'undo', '撤銷', '恢復']);
     return matches;
   }
 
@@ -1083,6 +1330,11 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
       actionDate: DateTime.fromMillisecondsSinceEpoch(row.actionDate),
       remark: row.remark,
       payload: ItemActionRecord.decodePayload(row.payload),
+      isReverted: row.isReverted,
+      revertedAt: row.revertedAt == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(row.revertedAt!),
+      revertedByActionRecordId: row.revertedByActionRecordId,
       createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
     );
@@ -1154,6 +1406,11 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
       resultingDurationDays: row.resultingDurationDays,
       sourceItemActionRecordId: row.sourceItemActionRecordId,
       remark: row.remark,
+      isReverted: row.isReverted,
+      revertedAt: row.revertedAt == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(row.revertedAt!),
+      revertedByActionRecordId: row.revertedByActionRecordId,
       createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
     );

@@ -95,12 +95,38 @@ class ResourceRepository {
     return _dao.listConsumptionRulesForItem(itemId);
   }
 
-  Stream<List<ResourceActionRecord>> watchActionHistory(int resourceId) {
-    return _dao.watchResourceActionRecordsForResource(resourceId);
+  Stream<List<ResourceActionRecord>> watchActionHistory(
+    int resourceId, {
+    bool includeReverted = false,
+  }) {
+    return _dao.watchResourceActionRecordsForResource(
+      resourceId,
+      includeReverted: includeReverted,
+    );
   }
 
-  Future<List<ResourceActionRecord>> listActionHistory(int resourceId) {
-    return _dao.listResourceActionRecordsForResource(resourceId);
+  Stream<List<ResourceActionEntry>> watchCompletedActionEntriesForDate(
+    DateTime date,
+  ) {
+    final start = _normalizeDate(date);
+    return _dao.watchResourceActionEntriesForDateRange(
+      actionTypes: const {
+        ResourceActionType.refilled,
+        ResourceActionType.adjusted,
+      },
+      actionDateFrom: start,
+      actionDateBefore: start.add(const Duration(days: 1)),
+    );
+  }
+
+  Future<List<ResourceActionRecord>> listActionHistory(
+    int resourceId, {
+    bool includeReverted = false,
+  }) {
+    return _dao.listResourceActionRecordsForResource(
+      resourceId,
+      includeReverted: includeReverted,
+    );
   }
 
   Stream<List<ResourceBinding>> watchBindings(int resourceId) {

@@ -58,12 +58,15 @@ class ReminderFormatters {
     final payloadText = switch (record.actionType) {
       ItemActionType.deferred when payload?['deferDays'] != null =>
         ' • 延後 ${(payload?['deferDays'] as num).toInt()} 天',
+      ItemActionType.reverted when payload?['revertedActionRecordId'] != null =>
+        ' • 撤銷紀錄 #${payload?['revertedActionRecordId']}',
       _ => '',
     };
+    final revertedText = record.isReverted ? ' • 已撤銷' : '';
     final remarkText = record.remark == null || record.remark!.isEmpty
         ? ''
         : ' • ${record.remark}';
-    return '${itemActionType(record.actionType)} • ${date(record.actionDate)}$payloadText$remarkText';
+    return '${itemActionType(record.actionType)} • ${date(record.actionDate)}$payloadText$revertedText$remarkText';
   }
 
   static String resourceActionRecord(ResourceActionRecord record) {
@@ -80,10 +83,11 @@ class ReminderFormatters {
     final sourceText = record.sourceItemActionRecordId == null
         ? ''
         : ' • 來自完成紀錄 #${record.sourceItemActionRecordId}';
+    final revertedText = record.isReverted ? ' • 已撤銷' : '';
     final remarkText = record.remark == null || record.remark!.isEmpty
         ? ''
         : ' • ${record.remark}';
-    return '${resourceActionType(record.actionType)} • ${date(record.actionDate)}$amountText$resultingQuantityText$addedDaysText$resultingDurationText$sourceText$remarkText';
+    return '${resourceActionType(record.actionType)} • ${date(record.actionDate)}$amountText$resultingQuantityText$addedDaysText$resultingDurationText$sourceText$revertedText$remarkText';
   }
 
   static String stageSummary(StageOccurrence occurrence) {
@@ -218,6 +222,7 @@ class ReminderFormatters {
       ItemActionType.done => '完成',
       ItemActionType.skipped => '跳過',
       ItemActionType.deferred => '延期',
+      ItemActionType.reverted => '已撤銷完成',
     };
   }
 
@@ -227,6 +232,7 @@ class ReminderFormatters {
       ResourceActionType.consumed => '消耗',
       ResourceActionType.refilled => '補充',
       ResourceActionType.adjusted => '調整',
+      ResourceActionType.reverted => '撤銷補回',
     };
   }
 

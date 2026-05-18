@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-enum ItemActionType { created, done, skipped, deferred }
+enum ItemActionType { created, done, skipped, deferred, reverted }
 
 class ItemActionRecord {
   const ItemActionRecord({
@@ -10,6 +10,9 @@ class ItemActionRecord {
     required this.actionDate,
     this.remark,
     this.payload,
+    this.isReverted = false,
+    this.revertedAt,
+    this.revertedByActionRecordId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -20,6 +23,9 @@ class ItemActionRecord {
   final DateTime actionDate;
   final String? remark;
   final Map<String, Object?>? payload;
+  final bool isReverted;
+  final DateTime? revertedAt;
+  final int? revertedByActionRecordId;
   final DateTime createdAt;
   final DateTime updatedAt;
 

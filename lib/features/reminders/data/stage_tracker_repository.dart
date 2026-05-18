@@ -40,6 +40,16 @@ class StageTrackerRepository {
     return _dao.watchStageRecords();
   }
 
+  Stream<List<StageActionEntry>> watchAcknowledgedActionEntriesForDate(
+    DateTime date,
+  ) {
+    final start = _normalizeDate(date);
+    return _dao.watchAcknowledgedStageActionEntriesForDateRange(
+      updatedAtFrom: start,
+      updatedAtBefore: start.add(const Duration(days: 1)),
+    );
+  }
+
   Future<StageTracker?> getStageTrackerById(int id) {
     return _dao.getStageTrackerById(id);
   }

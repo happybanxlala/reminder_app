@@ -72,14 +72,14 @@ Domain 必須保持分離。Home 可以在 presentation layer 聚合 `Item`、`R
 - `FixedScheduleType { daily, weekly, oneTime, everyXDays, everyXWeeks, monthly }`
 - `ItemOverduePolicy { autoAdvance, waitForAction }`
 - `ItemNextCycleStrategy { keepSchedule, shiftByDelay }`
-- `ItemActionType { created, done, skipped, deferred }`
+- `ItemActionType { created, done, skipped, deferred, reverted }`
 - `AttentionPolicySource { systemDefault, userCustomized }`
 - `ReminderTone { gentle, standard, early, urgent }`
 - `UsageSpeed { low, medium, high }`
 - `ResourceType { timeBased, quantityBased }`
 - `ResourceLifecycleStatus { active, paused, archived }`
 - `ResourceStatus { normal, warning, danger, unknown }`
-- `ResourceActionType { created, consumed, refilled, adjusted }`
+- `ResourceActionType { created, consumed, refilled, adjusted, reverted }`
 - `StageTrackerStatus { active, archived }`
 - `StageRuleType { everyNDays, everyNWeeks, everyNMonths, everyNYears }`
 - `StageIntervalUnit { days, weeks, months, years }`
@@ -281,10 +281,13 @@ dangerBefore: 1 day
 ItemActionRecord {
   id: number
   itemId: number
-  actionType: "created" | "done" | "skipped" | "deferred"
+  actionType: "created" | "done" | "skipped" | "deferred" | "reverted"
   actionDate: DateTime
   remark?: string
   payload?: Json
+  isReverted: boolean
+  revertedAt?: DateTime
+  revertedByActionRecordId?: number
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -294,6 +297,9 @@ ItemActionRecord {
 
 - `payload` 使用 JSON encode / decode，空 payload 存為 `null`。
 - 建立、完成、略過都會形成 history。
+- 新增的 done record 會在 payload 寫入 `undoSnapshot`，保存完成前 item snapshot，供精準 undo 使用。
+- undo done 不刪除原 done record；原 done 會標記 `isReverted = true`，並新增 `ItemActionRecord(reverted)` 指向被撤銷的 done record。
+- 缺少 `undoSnapshot` 的既有舊 done record 不提供精準 undo。
 - item 操作寫入 record 後，仍需要同步更新 item snapshot 欄位。
 - `ItemActivityPage` 以 `ItemActionRecord` 顯示近期活動，支援搜尋與載入更多。
 
@@ -373,7 +379,8 @@ QuantityBasedResourceConfig {
 - quantity-based resource 使用 `currentQuantity` 與 warning / danger thresholds 推導狀態。
 - `ResourceStatusService` 對異常或不足資料回傳 `unknown`。
 - `watchResources` 只回傳 active resources；`watchManagedResources` 回傳 active / paused resources。
-- Home 目前有「資源」section，顯示 active resources，並可套用 Pack filter。
+- Home danger / warning attention sections 會依 `ResourceStatus` 混合顯示 active Resource 與 Item，並可套用 Pack filter。
+- Resource 已納入 `AttentionSummaryRepository` 與 `HomeAttentionSource` 的統一 attention summary 計數。
 - Resource 管理頁支援新增、編輯、補充、quantity 調整、詳細資訊、歷史紀錄、封存。
 - Resource history route 已實作：`/resource/:id/history`，route name 是 `resource-history`。
 
@@ -396,11 +403,6 @@ durationDays: 20
 warningBeforeDays: 3
 dangerBeforeDays: 1
 ```
-
-#### MVP 待完成
-
-- Resource 已在 Home 顯示，但尚未納入 `AttentionSummaryRepository` 與 `HomeAttentionSource` 的統一 attention summary 計數。
-- Resource Home section 尚未收斂到單一 Home presentation model。
 
 ### 2.5 ResourceConsumptionRule Domain
 
@@ -459,7 +461,7 @@ Rule: done 時 consume 1 個
 ResourceActionRecord {
   id: number
   resourceId: number
-  actionType: "created" | "consumed" | "refilled" | "adjusted"
+  actionType: "created" | "consumed" | "refilled" | "adjusted" | "reverted"
   actionDate: DateTime
   amount?: number
   resultingQuantity?: number
@@ -467,6 +469,9 @@ ResourceActionRecord {
   resultingDurationDays?: number
   sourceItemActionRecordId?: number
   remark?: string
+  isReverted: boolean
+  revertedAt?: DateTime
+  revertedByActionRecordId?: number
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -477,6 +482,8 @@ ResourceActionRecord {
 - quantity consumption / refill / adjustment 記錄 `amount` 或 `resultingQuantity`。
 - time-based refill 記錄 `addedDays` 與 `resultingDurationDays`。
 - 由 item done 觸發的 consumed record 會設定 `sourceItemActionRecordId`。
+- undo item done 若曾消耗 quantity resource，原 consumed record 會標記 `isReverted = true`，並新增 `ResourceActionRecord(reverted)` 作為補回紀錄。
+- Resource history 預設排除 `isReverted = true` 與 `actionType = reverted` 的一扣一補噪音；需要除錯時 repository 可要求包含 reverted records。
 - `refillResource`：
   - time-based resource 要求 `addedDays > 0`。
   - quantity-based resource 要求 `addedQuantity > 0`。
@@ -832,6 +839,7 @@ ReminderTone.early: 較早提醒使用者。
 5. 僅對 active quantity-based resource 扣量。
 6. quantity clamp 到 `0`。
 7. 插入 `ResourceActionRecord(consumed)`，並寫入 `sourceItemActionRecordId`。
+8. 新 done record payload 寫入完成前 `undoSnapshot`，供「恢復成未完成」精準還原。
 
 Matching rule 條件：
 
@@ -840,6 +848,21 @@ Matching rule 條件：
 - `rule.triggerActionType == done`
 - resource active
 - resource config 是 `QuantityBasedResourceConfig`
+
+### 3.1.1 Undo Item Done
+
+`ItemRepository.undoDone` 是「按錯完成」的撤銷 / 抵銷流程，不是刪除歷史。
+
+同一個 transaction 內包含：
+
+1. 驗證輸入 record 存在、類型為 `done`、尚未 reverted，且 payload 有 `undoSnapshot`。
+2. 插入 `ItemActionRecord(reverted)`，payload 記錄 `reason = undo_done` 與被撤銷的 done record id。
+3. 將原 done record 標記 `isReverted = true`，寫入 `revertedAt` 與 `revertedByActionRecordId`。
+4. 依 `undoSnapshot` 還原 item fixed / state snapshot 欄位。
+5. 查詢原 done 產生的 `ResourceActionRecord(consumed)`，不重新計算 consumption rule。
+6. 逐筆將 quantity resource 補回原 consumed amount，標記原 consumed record reverted，並新增 `ResourceActionRecord(reverted)`。
+
+disabled consumption rule 不影響 undo；archived resource 仍可被補回，因為這是撤銷歷史錯誤，不是新的消耗行為。
 
 ### 3.2 建立 Item 與 Resource Binding Draft
 
@@ -913,12 +936,16 @@ Home 已實作：
 
 - attention summary card。
 - attention summary card 的日期 badge 顯示目前生效日期，格式為 `yyyy/MM/dd`；developer preview date 啟用時跟隨覆蓋日期。
+- attention summary 的 `dangerCount` / `warningCount` 包含 Item 與 Resource；主文案使用「今天有 X 項需要留意」。
 - Pack filter。
-- Resource section。
-- danger item section。
-- warning item section。
+- danger attention section：混合顯示 danger Item 與 danger Resource。
+- warning attention section：混合顯示 warning Item 與 warning Resource。
 - upcoming stage section。
+- StageTracker 本身不進入 danger / warning；StageOccurrence 保留在 upcoming stage section。
 - Stage Home card 的「知道了」 action。
+- Home 最下方有「今天已完成」section，依 preview date 顯示當天有效 `ItemActionRecord(done)`、`ResourceActionRecord(refilled / adjusted)`，以及當天 acknowledged 的 `StageRecord`。
+- 「今天已完成」預設收合；Item done entry 若有 `undoSnapshot` 可用 undo icon 恢復成未完成，undo 後該 entry 從 section 移除。
+- Today completed section 跟隨 Pack filter：Item 依 item pack、Resource 依 resource pack、Stage 依 tracker pack。
 
 Pack filter：
 
@@ -1187,8 +1214,6 @@ updatedAt
 
 本章只列產品已明確要收斂，但目前 repo 尚未完整實作的 MVP 項目。這些項目不可寫入「已實作行為」。
 
-- Resource attention summary：把 Resource 納入 `AttentionSummaryRepository` 與 `HomeAttentionSource`，使 badge / summary 計數包含需要注意的資源。
-- Home presentation model 收斂：將 Item、Resource、StageOccurrence 的 Home 顯示整合到單一 presentation model；Domain 仍保持分離。
 - Stage ignore UI：提供 generated occurrence 的「忽略這次」入口、確認流程與 snackbar undo。
 - StageTracker 編輯與封存 UI：接上既有 repository 能力。
 - StageRule 編輯、暫停、封存 UI：接上既有 status model。

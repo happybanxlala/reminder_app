@@ -108,6 +108,9 @@ class ResourceActionRecords extends Table {
   IntColumn get sourceItemActionRecordId =>
       integer().nullable().references(ItemActionRecords, #id)();
   TextColumn get remark => text().nullable()();
+  BoolColumn get isReverted => boolean().withDefault(const Constant(false))();
+  IntColumn get revertedAt => integer().nullable()();
+  IntColumn get revertedByActionRecordId => integer().nullable()();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 }
@@ -123,6 +126,9 @@ class ItemActionRecords extends Table {
   IntColumn get actionDate => integer()();
   TextColumn get remark => text().nullable()();
   TextColumn get payload => text().nullable()();
+  BoolColumn get isReverted => boolean().withDefault(const Constant(false))();
+  IntColumn get revertedAt => integer().nullable()();
+  IntColumn get revertedByActionRecordId => integer().nullable()();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 }

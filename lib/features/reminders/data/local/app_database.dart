@@ -36,7 +36,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -44,6 +44,9 @@ class AppDatabase extends _$AppDatabase {
     onUpgrade: (m, from, to) async {
       if (from < 2) {
         await _upgradeToV2(m);
+      }
+      if (from < 3) {
+        await _upgradeToV3(m);
       }
     },
     beforeOpen: (details) async {
@@ -111,6 +114,21 @@ class AppDatabase extends _$AppDatabase {
     await customStatement('DROP TABLE IF EXISTS item_template_items');
     await customStatement('DROP TABLE IF EXISTS item_pack_templates');
     await customStatement('PRAGMA foreign_keys = ON');
+  }
+
+  Future<void> _upgradeToV3(Migrator m) async {
+    await m.addColumn(itemActionRecords, itemActionRecords.isReverted);
+    await m.addColumn(itemActionRecords, itemActionRecords.revertedAt);
+    await m.addColumn(
+      itemActionRecords,
+      itemActionRecords.revertedByActionRecordId,
+    );
+    await m.addColumn(resourceActionRecords, resourceActionRecords.isReverted);
+    await m.addColumn(resourceActionRecords, resourceActionRecords.revertedAt);
+    await m.addColumn(
+      resourceActionRecords,
+      resourceActionRecords.revertedByActionRecordId,
+    );
   }
 
   Future<void> _ensureSystemDefaultPack() async {

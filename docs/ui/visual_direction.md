@@ -295,7 +295,7 @@ Attention summary card 應是 Home 的視覺重心。
 它應該清楚回答：
 
 ```text
-今天有幾件事需要處理？
+今天有幾項需要留意？
 有幾件快變糟？
 有幾件資源不足？
 有幾個階段快到了？
@@ -306,8 +306,8 @@ Attention summary card 應是 Home 的視覺重心。
 推薦文案風格：
 
 ```text
-今天有 3 件事需要處理
-2 件需要處理・1 件要留意・1 個階段快到了
+今天有 3 項需要留意
+2 項需要處理・1 項要留意・1 個階段快到了
 ```
 
 避免：
@@ -673,10 +673,9 @@ Home section 建議順序：
 2. Pack filter
 3. 需要處理
 4. 要留意
-5. 資源
-6. 即將到來的階段
+5. 即將到來的階段
 
-如果未來 Resource 納入 summary，可依 attention severity 重新排序。
+需要處理 / 要留意 section 應依 attention severity 混合呈現 Item 與 Resource；Resource 不再另設 Home attention section，避免同一資源重複出現。
 
 ---
 
@@ -851,7 +850,7 @@ lib/features/reminders/ui/widgets/reminder_components.dart
 
 ### 19.4 已套用頁面
 
-- Today：attention summary hero、pack filter、needs action、watch soon、resources、upcoming stages、footer。
+- Today：attention summary hero、pack filter、mixed Item / Resource needs action、mixed Item / Resource watch soon、upcoming stages、footer。
 - Manage / Feature hub：care system hub entry cards 與底部提示。
 - Care items：pack group cards、managed item rail cards、status/type badges、empty state。
 - Resources：resource rail cards、stock/refill visual、resource badges。
@@ -876,3 +875,23 @@ flutter test
 - Bottom navigation branch routes 不應用 `pushNamed` 疊到 navigator 上。從 Feature hub 或 summary hero 前往 `/manage`、`/feature/stage-trackers` 這類 shell branch route 時使用 `goNamed`。
 - Stage tracking branch 的 branch-level FAB 不應 push 自己的 shell route；新增階段追蹤保留在頁面內的「新增階段追蹤」按鈕。
 - Stage tracking branch 沒有資料時必須顯示 `ReminderEmptyState(ReminderUiText.noStageTrackers)`，不可呈現空白頁。
+
+### 19.7 Home Attention Convergence 2026-05-18
+
+- Today danger / warning sections use mixed Home attention entries, rendering Item and Resource in the same severity section while preserving distinct card variants.
+- Attention summary counts Resource danger / warning entries together with Item entries and uses「今天有 X 項需要留意」as the mixed-domain headline.
+- StageTracker / StageOccurrence remains visually and structurally separate: StageOccurrence stays in upcoming stages, and StageTracker does not enter danger / warning attention sections.
+
+### 19.8 Home Compact Density 2026-05-18
+
+- Today uses Home-local compact density: smaller page padding, section gaps, rail-card padding, list gaps, and card radius. Manage / Detail / Editor keep comfortable density.
+- Home attention cards changed from large emoji bubble / badge-heavy cards to compact rail rows: status rail, inline pack emoji chip, title, primary summary, and one primary action icon.
+- Unexpanded Home cards hide type/domain badges and secondary metadata. Tapping the card body expands compact metadata; only one Home attention card may be expanded at a time.
+- Item action uses a compact complete icon. Resource action uses a compact refill icon and reuses repository refill behavior. StageOccurrence remains separate and uses compact acknowledge affordance.
+
+### 19.9 Home Today Completed 2026-05-19
+
+- Today adds a bottom「今天已完成」section after upcoming stages and before the footer.
+- The section is compact and collapsed by default, showing only「今天已完成 X 項」so it does not compete with first-screen attention work.
+- Expanded completed rows use Home compact density. Item done rows show an undo icon labeled「恢復成未完成」; Resource refill / adjust and Stage acknowledged rows do not expose undo.
+- Undo restores an Item to unfinished through repository state changes; the row disappears through stream updates instead of local-only UI removal.

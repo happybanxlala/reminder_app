@@ -14,13 +14,13 @@ class AttentionSummaryRepository {
   Future<AttentionSummary> getSummary({DateTime? now}) async {
     final current = now ?? DateTime.now();
     final results = await Future.wait<Object>([
-      _homeRepository.watchDangerItems(now: current).first,
-      _homeRepository.watchWarningItems(now: current).first,
+      _homeRepository.watchDangerAttentionEntries(now: current).first,
+      _homeRepository.watchWarningAttentionEntries(now: current).first,
       _homeRepository.watchUpcomingStages(now: current).first,
     ]);
     return _buildSummary(
-      dangerItems: results[0] as List<ItemHomeEntry>,
-      warningItems: results[1] as List<ItemHomeEntry>,
+      dangerEntries: results[0] as List<HomeAttentionEntry>,
+      warningEntries: results[1] as List<HomeAttentionEntry>,
       stages: results[2] as List<StageOccurrence>,
     );
   }
@@ -28,25 +28,35 @@ class AttentionSummaryRepository {
   Stream<AttentionSummary> watchSummary({DateTime? now}) {
     final current = now ?? DateTime.now();
     return _combineLatest3(
-      _homeRepository.watchDangerItems(now: current),
-      _homeRepository.watchWarningItems(now: current),
+      _homeRepository.watchDangerAttentionEntries(now: current),
+      _homeRepository.watchWarningAttentionEntries(now: current),
       _homeRepository.watchUpcomingStages(now: current),
-      (dangerItems, warningItems, stages) => _buildSummary(
-        dangerItems: dangerItems,
-        warningItems: warningItems,
+      (dangerEntries, warningEntries, stages) => _buildSummary(
+        dangerEntries: dangerEntries,
+        warningEntries: warningEntries,
         stages: stages,
       ),
     ).distinct();
   }
 
   AttentionSummary _buildSummary({
-    required List<ItemHomeEntry> dangerItems,
-    required List<ItemHomeEntry> warningItems,
+    required List<HomeAttentionEntry> dangerEntries,
+    required List<HomeAttentionEntry> warningEntries,
     required List<StageOccurrence> stages,
   }) {
     return AttentionSummary(
-      dangerCount: dangerItems.length,
-      warningCount: warningItems.length,
+      dangerItemCount: dangerEntries
+          .where((entry) => entry.type == HomeAttentionEntryType.item)
+          .length,
+      warningItemCount: warningEntries
+          .where((entry) => entry.type == HomeAttentionEntryType.item)
+          .length,
+      dangerResourceCount: dangerEntries
+          .where((entry) => entry.type == HomeAttentionEntryType.resource)
+          .length,
+      warningResourceCount: warningEntries
+          .where((entry) => entry.type == HomeAttentionEntryType.resource)
+          .length,
       stageUpcomingCount: stages.length,
     );
   }

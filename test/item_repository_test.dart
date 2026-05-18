@@ -1,4 +1,5 @@
 import 'package:drift/native.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/item_repository.dart';
@@ -277,6 +278,211 @@ void main() {
     expect(consumedRecord.resultingQuantity, 4);
     expect(consumedRecord.sourceItemActionRecordId, actualDoneRecord.id);
   });
+
+  test(
+    'undoDone reverts item done record and restores item snapshot',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = ItemRepository(db.reminderDao);
+
+      final itemId = await repository.createItem(
+        ItemInput(
+          title: 'Clean fountain',
+          type: ItemType.stateBased,
+          config: StateBasedItemConfig(
+            anchorDate: DateTime(2026, 4, 1),
+            warningAfter: const Duration(days: 2),
+            dangerAfter: const Duration(days: 4),
+          ),
+        ),
+      );
+
+      expect(
+        await repository.markDone(itemId, doneAt: DateTime(2026, 4, 5)),
+        isTrue,
+      );
+      final doneRecord = (await repository.listActionHistory(
+        itemId,
+      )).firstWhere((record) => record.actionType == ItemActionType.done);
+      expect(
+        await repository.undoDone(
+          doneRecord.id,
+          undoneAt: DateTime(2026, 4, 6),
+        ),
+        isTrue,
+      );
+
+      final item = await repository.getItemById(itemId);
+      final history = await repository.listActionHistory(itemId);
+      final revertedDone = history.firstWhere(
+        (record) => record.id == doneRecord.id,
+      );
+      final revertRecord = history.firstWhere(
+        (record) => record.actionType == ItemActionType.reverted,
+      );
+
+      expect(
+        (item!.item.config as StateBasedItemConfig).anchorDate,
+        DateTime(2026, 4, 1),
+      );
+      expect(revertedDone.isReverted, isTrue);
+      expect(revertedDone.revertedAt, DateTime(2026, 4, 6));
+      expect(revertedDone.revertedByActionRecordId, revertRecord.id);
+      expect(revertRecord.payload?['reason'], 'undo_done');
+      expect(revertRecord.payload?['revertedActionRecordId'], doneRecord.id);
+    },
+  );
+
+  test(
+    'undoDone restores consumed quantity resource and hides reverted pair from history',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = ItemRepository(db.reminderDao);
+      final resourceRepository = ResourceRepository(db.reminderDao);
+
+      final itemId = await repository.createItem(
+        const ItemInput(
+          title: 'Replace filter',
+          type: ItemType.stateBased,
+          config: StateBasedItemConfig(
+            warningAfter: Duration(days: 12),
+            dangerAfter: Duration(days: 14),
+          ),
+        ),
+      );
+      final resourceId = await resourceRepository.createResource(
+        const ResourceInput(
+          title: 'Filter',
+          type: ResourceType.quantityBased,
+          config: QuantityBasedResourceConfig(
+            currentQuantity: 5,
+            unitLabel: '個',
+            warningThreshold: 2,
+            dangerThreshold: 1,
+          ),
+        ),
+      );
+      final ruleId = await resourceRepository.createConsumptionRule(
+        ResourceConsumptionRuleInput(
+          itemId: itemId,
+          resourceId: resourceId,
+          consumeAmount: 2,
+        ),
+      );
+
+      expect(
+        await repository.markDone(itemId, doneAt: DateTime(2026, 4, 5)),
+        isTrue,
+      );
+      await resourceRepository.disableConsumptionRule(ruleId);
+      expect(await resourceRepository.archiveResource(resourceId), isTrue);
+      final doneRecord = (await repository.listActionHistory(
+        itemId,
+      )).firstWhere((record) => record.actionType == ItemActionType.done);
+
+      expect(
+        await repository.undoDone(
+          doneRecord.id,
+          undoneAt: DateTime(2026, 4, 6),
+        ),
+        isTrue,
+      );
+
+      final resource = await resourceRepository.getResourceById(resourceId);
+      final visibleHistory = await resourceRepository.listActionHistory(
+        resourceId,
+      );
+      final fullHistory = await resourceRepository.listActionHistory(
+        resourceId,
+        includeReverted: true,
+      );
+      final consumedRecord = fullHistory.firstWhere(
+        (record) => record.actionType == ResourceActionType.consumed,
+      );
+      final compensationRecord = fullHistory.firstWhere(
+        (record) => record.actionType == ResourceActionType.reverted,
+      );
+
+      expect(
+        (resource!.resource.config as QuantityBasedResourceConfig)
+            .currentQuantity,
+        5,
+      );
+      expect(consumedRecord.isReverted, isTrue);
+      expect(consumedRecord.revertedByActionRecordId, compensationRecord.id);
+      expect(compensationRecord.amount, 2);
+      expect(compensationRecord.resultingQuantity, 5);
+      expect(visibleHistory.map((record) => record.actionType), [
+        ResourceActionType.created,
+      ]);
+    },
+  );
+
+  test(
+    'undoDone rolls back item changes when resource compensation fails',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = ItemRepository(db.reminderDao);
+      final resourceRepository = ResourceRepository(db.reminderDao);
+
+      final itemId = await repository.createItem(
+        const ItemInput(
+          title: 'Clean bowl',
+          type: ItemType.stateBased,
+          config: StateBasedItemConfig(
+            warningAfter: Duration(days: 1),
+            dangerAfter: Duration(days: 2),
+          ),
+        ),
+      );
+      final resourceId = await resourceRepository.createResource(
+        ResourceInput(
+          title: 'Time resource',
+          type: ResourceType.timeBased,
+          config: TimeBasedResourceConfig(
+            anchorDate: DateTime(2026, 4, 1),
+            durationDays: 10,
+          ),
+        ),
+      );
+      await repository.markDone(itemId, doneAt: DateTime(2026, 4, 5));
+      final doneRecord = (await repository.listActionHistory(
+        itemId,
+      )).firstWhere((record) => record.actionType == ItemActionType.done);
+      await db.reminderDao.insertResourceActionRecord(
+        ResourceActionRecordsCompanion.insert(
+          resourceId: resourceId,
+          actionType: ResourceActionType.consumed.name,
+          actionDate: DateTime(2026, 4, 5).millisecondsSinceEpoch,
+          amount: const Value(1),
+          sourceItemActionRecordId: Value(doneRecord.id),
+          createdAt: DateTime(2026, 4, 5).millisecondsSinceEpoch,
+          updatedAt: DateTime(2026, 4, 5).millisecondsSinceEpoch,
+        ),
+      );
+
+      expect(
+        await repository.undoDone(
+          doneRecord.id,
+          undoneAt: DateTime(2026, 4, 6),
+        ),
+        isFalse,
+      );
+
+      final history = await repository.listActionHistory(itemId);
+      final unchangedDone = history.firstWhere(
+        (record) => record.id == doneRecord.id,
+      );
+      expect(unchangedDone.isReverted, isFalse);
+      expect(
+        history.any((record) => record.actionType == ItemActionType.reverted),
+        isFalse,
+      );
+    },
+  );
 
   test('refill quantity resource writes resulting quantity', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());

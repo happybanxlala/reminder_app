@@ -6,7 +6,7 @@ enum ResourceLifecycleStatus { active, paused, archived }
 
 enum ResourceStatus { normal, warning, danger, unknown }
 
-enum ResourceActionType { created, consumed, refilled, adjusted }
+enum ResourceActionType { created, consumed, refilled, adjusted, reverted }
 
 abstract class ResourceConfig {
   const ResourceConfig();
@@ -112,6 +112,9 @@ class ResourceActionRecord {
     this.resultingDurationDays,
     this.sourceItemActionRecordId,
     this.remark,
+    this.isReverted = false,
+    this.revertedAt,
+    this.revertedByActionRecordId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -126,6 +129,9 @@ class ResourceActionRecord {
   final int? resultingDurationDays;
   final int? sourceItemActionRecordId;
   final String? remark;
+  final bool isReverted;
+  final DateTime? revertedAt;
+  final int? revertedByActionRecordId;
   final DateTime createdAt;
   final DateTime updatedAt;
 }

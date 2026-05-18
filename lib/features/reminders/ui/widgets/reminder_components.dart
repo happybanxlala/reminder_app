@@ -61,12 +61,14 @@ class ReminderRailCard extends StatelessWidget {
     required this.railColor,
     required this.child,
     this.padding = const EdgeInsets.all(ReminderSpacing.card),
+    this.radius = ReminderRadius.card,
     this.onTap,
   });
 
   final Color railColor;
   final Widget child;
   final EdgeInsetsGeometry padding;
+  final double radius;
   final VoidCallback? onTap;
 
   @override
@@ -74,8 +76,9 @@ class ReminderRailCard extends StatelessWidget {
     return ReminderPaperCard(
       onTap: onTap,
       padding: EdgeInsets.zero,
+      radius: radius,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(ReminderRadius.card),
+        borderRadius: BorderRadius.circular(radius),
         child: Stack(
           children: [
             Positioned.fill(

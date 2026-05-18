@@ -22,6 +22,7 @@ import '../../presentation/formatters/reminder_formatters.dart';
 import 'feature_page.dart';
 import 'item_edit_page.dart';
 import 'item_history_page.dart';
+import 'resource_history_page.dart';
 import '../widgets/pack_picker.dart';
 import '../widgets/reminder_components.dart';
 
@@ -56,6 +57,24 @@ class HomePage extends ConsumerWidget {
   }
 }
 
+class _HomeDensity {
+  const _HomeDensity._();
+
+  static const pagePadding = 12.0;
+  static const sectionGap = 12.0;
+  static const headerGap = 8.0;
+  static const listGap = 6.0;
+  static const cardPaddingVertical = 8.0;
+  static const cardPaddingHorizontal = 10.0;
+  static const cardRadius = 16.0;
+  static const packChipSize = 26.0;
+
+  static const cardPadding = EdgeInsets.symmetric(
+    vertical: cardPaddingVertical,
+    horizontal: cardPaddingHorizontal,
+  );
+}
+
 class HomeContent extends ConsumerStatefulWidget {
   const HomeContent({super.key});
 
@@ -65,14 +84,16 @@ class HomeContent extends ConsumerStatefulWidget {
 
 class _HomeContentState extends ConsumerState<HomeContent> {
   int? _selectedPackId;
+  String? _expandedEntryKey;
+  bool _isTodayCompletedExpanded = false;
 
   @override
   Widget build(BuildContext context) {
     final summaryAsync = ref.watch(attentionSummaryProvider);
-    final dangerAsync = ref.watch(dangerHomeEntriesProvider);
-    final warningAsync = ref.watch(warningHomeEntriesProvider);
-    final resourcesAsync = ref.watch(resourcesProvider);
+    final dangerAsync = ref.watch(dangerHomeAttentionEntriesProvider);
+    final warningAsync = ref.watch(warningHomeAttentionEntriesProvider);
     final stagesAsync = ref.watch(upcomingStagesProvider);
+    final completedAsync = ref.watch(todayCompletedEntriesProvider);
     final packsAsync = ref.watch(activeItemPacksProvider);
     final trackersAsync = ref.watch(stageTrackersProvider);
     final previewDate = ref.watch(effectivePreviewDateProvider);
@@ -80,7 +101,7 @@ class _HomeContentState extends ConsumerState<HomeContent> {
     final trackers = trackersAsync.valueOrNull ?? const <StageTracker>[];
 
     return ListView(
-      padding: const EdgeInsets.all(ReminderSpacing.page),
+      padding: const EdgeInsets.all(_HomeDensity.pagePadding),
       children: [
         summaryAsync.when(
           data: (summary) =>
@@ -98,68 +119,49 @@ class _HomeContentState extends ConsumerState<HomeContent> {
             ),
           ),
         ),
-        const SizedBox(height: ReminderSpacing.section),
+        const SizedBox(height: _HomeDensity.sectionGap),
         _HomePackFilter(
           packs: packs,
           selectedPackId: _selectedPackId,
           onChanged: (packId) {
             setState(() {
               _selectedPackId = packId;
+              _expandedEntryKey = null;
+              _isTodayCompletedExpanded = false;
             });
           },
         ),
-        const SizedBox(height: ReminderSpacing.section),
+        const SizedBox(height: _HomeDensity.sectionGap),
         _HomeSection(
           title: ReminderUiText.dangerTab,
           icon: Icons.error_outline,
           child: dangerAsync.when(
-            data: (items) => _ItemList(
-              items: _filterItems(items),
+            data: (items) => _AttentionEntryList(
+              entries: _filterAttentionEntries(items),
               emptyMessage: ReminderUiText.noDangerItems,
+              expandedEntryKey: _expandedEntryKey,
+              onToggleEntry: _toggleEntry,
             ),
             error: (error, stack) => Text('讀取失敗: $error'),
             loading: () => const Center(child: CircularProgressIndicator()),
           ),
         ),
-        const SizedBox(height: ReminderSpacing.section),
+        const SizedBox(height: _HomeDensity.sectionGap),
         _HomeSection(
           title: ReminderUiText.warningTab,
           icon: Icons.visibility_outlined,
           child: warningAsync.when(
-            data: (items) => _ItemList(
-              items: _filterItems(items),
+            data: (items) => _AttentionEntryList(
+              entries: _filterAttentionEntries(items),
               emptyMessage: ReminderUiText.noWarningItems,
+              expandedEntryKey: _expandedEntryKey,
+              onToggleEntry: _toggleEntry,
             ),
             error: (error, stack) => Text('讀取失敗: $error'),
             loading: () => const Center(child: CircularProgressIndicator()),
           ),
         ),
-        const SizedBox(height: ReminderSpacing.section),
-        resourcesAsync.when(
-          data: (resources) {
-            final filteredResources = _filterResources(resources);
-            if (filteredResources.isEmpty) {
-              return const SizedBox.shrink();
-            }
-            return Padding(
-              padding: const EdgeInsets.only(bottom: ReminderSpacing.section),
-              child: _HomeSection(
-                title: '資源',
-                icon: Icons.inventory_2_outlined,
-                child: _ResourceList(resources: filteredResources),
-              ),
-            );
-          },
-          error: (error, stack) => Padding(
-            padding: const EdgeInsets.only(bottom: ReminderSpacing.section),
-            child: _HomeSection(
-              title: '資源',
-              icon: Icons.inventory_2_outlined,
-              child: Text('讀取失敗: $error'),
-            ),
-          ),
-          loading: () => const SizedBox.shrink(),
-        ),
+        const SizedBox(height: _HomeDensity.sectionGap),
         _HomeSection(
           title: ReminderUiText.upcomingSectionTitle,
           icon: Icons.event_available_outlined,
@@ -174,28 +176,51 @@ class _HomeContentState extends ConsumerState<HomeContent> {
             loading: () => const Center(child: CircularProgressIndicator()),
           ),
         ),
+        completedAsync.when(
+          data: (items) {
+            final filtered = _filterCompletedEntries(items);
+            if (filtered.isEmpty) {
+              return const SizedBox.shrink();
+            }
+            return Padding(
+              padding: const EdgeInsets.only(top: _HomeDensity.sectionGap),
+              child: _TodayCompletedSection(
+                entries: filtered,
+                isExpanded: _isTodayCompletedExpanded,
+                onToggle: () {
+                  setState(() {
+                    _isTodayCompletedExpanded = !_isTodayCompletedExpanded;
+                  });
+                },
+              ),
+            );
+          },
+          error: (error, stack) => Padding(
+            padding: const EdgeInsets.only(top: _HomeDensity.sectionGap),
+            child: Text('讀取失敗: $error'),
+          ),
+          loading: () => const SizedBox.shrink(),
+        ),
         const ReminderFooterMark(),
       ],
     );
   }
 
-  List<ItemHomeEntry> _filterItems(List<ItemHomeEntry> items) {
+  void _toggleEntry(String key) {
+    setState(() {
+      _expandedEntryKey = _expandedEntryKey == key ? null : key;
+    });
+  }
+
+  List<HomeAttentionEntry> _filterAttentionEntries(
+    List<HomeAttentionEntry> items,
+  ) {
     final packId = _selectedPackId;
     if (packId == null) {
       return items;
     }
     return items
-        .where((entry) => entry.bundle.item.packId == packId)
-        .toList(growable: false);
-  }
-
-  List<ResourceBundle> _filterResources(List<ResourceBundle> resources) {
-    final packId = _selectedPackId;
-    if (packId == null) {
-      return resources;
-    }
-    return resources
-        .where((entry) => entry.resource.packId == packId)
+        .where((entry) => entry.packId == packId)
         .toList(growable: false);
   }
 
@@ -212,6 +237,18 @@ class _HomeContentState extends ConsumerState<HomeContent> {
     };
     return stages
         .where((entry) => trackerPackIds[entry.stageTrackerId] == packId)
+        .toList(growable: false);
+  }
+
+  List<TodayCompletedEntry> _filterCompletedEntries(
+    List<TodayCompletedEntry> entries,
+  ) {
+    final packId = _selectedPackId;
+    if (packId == null) {
+      return entries;
+    }
+    return entries
+        .where((entry) => entry.packId == packId)
         .toList(growable: false);
   }
 }
@@ -313,7 +350,8 @@ class _AttentionSummaryCard extends StatelessWidget {
     return ReminderPaperCard(
       key: const Key('attention-summary-card'),
       backgroundColor: palette.surfaceWarm,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(14),
+      radius: _HomeDensity.cardRadius,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -327,22 +365,25 @@ class _AttentionSummaryCard extends StatelessWidget {
                   color: palette.primaryWarmDark,
                   backgroundColor: palette.primaryWarmContainer,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 Text(
                   summary.hasAttention
-                      ? '今天有 ${summary.totalCount} 件事需要處理'
+                      ? ReminderUiText.homeAttentionTitleTemplate.replaceFirst(
+                          '{total}',
+                          '${summary.totalCount}',
+                        )
                       : ReminderUiText.homeAttentionStable,
                   key: const Key('attention-summary-title'),
-                  style: theme.textTheme.headlineSmall?.copyWith(
+                  style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 if (summary.hasAttention) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   Text(
                     breakdown,
                     key: const Key('attention-summary-breakdown'),
-                    style: theme.textTheme.bodyLarge?.copyWith(
+                    style: theme.textTheme.bodyMedium?.copyWith(
                       color: palette.textSecondary,
                     ),
                   ),
@@ -356,159 +397,212 @@ class _AttentionSummaryCard extends StatelessWidget {
   }
 }
 
-class _ItemList extends ConsumerWidget {
-  const _ItemList({required this.items, required this.emptyMessage});
+class _AttentionEntryList extends ConsumerWidget {
+  const _AttentionEntryList({
+    required this.entries,
+    required this.emptyMessage,
+    required this.expandedEntryKey,
+    required this.onToggleEntry,
+  });
 
-  final List<ItemHomeEntry> items;
+  final List<HomeAttentionEntry> entries;
   final String emptyMessage;
+  final String? expandedEntryKey;
+  final ValueChanged<String> onToggleEntry;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (items.isEmpty) {
-      return ReminderEmptyState(message: emptyMessage);
+    if (entries.isEmpty) {
+      return _HomeCompactEmptyState(message: emptyMessage);
     }
     final previewDate = ref.watch(effectivePreviewDateProvider);
     return Column(
       children: [
-        for (var index = 0; index < items.length; index++) ...[
-          if (index > 0) const SizedBox(height: ReminderSpacing.listGap),
-          _ItemCard(entry: items[index], previewDate: previewDate),
+        for (var index = 0; index < entries.length; index++) ...[
+          if (index > 0) const SizedBox(height: _HomeDensity.listGap),
+          switch (entries[index].type) {
+            HomeAttentionEntryType.item => _ItemCard(
+              entryKey: entries[index].stableKey,
+              entry: entries[index].itemEntry!,
+              previewDate: previewDate,
+              isExpanded: expandedEntryKey == entries[index].stableKey,
+              onToggle: () => onToggleEntry(entries[index].stableKey),
+            ),
+            HomeAttentionEntryType.resource => _ResourceCard(
+              entryKey: entries[index].stableKey,
+              bundle: entries[index].resourceBundle!,
+              now: previewDate,
+              isExpanded: expandedEntryKey == entries[index].stableKey,
+              onToggle: () => onToggleEntry(entries[index].stableKey),
+            ),
+          },
         ],
       ],
     );
   }
 }
 
-class _ItemCard extends ConsumerStatefulWidget {
-  const _ItemCard({required this.entry, required this.previewDate});
+class _HomeCompactEmptyState extends StatelessWidget {
+  const _HomeCompactEmptyState({required this.message});
 
-  final ItemHomeEntry entry;
-  final DateTime previewDate;
-
-  @override
-  ConsumerState<_ItemCard> createState() => _ItemCardState();
-}
-
-class _ItemCardState extends ConsumerState<_ItemCard> {
-  bool _isExpanded = false;
+  final String message;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.reminderPalette;
-    final baseViewModel = ItemCardViewModel.fromEntry(
-      widget.entry,
-      now: widget.previewDate,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: palette.surfaceWarm,
+        borderRadius: BorderRadius.circular(_HomeDensity.cardRadius),
+        border: Border.all(color: palette.borderSubtle),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.check_circle_outline,
+            size: 18,
+            color: palette.statusNormal,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(message, style: Theme.of(context).textTheme.bodyMedium),
+          ),
+        ],
+      ),
     );
-    final viewModel = baseViewModel.copyWith(isExpanded: _isExpanded);
+  }
+}
+
+class _ItemCard extends ConsumerWidget {
+  const _ItemCard({
+    required this.entryKey,
+    required this.entry,
+    required this.previewDate,
+    required this.isExpanded,
+    required this.onToggle,
+  });
+
+  final String entryKey;
+  final ItemHomeEntry entry;
+  final DateTime previewDate;
+  final bool isExpanded;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.reminderPalette;
+    final baseViewModel = ItemCardViewModel.fromEntry(entry, now: previewDate);
+    final viewModel = baseViewModel.copyWith(isExpanded: isExpanded);
     final stateColor = _itemStateColor(viewModel.displayState, palette);
 
     return ReminderRailCard(
       key: Key('item-card-${viewModel.id}'),
       railColor: stateColor,
+      padding: _HomeDensity.cardPadding,
+      radius: _HomeDensity.cardRadius,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Tooltip(
-                message: widget.entry.bundle.pack.title,
-                child: Semantics(
-                  label: '生活場景 ${widget.entry.bundle.pack.title}',
-                  child: ReminderIconBubble(
-                    size: 58,
-                    child: Text(widget.entry.bundle.pack.iconEmoji),
+              Expanded(
+                child: InkWell(
+                  key: Key('home-card-body-$entryKey'),
+                  onTap: onToggle,
+                  borderRadius: BorderRadius.circular(_HomeDensity.cardRadius),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Row(
+                      children: [
+                        _PackEmojiChip(pack: entry.bundle.pack),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            viewModel.title,
+                            key: Key('item-${viewModel.id}'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ),
+                        if (viewModel.trailingLabel != null) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            viewModel.trailingLabel!,
+                            key: Key('item-tail-${viewModel.id}'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: _itemStateColor(
+                                    viewModel.displayState,
+                                    palette,
+                                  ),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Text(
-                          viewModel.title,
-                          key: Key('item-${viewModel.id}'),
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        _ItemTypeBadge(
-                          label: viewModel.badgeLabel,
-                          key: Key('item-badge-${viewModel.id}'),
-                        ),
-                      ],
-                    ),
-                    if (viewModel.trailingLabel != null) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        viewModel.trailingLabel!,
-                        key: Key('item-tail-${viewModel.id}'),
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              FilledButton(
+              const SizedBox(width: 4),
+              IconButton(
                 key: Key('item-checkbox-${viewModel.id}'),
                 onPressed: viewModel.canComplete
-                    ? () => _handleComplete(viewModel)
+                    ? () => _handleComplete(ref, viewModel)
                     : null,
-                child: const Text(ReminderUiText.completeAction),
-              ),
-              IconButton(
-                key: Key('item-expand-${viewModel.id}'),
-                onPressed: () {
-                  setState(() {
-                    _isExpanded = !_isExpanded;
-                  });
-                },
-                tooltip: _isExpanded
-                    ? ReminderUiText.collapseAction
-                    : ReminderUiText.expandAction,
-                icon: Icon(_isExpanded ? Icons.expand_less : Icons.expand_more),
+                tooltip: ReminderUiText.completeAction,
+                icon: const Icon(Icons.check_rounded),
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints.tightFor(
+                  width: 36,
+                  height: 36,
+                ),
               ),
             ],
           ),
           AnimatedSize(
-            duration: const Duration(milliseconds: 180),
+            duration: const Duration(milliseconds: 160),
             child: viewModel.isExpanded
                 ? Container(
                     key: Key('item-content-${viewModel.id}'),
-                    padding: const EdgeInsets.only(top: 14),
+                    padding: const EdgeInsets.only(top: 8),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _ItemDetailRow(
+                        _HomeDetailRow(
+                          label: '類型',
+                          value: viewModel.badgeLabel,
+                        ),
+                        _HomeDetailRow(
                           label: ReminderUiText.packFieldLabel,
-                          value: packDisplayLabel(widget.entry.bundle.pack),
+                          value: packDisplayLabel(entry.bundle.pack),
                         ),
                         if (viewModel.note != null)
-                          _ItemDetailRow(label: '備註', value: viewModel.note!),
+                          _HomeDetailRow(label: '備註', value: viewModel.note!),
                         if (viewModel.anchorDateLabel != null)
-                          _ItemDetailRow(
+                          _HomeDetailRow(
                             label: '開始日期',
                             value: viewModel.anchorDateLabel!,
                           ),
                         if (viewModel.dueDateLabel != null)
-                          _ItemDetailRow(
+                          _HomeDetailRow(
                             label: '到期日期',
                             value: viewModel.dueDateLabel!,
                           ),
                         if (viewModel.overduePolicyLabel != null)
-                          _ItemDetailRow(
+                          _HomeDetailRow(
                             label: '逾期策略',
                             value: viewModel.overduePolicyLabel!,
                           ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 4),
                         Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
+                          spacing: 6,
+                          runSpacing: 4,
                           children: [
                             if (viewModel.canSkip)
                               TextButton(
@@ -518,7 +612,7 @@ class _ItemCardState extends ConsumerState<_ItemCard> {
                                       .read(itemRepositoryProvider)
                                       .skip(
                                         viewModel.id,
-                                        actionAt: widget.previewDate,
+                                        actionAt: previewDate,
                                       );
                                 },
                                 child: const Text(ReminderUiText.skipAction),
@@ -547,31 +641,47 @@ class _ItemCardState extends ConsumerState<_ItemCard> {
     );
   }
 
-  Future<void> _handleComplete(ItemCardViewModel viewModel) async {
+  Future<void> _handleComplete(
+    WidgetRef ref,
+    ItemCardViewModel viewModel,
+  ) async {
     await ref
         .read(itemRepositoryProvider)
-        .markDone(viewModel.id, doneAt: widget.previewDate);
+        .markDone(viewModel.id, doneAt: previewDate);
   }
 }
 
-class _ItemTypeBadge extends StatelessWidget {
-  const _ItemTypeBadge({required this.label, super.key});
+class _PackEmojiChip extends StatelessWidget {
+  const _PackEmojiChip({required this.pack});
 
-  final String label;
+  final ItemPack pack;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.reminderPalette;
-    return ReminderBadge(
-      label: label,
-      color: palette.primaryWarmDark,
-      backgroundColor: palette.primaryWarmContainer,
+    return Tooltip(
+      message: pack.title,
+      child: Semantics(
+        label: '生活場景 ${pack.title}',
+        child: Container(
+          key: Key('home-pack-chip-${pack.id}'),
+          width: _HomeDensity.packChipSize,
+          height: _HomeDensity.packChipSize,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: palette.surfaceWarm,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: palette.borderSubtle),
+          ),
+          child: Text(pack.iconEmoji, style: const TextStyle(fontSize: 15)),
+        ),
+      ),
     );
   }
 }
 
-class _ItemDetailRow extends StatelessWidget {
-  const _ItemDetailRow({required this.label, required this.value});
+class _HomeDetailRow extends StatelessWidget {
+  const _HomeDetailRow({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -579,7 +689,7 @@ class _ItemDetailRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 3),
       child: Wrap(
         spacing: 4,
         children: [
@@ -587,9 +697,9 @@ class _ItemDetailRow extends StatelessWidget {
             '$label：',
             style: Theme.of(
               context,
-            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+            ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
           ),
-          Text(value, style: Theme.of(context).textTheme.bodyMedium),
+          Text(value, style: Theme.of(context).textTheme.bodySmall),
         ],
       ),
     );
@@ -607,44 +717,20 @@ Color _itemStateColor(ItemCardDisplayState state, ReminderPalette palette) {
   };
 }
 
-class _ResourceList extends ConsumerWidget {
-  const _ResourceList({required this.resources});
-
-  final List<ResourceBundle> resources;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final previewDate = ref.watch(effectivePreviewDateProvider);
-    final repository = ref.watch(resourceRepositoryProvider);
-    final attentionResources = resources
-        .where((bundle) {
-          final status = repository.statusFor(
-            bundle.resource,
-            now: previewDate,
-          );
-          return status == ResourceStatus.warning ||
-              status == ResourceStatus.danger;
-        })
-        .toList(growable: false);
-    if (attentionResources.isEmpty) {
-      return const ReminderEmptyState(message: '目前沒有需要留意的資源。');
-    }
-    return Column(
-      children: [
-        for (var index = 0; index < attentionResources.length; index++) ...[
-          if (index > 0) const SizedBox(height: ReminderSpacing.listGap),
-          _ResourceCard(bundle: attentionResources[index], now: previewDate),
-        ],
-      ],
-    );
-  }
-}
-
 class _ResourceCard extends ConsumerWidget {
-  const _ResourceCard({required this.bundle, required this.now});
+  const _ResourceCard({
+    required this.entryKey,
+    required this.bundle,
+    required this.now,
+    required this.isExpanded,
+    required this.onToggle,
+  });
 
+  final String entryKey;
   final ResourceBundle bundle;
   final DateTime now;
+  final bool isExpanded;
+  final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -655,57 +741,199 @@ class _ResourceCard extends ConsumerWidget {
     return ReminderRailCard(
       key: Key('resource-card-${resource.id}'),
       railColor: _resourceStatusColor(status, palette),
-      child: Row(
+      padding: _HomeDensity.cardPadding,
+      radius: _HomeDensity.cardRadius,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Tooltip(
-            message: bundle.pack.title,
-            child: Semantics(
-              label: '生活場景 ${bundle.pack.title}',
-              child: ReminderIconBubble(
-                size: 58,
-                child: Text(bundle.pack.iconEmoji),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: InkWell(
+                  key: Key('home-card-body-$entryKey'),
+                  onTap: onToggle,
+                  borderRadius: BorderRadius.circular(_HomeDensity.cardRadius),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Row(
+                      children: [
+                        _PackEmojiChip(pack: bundle.pack),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            resource.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          ReminderFormatters.resourceTrailingLabel(
+                            resource,
+                            now: now,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: _resourceStatusColor(status, palette),
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(
-                      resource.title,
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    ReminderBadge(
-                      label: '庫存',
-                      icon: Icons.inventory_2_outlined,
-                      color: palette.domainResource,
-                      backgroundColor: palette.statusWarningContainer,
-                    ),
-                  ],
+              const SizedBox(width: 4),
+              IconButton(
+                key: Key('resource-refill-${resource.id}'),
+                onPressed: () =>
+                    _showResourceRefillDialog(context, ref, resource),
+                tooltip: '補充',
+                icon: const Icon(Icons.add_rounded),
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints.tightFor(
+                  width: 36,
+                  height: 36,
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  '${ReminderFormatters.resourceStatus(status)} · ${ReminderFormatters.resourceSummary(resource, now: now)}',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          ReminderBadge(
-            label: ReminderFormatters.resourceTrailingLabel(resource, now: now),
-            color: _resourceStatusColor(status, palette),
-            backgroundColor: _resourceStatusContainer(status, palette),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 160),
+            child: isExpanded
+                ? Container(
+                    key: Key('resource-content-${resource.id}'),
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _HomeDetailRow(
+                          label: '類型',
+                          value: ReminderFormatters.resourceType(resource.type),
+                        ),
+                        _HomeDetailRow(
+                          label: ReminderUiText.packFieldLabel,
+                          value: packDisplayLabel(bundle.pack),
+                        ),
+                        _HomeDetailRow(
+                          label: '狀態',
+                          value: ReminderFormatters.resourceStatus(status),
+                        ),
+                        _HomeDetailRow(
+                          label: '摘要',
+                          value: ReminderFormatters.resourceSummary(
+                            resource,
+                            now: now,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        TextButton(
+                          key: Key('resource-history-${resource.id}'),
+                          onPressed: () {
+                            context.pushNamed(
+                              ResourceHistoryPage.routeName,
+                              pathParameters: {'id': resource.id.toString()},
+                            );
+                          },
+                          child: const Text('歷史紀錄'),
+                        ),
+                      ],
+                    ),
+                  )
+                : const SizedBox.shrink(),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _showResourceRefillDialog(
+    BuildContext context,
+    WidgetRef ref,
+    Resource resource,
+  ) async {
+    final input = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => _HomeNumberInputDialog(
+        title: '補充資源',
+        label: resource.config is TimeBasedResourceConfig ? '新增可用天數' : '新增數量',
+      ),
+    );
+    if (input == null || !context.mounted) {
+      return;
+    }
+    await ref
+        .read(resourceRepositoryProvider)
+        .refillResource(
+          resource.id,
+          actionAt: now,
+          addedDays: resource.config is TimeBasedResourceConfig ? input : null,
+          addedQuantity: resource.config is QuantityBasedResourceConfig
+              ? input
+              : null,
+        );
+  }
+}
+
+class _HomeNumberInputDialog extends StatefulWidget {
+  const _HomeNumberInputDialog({required this.title, required this.label});
+
+  final String title;
+  final String label;
+
+  @override
+  State<_HomeNumberInputDialog> createState() => _HomeNumberInputDialogState();
+}
+
+class _HomeNumberInputDialogState extends State<_HomeNumberInputDialog> {
+  final _controller = TextEditingController(text: '1');
+  String? _errorText;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: TextField(
+        controller: _controller,
+        keyboardType: TextInputType.number,
+        decoration: InputDecoration(
+          labelText: widget.label,
+          errorText: _errorText,
+        ),
+        autofocus: true,
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text(ReminderUiText.closeAction),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          child: const Text(ReminderUiText.confirmAction),
+        ),
+      ],
+    );
+  }
+
+  void _submit() {
+    final value = int.tryParse(_controller.text.trim());
+    if (value == null || value <= 0) {
+      setState(() {
+        _errorText = ReminderUiText.resourceCompletionDialogError;
+      });
+      return;
+    }
+    Navigator.of(context).pop(value);
   }
 }
 
@@ -715,15 +943,6 @@ Color _resourceStatusColor(ResourceStatus status, ReminderPalette palette) {
     ResourceStatus.warning => palette.statusWarning,
     ResourceStatus.danger => palette.statusDanger,
     ResourceStatus.unknown => palette.statusUnknown,
-  };
-}
-
-Color _resourceStatusContainer(ResourceStatus status, ReminderPalette palette) {
-  return switch (status) {
-    ResourceStatus.normal => palette.statusNormalContainer,
-    ResourceStatus.warning => palette.statusWarningContainer,
-    ResourceStatus.danger => palette.statusDangerContainer,
-    ResourceStatus.unknown => palette.statusUnknownContainer,
   };
 }
 
@@ -743,13 +962,13 @@ class _StageList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
-      return ReminderEmptyState(message: emptyMessage);
+      return _HomeCompactEmptyState(message: emptyMessage);
     }
     final palette = context.reminderPalette;
     return Column(
       children: [
         for (var index = 0; index < items.length; index++) ...[
-          if (index > 0) const SizedBox(height: ReminderSpacing.listGap),
+          if (index > 0) const SizedBox(height: _HomeDensity.listGap),
           Builder(
             builder: (context) {
               final occurrence = items[index];
@@ -757,63 +976,49 @@ class _StageList extends ConsumerWidget {
               final pack = _packForOccurrence(occurrence);
               return ReminderRailCard(
                 railColor: palette.domainStage,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                padding: _HomeDensity.cardPadding,
+                radius: _HomeDensity.cardRadius,
+                child: Row(
+                  key: Key('stage-item-${viewModel.id}'),
                   children: [
-                    Row(
-                      key: Key('stage-item-${viewModel.id}'),
-                      children: [
-                        if (pack != null) ...[
-                          Tooltip(
-                            message: pack.title,
-                            child: Semantics(
-                              label: '生活場景 ${pack.title}',
-                              child: ReminderIconBubble(
-                                size: 58,
-                                child: Text(pack.iconEmoji),
-                              ),
-                            ),
+                    if (pack != null) ...[
+                      _PackEmojiChip(pack: pack),
+                      const SizedBox(width: 8),
+                    ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            viewModel.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleMedium,
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(height: 2),
+                          Text(
+                            viewModel.subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
                         ],
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 6,
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                children: [
-                                  Text(
-                                    viewModel.title,
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.titleLarge,
-                                  ),
-                                  ReminderBadge(
-                                    label: ReminderUiText.stageLabel,
-                                    icon: Icons.auto_graph_outlined,
-                                    color: palette.domainStage,
-                                    backgroundColor:
-                                        palette.statusNormalContainer,
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              Text(viewModel.subtitle),
-                            ],
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () async {
-                            await ref
-                                .read(stageTrackerRepositoryProvider)
-                                .acknowledgeOccurrence(occurrence);
-                          },
-                          child: const Text(ReminderUiText.acknowledgedAction),
-                        ),
-                      ],
+                      ),
+                    ),
+                    IconButton(
+                      key: Key('stage-ack-${viewModel.id}'),
+                      onPressed: () async {
+                        await ref
+                            .read(stageTrackerRepositoryProvider)
+                            .acknowledgeOccurrence(occurrence);
+                      },
+                      tooltip: ReminderUiText.acknowledgedAction,
+                      icon: const Icon(Icons.check_circle_outline_rounded),
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints.tightFor(
+                        width: 36,
+                        height: 36,
+                      ),
                     ),
                   ],
                 ),
@@ -841,6 +1046,191 @@ class _StageList extends ConsumerWidget {
   }
 }
 
+class _TodayCompletedSection extends StatelessWidget {
+  const _TodayCompletedSection({
+    required this.entries,
+    required this.isExpanded,
+    required this.onToggle,
+  });
+
+  final List<TodayCompletedEntry> entries;
+  final bool isExpanded;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.reminderPalette;
+    return ReminderRailCard(
+      key: const Key('today-completed-section'),
+      railColor: palette.statusNormal,
+      padding: _HomeDensity.cardPadding,
+      radius: _HomeDensity.cardRadius,
+      child: Column(
+        children: [
+          InkWell(
+            key: const Key('today-completed-header'),
+            onTap: onToggle,
+            borderRadius: BorderRadius.circular(_HomeDensity.cardRadius),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.task_alt_rounded,
+                    size: 18,
+                    color: palette.statusNormal,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      ReminderUiText.todayCompletedSummary(entries.length),
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    isExpanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    size: 20,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 160),
+            child: isExpanded
+                ? Padding(
+                    key: const Key('today-completed-content'),
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Column(
+                      children: [
+                        for (
+                          var index = 0;
+                          index < entries.length;
+                          index++
+                        ) ...[
+                          if (index > 0)
+                            const SizedBox(height: _HomeDensity.listGap),
+                          _TodayCompletedRow(entry: entries[index]),
+                        ],
+                      ],
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TodayCompletedRow extends ConsumerWidget {
+  const _TodayCompletedRow({required this.entry});
+
+  final TodayCompletedEntry entry;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.reminderPalette;
+    return Container(
+      key: Key('today-completed-row-${entry.stableKey}'),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: palette.surfaceWarm,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: palette.borderSubtle),
+      ),
+      child: Row(
+        children: [
+          Icon(_iconForEntry(), size: 18, color: _colorForEntry(palette)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  entry.title,
+                  key: Key('today-completed-title-${entry.stableKey}'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _subtitle(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          if (entry.type == TodayCompletedEntryType.itemDone && entry.canUndo)
+            IconButton(
+              key: Key('today-completed-undo-${entry.itemActionRecord!.id}'),
+              onPressed: () => _undoDone(context, ref),
+              tooltip: ReminderUiText.restoreIncompleteAction,
+              icon: const Icon(Icons.undo_rounded),
+              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+            ),
+        ],
+      ),
+    );
+  }
+
+  IconData _iconForEntry() {
+    return switch (entry.type) {
+      TodayCompletedEntryType.itemDone => Icons.check_rounded,
+      TodayCompletedEntryType.resourceRefilled => Icons.add_rounded,
+      TodayCompletedEntryType.resourceAdjusted => Icons.tune_rounded,
+      TodayCompletedEntryType.stageAcknowledged =>
+        Icons.check_circle_outline_rounded,
+    };
+  }
+
+  Color _colorForEntry(ReminderPalette palette) {
+    return switch (entry.type) {
+      TodayCompletedEntryType.itemDone => palette.statusNormal,
+      TodayCompletedEntryType.resourceRefilled => palette.domainResource,
+      TodayCompletedEntryType.resourceAdjusted => palette.domainResource,
+      TodayCompletedEntryType.stageAcknowledged => palette.domainStage,
+    };
+  }
+
+  String _subtitle() {
+    final action = switch (entry.type) {
+      TodayCompletedEntryType.itemDone => '完成',
+      TodayCompletedEntryType.resourceRefilled => '已補充',
+      TodayCompletedEntryType.resourceAdjusted => '已修正',
+      TodayCompletedEntryType.stageAcknowledged =>
+        ReminderUiText.acknowledgedAction,
+    };
+    return '${ReminderFormatters.date(entry.actionDate)} $action';
+  }
+
+  Future<void> _undoDone(BuildContext context, WidgetRef ref) async {
+    final record = entry.itemActionRecord;
+    if (record == null) {
+      return;
+    }
+    final success = await ref
+        .read(itemRepositoryProvider)
+        .undoDone(record.id, undoneAt: entry.actionDate);
+    if (!context.mounted || !success) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text(ReminderUiText.restoredIncompleteMessage)),
+    );
+  }
+}
+
 class _HomeSection extends StatelessWidget {
   const _HomeSection({required this.title, required this.child, this.icon});
 
@@ -854,7 +1244,7 @@ class _HomeSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ReminderSectionHeader(title: title, icon: icon),
-        const SizedBox(height: 12),
+        const SizedBox(height: _HomeDensity.headerGap),
         child,
       ],
     );

@@ -114,6 +114,15 @@ class ItemRepository {
     return _dao.listItemActionRecordsForItem(itemId);
   }
 
+  Stream<List<ItemActionEntry>> watchDoneActionEntriesForDate(DateTime date) {
+    final start = _normalizeDate(date);
+    return _dao.watchItemActionEntriesForDateRange(
+      actionTypes: const {ItemActionType.done},
+      actionDateFrom: start,
+      actionDateBefore: start.add(const Duration(days: 1)),
+    );
+  }
+
   Future<List<ItemActivityEntry>> listActivityFeed({
     int limit = 20,
     int offset = 0,
@@ -308,6 +317,80 @@ class ItemRepository {
     return false;
   }
 
+  Future<bool> undoDone(int doneActionRecordId, {DateTime? undoneAt}) async {
+    final doneRecord = await _dao.getItemActionRecordById(doneActionRecordId);
+    if (doneRecord == null ||
+        doneRecord.actionType != ItemActionType.done ||
+        doneRecord.isReverted) {
+      return false;
+    }
+    final snapshot = _undoSnapshotFromPayload(doneRecord.payload);
+    if (snapshot == null) {
+      return false;
+    }
+    final existing = await getItemById(doneRecord.itemId);
+    if (existing == null) {
+      return false;
+    }
+
+    final now = _clock();
+    final actionDate = _normalizeDate(undoneAt ?? now);
+    try {
+      return await _dao.attachedDatabase.transaction(() async {
+        final revertedRecordId = await _dao.insertItemActionRecord(
+          ItemActionRecordsCompanion.insert(
+            itemId: doneRecord.itemId,
+            actionType: ItemActionType.reverted.name,
+            actionDate: actionDate.millisecondsSinceEpoch,
+            payload: Value(
+              ItemActionRecord.encodePayload({
+                'reason': 'undo_done',
+                'revertedActionRecordId': doneActionRecordId,
+              }),
+            ),
+            createdAt: now.millisecondsSinceEpoch,
+            updatedAt: now.millisecondsSinceEpoch,
+          ),
+        );
+        final markedDone = await _dao.updateItemActionRecordFields(
+          doneActionRecordId,
+          ItemActionRecordsCompanion(
+            isReverted: const Value(true),
+            revertedAt: Value(actionDate.millisecondsSinceEpoch),
+            revertedByActionRecordId: Value(revertedRecordId),
+            updatedAt: Value(now.millisecondsSinceEpoch),
+          ),
+        );
+        if (!markedDone) {
+          throw const _UndoDoneFailure();
+        }
+        final restored = await _dao.updateItemFields(
+          doneRecord.itemId,
+          snapshot.toCompanion(now),
+        );
+        if (!restored) {
+          throw const _UndoDoneFailure();
+        }
+        final consumedRecords = await _dao
+            .listResourceConsumedRecordsForItemAction(doneActionRecordId);
+        for (final consumedRecord in consumedRecords) {
+          final restoredResource = await _undoResourceConsumption(
+            consumedRecord,
+            itemRevertedActionRecordId: revertedRecordId,
+            actionDate: actionDate,
+            now: now,
+          );
+          if (!restoredResource) {
+            throw const _UndoDoneFailure();
+          }
+        }
+        return true;
+      });
+    } on _UndoDoneFailure {
+      return false;
+    }
+  }
+
   Future<int> createPack(ItemPackInput input) async {
     final now = _clock();
     return _dao.insertItemPack(
@@ -481,13 +564,18 @@ class ItemRepository {
       if (!updated) {
         return false;
       }
+      final payload = _payloadWithUndoSnapshot(
+        action.payload,
+        item: existing.item,
+        actionType: action.type,
+      );
       final itemActionRecordId = await _dao.insertItemActionRecord(
         ItemActionRecordsCompanion.insert(
           itemId: id,
           actionType: action.type.name,
           actionDate: action.actionDate.millisecondsSinceEpoch,
           remark: Value(action.remark),
-          payload: Value(ItemActionRecord.encodePayload(action.payload)),
+          payload: Value(ItemActionRecord.encodePayload(payload)),
           createdAt: now.millisecondsSinceEpoch,
           updatedAt: now.millisecondsSinceEpoch,
         ),
@@ -502,6 +590,62 @@ class ItemRepository {
       }
       return true;
     });
+  }
+
+  Future<bool> _undoResourceConsumption(
+    ResourceActionRecord consumedRecord, {
+    required int itemRevertedActionRecordId,
+    required DateTime actionDate,
+    required DateTime now,
+  }) async {
+    if (consumedRecord.isReverted) {
+      return true;
+    }
+    final bundle = await _dao.getResourceBundleById(consumedRecord.resourceId);
+    final resource = bundle?.resource;
+    final amount = consumedRecord.amount;
+    if (resource == null ||
+        amount == null ||
+        amount <= 0 ||
+        resource.config is! QuantityBasedResourceConfig) {
+      return false;
+    }
+    final config = resource.config as QuantityBasedResourceConfig;
+    final resultingQuantity = const ResourceRefillService().refillQuantity(
+      config,
+      amount,
+    );
+    final updatedResource = await _dao.updateResourceFields(
+      resource.id,
+      ResourcesCompanion(
+        quantityCurrent: Value(resultingQuantity),
+        updatedAt: Value(now.millisecondsSinceEpoch),
+      ),
+    );
+    if (!updatedResource) {
+      return false;
+    }
+    final compensationRecordId = await _dao.insertResourceActionRecord(
+      ResourceActionRecordsCompanion.insert(
+        resourceId: resource.id,
+        actionType: ResourceActionType.reverted.name,
+        actionDate: actionDate.millisecondsSinceEpoch,
+        amount: Value(amount),
+        resultingQuantity: Value(resultingQuantity),
+        sourceItemActionRecordId: Value(itemRevertedActionRecordId),
+        createdAt: now.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
+      ),
+    );
+    return _dao.updateResourceActionRecordFields(
+      consumedRecord.id,
+      ResourceActionRecordsCompanion(
+        isReverted: const Value(true),
+        revertedAt: Value(actionDate.millisecondsSinceEpoch),
+        revertedByActionRecordId: Value(compensationRecordId),
+        updatedAt: Value(now.millisecondsSinceEpoch),
+      ),
+    );
   }
 
   Future<void> _applyResourceConsumptionRules(
@@ -552,6 +696,66 @@ class ItemRepository {
         ),
       );
     }
+  }
+
+  Map<String, Object?>? _payloadWithUndoSnapshot(
+    Map<String, Object?>? payload, {
+    required Item item,
+    required ItemActionType actionType,
+  }) {
+    if (actionType != ItemActionType.done) {
+      return payload;
+    }
+    return <String, Object?>{
+      ...?payload,
+      'undoSnapshot': _undoSnapshotForItem(item).toPayload(),
+    };
+  }
+
+  _ItemUndoSnapshot _undoSnapshotForItem(Item item) {
+    final config = item.config;
+    return _ItemUndoSnapshot(
+      fixedAnchorDate: config is FixedItemConfig
+          ? config.anchorDate?.millisecondsSinceEpoch
+          : null,
+      fixedDueDate: config is FixedItemConfig
+          ? config.dueDate?.millisecondsSinceEpoch
+          : null,
+      fixedRepeatRuleV2: config is FixedItemConfig
+          ? config.repeatRuleV2?.encode()
+          : null,
+      stateAnchorDate: config is StateBasedItemConfig
+          ? config.anchorDate?.millisecondsSinceEpoch
+          : null,
+      lastDoneAt: item.lastDoneAt?.millisecondsSinceEpoch,
+    );
+  }
+
+  _ItemUndoSnapshot? _undoSnapshotFromPayload(Map<String, Object?>? payload) {
+    final snapshot = payload?['undoSnapshot'];
+    if (snapshot is! Map) {
+      return null;
+    }
+    return _ItemUndoSnapshot(
+      fixedAnchorDate: _nullableInt(snapshot['fixedAnchorDate']),
+      fixedDueDate: _nullableInt(snapshot['fixedDueDate']),
+      fixedRepeatRuleV2: snapshot['fixedRepeatRuleV2'] as String?,
+      stateAnchorDate: _nullableInt(snapshot['stateAnchorDate']),
+      lastDoneAt: _nullableInt(snapshot['lastDoneAt']),
+    );
+  }
+
+  int? _nullableInt(Object? value) {
+    if (value == null) {
+      return null;
+    }
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
+    return null;
   }
 
   Future<void> _insertCreatedAction(int itemId, {required DateTime now}) {
@@ -1105,4 +1309,45 @@ class ItemRepository {
     }
     return Value(value.value);
   }
+}
+
+class _ItemUndoSnapshot {
+  const _ItemUndoSnapshot({
+    required this.fixedAnchorDate,
+    required this.fixedDueDate,
+    required this.fixedRepeatRuleV2,
+    required this.stateAnchorDate,
+    required this.lastDoneAt,
+  });
+
+  final int? fixedAnchorDate;
+  final int? fixedDueDate;
+  final String? fixedRepeatRuleV2;
+  final int? stateAnchorDate;
+  final int? lastDoneAt;
+
+  Map<String, Object?> toPayload() {
+    return {
+      'fixedAnchorDate': fixedAnchorDate,
+      'fixedDueDate': fixedDueDate,
+      'fixedRepeatRuleV2': fixedRepeatRuleV2,
+      'stateAnchorDate': stateAnchorDate,
+      'lastDoneAt': lastDoneAt,
+    };
+  }
+
+  ItemsCompanion toCompanion(DateTime updatedAt) {
+    return ItemsCompanion(
+      fixedAnchorDate: Value(fixedAnchorDate),
+      fixedDueDate: Value(fixedDueDate),
+      fixedRepeatRuleV2: Value(fixedRepeatRuleV2),
+      stateAnchorDate: Value(stateAnchorDate),
+      lastDoneAt: Value(lastDoneAt),
+      updatedAt: Value(updatedAt.millisecondsSinceEpoch),
+    );
+  }
+}
+
+class _UndoDoneFailure implements Exception {
+  const _UndoDoneFailure();
 }

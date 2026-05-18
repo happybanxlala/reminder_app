@@ -3842,6 +3842,43 @@ class $ItemActionRecordsTable extends ItemActionRecords
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _isRevertedMeta = const VerificationMeta(
+    'isReverted',
+  );
+  @override
+  late final GeneratedColumn<bool> isReverted = GeneratedColumn<bool>(
+    'is_reverted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_reverted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _revertedAtMeta = const VerificationMeta(
+    'revertedAt',
+  );
+  @override
+  late final GeneratedColumn<int> revertedAt = GeneratedColumn<int>(
+    'reverted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _revertedByActionRecordIdMeta =
+      const VerificationMeta('revertedByActionRecordId');
+  @override
+  late final GeneratedColumn<int> revertedByActionRecordId =
+      GeneratedColumn<int>(
+        'reverted_by_action_record_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -3872,6 +3909,9 @@ class $ItemActionRecordsTable extends ItemActionRecords
     actionDate,
     remark,
     payload,
+    isReverted,
+    revertedAt,
+    revertedByActionRecordId,
     createdAt,
     updatedAt,
   ];
@@ -3926,6 +3966,27 @@ class $ItemActionRecordsTable extends ItemActionRecords
         payload.isAcceptableOrUnknown(data['payload']!, _payloadMeta),
       );
     }
+    if (data.containsKey('is_reverted')) {
+      context.handle(
+        _isRevertedMeta,
+        isReverted.isAcceptableOrUnknown(data['is_reverted']!, _isRevertedMeta),
+      );
+    }
+    if (data.containsKey('reverted_at')) {
+      context.handle(
+        _revertedAtMeta,
+        revertedAt.isAcceptableOrUnknown(data['reverted_at']!, _revertedAtMeta),
+      );
+    }
+    if (data.containsKey('reverted_by_action_record_id')) {
+      context.handle(
+        _revertedByActionRecordIdMeta,
+        revertedByActionRecordId.isAcceptableOrUnknown(
+          data['reverted_by_action_record_id']!,
+          _revertedByActionRecordIdMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -3975,6 +4036,18 @@ class $ItemActionRecordsTable extends ItemActionRecords
         DriftSqlType.string,
         data['${effectivePrefix}payload'],
       ),
+      isReverted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_reverted'],
+      )!,
+      revertedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reverted_at'],
+      ),
+      revertedByActionRecordId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reverted_by_action_record_id'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
@@ -4000,6 +4073,9 @@ class ItemActionRecordRow extends DataClass
   final int actionDate;
   final String? remark;
   final String? payload;
+  final bool isReverted;
+  final int? revertedAt;
+  final int? revertedByActionRecordId;
   final int createdAt;
   final int updatedAt;
   const ItemActionRecordRow({
@@ -4009,6 +4085,9 @@ class ItemActionRecordRow extends DataClass
     required this.actionDate,
     this.remark,
     this.payload,
+    required this.isReverted,
+    this.revertedAt,
+    this.revertedByActionRecordId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -4024,6 +4103,15 @@ class ItemActionRecordRow extends DataClass
     }
     if (!nullToAbsent || payload != null) {
       map['payload'] = Variable<String>(payload);
+    }
+    map['is_reverted'] = Variable<bool>(isReverted);
+    if (!nullToAbsent || revertedAt != null) {
+      map['reverted_at'] = Variable<int>(revertedAt);
+    }
+    if (!nullToAbsent || revertedByActionRecordId != null) {
+      map['reverted_by_action_record_id'] = Variable<int>(
+        revertedByActionRecordId,
+      );
     }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
@@ -4042,6 +4130,13 @@ class ItemActionRecordRow extends DataClass
       payload: payload == null && nullToAbsent
           ? const Value.absent()
           : Value(payload),
+      isReverted: Value(isReverted),
+      revertedAt: revertedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(revertedAt),
+      revertedByActionRecordId: revertedByActionRecordId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(revertedByActionRecordId),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -4059,6 +4154,11 @@ class ItemActionRecordRow extends DataClass
       actionDate: serializer.fromJson<int>(json['actionDate']),
       remark: serializer.fromJson<String?>(json['remark']),
       payload: serializer.fromJson<String?>(json['payload']),
+      isReverted: serializer.fromJson<bool>(json['isReverted']),
+      revertedAt: serializer.fromJson<int?>(json['revertedAt']),
+      revertedByActionRecordId: serializer.fromJson<int?>(
+        json['revertedByActionRecordId'],
+      ),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -4073,6 +4173,11 @@ class ItemActionRecordRow extends DataClass
       'actionDate': serializer.toJson<int>(actionDate),
       'remark': serializer.toJson<String?>(remark),
       'payload': serializer.toJson<String?>(payload),
+      'isReverted': serializer.toJson<bool>(isReverted),
+      'revertedAt': serializer.toJson<int?>(revertedAt),
+      'revertedByActionRecordId': serializer.toJson<int?>(
+        revertedByActionRecordId,
+      ),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -4085,6 +4190,9 @@ class ItemActionRecordRow extends DataClass
     int? actionDate,
     Value<String?> remark = const Value.absent(),
     Value<String?> payload = const Value.absent(),
+    bool? isReverted,
+    Value<int?> revertedAt = const Value.absent(),
+    Value<int?> revertedByActionRecordId = const Value.absent(),
     int? createdAt,
     int? updatedAt,
   }) => ItemActionRecordRow(
@@ -4094,6 +4202,11 @@ class ItemActionRecordRow extends DataClass
     actionDate: actionDate ?? this.actionDate,
     remark: remark.present ? remark.value : this.remark,
     payload: payload.present ? payload.value : this.payload,
+    isReverted: isReverted ?? this.isReverted,
+    revertedAt: revertedAt.present ? revertedAt.value : this.revertedAt,
+    revertedByActionRecordId: revertedByActionRecordId.present
+        ? revertedByActionRecordId.value
+        : this.revertedByActionRecordId,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -4109,6 +4222,15 @@ class ItemActionRecordRow extends DataClass
           : this.actionDate,
       remark: data.remark.present ? data.remark.value : this.remark,
       payload: data.payload.present ? data.payload.value : this.payload,
+      isReverted: data.isReverted.present
+          ? data.isReverted.value
+          : this.isReverted,
+      revertedAt: data.revertedAt.present
+          ? data.revertedAt.value
+          : this.revertedAt,
+      revertedByActionRecordId: data.revertedByActionRecordId.present
+          ? data.revertedByActionRecordId.value
+          : this.revertedByActionRecordId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -4123,6 +4245,9 @@ class ItemActionRecordRow extends DataClass
           ..write('actionDate: $actionDate, ')
           ..write('remark: $remark, ')
           ..write('payload: $payload, ')
+          ..write('isReverted: $isReverted, ')
+          ..write('revertedAt: $revertedAt, ')
+          ..write('revertedByActionRecordId: $revertedByActionRecordId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -4137,6 +4262,9 @@ class ItemActionRecordRow extends DataClass
     actionDate,
     remark,
     payload,
+    isReverted,
+    revertedAt,
+    revertedByActionRecordId,
     createdAt,
     updatedAt,
   );
@@ -4150,6 +4278,9 @@ class ItemActionRecordRow extends DataClass
           other.actionDate == this.actionDate &&
           other.remark == this.remark &&
           other.payload == this.payload &&
+          other.isReverted == this.isReverted &&
+          other.revertedAt == this.revertedAt &&
+          other.revertedByActionRecordId == this.revertedByActionRecordId &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -4161,6 +4292,9 @@ class ItemActionRecordsCompanion extends UpdateCompanion<ItemActionRecordRow> {
   final Value<int> actionDate;
   final Value<String?> remark;
   final Value<String?> payload;
+  final Value<bool> isReverted;
+  final Value<int?> revertedAt;
+  final Value<int?> revertedByActionRecordId;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   const ItemActionRecordsCompanion({
@@ -4170,6 +4304,9 @@ class ItemActionRecordsCompanion extends UpdateCompanion<ItemActionRecordRow> {
     this.actionDate = const Value.absent(),
     this.remark = const Value.absent(),
     this.payload = const Value.absent(),
+    this.isReverted = const Value.absent(),
+    this.revertedAt = const Value.absent(),
+    this.revertedByActionRecordId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -4180,6 +4317,9 @@ class ItemActionRecordsCompanion extends UpdateCompanion<ItemActionRecordRow> {
     required int actionDate,
     this.remark = const Value.absent(),
     this.payload = const Value.absent(),
+    this.isReverted = const Value.absent(),
+    this.revertedAt = const Value.absent(),
+    this.revertedByActionRecordId = const Value.absent(),
     required int createdAt,
     required int updatedAt,
   }) : itemId = Value(itemId),
@@ -4194,6 +4334,9 @@ class ItemActionRecordsCompanion extends UpdateCompanion<ItemActionRecordRow> {
     Expression<int>? actionDate,
     Expression<String>? remark,
     Expression<String>? payload,
+    Expression<bool>? isReverted,
+    Expression<int>? revertedAt,
+    Expression<int>? revertedByActionRecordId,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
@@ -4204,6 +4347,10 @@ class ItemActionRecordsCompanion extends UpdateCompanion<ItemActionRecordRow> {
       if (actionDate != null) 'action_date': actionDate,
       if (remark != null) 'remark': remark,
       if (payload != null) 'payload': payload,
+      if (isReverted != null) 'is_reverted': isReverted,
+      if (revertedAt != null) 'reverted_at': revertedAt,
+      if (revertedByActionRecordId != null)
+        'reverted_by_action_record_id': revertedByActionRecordId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -4216,6 +4363,9 @@ class ItemActionRecordsCompanion extends UpdateCompanion<ItemActionRecordRow> {
     Value<int>? actionDate,
     Value<String?>? remark,
     Value<String?>? payload,
+    Value<bool>? isReverted,
+    Value<int?>? revertedAt,
+    Value<int?>? revertedByActionRecordId,
     Value<int>? createdAt,
     Value<int>? updatedAt,
   }) {
@@ -4226,6 +4376,10 @@ class ItemActionRecordsCompanion extends UpdateCompanion<ItemActionRecordRow> {
       actionDate: actionDate ?? this.actionDate,
       remark: remark ?? this.remark,
       payload: payload ?? this.payload,
+      isReverted: isReverted ?? this.isReverted,
+      revertedAt: revertedAt ?? this.revertedAt,
+      revertedByActionRecordId:
+          revertedByActionRecordId ?? this.revertedByActionRecordId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -4252,6 +4406,17 @@ class ItemActionRecordsCompanion extends UpdateCompanion<ItemActionRecordRow> {
     if (payload.present) {
       map['payload'] = Variable<String>(payload.value);
     }
+    if (isReverted.present) {
+      map['is_reverted'] = Variable<bool>(isReverted.value);
+    }
+    if (revertedAt.present) {
+      map['reverted_at'] = Variable<int>(revertedAt.value);
+    }
+    if (revertedByActionRecordId.present) {
+      map['reverted_by_action_record_id'] = Variable<int>(
+        revertedByActionRecordId.value,
+      );
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -4270,6 +4435,9 @@ class ItemActionRecordsCompanion extends UpdateCompanion<ItemActionRecordRow> {
           ..write('actionDate: $actionDate, ')
           ..write('remark: $remark, ')
           ..write('payload: $payload, ')
+          ..write('isReverted: $isReverted, ')
+          ..write('revertedAt: $revertedAt, ')
+          ..write('revertedByActionRecordId: $revertedByActionRecordId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -4396,6 +4564,43 @@ class $ResourceActionRecordsTable extends ResourceActionRecords
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _isRevertedMeta = const VerificationMeta(
+    'isReverted',
+  );
+  @override
+  late final GeneratedColumn<bool> isReverted = GeneratedColumn<bool>(
+    'is_reverted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_reverted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _revertedAtMeta = const VerificationMeta(
+    'revertedAt',
+  );
+  @override
+  late final GeneratedColumn<int> revertedAt = GeneratedColumn<int>(
+    'reverted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _revertedByActionRecordIdMeta =
+      const VerificationMeta('revertedByActionRecordId');
+  @override
+  late final GeneratedColumn<int> revertedByActionRecordId =
+      GeneratedColumn<int>(
+        'reverted_by_action_record_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -4430,6 +4635,9 @@ class $ResourceActionRecordsTable extends ResourceActionRecords
     resultingDurationDays,
     sourceItemActionRecordId,
     remark,
+    isReverted,
+    revertedAt,
+    revertedByActionRecordId,
     createdAt,
     updatedAt,
   ];
@@ -4517,6 +4725,27 @@ class $ResourceActionRecordsTable extends ResourceActionRecords
         remark.isAcceptableOrUnknown(data['remark']!, _remarkMeta),
       );
     }
+    if (data.containsKey('is_reverted')) {
+      context.handle(
+        _isRevertedMeta,
+        isReverted.isAcceptableOrUnknown(data['is_reverted']!, _isRevertedMeta),
+      );
+    }
+    if (data.containsKey('reverted_at')) {
+      context.handle(
+        _revertedAtMeta,
+        revertedAt.isAcceptableOrUnknown(data['reverted_at']!, _revertedAtMeta),
+      );
+    }
+    if (data.containsKey('reverted_by_action_record_id')) {
+      context.handle(
+        _revertedByActionRecordIdMeta,
+        revertedByActionRecordId.isAcceptableOrUnknown(
+          data['reverted_by_action_record_id']!,
+          _revertedByActionRecordIdMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -4585,6 +4814,18 @@ class $ResourceActionRecordsTable extends ResourceActionRecords
         DriftSqlType.string,
         data['${effectivePrefix}remark'],
       ),
+      isReverted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_reverted'],
+      )!,
+      revertedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reverted_at'],
+      ),
+      revertedByActionRecordId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reverted_by_action_record_id'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
@@ -4614,6 +4855,9 @@ class ResourceActionRecordRow extends DataClass
   final int? resultingDurationDays;
   final int? sourceItemActionRecordId;
   final String? remark;
+  final bool isReverted;
+  final int? revertedAt;
+  final int? revertedByActionRecordId;
   final int createdAt;
   final int updatedAt;
   const ResourceActionRecordRow({
@@ -4627,6 +4871,9 @@ class ResourceActionRecordRow extends DataClass
     this.resultingDurationDays,
     this.sourceItemActionRecordId,
     this.remark,
+    required this.isReverted,
+    this.revertedAt,
+    this.revertedByActionRecordId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -4657,6 +4904,15 @@ class ResourceActionRecordRow extends DataClass
     if (!nullToAbsent || remark != null) {
       map['remark'] = Variable<String>(remark);
     }
+    map['is_reverted'] = Variable<bool>(isReverted);
+    if (!nullToAbsent || revertedAt != null) {
+      map['reverted_at'] = Variable<int>(revertedAt);
+    }
+    if (!nullToAbsent || revertedByActionRecordId != null) {
+      map['reverted_by_action_record_id'] = Variable<int>(
+        revertedByActionRecordId,
+      );
+    }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     return map;
@@ -4686,6 +4942,13 @@ class ResourceActionRecordRow extends DataClass
       remark: remark == null && nullToAbsent
           ? const Value.absent()
           : Value(remark),
+      isReverted: Value(isReverted),
+      revertedAt: revertedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(revertedAt),
+      revertedByActionRecordId: revertedByActionRecordId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(revertedByActionRecordId),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -4711,6 +4974,11 @@ class ResourceActionRecordRow extends DataClass
         json['sourceItemActionRecordId'],
       ),
       remark: serializer.fromJson<String?>(json['remark']),
+      isReverted: serializer.fromJson<bool>(json['isReverted']),
+      revertedAt: serializer.fromJson<int?>(json['revertedAt']),
+      revertedByActionRecordId: serializer.fromJson<int?>(
+        json['revertedByActionRecordId'],
+      ),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -4731,6 +4999,11 @@ class ResourceActionRecordRow extends DataClass
         sourceItemActionRecordId,
       ),
       'remark': serializer.toJson<String?>(remark),
+      'isReverted': serializer.toJson<bool>(isReverted),
+      'revertedAt': serializer.toJson<int?>(revertedAt),
+      'revertedByActionRecordId': serializer.toJson<int?>(
+        revertedByActionRecordId,
+      ),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -4747,6 +5020,9 @@ class ResourceActionRecordRow extends DataClass
     Value<int?> resultingDurationDays = const Value.absent(),
     Value<int?> sourceItemActionRecordId = const Value.absent(),
     Value<String?> remark = const Value.absent(),
+    bool? isReverted,
+    Value<int?> revertedAt = const Value.absent(),
+    Value<int?> revertedByActionRecordId = const Value.absent(),
     int? createdAt,
     int? updatedAt,
   }) => ResourceActionRecordRow(
@@ -4766,6 +5042,11 @@ class ResourceActionRecordRow extends DataClass
         ? sourceItemActionRecordId.value
         : this.sourceItemActionRecordId,
     remark: remark.present ? remark.value : this.remark,
+    isReverted: isReverted ?? this.isReverted,
+    revertedAt: revertedAt.present ? revertedAt.value : this.revertedAt,
+    revertedByActionRecordId: revertedByActionRecordId.present
+        ? revertedByActionRecordId.value
+        : this.revertedByActionRecordId,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -4795,6 +5076,15 @@ class ResourceActionRecordRow extends DataClass
           ? data.sourceItemActionRecordId.value
           : this.sourceItemActionRecordId,
       remark: data.remark.present ? data.remark.value : this.remark,
+      isReverted: data.isReverted.present
+          ? data.isReverted.value
+          : this.isReverted,
+      revertedAt: data.revertedAt.present
+          ? data.revertedAt.value
+          : this.revertedAt,
+      revertedByActionRecordId: data.revertedByActionRecordId.present
+          ? data.revertedByActionRecordId.value
+          : this.revertedByActionRecordId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -4813,6 +5103,9 @@ class ResourceActionRecordRow extends DataClass
           ..write('resultingDurationDays: $resultingDurationDays, ')
           ..write('sourceItemActionRecordId: $sourceItemActionRecordId, ')
           ..write('remark: $remark, ')
+          ..write('isReverted: $isReverted, ')
+          ..write('revertedAt: $revertedAt, ')
+          ..write('revertedByActionRecordId: $revertedByActionRecordId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -4831,6 +5124,9 @@ class ResourceActionRecordRow extends DataClass
     resultingDurationDays,
     sourceItemActionRecordId,
     remark,
+    isReverted,
+    revertedAt,
+    revertedByActionRecordId,
     createdAt,
     updatedAt,
   );
@@ -4848,6 +5144,9 @@ class ResourceActionRecordRow extends DataClass
           other.resultingDurationDays == this.resultingDurationDays &&
           other.sourceItemActionRecordId == this.sourceItemActionRecordId &&
           other.remark == this.remark &&
+          other.isReverted == this.isReverted &&
+          other.revertedAt == this.revertedAt &&
+          other.revertedByActionRecordId == this.revertedByActionRecordId &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -4864,6 +5163,9 @@ class ResourceActionRecordsCompanion
   final Value<int?> resultingDurationDays;
   final Value<int?> sourceItemActionRecordId;
   final Value<String?> remark;
+  final Value<bool> isReverted;
+  final Value<int?> revertedAt;
+  final Value<int?> revertedByActionRecordId;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   const ResourceActionRecordsCompanion({
@@ -4877,6 +5179,9 @@ class ResourceActionRecordsCompanion
     this.resultingDurationDays = const Value.absent(),
     this.sourceItemActionRecordId = const Value.absent(),
     this.remark = const Value.absent(),
+    this.isReverted = const Value.absent(),
+    this.revertedAt = const Value.absent(),
+    this.revertedByActionRecordId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -4891,6 +5196,9 @@ class ResourceActionRecordsCompanion
     this.resultingDurationDays = const Value.absent(),
     this.sourceItemActionRecordId = const Value.absent(),
     this.remark = const Value.absent(),
+    this.isReverted = const Value.absent(),
+    this.revertedAt = const Value.absent(),
+    this.revertedByActionRecordId = const Value.absent(),
     required int createdAt,
     required int updatedAt,
   }) : resourceId = Value(resourceId),
@@ -4909,6 +5217,9 @@ class ResourceActionRecordsCompanion
     Expression<int>? resultingDurationDays,
     Expression<int>? sourceItemActionRecordId,
     Expression<String>? remark,
+    Expression<bool>? isReverted,
+    Expression<int>? revertedAt,
+    Expression<int>? revertedByActionRecordId,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
@@ -4925,6 +5236,10 @@ class ResourceActionRecordsCompanion
       if (sourceItemActionRecordId != null)
         'source_item_action_record_id': sourceItemActionRecordId,
       if (remark != null) 'remark': remark,
+      if (isReverted != null) 'is_reverted': isReverted,
+      if (revertedAt != null) 'reverted_at': revertedAt,
+      if (revertedByActionRecordId != null)
+        'reverted_by_action_record_id': revertedByActionRecordId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -4941,6 +5256,9 @@ class ResourceActionRecordsCompanion
     Value<int?>? resultingDurationDays,
     Value<int?>? sourceItemActionRecordId,
     Value<String?>? remark,
+    Value<bool>? isReverted,
+    Value<int?>? revertedAt,
+    Value<int?>? revertedByActionRecordId,
     Value<int>? createdAt,
     Value<int>? updatedAt,
   }) {
@@ -4957,6 +5275,10 @@ class ResourceActionRecordsCompanion
       sourceItemActionRecordId:
           sourceItemActionRecordId ?? this.sourceItemActionRecordId,
       remark: remark ?? this.remark,
+      isReverted: isReverted ?? this.isReverted,
+      revertedAt: revertedAt ?? this.revertedAt,
+      revertedByActionRecordId:
+          revertedByActionRecordId ?? this.revertedByActionRecordId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -4999,6 +5321,17 @@ class ResourceActionRecordsCompanion
     if (remark.present) {
       map['remark'] = Variable<String>(remark.value);
     }
+    if (isReverted.present) {
+      map['is_reverted'] = Variable<bool>(isReverted.value);
+    }
+    if (revertedAt.present) {
+      map['reverted_at'] = Variable<int>(revertedAt.value);
+    }
+    if (revertedByActionRecordId.present) {
+      map['reverted_by_action_record_id'] = Variable<int>(
+        revertedByActionRecordId.value,
+      );
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -5021,6 +5354,9 @@ class ResourceActionRecordsCompanion
           ..write('resultingDurationDays: $resultingDurationDays, ')
           ..write('sourceItemActionRecordId: $sourceItemActionRecordId, ')
           ..write('remark: $remark, ')
+          ..write('isReverted: $isReverted, ')
+          ..write('revertedAt: $revertedAt, ')
+          ..write('revertedByActionRecordId: $revertedByActionRecordId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -10702,6 +11038,9 @@ typedef $$ItemActionRecordsTableCreateCompanionBuilder =
       required int actionDate,
       Value<String?> remark,
       Value<String?> payload,
+      Value<bool> isReverted,
+      Value<int?> revertedAt,
+      Value<int?> revertedByActionRecordId,
       required int createdAt,
       required int updatedAt,
     });
@@ -10713,6 +11052,9 @@ typedef $$ItemActionRecordsTableUpdateCompanionBuilder =
       Value<int> actionDate,
       Value<String?> remark,
       Value<String?> payload,
+      Value<bool> isReverted,
+      Value<int?> revertedAt,
+      Value<int?> revertedByActionRecordId,
       Value<int> createdAt,
       Value<int> updatedAt,
     });
@@ -10815,6 +11157,21 @@ class $$ItemActionRecordsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<bool> get isReverted => $composableBuilder(
+    column: $table.isReverted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get revertedAt => $composableBuilder(
+    column: $table.revertedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get revertedByActionRecordId => $composableBuilder(
+    column: $table.revertedByActionRecordId,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnFilters(column),
@@ -10909,6 +11266,21 @@ class $$ItemActionRecordsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get isReverted => $composableBuilder(
+    column: $table.isReverted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get revertedAt => $composableBuilder(
+    column: $table.revertedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get revertedByActionRecordId => $composableBuilder(
+    column: $table.revertedByActionRecordId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -10970,6 +11342,21 @@ class $$ItemActionRecordsTableAnnotationComposer
 
   GeneratedColumn<String> get payload =>
       $composableBuilder(column: $table.payload, builder: (column) => column);
+
+  GeneratedColumn<bool> get isReverted => $composableBuilder(
+    column: $table.isReverted,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get revertedAt => $composableBuilder(
+    column: $table.revertedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get revertedByActionRecordId => $composableBuilder(
+    column: $table.revertedByActionRecordId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -11066,6 +11453,9 @@ class $$ItemActionRecordsTableTableManager
                 Value<int> actionDate = const Value.absent(),
                 Value<String?> remark = const Value.absent(),
                 Value<String?> payload = const Value.absent(),
+                Value<bool> isReverted = const Value.absent(),
+                Value<int?> revertedAt = const Value.absent(),
+                Value<int?> revertedByActionRecordId = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
               }) => ItemActionRecordsCompanion(
@@ -11075,6 +11465,9 @@ class $$ItemActionRecordsTableTableManager
                 actionDate: actionDate,
                 remark: remark,
                 payload: payload,
+                isReverted: isReverted,
+                revertedAt: revertedAt,
+                revertedByActionRecordId: revertedByActionRecordId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -11086,6 +11479,9 @@ class $$ItemActionRecordsTableTableManager
                 required int actionDate,
                 Value<String?> remark = const Value.absent(),
                 Value<String?> payload = const Value.absent(),
+                Value<bool> isReverted = const Value.absent(),
+                Value<int?> revertedAt = const Value.absent(),
+                Value<int?> revertedByActionRecordId = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
               }) => ItemActionRecordsCompanion.insert(
@@ -11095,6 +11491,9 @@ class $$ItemActionRecordsTableTableManager
                 actionDate: actionDate,
                 remark: remark,
                 payload: payload,
+                isReverted: isReverted,
+                revertedAt: revertedAt,
+                revertedByActionRecordId: revertedByActionRecordId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -11204,6 +11603,9 @@ typedef $$ResourceActionRecordsTableCreateCompanionBuilder =
       Value<int?> resultingDurationDays,
       Value<int?> sourceItemActionRecordId,
       Value<String?> remark,
+      Value<bool> isReverted,
+      Value<int?> revertedAt,
+      Value<int?> revertedByActionRecordId,
       required int createdAt,
       required int updatedAt,
     });
@@ -11219,6 +11621,9 @@ typedef $$ResourceActionRecordsTableUpdateCompanionBuilder =
       Value<int?> resultingDurationDays,
       Value<int?> sourceItemActionRecordId,
       Value<String?> remark,
+      Value<bool> isReverted,
+      Value<int?> revertedAt,
+      Value<int?> revertedByActionRecordId,
       Value<int> createdAt,
       Value<int> updatedAt,
     });
@@ -11333,6 +11738,21 @@ class $$ResourceActionRecordsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<bool> get isReverted => $composableBuilder(
+    column: $table.isReverted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get revertedAt => $composableBuilder(
+    column: $table.revertedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get revertedByActionRecordId => $composableBuilder(
+    column: $table.revertedByActionRecordId,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnFilters(column),
@@ -11439,6 +11859,21 @@ class $$ResourceActionRecordsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get isReverted => $composableBuilder(
+    column: $table.isReverted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get revertedAt => $composableBuilder(
+    column: $table.revertedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get revertedByActionRecordId => $composableBuilder(
+    column: $table.revertedByActionRecordId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -11536,6 +11971,21 @@ class $$ResourceActionRecordsTableAnnotationComposer
 
   GeneratedColumn<String> get remark =>
       $composableBuilder(column: $table.remark, builder: (column) => column);
+
+  GeneratedColumn<bool> get isReverted => $composableBuilder(
+    column: $table.isReverted,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get revertedAt => $composableBuilder(
+    column: $table.revertedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get revertedByActionRecordId => $composableBuilder(
+    column: $table.revertedByActionRecordId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -11643,6 +12093,9 @@ class $$ResourceActionRecordsTableTableManager
                 Value<int?> resultingDurationDays = const Value.absent(),
                 Value<int?> sourceItemActionRecordId = const Value.absent(),
                 Value<String?> remark = const Value.absent(),
+                Value<bool> isReverted = const Value.absent(),
+                Value<int?> revertedAt = const Value.absent(),
+                Value<int?> revertedByActionRecordId = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
               }) => ResourceActionRecordsCompanion(
@@ -11656,6 +12109,9 @@ class $$ResourceActionRecordsTableTableManager
                 resultingDurationDays: resultingDurationDays,
                 sourceItemActionRecordId: sourceItemActionRecordId,
                 remark: remark,
+                isReverted: isReverted,
+                revertedAt: revertedAt,
+                revertedByActionRecordId: revertedByActionRecordId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -11671,6 +12127,9 @@ class $$ResourceActionRecordsTableTableManager
                 Value<int?> resultingDurationDays = const Value.absent(),
                 Value<int?> sourceItemActionRecordId = const Value.absent(),
                 Value<String?> remark = const Value.absent(),
+                Value<bool> isReverted = const Value.absent(),
+                Value<int?> revertedAt = const Value.absent(),
+                Value<int?> revertedByActionRecordId = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
               }) => ResourceActionRecordsCompanion.insert(
@@ -11684,6 +12143,9 @@ class $$ResourceActionRecordsTableTableManager
                 resultingDurationDays: resultingDurationDays,
                 sourceItemActionRecordId: sourceItemActionRecordId,
                 remark: remark,
+                isReverted: isReverted,
+                revertedAt: revertedAt,
+                revertedByActionRecordId: revertedByActionRecordId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),

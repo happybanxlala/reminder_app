@@ -89,8 +89,8 @@ class ReminderNotificationService {
 
     await _client.schedule(
       id: attentionNotificationId,
-      title: '今天有 ${summary.totalCount} 件事需要處理',
-      body: '打開看看哪些事情需要留意',
+      title: '今天有 ${summary.totalCount} 項需要留意',
+      body: '打開看看哪些項目需要留意',
       scheduledDate: _nextNineAm(),
       payload: attentionPayload,
     );
