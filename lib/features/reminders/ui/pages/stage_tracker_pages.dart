@@ -489,7 +489,7 @@ class StageTrackerDetailPage extends ConsumerWidget {
               const SizedBox(height: _StageTrackerDetailDensity.cardGap),
               _CompactAddStageAction(
                 onPressed: () =>
-                    _showAddStageChoiceSheet(context, ref, tracker.id),
+                    _showStageEntryDialog(context, ref, tracker.id),
               ),
               const SizedBox(height: _StageTrackerDetailDensity.sectionGap),
               _CompactSection(
@@ -497,14 +497,16 @@ class StageTrackerDetailPage extends ConsumerWidget {
                 child: upcomingStages.isEmpty
                     ? _CompactUpcomingEmptyState(
                         onAddStage: () =>
-                            _showAddStageChoiceSheet(context, ref, tracker.id),
+                            _showStageEntryDialog(context, ref, tracker.id),
                       )
                     : Column(
                         children: [
                           for (final occurrence in upcomingStages)
-                            _DetailStageOccurrenceRow(
+                            _CompactStageTimelineRow(
                               occurrence: occurrence,
                               now: previewDate,
+                              keyPrefix: 'detail',
+                              allowCreateRelated: true,
                             ),
                         ],
                       ),
@@ -512,7 +514,12 @@ class StageTrackerDetailPage extends ConsumerWidget {
               const SizedBox(height: _StageTrackerDetailDensity.sectionGap),
               _StageRuleList(
                 rules: detail.stageRules,
-                onAddRule: () => _showStageRuleDialog(context, ref, tracker.id),
+                onAddRule: () => _showStageEntryDialog(
+                  context,
+                  ref,
+                  tracker.id,
+                  initialTab: _StageEntryTab.recurring,
+                ),
               ),
             ],
           );
@@ -524,36 +531,12 @@ class StageTrackerDetailPage extends ConsumerWidget {
   }
 
   List<StageOccurrence> _dedupeUpcomingStages(StageTrackerDetail detail) {
-    final seen = <String>{};
-    final items = <StageOccurrence>[];
-    for (final occurrence in [
+    final items = _dedupeOccurrences([
       ?detail.nextStage,
       ...detail.dashboardUpcomingStages,
-    ]) {
-      final key = _occurrenceIdentity(occurrence);
-      if (seen.add(key)) {
-        items.add(occurrence);
-      }
-    }
+    ]);
     items.sort((a, b) => a.occurrenceDate.compareTo(b.occurrenceDate));
     return items;
-  }
-
-  String _occurrenceIdentity(StageOccurrence occurrence) {
-    final recordId = occurrence.stageRecordId;
-    if (recordId != null) {
-      return 'record-$recordId';
-    }
-    final ruleId = occurrence.stageRuleId;
-    final index = occurrence.occurrenceIndex;
-    if (ruleId != null && index != null) {
-      return 'rule-$ruleId-$index';
-    }
-    return [
-      occurrence.sourceType.name,
-      occurrence.occurrenceDate.millisecondsSinceEpoch,
-      occurrence.label,
-    ].join('-');
   }
 
   _StageHeroRecentState? _heroRecentState(List<StageOccurrence> historyStages) {
@@ -589,7 +572,7 @@ class _StageTrackerDetailOverflowMenu extends ConsumerWidget {
         switch (action) {
           case _StageTrackerDetailMenuAction.timeline:
             context.pushNamed(
-              StageTrackerSchedulePage.routeName,
+              StageTrackerTimelinePage.routeName,
               pathParameters: {'id': stageTrackerId.toString()},
             );
             return;
@@ -615,7 +598,7 @@ class _StageTrackerDetailOverflowMenu extends ConsumerWidget {
       itemBuilder: (context) => const [
         PopupMenuItem(
           value: _StageTrackerDetailMenuAction.timeline,
-          child: Text('完整時間線'),
+          child: Text(ReminderUiText.stageTrackerTimelineTitle),
         ),
         PopupMenuDivider(),
         PopupMenuItem(
@@ -641,56 +624,6 @@ class _StageTrackerDetailDensity {
   static const rowActionSize = 34.0;
 }
 
-enum _StageAddAction { important, rule }
-
-Future<void> _showAddStageChoiceSheet(
-  BuildContext context,
-  WidgetRef ref,
-  int trackerId,
-) async {
-  final action = await showModalBottomSheet<_StageAddAction>(
-    context: context,
-    showDragHandle: true,
-    builder: (sheetContext) {
-      return SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                key: const Key('add-important-stage-choice'),
-                leading: const Icon(Icons.flag_outlined),
-                title: const Text('加入重要階段'),
-                onTap: () =>
-                    Navigator.of(sheetContext).pop(_StageAddAction.important),
-              ),
-              ListTile(
-                key: const Key('add-stage-rule-choice'),
-                leading: const Icon(Icons.repeat_outlined),
-                title: const Text('加入重複階段'),
-                onTap: () =>
-                    Navigator.of(sheetContext).pop(_StageAddAction.rule),
-              ),
-            ],
-          ),
-        ),
-      );
-    },
-  );
-  if (action == null || !context.mounted) {
-    return;
-  }
-  switch (action) {
-    case _StageAddAction.important:
-      await _showImportantStageDialog(context, ref, trackerId);
-      return;
-    case _StageAddAction.rule:
-      await _showStageRuleDialog(context, ref, trackerId);
-      return;
-  }
-}
-
 class _CompactAddStageAction extends StatelessWidget {
   const _CompactAddStageAction({required this.onPressed});
 
@@ -704,7 +637,7 @@ class _CompactAddStageAction extends StatelessWidget {
         key: const Key('detail-add-stage-action'),
         onPressed: onPressed,
         icon: const Icon(Icons.add, size: 18),
-        label: const Text('加入階段'),
+        label: const Text(ReminderUiText.addStageEntry),
         style: FilledButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           visualDensity: VisualDensity.compact,
@@ -750,7 +683,7 @@ class _CompactUpcomingEmptyState extends StatelessWidget {
             key: const Key('detail-empty-add-stage-action'),
             onPressed: onAddStage,
             icon: const Icon(Icons.add, size: 16),
-            label: const Text('加入階段'),
+            label: const Text(ReminderUiText.addStageEntry),
             style: TextButton.styleFrom(
               visualDensity: VisualDensity.compact,
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -791,6 +724,216 @@ class _StageHeroRecentState {
 
   final String prefix;
   final StageOccurrence occurrence;
+}
+
+List<StageOccurrence> _dedupeOccurrences(
+  Iterable<StageOccurrence> occurrences,
+) {
+  final seen = <String>{};
+  final items = <StageOccurrence>[];
+  for (final occurrence in occurrences) {
+    if (seen.add(_stageOccurrenceIdentity(occurrence))) {
+      items.add(occurrence);
+    }
+  }
+  return items;
+}
+
+String _stageOccurrenceIdentity(StageOccurrence occurrence) {
+  final recordId = occurrence.stageRecordId;
+  if (recordId != null) {
+    return 'record-$recordId';
+  }
+  final ruleId = occurrence.stageRuleId;
+  final index = occurrence.occurrenceIndex;
+  if (ruleId != null && index != null) {
+    return 'rule-$ruleId-$index';
+  }
+  return [
+    occurrence.sourceType.name,
+    occurrence.occurrenceDate.millisecondsSinceEpoch,
+    occurrence.label,
+  ].join('-');
+}
+
+String _stageOccurrenceKey(StageOccurrence occurrence) {
+  final recordId = occurrence.stageRecordId;
+  if (recordId != null) {
+    return 'record-$recordId';
+  }
+  final ruleId = occurrence.stageRuleId;
+  final index = occurrence.occurrenceIndex;
+  if (ruleId != null && index != null) {
+    return 'rule-$ruleId-$index';
+  }
+  return '${occurrence.stageTrackerId}-${occurrence.occurrenceDate.millisecondsSinceEpoch}-${occurrence.label.hashCode}';
+}
+
+String _countdownLabel(DateTime target, DateTime now) {
+  final days = _normalizeDate(target).difference(_normalizeDate(now)).inDays;
+  if (days == 0) {
+    return '今日';
+  }
+  if (days == 1) {
+    return '明日';
+  }
+  if (days > 1) {
+    return '$days 天後';
+  }
+  return '已過 ${-days} 天';
+}
+
+String _stageOccurrenceSourceLabel(StageOccurrence occurrence) {
+  return occurrence.isManual ? '重要階段' : '重複階段';
+}
+
+String _stageOccurrenceHistoryStatusLabel(StageOccurrence occurrence) {
+  return occurrence.recordStatus == StageRecordStatus.acknowledged
+      ? '已確認'
+      : '待確認';
+}
+
+bool _hasVisibleRelatedItemSummary(StageRelatedItemSummary? summary) {
+  return summary != null && summary.totalRelevantCount > 0;
+}
+
+DateTime _normalizeDate(DateTime value) {
+  return DateTime(value.year, value.month, value.day);
+}
+
+class StageTrackerTimelinePage extends ConsumerWidget {
+  const StageTrackerTimelinePage({super.key, required this.stageTrackerId});
+
+  static const routeName = 'stage-tracker-timeline';
+  static const routePath = '/stage-tracker/:id/timeline';
+
+  final int stageTrackerId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final detailAsync = ref.watch(stageTrackerDetailProvider(stageTrackerId));
+    final previewDate = ref.watch(effectivePreviewDateProvider);
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(ReminderUiText.stageTrackerTimelineTitle),
+      ),
+      body: detailAsync.when(
+        data: (detail) {
+          if (detail == null) {
+            return const Center(
+              child: Text(ReminderUiText.stageTrackerMissingMessage),
+            );
+          }
+          final upcoming = _timelineUpcomingStages(detail, previewDate);
+          final history = _timelineHistoryStages(detail, previewDate);
+          return ListView(
+            key: const Key('stage-tracker-timeline-page'),
+            padding: const EdgeInsets.all(
+              _StageTrackerDetailDensity.pagePadding,
+            ),
+            children: [
+              _CompactSection(
+                title: '即將到來',
+                child: upcoming.isEmpty
+                    ? const _CompactTimelineEmptyState(text: '目前沒有即將到來的階段。')
+                    : Column(
+                        children: [
+                          for (final occurrence in upcoming)
+                            _CompactStageTimelineRow(
+                              occurrence: occurrence,
+                              now: previewDate,
+                              keyPrefix: 'timeline',
+                              allowCreateRelated: true,
+                              showSource: true,
+                            ),
+                        ],
+                      ),
+              ),
+              const SizedBox(height: _StageTrackerDetailDensity.sectionGap),
+              _CompactSection(
+                title: '已經歷',
+                child: history.isEmpty
+                    ? const _CompactTimelineEmptyState(text: '目前沒有已經歷的階段。')
+                    : Column(
+                        children: [
+                          for (final occurrence in history)
+                            _CompactStageTimelineRow(
+                              occurrence: occurrence,
+                              now: previewDate,
+                              keyPrefix: 'timeline-history',
+                              allowCreateRelated: false,
+                              showSource: true,
+                              showHistoryStatus: true,
+                            ),
+                        ],
+                      ),
+              ),
+            ],
+          );
+        },
+        error: (error, stack) => Center(child: Text('讀取失敗: $error')),
+        loading: () => const Center(child: CircularProgressIndicator()),
+      ),
+    );
+  }
+
+  List<StageOccurrence> _timelineUpcomingStages(
+    StageTrackerDetail detail,
+    DateTime previewDate,
+  ) {
+    final today = _normalizeDate(previewDate);
+    final items =
+        _dedupeOccurrences([
+          ?detail.nextStage,
+          ...detail.dashboardUpcomingStages,
+          ...detail.scheduleStages,
+        ]).where((occurrence) {
+          return !_normalizeDate(occurrence.occurrenceDate).isBefore(today);
+        }).toList();
+    items.sort((a, b) => a.occurrenceDate.compareTo(b.occurrenceDate));
+    return items;
+  }
+
+  List<StageOccurrence> _timelineHistoryStages(
+    StageTrackerDetail detail,
+    DateTime previewDate,
+  ) {
+    final today = _normalizeDate(previewDate);
+    final items = _dedupeOccurrences(detail.historyStages).where((occurrence) {
+      return _normalizeDate(occurrence.occurrenceDate).isBefore(today);
+    }).toList();
+    items.sort((a, b) => b.occurrenceDate.compareTo(a.occurrenceDate));
+    return items;
+  }
+}
+
+class _CompactTimelineEmptyState extends StatelessWidget {
+  const _CompactTimelineEmptyState({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.reminderPalette;
+    return Container(
+      key: Key('timeline-empty-$text'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(_StageTrackerDetailDensity.cardPadding),
+      decoration: BoxDecoration(
+        color: palette.surfaceWarm,
+        borderRadius: BorderRadius.circular(
+          _StageTrackerDetailDensity.cardRadius,
+        ),
+        border: Border.all(color: palette.borderSubtle),
+      ),
+      child: Text(
+        text,
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(color: palette.textSecondary),
+      ),
+    );
+  }
 }
 
 class StageTrackerSchedulePage extends ConsumerWidget {
@@ -1093,7 +1236,7 @@ class _CompactStageRuleEmptyState extends StatelessWidget {
               visualDensity: VisualDensity.compact,
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             ),
-            child: const Text('加入重複階段'),
+            child: const Text(ReminderUiText.addRecurringStage),
           ),
         ],
       ),
@@ -1165,14 +1308,22 @@ class _CompactStageRuleRow extends StatelessWidget {
   }
 }
 
-class _DetailStageOccurrenceRow extends ConsumerWidget {
-  const _DetailStageOccurrenceRow({
+class _CompactStageTimelineRow extends ConsumerWidget {
+  const _CompactStageTimelineRow({
     required this.occurrence,
     required this.now,
+    required this.keyPrefix,
+    required this.allowCreateRelated,
+    this.showSource = false,
+    this.showHistoryStatus = false,
   });
 
   final StageOccurrence occurrence;
   final DateTime now;
+  final String keyPrefix;
+  final bool allowCreateRelated;
+  final bool showSource;
+  final bool showHistoryStatus;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1180,7 +1331,9 @@ class _DetailStageOccurrenceRow extends ConsumerWidget {
     final summary = occurrence.relatedItemSummary;
     final hasRelatedItems = summary != null && summary.totalRelevantCount > 0;
     return Container(
-      key: Key('detail-stage-occurrence-${_occurrenceKey(occurrence)}'),
+      key: Key(
+        '$keyPrefix-stage-occurrence-${_stageOccurrenceKey(occurrence)}',
+      ),
       margin: const EdgeInsets.only(bottom: _StageTrackerDetailDensity.cardGap),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
@@ -1241,29 +1394,30 @@ class _DetailStageOccurrenceRow extends ConsumerWidget {
               ],
             ),
           ),
-          SizedBox(
-            width: _StageTrackerDetailDensity.rowActionSize,
-            height: _StageTrackerDetailDensity.rowActionSize,
-            child: IconButton(
-              key: Key(
-                hasRelatedItems
-                    ? 'detail-view-related-${_occurrenceKey(occurrence)}'
-                    : 'detail-add-related-${_occurrenceKey(occurrence)}',
+          if (hasRelatedItems || allowCreateRelated)
+            SizedBox(
+              width: _StageTrackerDetailDensity.rowActionSize,
+              height: _StageTrackerDetailDensity.rowActionSize,
+              child: IconButton(
+                key: Key(
+                  hasRelatedItems
+                      ? '$keyPrefix-view-related-${_stageOccurrenceKey(occurrence)}'
+                      : '$keyPrefix-add-related-${_stageOccurrenceKey(occurrence)}',
+                ),
+                onPressed: hasRelatedItems
+                    ? () => _showRelatedItemSummaryDialog(context, summary)
+                    : () => _showRelatedItemDialog(context, ref, occurrence),
+                tooltip: hasRelatedItems ? '查看相關提醒' : '建立相關提醒',
+                icon: Icon(
+                  hasRelatedItems
+                      ? Icons.visibility_outlined
+                      : Icons.add_circle_outline,
+                  size: 20,
+                ),
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
               ),
-              onPressed: hasRelatedItems
-                  ? null
-                  : () => _showRelatedItemDialog(context, ref, occurrence),
-              tooltip: hasRelatedItems ? '查看相關提醒' : '建立相關提醒',
-              icon: Icon(
-                hasRelatedItems
-                    ? Icons.visibility_outlined
-                    : Icons.add_circle_outline,
-                size: 20,
-              ),
-              visualDensity: VisualDensity.compact,
-              padding: EdgeInsets.zero,
             ),
-          ),
         ],
       ),
     );
@@ -1273,40 +1427,12 @@ class _DetailStageOccurrenceRow extends ConsumerWidget {
     final parts = [
       ReminderFormatters.date(occurrence.occurrenceDate),
       _countdownLabel(occurrence.occurrenceDate, now),
-      if (summary != null) ReminderFormatters.relatedItemSummary(summary),
+      if (showSource) _stageOccurrenceSourceLabel(occurrence),
+      if (showHistoryStatus) _stageOccurrenceHistoryStatusLabel(occurrence),
+      if (_hasVisibleRelatedItemSummary(summary))
+        ReminderFormatters.relatedItemSummary(summary!),
     ];
     return parts.join('・');
-  }
-
-  String _countdownLabel(DateTime target, DateTime now) {
-    final days = _normalizeDate(target).difference(_normalizeDate(now)).inDays;
-    if (days == 0) {
-      return '今日';
-    }
-    if (days == 1) {
-      return '明日';
-    }
-    if (days > 1) {
-      return '$days 天後';
-    }
-    return '已過 ${-days} 天';
-  }
-
-  String _occurrenceKey(StageOccurrence occurrence) {
-    final recordId = occurrence.stageRecordId;
-    if (recordId != null) {
-      return 'record-$recordId';
-    }
-    final ruleId = occurrence.stageRuleId;
-    final index = occurrence.occurrenceIndex;
-    if (ruleId != null && index != null) {
-      return 'rule-$ruleId-$index';
-    }
-    return '${occurrence.stageTrackerId}-${occurrence.occurrenceDate.millisecondsSinceEpoch}-${occurrence.label.hashCode}';
-  }
-
-  DateTime _normalizeDate(DateTime value) {
-    return DateTime(value.year, value.month, value.day);
   }
 }
 
@@ -1346,8 +1472,8 @@ class _StageOccurrenceTile extends ConsumerWidget {
             if (showSource) Text(occurrence.isManual ? '來源：重要階段' : '來源：重複階段'),
             if ((occurrence.note ?? '').trim().isNotEmpty)
               Text(occurrence.note!.trim()),
-            if (summary != null)
-              Text(ReminderFormatters.relatedItemSummary(summary)),
+            if (_hasVisibleRelatedItemSummary(summary))
+              Text(ReminderFormatters.relatedItemSummary(summary!)),
           ],
         ),
         trailing: showRelatedAction

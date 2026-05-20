@@ -538,10 +538,11 @@ StageTracker {
 - active trackers 出現在 StageTracker 管理頁；archived trackers 不出現在一般 watch query。
 - StageTracker 管理 route 已實作：`/feature/stage-trackers`，route name 是 `stage-trackers`。
 - StageTracker detail route 已實作：`/stage-tracker/:id`，route name 是 `stage-tracker-detail`。
+- StageTracker complete timeline route 已實作：`/stage-tracker/:id/timeline`，route name 是 `stage-tracker-timeline`。
 - StageTracker full schedule route 已實作：`/stage-tracker/:id/schedule`，route name 是 `stage-tracker-schedule`。
 - StageTracker history route 已實作：`/stage-tracker/:id/history`，route name 是 `stage-tracker-history`。
 - 建立 StageTracker 後進入 detail dashboard。
-- detail dashboard 顯示目前進度、下一個階段、接下來階段、重複階段列表、加入重複階段、新增重要階段、完整時間表、歷史入口。
+- detail dashboard 顯示累積時間、最近 / 待確認階段、即將到來、重複階段列表、加入階段、完整時間線入口。
 
 #### 範例
 
@@ -1003,10 +1004,10 @@ StageTracker 管理 route：`/feature/stage-trackers`，route name：`stage-trac
 - 列表分為「進行中」與「已完成追蹤」。
 - 建立流程填入名稱、對象名稱、開始日期、生活場景。
 - 建立後進入 detail dashboard。
-- detail dashboard 顯示目前進度、下一個階段、接下來階段、重複階段列表。
-- detail dashboard 提供加入重複階段、新增重要階段、查看完整時間表、查看歷史。
-- schedule 頁顯示未來 stages。
-- history 頁顯示過去 stages。
+- detail dashboard 顯示累積時間、最近 / 待確認階段、即將到來階段、重複階段列表。
+- detail dashboard 提供 unified `加入階段` dialog，可建立重要階段或重複階段。
+- complete timeline route 顯示即將到來與已經歷 stages。
+- schedule / history 舊 route 保留可用，但主要 detail 入口導向 complete timeline。
 - stage tile 可建立 related item。
 
 ### 4.6 Pack 管理

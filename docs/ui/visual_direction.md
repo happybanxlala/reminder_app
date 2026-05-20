@@ -931,7 +931,18 @@ flutter test
 - `下一個階段` and `即將到來的階段` are merged into one compact `即將到來` section.
 - Upcoming stages render as compact timeline rows with date, countdown, optional note, and related reminder summary.
 - Rows show `+` when no related reminder exists and a visibility icon when related reminders already exist.
-- The compact `加入階段` entry stays under the hero and opens existing important-stage / repeat-rule dialogs.
-- Large middle action buttons are removed; full timeline lives in the AppBar overflow and currently routes to the schedule page.
+- The compact `加入階段` entry stays under the hero and opens the unified stage-entry flow.
+- Large middle action buttons are removed; full timeline lives in the AppBar overflow.
 - Repeat rules are compact settings rows with only row overflow; rule edit / pause / archive support remains future work.
-- The detail page does not add a history section; complete timeline unification remains future work.
+- The detail page does not add a history section; history belongs in the complete timeline flow.
+
+### 19.14 StageTracker Unified Stage Entry And Timeline 2026-05-21
+
+- StageTracker detail now uses a unified `加入階段` dialog instead of separate primary add flows.
+- The unified dialog uses `重要階段` / `重複階段` tabs while preserving the existing important-stage and repeat-rule write behavior.
+- `完整時間表` and `歷史` are consolidated into the primary `完整時間線` entry from the detail overflow menu.
+- The complete timeline page renders `即將到來` and `已經歷` as compact timeline sections using the same row density as detail upcoming rows.
+- Timeline rows show source context (`重要階段` / `重複階段`), date, relative timing, optional note, related reminder summary, and compact status for past stages.
+- Rows show `+` when a future occurrence has no related reminder, and a visibility icon when related reminders already exist.
+- The visibility action opens a compact related-reminder summary because current data exposes counts but not full related item identities.
+- Legacy schedule/history routes remain available for compatibility, but the main UI entry is `完整時間線`.

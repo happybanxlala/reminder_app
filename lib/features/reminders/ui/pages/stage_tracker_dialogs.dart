@@ -25,40 +25,22 @@ Future<void> _showCreateStageTrackerDialog(
   }
 }
 
-Future<void> _showStageRuleDialog(
-  BuildContext context,
-  WidgetRef ref,
-  int trackerId,
-) async {
-  final input = await showDialog<StageRuleInput>(
-    context: context,
-    builder: (dialogContext) => const _StageRuleFormDialog(),
-  );
-  if (input == null) {
-    return;
-  }
-  await ref
-      .read(stageTrackerRepositoryProvider)
-      .createStageRule(trackerId, input);
-  ref.invalidate(stageTrackerDetailProvider(trackerId));
-}
+enum _StageEntryTab { important, recurring }
 
-Future<void> _showImportantStageDialog(
+Future<void> _showStageEntryDialog(
   BuildContext context,
   WidgetRef ref,
-  int trackerId,
-) async {
-  final input = await showDialog<ManualStageInput>(
+  int trackerId, {
+  _StageEntryTab initialTab = _StageEntryTab.important,
+}) async {
+  await showDialog<void>(
     context: context,
-    builder: (dialogContext) => const _ImportantStageFormDialog(),
+    builder: (dialogContext) => _StageEntryDialog(
+      trackerId: trackerId,
+      ref: ref,
+      initialTab: initialTab,
+    ),
   );
-  if (input == null) {
-    return;
-  }
-  await ref
-      .read(stageTrackerRepositoryProvider)
-      .createImportantStage(trackerId, input);
-  ref.invalidate(stageTrackerDetailProvider(trackerId));
 }
 
 Future<void> _showRelatedItemDialog(
@@ -82,6 +64,25 @@ Future<void> _showRelatedItemDialog(
         dueDate: input.dueDate,
       );
   ref.invalidate(stageTrackerDetailProvider(occurrence.stageTrackerId));
+}
+
+Future<void> _showRelatedItemSummaryDialog(
+  BuildContext context,
+  StageRelatedItemSummary summary,
+) async {
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text(ReminderUiText.relatedItemsTitle),
+      content: Text(ReminderFormatters.relatedItemSummary(summary)),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          child: const Text(ReminderUiText.closeAction),
+        ),
+      ],
+    ),
+  );
 }
 
 class _StageTrackerFormDialog extends ConsumerStatefulWidget {
@@ -232,18 +233,98 @@ class _StageTrackerFormDialogState
   }
 }
 
-class _StageRuleFormDialog extends StatefulWidget {
-  const _StageRuleFormDialog();
+class _StageEntryDialog extends StatelessWidget {
+  const _StageEntryDialog({
+    required this.trackerId,
+    required this.ref,
+    required this.initialTab,
+  });
+
+  final int trackerId;
+  final WidgetRef ref;
+  final _StageEntryTab initialTab;
 
   @override
-  State<_StageRuleFormDialog> createState() => _StageRuleFormDialogState();
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      initialIndex: initialTab == _StageEntryTab.recurring ? 1 : 0,
+      child: AlertDialog(
+        title: const Text(ReminderUiText.addStageEntry),
+        content: SizedBox(
+          width: 420,
+          height: 430,
+          child: Column(
+            children: [
+              const TabBar(
+                tabs: [
+                  Tab(text: ReminderUiText.importantStageTitle),
+                  Tab(text: ReminderUiText.stageRulesTitle),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    _ImportantStageForm(
+                      onSubmit: (input) =>
+                          _createImportantStage(context, input),
+                    ),
+                    _StageRuleForm(
+                      onSubmit: (input) => _createStageRule(context, input),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _createImportantStage(
+    BuildContext context,
+    ManualStageInput input,
+  ) async {
+    await ref
+        .read(stageTrackerRepositoryProvider)
+        .createImportantStage(trackerId, input);
+    ref.invalidate(stageTrackerDetailProvider(trackerId));
+    if (context.mounted) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  Future<void> _createStageRule(
+    BuildContext context,
+    StageRuleInput input,
+  ) async {
+    await ref
+        .read(stageTrackerRepositoryProvider)
+        .createStageRule(trackerId, input);
+    ref.invalidate(stageTrackerDetailProvider(trackerId));
+    if (context.mounted) {
+      Navigator.of(context).pop();
+    }
+  }
 }
 
-class _StageRuleFormDialogState extends State<_StageRuleFormDialog> {
+class _StageRuleForm extends StatefulWidget {
+  const _StageRuleForm({required this.onSubmit});
+
+  final Future<void> Function(StageRuleInput input) onSubmit;
+
+  @override
+  State<_StageRuleForm> createState() => _StageRuleFormState();
+}
+
+class _StageRuleFormState extends State<_StageRuleForm> {
   final _intervalController = TextEditingController(text: '1');
   final _labelController = TextEditingController();
   final _reminderController = TextEditingController();
   StageIntervalUnit _unit = StageIntervalUnit.months;
+  bool _saving = false;
 
   @override
   void dispose() {
@@ -255,110 +336,111 @@ class _StageRuleFormDialogState extends State<_StageRuleFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text(ReminderUiText.stageRulesTitle),
-      content: SizedBox(
-        width: 420,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              key: const Key('stage-rule-interval-field'),
-              controller: _intervalController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: ReminderUiText.stageRuleIntervalValueFieldLabel,
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            key: const Key('stage-rule-interval-field'),
+            controller: _intervalController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: ReminderUiText.stageRuleIntervalValueFieldLabel,
+            ),
+          ),
+          DropdownButtonFormField<StageIntervalUnit>(
+            key: const Key('stage-rule-unit-field'),
+            initialValue: _unit,
+            decoration: const InputDecoration(labelText: '單位'),
+            items: const [
+              DropdownMenuItem(value: StageIntervalUnit.days, child: Text('天')),
+              DropdownMenuItem(
+                value: StageIntervalUnit.weeks,
+                child: Text('週'),
               ),
-            ),
-            DropdownButtonFormField<StageIntervalUnit>(
-              key: const Key('stage-rule-unit-field'),
-              initialValue: _unit,
-              decoration: const InputDecoration(labelText: '單位'),
-              items: const [
-                DropdownMenuItem(
-                  value: StageIntervalUnit.days,
-                  child: Text('天'),
-                ),
-                DropdownMenuItem(
-                  value: StageIntervalUnit.weeks,
-                  child: Text('週'),
-                ),
-                DropdownMenuItem(
-                  value: StageIntervalUnit.months,
-                  child: Text('個月'),
-                ),
-                DropdownMenuItem(
-                  value: StageIntervalUnit.years,
-                  child: Text('年'),
-                ),
-              ],
-              onChanged: (value) => setState(() => _unit = value ?? _unit),
-            ),
-            TextField(
-              controller: _labelController,
-              decoration: const InputDecoration(
-                labelText: ReminderUiText.stageRuleLabelTemplateFieldLabel,
-                helperText: '可使用 {value} 與 {unit}',
+              DropdownMenuItem(
+                value: StageIntervalUnit.months,
+                child: Text('個月'),
               ),
-            ),
-            TextField(
-              controller: _reminderController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: ReminderUiText.stageRuleReminderOffsetFieldLabel,
+              DropdownMenuItem(
+                value: StageIntervalUnit.years,
+                child: Text('年'),
               ),
+            ],
+            onChanged: (value) => setState(() => _unit = value ?? _unit),
+          ),
+          TextField(
+            controller: _labelController,
+            decoration: const InputDecoration(
+              labelText: ReminderUiText.stageRuleLabelTemplateFieldLabel,
+              helperText: '可使用 {value} 與 {unit}',
             ),
-          ],
-        ),
+          ),
+          TextField(
+            controller: _reminderController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: ReminderUiText.stageRuleReminderOffsetFieldLabel,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _StageEntryFormActions(
+            saving: _saving,
+            submitLabel: ReminderUiText.addRecurringStage,
+            onSubmit: _submit,
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text(ReminderUiText.closeAction),
-        ),
-        FilledButton(
-          onPressed: () {
-            final interval = int.tryParse(_intervalController.text.trim()) ?? 1;
-            final type = switch (_unit) {
-              StageIntervalUnit.days => StageRuleType.everyNDays,
-              StageIntervalUnit.weeks => StageRuleType.everyNWeeks,
-              StageIntervalUnit.months => StageRuleType.everyNMonths,
-              StageIntervalUnit.years => StageRuleType.everyNYears,
-            };
-            Navigator.of(context).pop(
-              StageRuleInput(
-                type: type,
-                intervalValue: interval <= 0 ? 1 : interval,
-                intervalUnit: _unit,
-                labelTemplate: _labelController.text.trim().isEmpty
-                    ? null
-                    : _labelController.text.trim(),
-                reminderOffsetDays: int.tryParse(
-                  _reminderController.text.trim(),
-                ),
-              ),
-            );
-          },
-          child: const Text(ReminderUiText.saveAction),
-        ),
-      ],
     );
+  }
+
+  Future<void> _submit() async {
+    if (_saving) {
+      return;
+    }
+    setState(() => _saving = true);
+    final interval = int.tryParse(_intervalController.text.trim()) ?? 1;
+    final type = switch (_unit) {
+      StageIntervalUnit.days => StageRuleType.everyNDays,
+      StageIntervalUnit.weeks => StageRuleType.everyNWeeks,
+      StageIntervalUnit.months => StageRuleType.everyNMonths,
+      StageIntervalUnit.years => StageRuleType.everyNYears,
+    };
+    try {
+      await widget.onSubmit(
+        StageRuleInput(
+          type: type,
+          intervalValue: interval <= 0 ? 1 : interval,
+          intervalUnit: _unit,
+          labelTemplate: _labelController.text.trim().isEmpty
+              ? null
+              : _labelController.text.trim(),
+          reminderOffsetDays: int.tryParse(_reminderController.text.trim()),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
   }
 }
 
-class _ImportantStageFormDialog extends StatefulWidget {
-  const _ImportantStageFormDialog();
+class _ImportantStageForm extends StatefulWidget {
+  const _ImportantStageForm({required this.onSubmit});
+
+  final Future<void> Function(ManualStageInput input) onSubmit;
 
   @override
-  State<_ImportantStageFormDialog> createState() =>
-      _ImportantStageFormDialogState();
+  State<_ImportantStageForm> createState() => _ImportantStageFormState();
 }
 
-class _ImportantStageFormDialogState extends State<_ImportantStageFormDialog> {
+class _ImportantStageFormState extends State<_ImportantStageForm> {
   final _titleController = TextEditingController();
   final _noteController = TextEditingController();
   final _reminderController = TextEditingController();
   DateTime _date = DateTime.now();
+  bool _saving = false;
 
   @override
   void dispose() {
@@ -370,72 +452,104 @@ class _ImportantStageFormDialogState extends State<_ImportantStageFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text(ReminderUiText.importantStageTitle),
-      content: SizedBox(
-        width: 420,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              key: const Key('important-stage-title-field'),
-              controller: _titleController,
-              decoration: const InputDecoration(labelText: '標題'),
-            ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('日期'),
-              subtitle: Text(ReminderFormatters.date(_date)),
-              trailing: const Icon(Icons.calendar_month_outlined),
-              onTap: () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: _date,
-                  firstDate: DateTime(1900),
-                  lastDate: DateTime(2100),
-                );
-                if (picked != null) {
-                  setState(() => _date = picked);
-                }
-              },
-            ),
-            TextField(
-              controller: _noteController,
-              decoration: const InputDecoration(labelText: '備註'),
-            ),
-            TextField(
-              controller: _reminderController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: '提醒提前天數，可選'),
-            ),
-          ],
-        ),
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            key: const Key('important-stage-title-field'),
+            controller: _titleController,
+            decoration: const InputDecoration(labelText: '標題'),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('日期'),
+            subtitle: Text(ReminderFormatters.date(_date)),
+            trailing: const Icon(Icons.calendar_month_outlined),
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: _date,
+                firstDate: DateTime(1900),
+                lastDate: DateTime(2100),
+              );
+              if (picked != null) {
+                setState(() => _date = picked);
+              }
+            },
+          ),
+          TextField(
+            controller: _noteController,
+            decoration: const InputDecoration(labelText: '備註'),
+          ),
+          TextField(
+            controller: _reminderController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: '提醒提前天數，可選'),
+          ),
+          const SizedBox(height: 12),
+          _StageEntryFormActions(
+            saving: _saving,
+            submitLabel: ReminderUiText.addImportantStage,
+            onSubmit: _submit,
+          ),
+        ],
       ),
-      actions: [
+    );
+  }
+
+  Future<void> _submit() async {
+    if (_saving) {
+      return;
+    }
+    final title = _titleController.text.trim();
+    if (title.isEmpty) {
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      await widget.onSubmit(
+        ManualStageInput(
+          label: title,
+          occurrenceDate: _date,
+          note: _noteController.text.trim().isEmpty
+              ? null
+              : _noteController.text.trim(),
+          reminderOffsetDays: int.tryParse(_reminderController.text.trim()),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
+  }
+}
+
+class _StageEntryFormActions extends StatelessWidget {
+  const _StageEntryFormActions({
+    required this.saving,
+    required this.submitLabel,
+    required this.onSubmit,
+  });
+
+  final bool saving;
+  final String submitLabel;
+  final VoidCallback onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: saving ? null : () => Navigator.of(context).pop(),
           child: const Text(ReminderUiText.closeAction),
         ),
+        const SizedBox(width: 8),
         FilledButton(
-          onPressed: () {
-            final title = _titleController.text.trim();
-            if (title.isEmpty) {
-              return;
-            }
-            Navigator.of(context).pop(
-              ManualStageInput(
-                label: title,
-                occurrenceDate: _date,
-                note: _noteController.text.trim().isEmpty
-                    ? null
-                    : _noteController.text.trim(),
-                reminderOffsetDays: int.tryParse(
-                  _reminderController.text.trim(),
-                ),
-              ),
-            );
-          },
-          child: const Text(ReminderUiText.saveAction),
+          onPressed: saving ? null : onSubmit,
+          child: Text(submitLabel),
         ),
       ],
     );

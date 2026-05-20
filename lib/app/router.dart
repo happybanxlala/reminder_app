@@ -127,6 +127,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
+        path: StageTrackerTimelinePage.routePath,
+        name: StageTrackerTimelinePage.routeName,
+        builder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '');
+          return StageTrackerTimelinePage(stageTrackerId: id ?? 0);
+        },
+      ),
+      GoRoute(
         path: StageTrackerSchedulePage.routePath,
         name: StageTrackerSchedulePage.routeName,
         builder: (context, state) {

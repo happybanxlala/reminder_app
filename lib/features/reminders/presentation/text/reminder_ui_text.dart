@@ -35,6 +35,9 @@ class ReminderUiText {
   static const addItem = '新增要照顧的事';
   static const addItemPack = '新增生活場景';
   static const addStageTracker = '新增階段追蹤';
+  static const addStageEntry = '加入階段';
+  static const addImportantStage = '新增重要階段';
+  static const addRecurringStage = '加入重複階段';
   static const editItem = '編輯要照顧的事';
   static const itemHistoryTitle = '要照顧的事操作紀錄';
   static const editItemPack = '編輯生活場景';
@@ -62,6 +65,7 @@ class ReminderUiText {
   static const upcomingStagesTitle = '即將到來的階段';
   static const stageHistoryTitle = '階段紀錄';
   static const stageTrackerHistoryTitle = '階段追蹤紀錄';
+  static const stageTrackerTimelineTitle = '完整時間線';
   static const noStageUpcoming = '目前沒有即將到來的階段。';
   static const noStageTrackerHistory = '此階段追蹤目前沒有階段紀錄。';
   static const itemActivityPlaceholderMessage = '暫時未有內容';
