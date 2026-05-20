@@ -922,3 +922,16 @@ flutter test
 - Dots, progress dots, and fake progress indicators are intentionally absent because StageTracker data may not define total progress.
 - Tapping a card body navigates directly to the StageTracker detail management page.
 - Management cards do not expose a detail dialog or overflow menu; editing and archive operations remain inside the detail flow.
+
+### 19.13 StageTracker Detail Compact Settings 2026-05-21
+
+- Single StageTracker detail is a compact stage settings management page.
+- The hero remains but uses compact padding, accumulated days as the primary value, recent/pending stage state, and next-stage copy.
+- Fixed hero timeline dots are removed; no fake progress indicator replaces them.
+- `下一個階段` and `即將到來的階段` are merged into one compact `即將到來` section.
+- Upcoming stages render as compact timeline rows with date, countdown, optional note, and related reminder summary.
+- Rows show `+` when no related reminder exists and a visibility icon when related reminders already exist.
+- The compact `加入階段` entry stays under the hero and opens existing important-stage / repeat-rule dialogs.
+- Large middle action buttons are removed; full timeline lives in the AppBar overflow and currently routes to the schedule page.
+- Repeat rules are compact settings rows with only row overflow; rule edit / pause / archive support remains future work.
+- The detail page does not add a history section; complete timeline unification remains future work.
