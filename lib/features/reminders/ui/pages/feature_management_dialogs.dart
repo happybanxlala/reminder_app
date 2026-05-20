@@ -299,24 +299,3 @@ class _CreateItemDialogState extends ConsumerState<_CreateItemDialog> {
     });
   }
 }
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, required this.actions});
-
-  final String title;
-  final List<Widget> actions;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ReminderSectionHeader(title: title, icon: Icons.tune_outlined),
-        if (actions.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Wrap(spacing: 8, runSpacing: 8, children: actions),
-        ],
-      ],
-    );
-  }
-}

@@ -895,3 +895,20 @@ flutter test
 - The section is compact and collapsed by default, showing only「今天已完成 X 項」so it does not compete with first-screen attention work.
 - Expanded completed rows use Home compact density. Item done rows show an undo icon labeled「恢復成未完成」; Resource refill / adjust and Stage acknowledged rows do not expose undo.
 - Undo restores an Item to unfinished through repository state changes; the row disappears through stream updates instead of local-only UI removal.
+
+### 19.10 Item Management Compact Density 2026-05-19
+
+- Item management uses page-local compact-management density; global spacing and radius tokens remain unchanged for Home, Resource, Stage, Detail, and Editor surfaces.
+- Item management keeps Pack organization. Pack groups default to expanded, while user collapse / expand choices remain local UI state and new groups appear expanded.
+- Managed Item rows now use compact rail rows: status rail, title, compact type text, one-line summary, and overflow action.
+- Unexpanded managed Item rows no longer show the large type icon bubble, type badge, status badge, or separate edit icon.
+- Edit moved into the overflow menu alongside details, history, complete, skip, pause / resume, and archive actions.
+- Home and Item management now share the compact visual language, but management keeps Pack grouping and management-specific actions.
+
+### 19.11 Resource Management Compact Density 2026-05-19
+
+- Resource management uses page-local compact-management density and keeps a single list; it does not add Pack grouping.
+- Managed Resource rows now use compact rail rows: status rail, pack emoji chip, title, remaining summary, refill icon, and overflow action.
+- Unexpanded managed Resource rows no longer show the large inventory icon bubble, resource type badge, status badge, or large refill button.
+- Quantity resources show compact remaining quantity. Time-based resources show remaining days and estimated depletion date, or today / overdue depletion copy.
+- Home, Item management, and Resource management share the compact visual language while keeping different information priorities: attention actions, Pack organization, and resource inventory management.

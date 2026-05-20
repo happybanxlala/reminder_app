@@ -308,7 +308,7 @@ void main() {
       expect(
         await repository.undoDone(
           doneRecord.id,
-          undoneAt: DateTime(2026, 4, 6),
+          revertedAt: DateTime(2026, 4, 6),
         ),
         isTrue,
       );
@@ -385,7 +385,7 @@ void main() {
       expect(
         await repository.undoDone(
           doneRecord.id,
-          undoneAt: DateTime(2026, 4, 6),
+          revertedAt: DateTime(2026, 4, 6),
         ),
         isTrue,
       );
@@ -467,7 +467,7 @@ void main() {
       expect(
         await repository.undoDone(
           doneRecord.id,
-          undoneAt: DateTime(2026, 4, 6),
+          revertedAt: DateTime(2026, 4, 6),
         ),
         isFalse,
       );

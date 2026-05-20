@@ -545,6 +545,13 @@ class ReminderFormatters {
     };
   }
 
+  static String compactItemType(ItemType value) {
+    return switch (value) {
+      ItemType.fixed => '固定',
+      ItemType.stateBased => '彈性',
+    };
+  }
+
   static String resourceType(ResourceType value) {
     return switch (value) {
       ResourceType.timeBased => '天數估算',
@@ -594,6 +601,26 @@ class ReminderFormatters {
     };
   }
 
+  static String resourceCompactRemainingSummary(
+    Resource resource, {
+    DateTime? now,
+    ResourceStatusService statusService = const ResourceStatusService(),
+  }) {
+    return switch (resource.config) {
+      TimeBasedResourceConfig config => _timeResourceCompactSummary(
+        config,
+        now: now,
+        statusService: statusService,
+      ),
+      QuantityBasedResourceConfig config => _quantityResourceCompactSummary(
+        resource,
+        config,
+        statusService: statusService,
+      ),
+      _ => '未建立',
+    };
+  }
+
   static String _timeResourceSummary(
     TimeBasedResourceConfig config, {
     DateTime? now,
@@ -624,6 +651,47 @@ class ReminderFormatters {
 
   static String _quantityResourceSummary(QuantityBasedResourceConfig config) {
     return '目前 ${config.currentQuantity} ${config.unitLabel} • 剩 ${config.warningThreshold} ${config.unitLabel}提醒 • 剩 ${config.dangerThreshold} ${config.unitLabel}危急';
+  }
+
+  static String _timeResourceCompactSummary(
+    TimeBasedResourceConfig config, {
+    DateTime? now,
+    required ResourceStatusService statusService,
+  }) {
+    final remaining = statusService.timeBasedRemainingDays(config, now: now);
+    final depletion = statusService.depletionDate(config);
+    if (remaining == null || depletion == null) {
+      return '未建立';
+    }
+    if (remaining > 1) {
+      return '剩 $remaining 天・${DateFormat('M/d').format(depletion.toLocal())} 用完';
+    }
+    if (remaining == 1) {
+      return '明天用完';
+    }
+    if (remaining == 0) {
+      return '今天用完';
+    }
+    return '已用完 ${-remaining} 天';
+  }
+
+  static String _quantityResourceCompactSummary(
+    Resource resource,
+    QuantityBasedResourceConfig config, {
+    required ResourceStatusService statusService,
+  }) {
+    if (config.currentQuantity < 0) {
+      return '未建立';
+    }
+    if (config.currentQuantity <= 0) {
+      return '已用完';
+    }
+    final status = statusService.classify(resource);
+    final quantity = '剩 ${config.currentQuantity} ${config.unitLabel}';
+    return switch (status) {
+      ResourceStatus.warning || ResourceStatus.danger => '已不足・$quantity',
+      _ => quantity,
+    };
   }
 
   static String usageSpeed(UsageSpeed value) {

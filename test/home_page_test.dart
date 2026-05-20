@@ -121,7 +121,14 @@ void main() {
     tester,
   ) async {
     final controller = StreamController<List<TodayCompletedEntry>>.broadcast();
-    await _pumpHome(tester, completedController: controller);
+    DateTime? revertedAt;
+    await _pumpHome(
+      tester,
+      completedController: controller,
+      onUndo: (value) {
+        revertedAt = value;
+      },
+    );
     await tester.pump();
     controller.add(_completedEntries());
     await tester.pumpAndSettle();
@@ -143,6 +150,7 @@ void main() {
     controller.add(const <TodayCompletedEntry>[]);
     await tester.pumpAndSettle();
 
+    expect(revertedAt, DateTime(2026, 5, 2));
     expect(find.text('今天已完成 2 項'), findsNothing);
   });
 }
@@ -150,6 +158,7 @@ void main() {
 Future<_HomeFixture> _pumpHome(
   WidgetTester tester, {
   StreamController<List<TodayCompletedEntry>>? completedController,
+  ValueChanged<DateTime?>? onUndo,
 }) async {
   final db = AppDatabase.forTesting(NativeDatabase.memory());
   addTearDown(db.close);
@@ -223,7 +232,8 @@ Future<_HomeFixture> _pumpHome(
         itemRepositoryProvider.overrideWith(
           (ref) => _UndoItemRepository(
             db.reminderDao,
-            onUndo: () {
+            onUndo: (value) {
+              onUndo?.call(value);
               completedController?.add(const <TodayCompletedEntry>[]);
             },
           ),
@@ -380,11 +390,11 @@ class _HomeFixture {
 class _UndoItemRepository extends ItemRepository {
   _UndoItemRepository(super.dao, {required this.onUndo});
 
-  final VoidCallback onUndo;
+  final ValueChanged<DateTime?> onUndo;
 
   @override
-  Future<bool> undoDone(int doneActionRecordId, {DateTime? undoneAt}) async {
-    onUndo();
+  Future<bool> undoDone(int doneActionRecordId, {DateTime? revertedAt}) async {
+    onUndo(revertedAt);
     return true;
   }
 }

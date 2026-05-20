@@ -1,5 +1,23 @@
 part of 'feature_management_sections.dart';
 
+class _ManagementDensity {
+  const _ManagementDensity._();
+
+  static const pagePadding = 12.0;
+  static const groupGap = 8.0;
+  static const itemGap = 6.0;
+  static const groupPadding = 10.0;
+  static const itemPaddingVertical = 7.0;
+  static const itemPaddingHorizontal = 10.0;
+  static const cardRadius = 16.0;
+  static const packChipSize = 26.0;
+
+  static const itemPadding = EdgeInsets.symmetric(
+    vertical: itemPaddingVertical,
+    horizontal: itemPaddingHorizontal,
+  );
+}
+
 Future<void> _showCreateItemDialog(
   BuildContext context,
   WidgetRef ref, {
@@ -9,6 +27,46 @@ Future<void> _showCreateItemDialog(
     context: context,
     builder: (dialogContext) => _CreateItemDialog(initialPackId: initialPackId),
   );
+}
+
+class _ItemManagementHeader extends StatelessWidget {
+  const _ItemManagementHeader({
+    required this.onOpenResources,
+    required this.onAddItem,
+  });
+
+  final VoidCallback onOpenResources;
+  final VoidCallback onAddItem;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            ReminderUiText.itemTitle,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+        ),
+        IconButton(
+          key: const Key('resource-management-button'),
+          onPressed: onOpenResources,
+          tooltip: '資源管理',
+          icon: const Icon(Icons.inventory_2_outlined),
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+        ),
+        IconButton.filled(
+          key: const Key('add-item-button'),
+          onPressed: onAddItem,
+          tooltip: ReminderUiText.addItem,
+          icon: const Icon(Icons.add),
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+        ),
+      ],
+    );
+  }
 }
 
 class _ItemManagementGroupCard extends ConsumerWidget {
@@ -32,6 +90,8 @@ class _ItemManagementGroupCard extends ConsumerWidget {
 
     return ReminderPaperCard(
       key: Key('pack-section-${pack.id}'),
+      padding: const EdgeInsets.all(_ManagementDensity.groupPadding),
+      radius: _ManagementDensity.cardRadius,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -44,36 +104,47 @@ class _ItemManagementGroupCard extends ConsumerWidget {
                   onTap: onToggle,
                   borderRadius: BorderRadius.circular(8),
                   child: Padding(
-                    padding: const EdgeInsets.all(4),
+                    padding: const EdgeInsets.symmetric(vertical: 2),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          crossAxisAlignment: WrapCrossAlignment.center,
+                        Row(
                           children: [
-                            ReminderIconBubble(
-                              size: 40,
-                              child: Text(pack.iconEmoji),
+                            _PackEmojiMiniChip(emoji: pack.iconEmoji),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                pack.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
                             ),
                             Text(
-                              isUnassigned ? pack.title : pack.title,
-                              style: Theme.of(context).textTheme.titleLarge,
+                              '${items.length} 項',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color:
+                                        context.reminderPalette.textSecondary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                             ),
                           ],
                         ),
-                        if (!isUnassigned &&
+                        if (expanded &&
+                            !isUnassigned &&
                             (pack.description ?? '').trim().isNotEmpty) ...[
                           const SizedBox(height: 4),
-                          Text(pack.description!.trim()),
+                          Text(
+                            pack.description!.trim(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: context.reminderPalette.textSecondary,
+                                ),
+                          ),
                         ],
-                        const SizedBox(height: 4),
-                        ReminderBadge(
-                          label:
-                              '${items.length} ${ReminderUiText.itemCountLabel}',
-                          icon: Icons.checklist_outlined,
-                        ),
                       ],
                     ),
                   ),
@@ -92,6 +163,11 @@ class _ItemManagementGroupCard extends ConsumerWidget {
                     ),
                     tooltip: ReminderUiText.addItem,
                     icon: const Icon(Icons.add),
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints.tightFor(
+                      width: 36,
+                      height: 36,
+                    ),
                   ),
                   IconButton(
                     key: Key('pack-toggle-${pack.id}'),
@@ -104,19 +180,26 @@ class _ItemManagementGroupCard extends ConsumerWidget {
                           ? Icons.expand_less_outlined
                           : Icons.expand_more_outlined,
                     ),
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints.tightFor(
+                      width: 36,
+                      height: 36,
+                    ),
                   ),
                 ],
               ),
             ],
           ),
           if (expanded) ...[
-            const SizedBox(height: ReminderSpacing.listGap),
+            const SizedBox(height: _ManagementDensity.itemGap),
             if (items.isEmpty)
-              const ReminderEmptyState(message: ReminderUiText.emptyPackHint)
+              const _CompactPackEmptyRow()
             else
               ...items.map(
                 (item) => Padding(
-                  padding: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.only(
+                    top: _ManagementDensity.itemGap,
+                  ),
                   child: _ManagedItemCard(
                     bundle: item,
                     previewDate: previewDate,
@@ -125,6 +208,52 @@ class _ItemManagementGroupCard extends ConsumerWidget {
               ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _PackEmojiMiniChip extends StatelessWidget {
+  const _PackEmojiMiniChip({required this.emoji});
+
+  final String emoji;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.reminderPalette;
+    return Container(
+      width: _ManagementDensity.packChipSize,
+      height: _ManagementDensity.packChipSize,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: palette.surfaceWarm,
+        shape: BoxShape.circle,
+        border: Border.all(color: palette.borderSubtle),
+      ),
+      child: Text(emoji, style: const TextStyle(fontSize: 15)),
+    );
+  }
+}
+
+class _CompactPackEmptyRow extends StatelessWidget {
+  const _CompactPackEmptyRow();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.reminderPalette;
+    return Container(
+      width: double.infinity,
+      padding: _ManagementDensity.itemPadding,
+      decoration: BoxDecoration(
+        color: palette.surfaceWarm,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: palette.borderSubtle),
+      ),
+      child: Text(
+        ReminderUiText.emptyPackHint,
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(color: palette.textSecondary),
       ),
     );
   }
@@ -143,25 +272,21 @@ class _ManagedItemCard extends ConsumerWidget {
       now: previewDate,
     );
 
-    final palette = context.reminderPalette;
     return ReminderRailCard(
       key: Key('item-card-${bundle.item.id}'),
       railColor: viewModel.status.color,
-      padding: const EdgeInsets.all(ReminderSpacing.cardCompact),
+      padding: _ManagementDensity.itemPadding,
+      radius: _ManagementDensity.cardRadius,
       child: InkWell(
+        key: Key('item-card-body-${bundle.item.id}'),
         onTap: () =>
             showItemSummaryDialog(context, bundle, previewDate: previewDate),
+        borderRadius: BorderRadius.circular(_ManagementDensity.cardRadius),
         child: Padding(
           padding: EdgeInsets.zero,
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              ReminderIconBubble(
-                size: 44,
-                backgroundColor: palette.primaryWarmContainer,
-                child: Icon(viewModel.typeIcon, color: palette.primaryWarm),
-              ),
-              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -169,45 +294,25 @@ class _ManagedItemCard extends ConsumerWidget {
                     Text(
                       bundle.item.title,
                       style: Theme.of(context).textTheme.titleMedium,
-                      key: Key('item-type-icon-${bundle.item.id}'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      key: Key('item-title-${bundle.item.id}'),
                     ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: [
-                        ReminderBadge(
-                          label: viewModel.typeLabel,
-                          color: palette.primaryWarmDark,
-                          backgroundColor: palette.primaryWarmContainer,
-                        ),
-                        ReminderBadge(
-                          label: viewModel.status.label,
-                          icon: viewModel.isPaused
-                              ? Icons.pause_circle_outline
-                              : null,
-                          color: viewModel.status.color,
-                          backgroundColor: viewModel.status.color.withValues(
-                            alpha: 0.12,
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: 2),
+                    Text(
+                      '${viewModel.compactTypeLabel}・${viewModel.compactSummaryLabel}',
+                      key: Key('item-compact-summary-${bundle.item.id}'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.reminderPalette.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              IconButton(
-                key: Key('item-edit-${bundle.item.id}'),
-                onPressed: () {
-                  context.pushNamed(
-                    ItemEditPage.editRouteName,
-                    pathParameters: {'id': bundle.item.id.toString()},
-                  );
-                },
-                tooltip: ReminderUiText.editAction,
-                icon: const Icon(Icons.edit_outlined),
-              ),
+              const SizedBox(width: 4),
               IconButton(
                 key: Key('item-overflow-${bundle.item.id}'),
                 onPressed: () => _showManagedItemActionSheet(
@@ -219,6 +324,11 @@ class _ManagedItemCard extends ConsumerWidget {
                 ),
                 tooltip: ReminderUiText.itemActionMenuTitle,
                 icon: const Icon(Icons.more_vert),
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints.tightFor(
+                  width: 36,
+                  height: 36,
+                ),
               ),
             ],
           ),
@@ -229,10 +339,11 @@ class _ManagedItemCard extends ConsumerWidget {
 }
 
 enum _ManagedItemMenuAction {
-  complete,
-  skip,
+  edit,
   details,
   history,
+  complete,
+  skip,
   pause,
   resume,
   archive,
@@ -269,21 +380,11 @@ Future<void> _showManagedItemActionSheet(
                 ),
               ),
               _ItemActionSheetTile(
-                key: Key('item-menu-complete-${bundle.item.id}'),
-                label: ReminderUiText.completeAction,
-                enabled: viewModel.canComplete,
-                onTap: () => Navigator.of(
-                  sheetContext,
-                ).pop(_ManagedItemMenuAction.complete),
-              ),
-              _ItemActionSheetTile(
-                key: Key('item-menu-skip-${bundle.item.id}'),
-                label: ReminderUiText.skipAction,
-                enabled: viewModel.canSkip,
+                key: Key('item-menu-edit-${bundle.item.id}'),
+                label: ReminderUiText.editAction,
                 onTap: () =>
-                    Navigator.of(sheetContext).pop(_ManagedItemMenuAction.skip),
+                    Navigator.of(sheetContext).pop(_ManagedItemMenuAction.edit),
               ),
-              const Divider(height: 16),
               _ItemActionSheetTile(
                 key: Key('item-menu-details-${bundle.item.id}'),
                 label: ReminderUiText.itemDetailAction,
@@ -297,6 +398,22 @@ Future<void> _showManagedItemActionSheet(
                 onTap: () => Navigator.of(
                   sheetContext,
                 ).pop(_ManagedItemMenuAction.history),
+              ),
+              const Divider(height: 16),
+              _ItemActionSheetTile(
+                key: Key('item-menu-complete-${bundle.item.id}'),
+                label: ReminderUiText.completeAction,
+                enabled: viewModel.canComplete,
+                onTap: () => Navigator.of(
+                  sheetContext,
+                ).pop(_ManagedItemMenuAction.complete),
+              ),
+              _ItemActionSheetTile(
+                key: Key('item-menu-skip-${bundle.item.id}'),
+                label: ReminderUiText.skipAction,
+                enabled: viewModel.canSkip,
+                onTap: () =>
+                    Navigator.of(sheetContext).pop(_ManagedItemMenuAction.skip),
               ),
               const Divider(height: 16),
               _ItemActionSheetTile(
@@ -337,6 +454,21 @@ Future<void> _showManagedItemActionSheet(
 
   final repository = ref.read(itemRepositoryProvider);
   switch (selected) {
+    case _ManagedItemMenuAction.edit:
+      context.pushNamed(
+        ItemEditPage.editRouteName,
+        pathParameters: {'id': bundle.item.id.toString()},
+      );
+      return;
+    case _ManagedItemMenuAction.details:
+      await showItemSummaryDialog(context, bundle, previewDate: previewDate);
+      return;
+    case _ManagedItemMenuAction.history:
+      context.pushNamed(
+        ItemHistoryPage.routeName,
+        pathParameters: {'id': bundle.item.id.toString()},
+      );
+      return;
     case _ManagedItemMenuAction.complete:
       await _handleManagedItemComplete(
         context,
@@ -351,15 +483,6 @@ Future<void> _showManagedItemActionSheet(
         return;
       }
       await repository.skip(bundle.item.id, actionAt: previewDate);
-      return;
-    case _ManagedItemMenuAction.details:
-      await showItemSummaryDialog(context, bundle, previewDate: previewDate);
-      return;
-    case _ManagedItemMenuAction.history:
-      context.pushNamed(
-        ItemHistoryPage.routeName,
-        pathParameters: {'id': bundle.item.id.toString()},
-      );
       return;
     case _ManagedItemMenuAction.pause:
       final confirmed = await _showItemActionConfirmation(

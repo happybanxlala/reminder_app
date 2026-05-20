@@ -40,7 +40,7 @@ class ItemsManagementContent extends ConsumerStatefulWidget {
 
 class _ItemsManagementContentState
     extends ConsumerState<ItemsManagementContent> {
-  final Set<int> _expandedPackIds = <int>{};
+  final Set<int> _collapsedPackIds = <int>{};
 
   @override
   Widget build(BuildContext context) {
@@ -51,26 +51,14 @@ class _ItemsManagementContentState
       data: (groups) {
         if (groups.isEmpty) {
           return ListView(
-            padding: const EdgeInsets.all(ReminderSpacing.page),
+            padding: const EdgeInsets.all(_ManagementDensity.pagePadding),
             children: [
-              _SectionHeader(
-                title: ReminderUiText.itemsManagementFeatureTitle,
-                actions: [
-                  OutlinedButton.icon(
-                    key: const Key('resource-management-button'),
-                    onPressed: () =>
-                        context.pushNamed(ResourceManagementPage.routeName),
-                    icon: const Icon(Icons.inventory_2_outlined),
-                    label: const Text('資源管理'),
-                  ),
-                  FilledButton(
-                    key: const Key('add-item-button'),
-                    onPressed: () => _showCreateItemDialog(context, ref),
-                    child: const Text(ReminderUiText.addItem),
-                  ),
-                ],
+              _ItemManagementHeader(
+                onOpenResources: () =>
+                    context.pushNamed(ResourceManagementPage.routeName),
+                onAddItem: () => _showCreateItemDialog(context, ref),
               ),
-              const SizedBox(height: ReminderSpacing.listGap),
+              const SizedBox(height: _ManagementDensity.groupGap),
               const ReminderEmptyState(
                 message: ReminderUiText.noDefaultItemPack,
               ),
@@ -79,37 +67,29 @@ class _ItemsManagementContentState
         }
 
         return ListView(
-          padding: const EdgeInsets.all(ReminderSpacing.page),
+          padding: const EdgeInsets.all(_ManagementDensity.pagePadding),
           children: [
-            _SectionHeader(
-              title: ReminderUiText.itemsManagementFeatureTitle,
-              actions: [
-                OutlinedButton.icon(
-                  key: const Key('resource-management-button'),
-                  onPressed: () =>
-                      context.pushNamed(ResourceManagementPage.routeName),
-                  icon: const Icon(Icons.inventory_2_outlined),
-                  label: const Text('資源管理'),
-                ),
-                FilledButton(
-                  key: const Key('add-item-button'),
-                  onPressed: () => _showCreateItemDialog(context, ref),
-                  child: const Text(ReminderUiText.addItem),
-                ),
-              ],
+            _ItemManagementHeader(
+              onOpenResources: () =>
+                  context.pushNamed(ResourceManagementPage.routeName),
+              onAddItem: () => _showCreateItemDialog(context, ref),
             ),
-            const SizedBox(height: ReminderSpacing.listGap),
+            const SizedBox(height: _ManagementDensity.groupGap),
             ...groups.map(
               (group) => Padding(
-                padding: const EdgeInsets.only(bottom: ReminderSpacing.listGap),
+                padding: const EdgeInsets.only(
+                  bottom: _ManagementDensity.groupGap,
+                ),
                 child: _ItemManagementGroupCard(
                   group: group,
                   previewDate: previewDate,
-                  expanded: _expandedPackIds.contains(group.pack.id),
+                  expanded: !_collapsedPackIds.contains(group.pack.id),
                   onToggle: () {
                     setState(() {
-                      if (!_expandedPackIds.add(group.pack.id)) {
-                        _expandedPackIds.remove(group.pack.id);
+                      if (_collapsedPackIds.contains(group.pack.id)) {
+                        _collapsedPackIds.remove(group.pack.id);
+                      } else {
+                        _collapsedPackIds.add(group.pack.id);
                       }
                     });
                   },

@@ -266,7 +266,7 @@ void main() {
       )).firstWhere((record) => record.actionType == ItemActionType.done);
       await repositories.item.undoDone(
         doneRecord.id,
-        undoneAt: DateTime(2026, 5, 2),
+        revertedAt: DateTime(2026, 5, 2),
       );
 
       final entries = await repositories.home

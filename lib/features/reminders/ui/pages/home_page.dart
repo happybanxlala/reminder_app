@@ -1219,9 +1219,10 @@ class _TodayCompletedRow extends ConsumerWidget {
     if (record == null) {
       return;
     }
+    final previewDate = ref.read(effectivePreviewDateProvider);
     final success = await ref
         .read(itemRepositoryProvider)
-        .undoDone(record.id, undoneAt: entry.actionDate);
+        .undoDone(record.id, revertedAt: previewDate);
     if (!context.mounted || !success) {
       return;
     }

@@ -23,6 +23,8 @@ void main() {
       );
 
       expect(viewModel.typeIcon, Icons.schedule_outlined);
+      expect(viewModel.compactTypeLabel, '固定');
+      expect(viewModel.compactSummaryLabel, '每週');
       expect(viewModel.status.label, '下次截止：2026/04/20');
       expect(viewModel.status.isWarningOrDanger, isFalse);
       expect(viewModel.canComplete, isTrue);
@@ -42,6 +44,7 @@ void main() {
       );
 
       expect(viewModel.status.label, '尚未開始');
+      expect(viewModel.compactSummaryLabel, '尚未開始');
       expect(viewModel.status.isNotStarted, isTrue);
       expect(viewModel.canComplete, isFalse);
       expect(viewModel.canSkip, isFalse);
@@ -62,6 +65,7 @@ void main() {
       );
 
       expect(viewModel.status.label, '需要處理：已逾期2天');
+      expect(viewModel.compactSummaryLabel, '需要處理：已逾期2天');
       expect(viewModel.status.isWarningOrDanger, isTrue);
     });
 
@@ -81,6 +85,8 @@ void main() {
         );
 
         expect(viewModel.typeIcon, Icons.gesture_outlined);
+        expect(viewModel.compactTypeLabel, '彈性');
+        expect(viewModel.compactSummaryLabel, '未建立基準');
         expect(viewModel.status.label, '未建立基準');
         expect(viewModel.status.isUnknown, isTrue);
         expect(viewModel.requireCompletionConfirmation, isTrue);
@@ -116,8 +122,10 @@ void main() {
         );
 
         expect(warningViewModel.status.label, '要留意：距上次處理已經有5天了');
+        expect(warningViewModel.compactSummaryLabel, '要留意：距上次處理已經有5天了');
         expect(warningViewModel.requireCompletionConfirmation, isFalse);
         expect(normalViewModel.status.label, '距上次處理：2天前');
+        expect(normalViewModel.compactSummaryLabel, '2天前');
         expect(normalViewModel.requireCompletionConfirmation, isTrue);
       },
     );
@@ -140,6 +148,24 @@ void main() {
       expect(viewModel.canComplete, isTrue);
       expect(viewModel.canSkip, isTrue);
     });
+
+    test('paused item shows paused compact summary', () {
+      final viewModel = ManagementItemCardViewModel.fromBundle(
+        _bundle(
+          5,
+          config: FixedItemConfig(
+            scheduleType: FixedScheduleType.weekly,
+            anchorDate: DateTime(2026, 4, 10),
+            dueDate: DateTime(2026, 4, 20),
+          ),
+          lifecycle: ItemLifecycleStatus.paused,
+        ),
+        now: DateTime(2026, 4, 11),
+      );
+
+      expect(viewModel.compactSummaryLabel, '已暫停');
+      expect(viewModel.canResume, isTrue);
+    });
   });
 }
 
@@ -147,6 +173,7 @@ ItemBundle _bundle(
   int id, {
   ItemType type = ItemType.fixed,
   required ItemConfig config,
+  ItemLifecycleStatus lifecycle = ItemLifecycleStatus.active,
 }) {
   return ItemBundle(
     item: Item(
@@ -155,6 +182,7 @@ ItemBundle _bundle(
       title: 'Item $id',
       type: type,
       config: config,
+      status: lifecycle,
       createdAt: DateTime(2026, 4, 1),
       updatedAt: DateTime(2026, 4, 1),
     ),

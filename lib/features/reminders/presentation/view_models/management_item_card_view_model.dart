@@ -30,9 +30,11 @@ class ManagementItemCardViewModel {
     required this.title,
     required this.type,
     required this.typeLabel,
+    required this.compactTypeLabel,
     required this.typeIcon,
     required this.packTitle,
     required this.status,
+    required this.compactSummaryLabel,
     required this.lifecycle,
     required this.lifecycleLabel,
     required this.updatedAtLabel,
@@ -77,11 +79,13 @@ class ManagementItemCardViewModel {
       title: item.title,
       type: item.type,
       typeLabel: ReminderFormatters.itemType(item.type),
+      compactTypeLabel: ReminderFormatters.compactItemType(item.type),
       typeIcon: _typeIcon(item.type),
       packTitle: bundle.pack.isSystemDefault
           ? ReminderUiText.unassignedPackTitle
           : bundle.pack.title,
       status: status,
+      compactSummaryLabel: _compactSummary(item, status: status),
       lifecycle: lifecycle,
       lifecycleLabel: ReminderFormatters.itemLifecycleStatus(lifecycle),
       updatedAtLabel: ReminderFormatters.date(item.updatedAt),
@@ -114,9 +118,11 @@ class ManagementItemCardViewModel {
   final String title;
   final ItemType type;
   final String typeLabel;
+  final String compactTypeLabel;
   final IconData typeIcon;
   final String packTitle;
   final ManagementItemStatusPresentation status;
+  final String compactSummaryLabel;
   final ItemLifecycleStatus lifecycle;
   final String lifecycleLabel;
   final String updatedAtLabel;
@@ -134,6 +140,24 @@ class ManagementItemCardViewModel {
   final bool requireCompletionConfirmation;
 
   bool get isPaused => lifecycle == ItemLifecycleStatus.paused;
+
+  static String _compactSummary(
+    Item item, {
+    required ManagementItemStatusPresentation status,
+  }) {
+    if (item.status == ItemLifecycleStatus.paused) {
+      return ReminderUiText.lifecyclePausedLabel;
+    }
+    if (status.isUnknown || status.isNotStarted || status.isWarningOrDanger) {
+      return status.label;
+    }
+    return switch (item.config) {
+      FixedItemConfig config => ReminderFormatters.fixedScheduleSummary(config),
+      StateBasedItemConfig _ =>
+        status.label.replaceFirst(ReminderUiText.stateNormalPrefix, '').trim(),
+      _ => status.label,
+    };
+  }
 
   static ManagementItemStatusPresentation _statusFor(
     Item item, {

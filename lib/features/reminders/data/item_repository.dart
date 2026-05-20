@@ -317,7 +317,7 @@ class ItemRepository {
     return false;
   }
 
-  Future<bool> undoDone(int doneActionRecordId, {DateTime? undoneAt}) async {
+  Future<bool> undoDone(int doneActionRecordId, {DateTime? revertedAt}) async {
     final doneRecord = await _dao.getItemActionRecordById(doneActionRecordId);
     if (doneRecord == null ||
         doneRecord.actionType != ItemActionType.done ||
@@ -334,7 +334,7 @@ class ItemRepository {
     }
 
     final now = _clock();
-    final actionDate = _normalizeDate(undoneAt ?? now);
+    final actionDate = _normalizeDate(revertedAt ?? now);
     try {
       return await _dao.attachedDatabase.transaction(() async {
         final revertedRecordId = await _dao.insertItemActionRecord(
