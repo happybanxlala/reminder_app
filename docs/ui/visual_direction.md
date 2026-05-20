@@ -912,3 +912,13 @@ flutter test
 - Unexpanded managed Resource rows no longer show the large inventory icon bubble, resource type badge, status badge, or large refill button.
 - Quantity resources show compact remaining quantity. Time-based resources show remaining days and estimated depletion date, or today / overdue depletion copy.
 - Home, Item management, and Resource management share the compact visual language while keeping different information priorities: attention actions, Pack organization, and resource inventory management.
+
+### 19.12 StageTracker Management Achievement Grid 2026-05-21
+
+- StageTracker management uses a compact summary card followed by a 3-column achievement grid.
+- The page is an achievement overview and entry point, not a high-frequency editing list.
+- StageTracker cards show only pack emoji/icon, accumulated days, a title or short title with display-only ellipsis, and a muted core status only when there is a meaningful upcoming countdown or archived state.
+- Upcoming count, longest accumulated tracker, and next-stage context belong in the summary card so grid cards stay compact.
+- Dots, progress dots, and fake progress indicators are intentionally absent because StageTracker data may not define total progress.
+- Tapping a card body navigates directly to the StageTracker detail management page.
+- Management cards do not expose a detail dialog or overflow menu; editing and archive operations remain inside the detail flow.

@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'package:reminder_app/app/app_shell.dart';
 import 'package:reminder_app/app/theme/reminder_theme.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
-import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
 import 'package:reminder_app/features/reminders/providers/database_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/feature_page.dart';
 import 'package:reminder_app/features/reminders/ui/pages/feature_management_sections.dart';
@@ -87,7 +86,7 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.byKey(const Key('add-stage-tracker-button')), findsOneWidget);
-      expect(find.text(ReminderUiText.noStageTrackers), findsOneWidget);
+      expect(find.text('還沒有階段追蹤。'), findsOneWidget);
       expect(find.byType(FloatingActionButton), findsNothing);
 
       await _disposeReminderApp(tester);

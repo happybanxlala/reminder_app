@@ -79,3 +79,22 @@ class StageTrackerDetail {
   StageOccurrence? get nextStage =>
       dashboardUpcomingStages.isEmpty ? null : dashboardUpcomingStages.first;
 }
+
+enum StageTrackerSummaryEntryKind { upcoming, longest, next, neutral }
+
+class StageTrackerSummaryEntry {
+  const StageTrackerSummaryEntry({required this.kind, required this.text});
+
+  final StageTrackerSummaryEntryKind kind;
+  final String text;
+}
+
+class StageTrackerOverviewSummary {
+  const StageTrackerOverviewSummary({required this.entries});
+
+  final List<StageTrackerSummaryEntry> entries;
+
+  bool get isNeutral => entries.every(
+    (entry) => entry.kind == StageTrackerSummaryEntryKind.neutral,
+  );
+}
