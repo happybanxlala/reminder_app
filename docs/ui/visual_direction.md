@@ -930,7 +930,7 @@ flutter test
 - Fixed hero timeline dots are removed; no fake progress indicator replaces them.
 - `下一個階段` and `即將到來的階段` are merged into one compact `即將到來` section.
 - Upcoming stages render as compact timeline rows with date, countdown, optional note, and related reminder summary.
-- Rows show `+` when no related reminder exists and a visibility icon when related reminders already exist.
+- Rows show related reminder summary as metadata only; standalone create/view related-reminder buttons are not shown on rows.
 - The compact `加入階段` entry stays under the hero and opens the unified stage-entry flow.
 - Large middle action buttons are removed; full timeline lives in the AppBar overflow.
 - Repeat rules are compact settings rows with only row overflow; rule edit / pause / archive support remains future work.
@@ -943,6 +943,24 @@ flutter test
 - `完整時間表` and `歷史` are consolidated into the primary `完整時間線` entry from the detail overflow menu.
 - The complete timeline page renders `即將到來` and `已經歷` as compact timeline sections using the same row density as detail upcoming rows.
 - Timeline rows show source context (`重要階段` / `重複階段`), date, relative timing, optional note, related reminder summary, and compact status for past stages.
-- Rows show `+` when a future occurrence has no related reminder, and a visibility icon when related reminders already exist.
-- The visibility action opens a compact related-reminder summary because current data exposes counts but not full related item identities.
+- Rows show related reminder summary as metadata only; standalone create/view related-reminder buttons are not shown on rows.
 - Legacy schedule/history routes remain available for compatibility, but the main UI entry is `完整時間線`.
+
+### 19.15 StageTracker Management Actions 2026-05-21
+
+- StageTracker detail AppBar overflow contains edit, complete timeline, and archive actions.
+- Destructive StageTracker, StageRule, and manual important stage actions use red menu text and a confirmation dialog before mutation.
+- StageTracker edit keeps basic fields visible and groups tracking start/end dates under a clearly labeled advanced section.
+- StageRule compact rows keep management inside row overflow: edit, pause / resume, and archive.
+- Complete timeline manual important stage rows expose overflow for add related reminder, edit, and archive; generated rows do not show manual-stage management actions or standalone related-reminder buttons.
+
+### 19.16 StageTracker Related Reminder Expansion 2026-05-21
+
+- StageTracker detail upcoming rows can expand inline; complete timeline rows stay compact and do not support inline expansion.
+- Stage row body toggles expansion, while the row right side remains overflow-only with no add / eye icons.
+- Expanded stage content shows a compact related-reminder list with status marker, title, and due/status text only; it does not render full Item cards.
+- Empty expanded stage content shows compact `建立相關提醒`; rows with existing related reminders still show the same compact create entry.
+- Tapping a related reminder row opens the existing Item summary dialog.
+- StageRule rows can expand inline to show the next occurrence context and related reminder count.
+- StageRule overflow keeps edit / pause or resume / archive, and active rules with a next occurrence can create `建立下一輪提醒`.
+- Next-cycle rule reminders are created for the materialized next StageOccurrence, not directly for the StageRule, and no automatic per-cycle reminder template is introduced.

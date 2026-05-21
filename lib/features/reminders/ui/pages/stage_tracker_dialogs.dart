@@ -4,8 +4,12 @@ Future<void> _showCreateStageTrackerDialog(
   BuildContext context,
   WidgetRef ref,
 ) async {
-  final packs =
-      ref.read(activeItemPacksProvider).valueOrNull ?? const <ItemPack>[];
+  final packs = await ref
+      .read(activeItemPacksProvider.future)
+      .catchError((_) => const <ItemPack>[]);
+  if (!context.mounted) {
+    return;
+  }
   final input = await showDialog<StageTrackerInput>(
     context: context,
     builder: (dialogContext) => _StageTrackerFormDialog(packs: packs),
@@ -17,11 +21,44 @@ Future<void> _showCreateStageTrackerDialog(
       .read(stageTrackerRepositoryProvider)
       .createStageTracker(input);
   ref.invalidate(stageTrackersProvider);
+  ref.invalidate(stageTrackerOverviewSummaryProvider);
+  ref.invalidate(stageTrackerAttentionOccurrencesProvider);
   if (context.mounted) {
     context.pushNamed(
       StageTrackerDetailPage.routeName,
       pathParameters: {'id': id.toString()},
     );
+  }
+}
+
+Future<void> _showEditStageTrackerDialog(
+  BuildContext context,
+  WidgetRef ref,
+  StageTracker tracker,
+) async {
+  final packs = await ref
+      .read(activeItemPacksProvider.future)
+      .catchError((_) => const <ItemPack>[]);
+  if (!context.mounted) {
+    return;
+  }
+  final input = await showDialog<StageTrackerInput>(
+    context: context,
+    builder: (dialogContext) =>
+        _StageTrackerFormDialog(packs: packs, initialTracker: tracker),
+  );
+  if (input == null || !context.mounted) {
+    return;
+  }
+  final updated = await ref
+      .read(stageTrackerRepositoryProvider)
+      .updateStageTracker(tracker.id, input);
+  _invalidateStageTrackerActionProviders(ref, tracker.id);
+  if (!context.mounted) {
+    return;
+  }
+  if (!updated) {
+    _showStageTrackerSaveFailed(context);
   }
 }
 
@@ -63,32 +100,64 @@ Future<void> _showRelatedItemDialog(
         description: input.description,
         dueDate: input.dueDate,
       );
-  ref.invalidate(stageTrackerDetailProvider(occurrence.stageTrackerId));
+  _invalidateStageTrackerActionProviders(ref, occurrence.stageTrackerId);
+  final stageRecordId = occurrence.stageRecordId;
+  if (stageRecordId != null) {
+    ref.invalidate(stageRelatedItemEntriesProvider(stageRecordId));
+  }
 }
 
-Future<void> _showRelatedItemSummaryDialog(
-  BuildContext context,
-  StageRelatedItemSummary summary,
-) async {
-  await showDialog<void>(
+Future<bool?> _showStageActionConfirmation(
+  BuildContext context, {
+  required String title,
+  required String message,
+  required String confirmLabel,
+  bool isDestructive = false,
+}) {
+  return showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: const Text(ReminderUiText.relatedItemsTitle),
-      content: Text(ReminderFormatters.relatedItemSummary(summary)),
+      title: Text(title),
+      content: Text(message),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(),
-          child: const Text(ReminderUiText.closeAction),
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: Text(
+            MaterialLocalizations.of(dialogContext).cancelButtonLabel,
+          ),
+        ),
+        TextButton(
+          style: isDestructive
+              ? TextButton.styleFrom(
+                  foregroundColor: Theme.of(dialogContext).colorScheme.error,
+                )
+              : null,
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: Text(confirmLabel),
         ),
       ],
     ),
   );
 }
 
+void _invalidateStageTrackerActionProviders(WidgetRef ref, int trackerId) {
+  ref.invalidate(stageTrackersProvider);
+  ref.invalidate(stageTrackerDetailProvider(trackerId));
+  ref.invalidate(stageTrackerOverviewSummaryProvider);
+  ref.invalidate(stageTrackerAttentionOccurrencesProvider);
+}
+
+void _showStageTrackerSaveFailed(BuildContext context) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text(ReminderUiText.stageTrackerSaveFailedMessage)),
+  );
+}
+
 class _StageTrackerFormDialog extends ConsumerStatefulWidget {
-  const _StageTrackerFormDialog({required this.packs});
+  const _StageTrackerFormDialog({required this.packs, this.initialTracker});
 
   final List<ItemPack> packs;
+  final StageTracker? initialTracker;
 
   @override
   ConsumerState<_StageTrackerFormDialog> createState() =>
@@ -101,7 +170,24 @@ class _StageTrackerFormDialogState
   final _titleController = TextEditingController();
   final _subjectController = TextEditingController();
   DateTime _startDate = DateTime.now();
+  DateTime? _endDate;
   int? _packId;
+
+  bool get _isEdit => widget.initialTracker != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final tracker = widget.initialTracker;
+    if (tracker == null) {
+      return;
+    }
+    _titleController.text = tracker.title;
+    _subjectController.text = tracker.subjectName ?? '';
+    _startDate = tracker.trackingStartDate;
+    _endDate = tracker.trackingEndDate;
+    _packId = tracker.packId;
+  }
 
   @override
   void dispose() {
@@ -112,8 +198,16 @@ class _StageTrackerFormDialogState
 
   @override
   Widget build(BuildContext context) {
+    final selectedPackId = _packId;
+    final selectedPackIsVisible =
+        selectedPackId == null ||
+        widget.packs.any((pack) => pack.id == selectedPackId);
     return AlertDialog(
-      title: const Text(ReminderUiText.addStageTracker),
+      title: Text(
+        _isEdit
+            ? ReminderUiText.editStageTracker
+            : ReminderUiText.addStageTracker,
+      ),
       content: SizedBox(
         width: 420,
         child: Form(
@@ -121,7 +215,13 @@ class _StageTrackerFormDialogState
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(
+                  ReminderUiText.stageTrackerBasicSectionTitle,
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
                 TextFormField(
                   key: const Key('stage-tracker-title-field'),
                   controller: _titleController,
@@ -137,23 +237,6 @@ class _StageTrackerFormDialogState
                   ),
                 ),
                 const SizedBox(height: 8),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text(ReminderUiText.trackingStartDateFieldLabel),
-                  subtitle: Text(ReminderFormatters.date(_startDate)),
-                  trailing: const Icon(Icons.calendar_month_outlined),
-                  onTap: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: _startDate,
-                      firstDate: DateTime(1900),
-                      lastDate: DateTime(2100),
-                    );
-                    if (picked != null) {
-                      setState(() => _startDate = picked);
-                    }
-                  },
-                ),
                 DropdownButtonFormField<int?>(
                   key: const Key('stage-tracker-pack-field'),
                   initialValue: _packId,
@@ -165,6 +248,11 @@ class _StageTrackerFormDialogState
                       value: null,
                       child: Text(ReminderUiText.unassignedPackOption),
                     ),
+                    if (!selectedPackIsVisible)
+                      DropdownMenuItem<int?>(
+                        value: selectedPackId,
+                        child: const Text(ReminderUiText.currentPackOption),
+                      ),
                     ...widget.packs.map(
                       (pack) => DropdownMenuItem<int?>(
                         value: pack.id,
@@ -182,6 +270,77 @@ class _StageTrackerFormDialogState
                     icon: const Icon(Icons.add),
                     label: const Text(ReminderUiText.addItemPack),
                   ),
+                ),
+                const SizedBox(height: 8),
+                const Divider(),
+                const SizedBox(height: 6),
+                Text(
+                  ReminderUiText.stageTrackerAdvancedSectionTitle,
+                  key: const Key('stage-tracker-advanced-section-title'),
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                ListTile(
+                  key: const Key('stage-tracker-start-date-tile'),
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text(ReminderUiText.trackingStartDateFieldLabel),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(ReminderFormatters.date(_startDate)),
+                      const SizedBox(height: 2),
+                      Text(
+                        ReminderUiText.trackingStartDateEditHelp,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                  trailing: const Icon(Icons.calendar_month_outlined),
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _startDate,
+                      firstDate: DateTime(1900),
+                      lastDate: DateTime(2100),
+                    );
+                    if (picked != null) {
+                      setState(() => _startDate = picked);
+                    }
+                  },
+                ),
+                ListTile(
+                  key: const Key('stage-tracker-end-date-tile'),
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text(ReminderUiText.trackingEndDateFieldLabel),
+                  subtitle: Text(
+                    _endDate == null
+                        ? ReminderUiText.continuingTrackingLabel
+                        : ReminderFormatters.date(_endDate!),
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_endDate != null)
+                        IconButton(
+                          key: const Key('stage-tracker-clear-end-date'),
+                          tooltip: ReminderUiText.clearTrackingEndDateAction,
+                          onPressed: () => setState(() => _endDate = null),
+                          icon: const Icon(Icons.clear),
+                        ),
+                      const Icon(Icons.calendar_month_outlined),
+                    ],
+                  ),
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _endDate ?? _startDate,
+                      firstDate: DateTime(1900),
+                      lastDate: DateTime(2100),
+                    );
+                    if (picked != null) {
+                      setState(() => _endDate = picked);
+                    }
+                  },
                 ),
               ],
             ),
@@ -210,6 +369,7 @@ class _StageTrackerFormDialogState
         title: _titleController.text.trim(),
         subjectName: _subjectController.text.trim(),
         trackingStartDate: _startDate,
+        trackingEndDate: _endDate,
         packId: _packId,
       ),
     );
@@ -290,7 +450,7 @@ class _StageEntryDialog extends StatelessWidget {
     await ref
         .read(stageTrackerRepositoryProvider)
         .createImportantStage(trackerId, input);
-    ref.invalidate(stageTrackerDetailProvider(trackerId));
+    _invalidateStageTrackerActionProviders(ref, trackerId);
     if (context.mounted) {
       Navigator.of(context).pop();
     }
@@ -303,17 +463,57 @@ class _StageEntryDialog extends StatelessWidget {
     await ref
         .read(stageTrackerRepositoryProvider)
         .createStageRule(trackerId, input);
-    ref.invalidate(stageTrackerDetailProvider(trackerId));
+    _invalidateStageTrackerActionProviders(ref, trackerId);
     if (context.mounted) {
       Navigator.of(context).pop();
     }
   }
 }
 
+Future<void> _showEditStageRuleDialog(
+  BuildContext context,
+  WidgetRef ref,
+  StageRule rule,
+) async {
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text(ReminderUiText.editStageRule),
+      content: SizedBox(
+        width: 420,
+        child: _StageRuleForm(
+          initialRule: rule,
+          submitLabel: ReminderUiText.saveAction,
+          onSubmit: (input) async {
+            final updated = await ref
+                .read(stageTrackerRepositoryProvider)
+                .updateStageRule(rule.id, input);
+            _invalidateStageTrackerActionProviders(ref, rule.stageTrackerId);
+            if (!dialogContext.mounted) {
+              return;
+            }
+            if (updated) {
+              Navigator.of(dialogContext).pop();
+            } else {
+              _showStageTrackerSaveFailed(dialogContext);
+            }
+          },
+        ),
+      ),
+    ),
+  );
+}
+
 class _StageRuleForm extends StatefulWidget {
-  const _StageRuleForm({required this.onSubmit});
+  const _StageRuleForm({
+    required this.onSubmit,
+    this.initialRule,
+    this.submitLabel = ReminderUiText.addRecurringStage,
+  });
 
   final Future<void> Function(StageRuleInput input) onSubmit;
+  final StageRule? initialRule;
+  final String submitLabel;
 
   @override
   State<_StageRuleForm> createState() => _StageRuleFormState();
@@ -325,6 +525,19 @@ class _StageRuleFormState extends State<_StageRuleForm> {
   final _reminderController = TextEditingController();
   StageIntervalUnit _unit = StageIntervalUnit.months;
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final rule = widget.initialRule;
+    if (rule == null) {
+      return;
+    }
+    _intervalController.text = rule.intervalValue.toString();
+    _unit = rule.intervalUnit;
+    _labelController.text = rule.labelTemplate ?? '';
+    _reminderController.text = rule.reminderOffsetDays?.toString() ?? '';
+  }
 
   @override
   void dispose() {
@@ -386,7 +599,7 @@ class _StageRuleFormState extends State<_StageRuleForm> {
           const SizedBox(height: 12),
           _StageEntryFormActions(
             saving: _saving,
-            submitLabel: ReminderUiText.addRecurringStage,
+            submitLabel: widget.submitLabel,
             onSubmit: _submit,
           ),
         ],
@@ -427,12 +640,59 @@ class _StageRuleFormState extends State<_StageRuleForm> {
 }
 
 class _ImportantStageForm extends StatefulWidget {
-  const _ImportantStageForm({required this.onSubmit});
+  const _ImportantStageForm({
+    required this.onSubmit,
+    this.initialOccurrence,
+    this.submitLabel = ReminderUiText.addImportantStage,
+  });
 
   final Future<void> Function(ManualStageInput input) onSubmit;
+  final StageOccurrence? initialOccurrence;
+  final String submitLabel;
 
   @override
   State<_ImportantStageForm> createState() => _ImportantStageFormState();
+}
+
+Future<void> _showEditImportantStageDialog(
+  BuildContext context,
+  WidgetRef ref,
+  StageOccurrence occurrence,
+) async {
+  final stageRecordId = occurrence.stageRecordId;
+  if (stageRecordId == null) {
+    return;
+  }
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text(ReminderUiText.editImportantStage),
+      content: SizedBox(
+        width: 420,
+        child: _ImportantStageForm(
+          initialOccurrence: occurrence,
+          submitLabel: ReminderUiText.saveAction,
+          onSubmit: (input) async {
+            final updated = await ref
+                .read(stageTrackerRepositoryProvider)
+                .updateImportantStage(stageRecordId, input);
+            _invalidateStageTrackerActionProviders(
+              ref,
+              occurrence.stageTrackerId,
+            );
+            if (!dialogContext.mounted) {
+              return;
+            }
+            if (updated) {
+              Navigator.of(dialogContext).pop();
+            } else {
+              _showStageTrackerSaveFailed(dialogContext);
+            }
+          },
+        ),
+      ),
+    ),
+  );
 }
 
 class _ImportantStageFormState extends State<_ImportantStageForm> {
@@ -441,6 +701,19 @@ class _ImportantStageFormState extends State<_ImportantStageForm> {
   final _reminderController = TextEditingController();
   DateTime _date = DateTime.now();
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final occurrence = widget.initialOccurrence;
+    if (occurrence == null) {
+      return;
+    }
+    _titleController.text = occurrence.label;
+    _noteController.text = occurrence.note ?? '';
+    _reminderController.text = occurrence.reminderOffsetDays.toString();
+    _date = occurrence.occurrenceDate;
+  }
 
   @override
   void dispose() {
@@ -490,7 +763,7 @@ class _ImportantStageFormState extends State<_ImportantStageForm> {
           const SizedBox(height: 12),
           _StageEntryFormActions(
             saving: _saving,
-            submitLabel: ReminderUiText.addImportantStage,
+            submitLabel: widget.submitLabel,
             onSubmit: _submit,
           ),
         ],

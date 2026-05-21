@@ -172,6 +172,124 @@ class StageTrackerRepository {
     );
   }
 
+  Future<bool> updateStageTracker(int id, StageTrackerInput input) async {
+    final tracker = await getStageTrackerById(id);
+    if (tracker == null || tracker.status == StageTrackerStatus.archived) {
+      return false;
+    }
+    final now = _clock();
+    final packId = await _resolvePackId(input.packId, now);
+    return _dao.updateStageTrackerRecord(
+      StageTrackerRow(
+        id: tracker.id,
+        packId: packId,
+        title: input.title,
+        subjectName: _nullableTrim(input.subjectName),
+        trackingStartDate: _normalizeDate(
+          input.trackingStartDate,
+        ).millisecondsSinceEpoch,
+        trackingEndDate: input.trackingEndDate == null
+            ? null
+            : _normalizeDate(input.trackingEndDate!).millisecondsSinceEpoch,
+        status: tracker.status.name,
+        createdAt: tracker.createdAt.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
+      ),
+    );
+  }
+
+  Future<bool> updateStageRule(int id, StageRuleInput input) async {
+    final rule = await _dao.getStageRuleById(id);
+    if (rule == null) {
+      return false;
+    }
+    final tracker = await getStageTrackerById(rule.stageTrackerId);
+    if (tracker == null || tracker.status == StageTrackerStatus.archived) {
+      return false;
+    }
+    if (input.intervalValue <= 0) {
+      throw ArgumentError.value(input.intervalValue, 'intervalValue');
+    }
+    final now = _clock();
+    return _dao.updateStageRuleRecord(
+      StageRuleRow(
+        id: rule.id,
+        stageTrackerId: rule.stageTrackerId,
+        type: _encodeRuleType(input.type),
+        intervalValue: input.intervalValue,
+        intervalUnit: input.intervalUnit.name,
+        labelTemplate: _nullableTrim(input.labelTemplate),
+        reminderOffsetDays: input.reminderOffsetDays,
+        status: rule.status.name,
+        createdAt: rule.createdAt.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
+      ),
+    );
+  }
+
+  Future<bool> updateStageRuleStatus(int id, StageRuleStatus status) async {
+    final rule = await _dao.getStageRuleById(id);
+    if (rule == null) {
+      return false;
+    }
+    final tracker = await getStageTrackerById(rule.stageTrackerId);
+    if (tracker == null || tracker.status == StageTrackerStatus.archived) {
+      return false;
+    }
+    final now = _clock();
+    return _dao.updateStageRuleRecord(
+      StageRuleRow(
+        id: rule.id,
+        stageTrackerId: rule.stageTrackerId,
+        type: _encodeRuleType(rule.type),
+        intervalValue: rule.intervalValue,
+        intervalUnit: rule.intervalUnit.name,
+        labelTemplate: rule.labelTemplate,
+        reminderOffsetDays: rule.reminderOffsetDays,
+        status: status.name,
+        createdAt: rule.createdAt.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
+      ),
+    );
+  }
+
+  Future<bool> updateImportantStage(
+    int stageRecordId,
+    ManualStageInput input,
+  ) async {
+    final record = await _dao.getStageRecordById(stageRecordId);
+    if (record == null ||
+        record.sourceType != StageRecordSourceType.manual ||
+        record.status == StageRecordStatus.archived) {
+      return false;
+    }
+    final tracker = await getStageTrackerById(record.stageTrackerId);
+    if (tracker == null || tracker.status == StageTrackerStatus.archived) {
+      return false;
+    }
+    final now = _clock();
+    return _dao.updateStageRecordRecord(
+      StageRecordRow(
+        id: record.id,
+        stageTrackerId: record.stageTrackerId,
+        stageRuleId: record.stageRuleId,
+        sourceType: record.sourceType.name,
+        occurrenceIndex: record.occurrenceIndex,
+        occurrenceDate: _normalizeDate(
+          input.occurrenceDate,
+        ).millisecondsSinceEpoch,
+        relativeAmount: record.relativeAmount,
+        relativeUnit: record.relativeUnit?.name,
+        status: record.status.name,
+        label: input.label,
+        note: _nullableTrim(input.note),
+        reminderOffsetDays: input.reminderOffsetDays,
+        createdAt: record.createdAt.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
+      ),
+    );
+  }
+
   Future<void> acknowledgeOccurrence(StageOccurrence occurrence) {
     return _upsertGeneratedOccurrenceRecord(
       occurrence,
@@ -260,6 +378,12 @@ class StageTrackerRepository {
 
   Future<StageRelatedItemSource?> getRelatedItemSourceForItem(int itemId) {
     return _dao.getStageRelatedItemSourceForItem(itemId);
+  }
+
+  Future<List<StageRelatedItemEntry>> getRelatedItemEntriesForStageRecord(
+    int stageRecordId,
+  ) {
+    return _dao.relatedItemEntriesForRecord(stageRecordId);
   }
 
   List<StageOccurrence> computeHomeAttentionOccurrences({

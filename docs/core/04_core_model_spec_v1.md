@@ -534,7 +534,10 @@ StageTracker {
 - 建立時未指定 `packId` 會寫入 system default pack。
 - `trackingStartDate` 在 UI 顯示為「從哪一天開始追蹤」。
 - `trackingEndDate == null` 代表持續追蹤。
+- StageTracker 可編輯 title、subjectName、pack、trackingStartDate、trackingEndDate。
+- trackingStartDate / trackingEndDate 屬於進階設定；修改後會影響累積天數與階段推算，但不會重寫既有 StageRecord。
 - 到達 `trackingEndDate` 後不自動 archive，而是由 presentation 分到「已完成追蹤」。
+- StageTracker 可封存；封存後不出現在一般管理列表，既有 StageRule、StageRecord 與 related item links 保留。
 - active trackers 出現在 StageTracker 管理頁；archived trackers 不出現在一般 watch query。
 - StageTracker 管理 route 已實作：`/feature/stage-trackers`，route name 是 `stage-trackers`。
 - StageTracker detail route 已實作：`/stage-tracker/:id`，route name 是 `stage-tracker-detail`。
@@ -563,8 +566,6 @@ UI 可顯示：
 
 #### MVP 待完成
 
-- StageTracker 編輯 UI 未完成。
-- StageTracker 封存 UI 未完成；repository 已有 `archiveStageTracker`。
 - archived StageTracker 管理 UI 未完成。
 
 ### 2.8 StageRule Domain
@@ -597,6 +598,10 @@ StageRule {
 - active rule 會產生 generated occurrences。
 - paused rule 不產生 occurrence。
 - archived rule 不出現在 detail 的 visible rule list。
+- StageRule 可編輯 type、intervalValue、intervalUnit、labelTemplate、reminderOffsetDays。
+- StageRule 可暫停、恢復、封存；封存是 status 更新，不硬刪 rule。
+- StageRule detail row 可展開查看該 rule 的下一輪 occurrence 與 related reminder count。
+- StageRule 只支援針對「下一輪 occurrence」建立 related reminder；不支援每輪自動建立提醒模板，也不把 Item 直接綁到 StageRule。
 - `labelTemplate` 支援 `{n}`、`{value}`、`{unit}`。
 - `reminderOffsetDays == null` 時 fallback 到 `StageOccurrenceService.defaultReminderOffsetDays`，目前值是 `0`。
 
@@ -613,8 +618,7 @@ StageRule:
 
 #### MVP 待完成
 
-- StageRule 編輯 UI 未完成。
-- StageRule 暫停、封存 UI 未完成。
+- archived StageRule 的獨立瀏覽與還原入口未完成。
 
 ### 2.9 StageOccurrence Domain
 
@@ -648,6 +652,7 @@ StageOccurrence {
 
 - `StageOccurrenceService` 動態計算 upcoming、schedule、history、Home attention occurrences。
 - dashboard upcoming 預設取未來 366 天內 manual stages，加上每條 active rule 的下一次 occurrence，排序後由 repository 取前 3 筆。
+- StageTracker detail 的 upcoming occurrence row 可展開查看 compact related reminders；complete timeline 不做 inline expansion。
 - schedule 只顯示未來 occurrence。
 - history 只顯示過去 occurrence，日期由新到舊排序。
 - ignored / archived records 不出現在一般 occurrence lists。
@@ -706,6 +711,9 @@ StageRecord {
 - `deleteOrArchiveImportantStage`：
   - 未來 manual stage 會刪除。
   - 已過去 manual stage 會改為 archived。
+- manual important stage 可編輯 label、occurrenceDate、note、reminderOffsetDays。
+- manual important stage UI 使用「封存」文案，不使用「刪除」；repository 現行語意仍是未來 stage 可硬刪、過去 stage 改為 archived。
+- recurring generated occurrence 不可透過 manual important stage 編輯流程修改。
 - note 不作為 status。
 
 #### 範例
@@ -722,8 +730,7 @@ Manual StageRecord:
 
 #### MVP 待完成
 
-- important stage 編輯 UI 未完成。
-- important stage 刪除 / 封存 UI 未完成；repository 已有 `deleteOrArchiveImportantStage`。
+- manual important stage 的 archived record 獨立瀏覽與還原入口未完成。
 
 ### 2.11 StageRelatedItem Domain
 
@@ -756,6 +763,7 @@ StageRelatedItemSummary {
 
 - 一個 StageRecord 可以關聯多個 Items。
 - 從 generated occurrence 建立 related item 時，repository 會先建立 StageRecord，再建立 Item，再建立 StageRelatedItem。
+- Recurring rule 建立「下一輪提醒」時，UI 先推導下一輪 StageOccurrence，再走相同的 generated occurrence materialization 流程；舊提醒固定屬於當次 StageRecord，不會隨下一輪推進而轉移。
 - 建立 related item 時，Item type 固定為 `fixed`，`scheduleType = oneTime`，`overduePolicy = waitForAction`。
 - Item due date 預設等於 stage occurrence date；使用者可在 dialog 輸入其他 due date。
 - related item 的完成、略過、暫停、封存不回寫 StageRecord status。
@@ -1006,9 +1014,16 @@ StageTracker 管理 route：`/feature/stage-trackers`，route name：`stage-trac
 - 建立後進入 detail dashboard。
 - detail dashboard 顯示累積時間、最近 / 待確認階段、即將到來階段、重複階段列表。
 - detail dashboard 提供 unified `加入階段` dialog，可建立重要階段或重複階段。
+- detail AppBar overflow 提供「編輯階段追蹤」、「完整時間線」、「封存追蹤器」。
+- destructive action 使用紅字並在執行前顯示 confirmation dialog。
+- 重複階段 compact row overflow 提供編輯、暫停 / 恢復、封存。
 - complete timeline route 顯示即將到來與已經歷 stages。
+- complete timeline 中 manual important stage row overflow 提供新增提醒事項、編輯、封存；generated occurrence 不顯示 manual stage 管理操作。
 - schedule / history 舊 route 保留可用，但主要 detail 入口導向 complete timeline。
-- stage tile 可建立 related item。
+- StageTracker detail 的 upcoming stage row 可點擊展開 / 收起 related reminders；row 右側仍不顯示 standalone add / eye icon，只保留 manual stage overflow。
+- expanded related reminders 使用 compact list，顯示 title 與 due/status，點 row 開啟 Item summary dialog。
+- 無 related reminders 時，expanded content 顯示 compact「建立相關提醒」文字 button；已有 related reminders 時仍可建立更多。
+- complete timeline 的 stage row 不支援 inline expansion，維持 compact timeline row 與 manual stage overflow。
 
 ### 4.6 Pack 管理
 
@@ -1216,9 +1231,6 @@ updatedAt
 本章只列產品已明確要收斂，但目前 repo 尚未完整實作的 MVP 項目。這些項目不可寫入「已實作行為」。
 
 - Stage ignore UI：提供 generated occurrence 的「忽略這次」入口、確認流程與 snackbar undo。
-- StageTracker 編輯與封存 UI：接上既有 repository 能力。
-- StageRule 編輯、暫停、封存 UI：接上既有 status model。
-- important stage 編輯、刪除 / 封存 UI：接上 `deleteOrArchiveImportantStage`。
 - ResourceConsumptionRule 管理 UI：編輯 consume amount、停用、重新啟用。
 - Item related stage source 顯示：在 Item 詳情或摘要中清楚呈現來源 StageTracker / StageRecord。
 - archived Pack / StageTracker 的管理入口。

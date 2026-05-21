@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/reminder_theme.dart';
+import '../../data/local/reminder_dao.dart';
 import '../../data/stage_tracker_models.dart';
+import '../../domain/item.dart';
 import '../../domain/item_pack.dart';
 import '../../domain/stage_occurrence.dart';
 import '../../domain/stage_record.dart';
@@ -12,9 +14,11 @@ import '../../domain/stage_rule.dart';
 import '../../domain/stage_tracker.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
+import '../../presentation/view_models/management_item_card_view_model.dart';
 import '../../providers/developer_settings_providers.dart';
 import '../../providers/item_providers.dart';
 import '../../providers/stage_tracker_providers.dart';
+import '../widgets/item_summary_dialog.dart';
 import '../widgets/pack_picker.dart';
 import '../widgets/reminder_components.dart';
 
@@ -446,7 +450,7 @@ class _StageTrackerEmojiBubble extends StatelessWidget {
   }
 }
 
-class StageTrackerDetailPage extends ConsumerWidget {
+class StageTrackerDetailPage extends ConsumerStatefulWidget {
   const StageTrackerDetailPage({super.key, required this.stageTrackerId});
 
   static const routeName = 'stage-tracker-detail';
@@ -455,15 +459,31 @@ class StageTrackerDetailPage extends ConsumerWidget {
   final int stageTrackerId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final detailAsync = ref.watch(stageTrackerDetailProvider(stageTrackerId));
+  ConsumerState<StageTrackerDetailPage> createState() =>
+      _StageTrackerDetailPageState();
+}
+
+class _StageTrackerDetailPageState
+    extends ConsumerState<StageTrackerDetailPage> {
+  final Set<String> _expandedOccurrenceKeys = <String>{};
+  final Set<int> _expandedRuleIds = <int>{};
+
+  @override
+  Widget build(BuildContext context) {
+    final detailAsync = ref.watch(
+      stageTrackerDetailProvider(widget.stageTrackerId),
+    );
     final previewDate = ref.watch(effectivePreviewDateProvider);
+    final tracker = detailAsync.valueOrNull?.stageTracker;
 
     return Scaffold(
       appBar: AppBar(
         title: const SizedBox.shrink(),
         actions: [
-          _StageTrackerDetailOverflowMenu(stageTrackerId: stageTrackerId),
+          _StageTrackerDetailOverflowMenu(
+            stageTrackerId: widget.stageTrackerId,
+            tracker: tracker,
+          ),
         ],
       ),
       body: detailAsync.when(
@@ -475,6 +495,10 @@ class StageTrackerDetailPage extends ConsumerWidget {
           }
           final tracker = detail.stageTracker;
           final upcomingStages = _dedupeUpcomingStages(detail);
+          final nextOccurrencesByRule = _nextOccurrencesByRule(
+            detail,
+            previewDate,
+          );
           return ListView(
             padding: const EdgeInsets.all(
               _StageTrackerDetailDensity.pagePadding,
@@ -506,7 +530,12 @@ class StageTrackerDetailPage extends ConsumerWidget {
                               occurrence: occurrence,
                               now: previewDate,
                               keyPrefix: 'detail',
-                              allowCreateRelated: true,
+                              enableExpansion: true,
+                              isExpanded: _expandedOccurrenceKeys.contains(
+                                _stageOccurrenceKey(occurrence),
+                              ),
+                              onToggleExpanded: () =>
+                                  _toggleOccurrence(occurrence),
                             ),
                         ],
                       ),
@@ -514,6 +543,9 @@ class StageTrackerDetailPage extends ConsumerWidget {
               const SizedBox(height: _StageTrackerDetailDensity.sectionGap),
               _StageRuleList(
                 rules: detail.stageRules,
+                expandedRuleIds: _expandedRuleIds,
+                nextOccurrencesByRule: nextOccurrencesByRule,
+                onToggleRule: _toggleRule,
                 onAddRule: () => _showStageEntryDialog(
                   context,
                   ref,
@@ -530,6 +562,23 @@ class StageTrackerDetailPage extends ConsumerWidget {
     );
   }
 
+  void _toggleOccurrence(StageOccurrence occurrence) {
+    final key = _stageOccurrenceKey(occurrence);
+    setState(() {
+      if (!_expandedOccurrenceKeys.add(key)) {
+        _expandedOccurrenceKeys.remove(key);
+      }
+    });
+  }
+
+  void _toggleRule(int ruleId) {
+    setState(() {
+      if (!_expandedRuleIds.add(ruleId)) {
+        _expandedRuleIds.remove(ruleId);
+      }
+    });
+  }
+
   List<StageOccurrence> _dedupeUpcomingStages(StageTrackerDetail detail) {
     final items = _dedupeOccurrences([
       ?detail.nextStage,
@@ -537,6 +586,34 @@ class StageTrackerDetailPage extends ConsumerWidget {
     ]);
     items.sort((a, b) => a.occurrenceDate.compareTo(b.occurrenceDate));
     return items;
+  }
+
+  Map<int, StageOccurrence> _nextOccurrencesByRule(
+    StageTrackerDetail detail,
+    DateTime previewDate,
+  ) {
+    final candidates =
+        _dedupeOccurrences([
+          ?detail.nextStage,
+          ...detail.dashboardUpcomingStages,
+          ...detail.scheduleStages,
+        ]).where((occurrence) {
+          final ruleId = occurrence.stageRuleId;
+          return ruleId != null &&
+              !occurrence.occurrenceDate.isBefore(
+                normalizePreviewDate(previewDate),
+              );
+        }).toList();
+    candidates.sort((a, b) => a.occurrenceDate.compareTo(b.occurrenceDate));
+
+    final result = <int, StageOccurrence>{};
+    for (final occurrence in candidates) {
+      final ruleId = occurrence.stageRuleId;
+      if (ruleId != null) {
+        result.putIfAbsent(ruleId, () => occurrence);
+      }
+    }
+    return result;
   }
 
   _StageHeroRecentState? _heroRecentState(List<StageOccurrence> historyStages) {
@@ -556,12 +633,16 @@ class StageTrackerDetailPage extends ConsumerWidget {
   }
 }
 
-enum _StageTrackerDetailMenuAction { timeline, archive }
+enum _StageTrackerDetailMenuAction { edit, timeline, archive }
 
 class _StageTrackerDetailOverflowMenu extends ConsumerWidget {
-  const _StageTrackerDetailOverflowMenu({required this.stageTrackerId});
+  const _StageTrackerDetailOverflowMenu({
+    required this.stageTrackerId,
+    required this.tracker,
+  });
 
   final int stageTrackerId;
+  final StageTracker? tracker;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -570,6 +651,13 @@ class _StageTrackerDetailOverflowMenu extends ConsumerWidget {
       tooltip: '階段追蹤操作',
       onSelected: (action) async {
         switch (action) {
+          case _StageTrackerDetailMenuAction.edit:
+            final currentTracker = tracker;
+            if (currentTracker == null) {
+              return;
+            }
+            await _showEditStageTrackerDialog(context, ref, currentTracker);
+            return;
           case _StageTrackerDetailMenuAction.timeline:
             context.pushNamed(
               StageTrackerTimelinePage.routeName,
@@ -577,33 +665,49 @@ class _StageTrackerDetailOverflowMenu extends ConsumerWidget {
             );
             return;
           case _StageTrackerDetailMenuAction.archive:
+            final confirmed = await _showStageActionConfirmation(
+              context,
+              title: ReminderUiText.archiveStageTrackerTitle,
+              message: ReminderUiText.archiveStageTrackerMessage,
+              confirmLabel: ReminderUiText.archiveAction,
+              isDestructive: true,
+            );
+            if (confirmed != true || !context.mounted) {
+              return;
+            }
             final archived = await ref
                 .read(stageTrackerRepositoryProvider)
                 .archiveStageTracker(stageTrackerId);
-            ref.invalidate(stageTrackersProvider);
-            ref.invalidate(stageTrackerOverviewSummaryProvider);
-            ref.invalidate(stageTrackerAttentionOccurrencesProvider);
-            ref.invalidate(stageTrackerDetailProvider(stageTrackerId));
-            if (!context.mounted || !archived) {
+            _invalidateStageTrackerActionProviders(ref, stageTrackerId);
+            if (!context.mounted) {
               return;
             }
-            if (context.canPop()) {
-              context.pop();
-            } else {
-              context.goNamed(StageTrackerManagementPage.routeName);
+            if (!archived) {
+              _showStageTrackerSaveFailed(context);
+              return;
             }
+            context.goNamed(StageTrackerManagementPage.routeName);
             return;
         }
       },
-      itemBuilder: (context) => const [
+      itemBuilder: (context) => [
         PopupMenuItem(
+          value: _StageTrackerDetailMenuAction.edit,
+          enabled: tracker != null,
+          child: const Text(ReminderUiText.editStageTracker),
+        ),
+        const PopupMenuItem(
           value: _StageTrackerDetailMenuAction.timeline,
           child: Text(ReminderUiText.stageTrackerTimelineTitle),
         ),
-        PopupMenuDivider(),
+        const PopupMenuDivider(),
         PopupMenuItem(
           value: _StageTrackerDetailMenuAction.archive,
-          child: Text('封存追蹤器'),
+          child: Text(
+            ReminderUiText.archiveStageTracker,
+            key: const Key('stage-tracker-archive-menu-text'),
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
         ),
       ],
     );
@@ -843,7 +947,6 @@ class StageTrackerTimelinePage extends ConsumerWidget {
                               occurrence: occurrence,
                               now: previewDate,
                               keyPrefix: 'timeline',
-                              allowCreateRelated: true,
                               showSource: true,
                             ),
                         ],
@@ -861,7 +964,6 @@ class StageTrackerTimelinePage extends ConsumerWidget {
                               occurrence: occurrence,
                               now: previewDate,
                               keyPrefix: 'timeline-history',
-                              allowCreateRelated: false,
                               showSource: true,
                               showHistoryStatus: true,
                             ),
@@ -960,11 +1062,7 @@ class StageTrackerSchedulePage extends ConsumerWidget {
             padding: const EdgeInsets.all(ReminderSpacing.page),
             children: [
               for (final occurrence in stages)
-                _StageOccurrenceTile(
-                  occurrence: occurrence,
-                  now: previewDate,
-                  showRelatedAction: true,
-                ),
+                _StageOccurrenceTile(occurrence: occurrence, now: previewDate),
             ],
           );
         },
@@ -1006,7 +1104,6 @@ class StageTrackerHistoryPage extends ConsumerWidget {
                 _StageOccurrenceTile(
                   occurrence: occurrence,
                   now: previewDate,
-                  showRelatedAction: false,
                   showSource: true,
                 ),
             ],
@@ -1180,9 +1277,18 @@ class _StageTrackerDetailIcon extends StatelessWidget {
 }
 
 class _StageRuleList extends StatelessWidget {
-  const _StageRuleList({required this.rules, required this.onAddRule});
+  const _StageRuleList({
+    required this.rules,
+    required this.expandedRuleIds,
+    required this.nextOccurrencesByRule,
+    required this.onToggleRule,
+    required this.onAddRule,
+  });
 
   final List<StageRule> rules;
+  final Set<int> expandedRuleIds;
+  final Map<int, StageOccurrence> nextOccurrencesByRule;
+  final ValueChanged<int> onToggleRule;
   final VoidCallback onAddRule;
 
   @override
@@ -1193,7 +1299,13 @@ class _StageRuleList extends StatelessWidget {
           ? _CompactStageRuleEmptyState(onAddRule: onAddRule)
           : Column(
               children: [
-                for (final rule in rules) _CompactStageRuleRow(rule: rule),
+                for (final rule in rules)
+                  _CompactStageRuleRow(
+                    rule: rule,
+                    isExpanded: expandedRuleIds.contains(rule.id),
+                    nextOccurrence: nextOccurrencesByRule[rule.id],
+                    onToggleExpanded: () => onToggleRule(rule.id),
+                  ),
               ],
             ),
     );
@@ -1244,15 +1356,27 @@ class _CompactStageRuleEmptyState extends StatelessWidget {
   }
 }
 
-class _CompactStageRuleRow extends StatelessWidget {
-  const _CompactStageRuleRow({required this.rule});
+enum _StageRuleMenuAction { createNextRelated, edit, pause, resume, archive }
+
+class _CompactStageRuleRow extends ConsumerWidget {
+  const _CompactStageRuleRow({
+    required this.rule,
+    required this.isExpanded,
+    required this.nextOccurrence,
+    required this.onToggleExpanded,
+  });
 
   final StageRule rule;
+  final bool isExpanded;
+  final StageOccurrence? nextOccurrence;
+  final VoidCallback onToggleExpanded;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.reminderPalette;
     final label = rule.labelTemplate?.trim();
+    final canCreateNextRelated =
+        rule.status == StageRuleStatus.active && nextOccurrence != null;
     return Container(
       key: Key('stage-rule-row-${rule.id}'),
       margin: const EdgeInsets.only(bottom: _StageTrackerDetailDensity.cardGap),
@@ -1264,72 +1388,267 @@ class _CompactStageRuleRow extends StatelessWidget {
         ),
         border: Border.all(color: palette.borderSubtle),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  ReminderFormatters.stageRuleSummary(rule),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: palette.textPrimary,
-                    fontWeight: FontWeight.w800,
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onToggleExpanded,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        ReminderFormatters.stageRuleSummary(rule),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: palette.textPrimary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        [
+                          if (label != null && label.isNotEmpty) label,
+                          ReminderFormatters.stageRuleStatus(rule.status),
+                        ].join('・'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: palette.textMuted,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  [
-                    if (label != null && label.isNotEmpty) label,
-                    ReminderFormatters.stageRuleStatus(rule.status),
-                  ].join('・'),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelSmall?.copyWith(color: palette.textMuted),
-                ),
-              ],
-            ),
-          ),
-          PopupMenuButton<String>(
-            key: Key('stage-rule-overflow-${rule.id}'),
-            tooltip: '重複階段操作',
-            icon: const Icon(Icons.more_horiz),
-            itemBuilder: (context) => const [
-              PopupMenuItem<String>(enabled: false, child: Text('規則管理尚未支援')),
+              ),
+              PopupMenuButton<_StageRuleMenuAction>(
+                key: Key('stage-rule-overflow-${rule.id}'),
+                tooltip: '重複階段操作',
+                icon: const Icon(Icons.more_horiz),
+                onSelected: (action) =>
+                    _handleStageRuleAction(context, ref, rule, action),
+                itemBuilder: (context) {
+                  if (rule.status == StageRuleStatus.archived) {
+                    return const [
+                      PopupMenuItem<_StageRuleMenuAction>(
+                        enabled: false,
+                        child: Text(ReminderUiText.lifecycleArchivedLabel),
+                      ),
+                    ];
+                  }
+                  return [
+                    if (canCreateNextRelated)
+                      const PopupMenuItem<_StageRuleMenuAction>(
+                        value: _StageRuleMenuAction.createNextRelated,
+                        child: Text(ReminderUiText.createNextStageReminder),
+                      ),
+                    const PopupMenuItem<_StageRuleMenuAction>(
+                      value: _StageRuleMenuAction.edit,
+                      child: Text(ReminderUiText.editStageRule),
+                    ),
+                    PopupMenuItem<_StageRuleMenuAction>(
+                      value: rule.status == StageRuleStatus.paused
+                          ? _StageRuleMenuAction.resume
+                          : _StageRuleMenuAction.pause,
+                      child: Text(
+                        rule.status == StageRuleStatus.paused
+                            ? ReminderUiText.resumeStageRule
+                            : ReminderUiText.pauseStageRule,
+                      ),
+                    ),
+                    const PopupMenuDivider(),
+                    PopupMenuItem<_StageRuleMenuAction>(
+                      value: _StageRuleMenuAction.archive,
+                      child: Text(
+                        ReminderUiText.archiveStageRule,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  ];
+                },
+              ),
             ],
           ),
+          if (isExpanded) ...[
+            const SizedBox(height: 8),
+            _StageRuleNextOccurrencePanel(
+              rule: rule,
+              now: ref.watch(effectivePreviewDateProvider),
+              occurrence: nextOccurrence,
+              onCreateReminder: canCreateNextRelated
+                  ? () => _showRelatedItemDialog(context, ref, nextOccurrence!)
+                  : null,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleStageRuleAction(
+    BuildContext context,
+    WidgetRef ref,
+    StageRule rule,
+    _StageRuleMenuAction action,
+  ) async {
+    switch (action) {
+      case _StageRuleMenuAction.createNextRelated:
+        final occurrence = nextOccurrence;
+        if (occurrence != null) {
+          await _showRelatedItemDialog(context, ref, occurrence);
+        }
+        return;
+      case _StageRuleMenuAction.edit:
+        await _showEditStageRuleDialog(context, ref, rule);
+        return;
+      case _StageRuleMenuAction.pause:
+        await ref
+            .read(stageTrackerRepositoryProvider)
+            .updateStageRuleStatus(rule.id, StageRuleStatus.paused);
+        _invalidateStageTrackerActionProviders(ref, rule.stageTrackerId);
+        return;
+      case _StageRuleMenuAction.resume:
+        await ref
+            .read(stageTrackerRepositoryProvider)
+            .updateStageRuleStatus(rule.id, StageRuleStatus.active);
+        _invalidateStageTrackerActionProviders(ref, rule.stageTrackerId);
+        return;
+      case _StageRuleMenuAction.archive:
+        final confirmed = await _showStageActionConfirmation(
+          context,
+          title: ReminderUiText.archiveStageRuleTitle,
+          message: ReminderUiText.archiveStageRuleMessage,
+          confirmLabel: ReminderUiText.archiveAction,
+          isDestructive: true,
+        );
+        if (confirmed != true) {
+          return;
+        }
+        await ref
+            .read(stageTrackerRepositoryProvider)
+            .updateStageRuleStatus(rule.id, StageRuleStatus.archived);
+        _invalidateStageTrackerActionProviders(ref, rule.stageTrackerId);
+        return;
+    }
+  }
+}
+
+class _StageRuleNextOccurrencePanel extends StatelessWidget {
+  const _StageRuleNextOccurrencePanel({
+    required this.rule,
+    required this.now,
+    required this.occurrence,
+    required this.onCreateReminder,
+  });
+
+  final StageRule rule;
+  final DateTime now;
+  final StageOccurrence? occurrence;
+  final VoidCallback? onCreateReminder;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.reminderPalette;
+    final occurrence = this.occurrence;
+    if (occurrence == null) {
+      return Text(
+        ReminderUiText.noNextRecurringStage,
+        key: Key('stage-rule-no-next-${rule.id}'),
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(color: palette.textSecondary),
+      );
+    }
+    final summary = occurrence.relatedItemSummary;
+    final relatedCount = summary == null ? 0 : summary.totalRelevantCount;
+    return Container(
+      key: Key('stage-rule-expanded-${rule.id}'),
+      width: double.infinity,
+      padding: const EdgeInsets.only(left: 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            ReminderUiText.nextRecurringStageTitle,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: palette.textSecondary,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '${occurrence.label}・${ReminderFormatters.date(occurrence.occurrenceDate)}・${_countdownLabel(occurrence.occurrenceDate, now)}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: palette.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '${ReminderUiText.relatedItemsTitle} $relatedCount',
+            key: Key('stage-rule-next-related-count-${rule.id}'),
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: palette.textMuted),
+          ),
+          if (onCreateReminder != null)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                key: Key('stage-rule-create-next-reminder-${rule.id}'),
+                onPressed: onCreateReminder,
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text(ReminderUiText.createNextStageReminder),
+              ),
+            ),
         ],
       ),
     );
   }
 }
 
+enum _ManualStageMenuAction { addRelated, edit, archive }
+
 class _CompactStageTimelineRow extends ConsumerWidget {
   const _CompactStageTimelineRow({
     required this.occurrence,
     required this.now,
     required this.keyPrefix,
-    required this.allowCreateRelated,
     this.showSource = false,
     this.showHistoryStatus = false,
+    this.enableExpansion = false,
+    this.isExpanded = false,
+    this.onToggleExpanded,
   });
 
   final StageOccurrence occurrence;
   final DateTime now;
   final String keyPrefix;
-  final bool allowCreateRelated;
   final bool showSource;
   final bool showHistoryStatus;
+  final bool enableExpansion;
+  final bool isExpanded;
+  final VoidCallback? onToggleExpanded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.reminderPalette;
     final summary = occurrence.relatedItemSummary;
-    final hasRelatedItems = summary != null && summary.totalRelevantCount > 0;
+    final canManageManualStage =
+        occurrence.isManual && occurrence.stageRecordId != null;
     return Container(
       key: Key(
         '$keyPrefix-stage-occurrence-${_stageOccurrenceKey(occurrence)}',
@@ -1343,84 +1662,155 @@ class _CompactStageTimelineRow extends ConsumerWidget {
         ),
         border: Border.all(color: palette.borderSubtle),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 5),
-            child: Container(
-              width: _StageTrackerDetailDensity.timelineMarkerSize,
-              height: _StageTrackerDetailDensity.timelineMarkerSize,
-              decoration: BoxDecoration(
-                color: palette.domainStage,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  occurrence.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: palette.textPrimary,
-                    fontWeight: FontWeight.w800,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 5),
+                child: Container(
+                  width: _StageTrackerDetailDensity.timelineMarkerSize,
+                  height: _StageTrackerDetailDensity.timelineMarkerSize,
+                  decoration: BoxDecoration(
+                    color: palette.domainStage,
+                    shape: BoxShape.circle,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  _metadata(summary),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelSmall?.copyWith(color: palette.textMuted),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: enableExpansion ? onToggleExpanded : null,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        occurrence.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: palette.textPrimary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _metadata(summary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: palette.textMuted,
+                        ),
+                      ),
+                      if ((occurrence.note ?? '').trim().isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          occurrence.note!.trim(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(color: palette.textSecondary),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-                if ((occurrence.note ?? '').trim().isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    occurrence.note!.trim(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: palette.textSecondary,
+              ),
+              if (canManageManualStage)
+                SizedBox(
+                  width: _StageTrackerDetailDensity.rowActionSize,
+                  height: _StageTrackerDetailDensity.rowActionSize,
+                  child: PopupMenuButton<_ManualStageMenuAction>(
+                    key: Key(
+                      '$keyPrefix-manual-stage-overflow-${_stageOccurrenceKey(occurrence)}',
+                    ),
+                    tooltip: '重要階段操作',
+                    icon: const Icon(Icons.more_horiz, size: 20),
+                    padding: EdgeInsets.zero,
+                    itemBuilder: (context) => [
+                      const PopupMenuItem<_ManualStageMenuAction>(
+                        value: _ManualStageMenuAction.addRelated,
+                        child: Text(ReminderUiText.addRelatedReminder),
+                      ),
+                      const PopupMenuItem<_ManualStageMenuAction>(
+                        value: _ManualStageMenuAction.edit,
+                        child: Text(ReminderUiText.editImportantStage),
+                      ),
+                      const PopupMenuDivider(),
+                      PopupMenuItem<_ManualStageMenuAction>(
+                        value: _ManualStageMenuAction.archive,
+                        child: Text(
+                          ReminderUiText.archiveImportantStage,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                      ),
+                    ],
+                    onSelected: (action) => _handleManualStageAction(
+                      context,
+                      ref,
+                      occurrence,
+                      action,
                     ),
                   ),
-                ],
-              ],
-            ),
+                ),
+            ],
           ),
-          if (hasRelatedItems || allowCreateRelated)
-            SizedBox(
-              width: _StageTrackerDetailDensity.rowActionSize,
-              height: _StageTrackerDetailDensity.rowActionSize,
-              child: IconButton(
-                key: Key(
-                  hasRelatedItems
-                      ? '$keyPrefix-view-related-${_stageOccurrenceKey(occurrence)}'
-                      : '$keyPrefix-add-related-${_stageOccurrenceKey(occurrence)}',
-                ),
-                onPressed: hasRelatedItems
-                    ? () => _showRelatedItemSummaryDialog(context, summary)
-                    : () => _showRelatedItemDialog(context, ref, occurrence),
-                tooltip: hasRelatedItems ? '查看相關提醒' : '建立相關提醒',
-                icon: Icon(
-                  hasRelatedItems
-                      ? Icons.visibility_outlined
-                      : Icons.add_circle_outline,
-                  size: 20,
-                ),
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
+          if (enableExpansion && isExpanded) ...[
+            const SizedBox(height: 8),
+            Padding(
+              padding: EdgeInsets.only(
+                left: _StageTrackerDetailDensity.timelineMarkerSize + 10,
+              ),
+              child: _StageRelatedReminderExpansion(
+                occurrence: occurrence,
+                previewDate: now,
               ),
             ),
+          ],
         ],
       ),
     );
+  }
+
+  Future<void> _handleManualStageAction(
+    BuildContext context,
+    WidgetRef ref,
+    StageOccurrence occurrence,
+    _ManualStageMenuAction action,
+  ) async {
+    switch (action) {
+      case _ManualStageMenuAction.addRelated:
+        await _showRelatedItemDialog(context, ref, occurrence);
+        return;
+      case _ManualStageMenuAction.edit:
+        await _showEditImportantStageDialog(context, ref, occurrence);
+        return;
+      case _ManualStageMenuAction.archive:
+        final stageRecordId = occurrence.stageRecordId;
+        if (stageRecordId == null) {
+          return;
+        }
+        final confirmed = await _showStageActionConfirmation(
+          context,
+          title: ReminderUiText.archiveImportantStageTitle,
+          message: ReminderUiText.archiveImportantStageMessage,
+          confirmLabel: ReminderUiText.archiveAction,
+          isDestructive: true,
+        );
+        if (confirmed != true) {
+          return;
+        }
+        await ref
+            .read(stageTrackerRepositoryProvider)
+            .deleteOrArchiveImportantStage(stageRecordId);
+        _invalidateStageTrackerActionProviders(ref, occurrence.stageTrackerId);
+        return;
+    }
   }
 
   String _metadata(StageRelatedItemSummary? summary) {
@@ -1436,21 +1826,235 @@ class _CompactStageTimelineRow extends ConsumerWidget {
   }
 }
 
-class _StageOccurrenceTile extends ConsumerWidget {
+class _StageRelatedReminderExpansion extends ConsumerWidget {
+  const _StageRelatedReminderExpansion({
+    required this.occurrence,
+    required this.previewDate,
+  });
+
+  final StageOccurrence occurrence;
+  final DateTime previewDate;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final recordId = occurrence.stageRecordId;
+    if (recordId == null) {
+      return _StageRelatedReminderPanel(
+        occurrence: occurrence,
+        entries: const [],
+        previewDate: previewDate,
+      );
+    }
+    final entriesAsync = ref.watch(stageRelatedItemEntriesProvider(recordId));
+    return entriesAsync.when(
+      data: (entries) => _StageRelatedReminderPanel(
+        occurrence: occurrence,
+        entries: entries,
+        previewDate: previewDate,
+      ),
+      error: (error, stack) => Text(
+        '讀取相關提醒失敗',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: context.reminderPalette.textSecondary,
+        ),
+      ),
+      loading: () => const SizedBox(
+        height: 24,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: SizedBox.square(
+            dimension: 14,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StageRelatedReminderPanel extends ConsumerWidget {
+  const _StageRelatedReminderPanel({
+    required this.occurrence,
+    required this.entries,
+    required this.previewDate,
+  });
+
+  final StageOccurrence occurrence;
+  final List<StageRelatedItemEntry> entries;
+  final DateTime previewDate;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.reminderPalette;
+    return Container(
+      key: Key('stage-related-expanded-${_stageOccurrenceKey(occurrence)}'),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: palette.surfaceWarm,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: palette.borderSubtle),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            entries.isEmpty
+                ? ReminderUiText.noRelatedReminders
+                : ReminderUiText.relatedItemsTitle,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: palette.textSecondary,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          if (entries.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            for (final entry in entries)
+              _StageRelatedReminderRow(entry: entry, previewDate: previewDate),
+          ],
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              key: Key(
+                'stage-related-create-${_stageOccurrenceKey(occurrence)}',
+              ),
+              onPressed: () => _showRelatedItemDialog(context, ref, occurrence),
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text(ReminderUiText.addRelatedReminder),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StageRelatedReminderRow extends StatelessWidget {
+  const _StageRelatedReminderRow({
+    required this.entry,
+    required this.previewDate,
+  });
+
+  final StageRelatedItemEntry entry;
+  final DateTime previewDate;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.reminderPalette;
+    final viewModel = ManagementItemCardViewModel.fromBundle(
+      entry.bundle,
+      now: previewDate,
+    );
+    return InkWell(
+      key: Key('stage-related-item-${entry.relatedItemId}'),
+      onTap: () => showItemSummaryDialog(
+        context,
+        entry.bundle,
+        previewDate: previewDate,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 18,
+              child: Text(
+                _relatedItemMarker(entry),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: _relatedItemColor(entry, viewModel, palette),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                viewModel.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: palette.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 96),
+              child: Text(
+                _relatedItemStatusLabel(entry, viewModel),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(
+                  context,
+                ).textTheme.labelSmall?.copyWith(color: palette.textMuted),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _relatedItemMarker(StageRelatedItemEntry entry) {
+    if (entry.hasDoneAction) {
+      return '✓';
+    }
+    if (entry.hasSkippedAction) {
+      return '!';
+    }
+    return '○';
+  }
+
+  Color _relatedItemColor(
+    StageRelatedItemEntry entry,
+    ManagementItemCardViewModel viewModel,
+    ReminderPalette palette,
+  ) {
+    if (entry.hasDoneAction) {
+      return palette.statusNormal;
+    }
+    if (entry.hasSkippedAction || viewModel.status.isWarningOrDanger) {
+      return palette.statusDanger;
+    }
+    return palette.textMuted;
+  }
+
+  String _relatedItemStatusLabel(
+    StageRelatedItemEntry entry,
+    ManagementItemCardViewModel viewModel,
+  ) {
+    if (entry.hasDoneAction) {
+      return '已完成';
+    }
+    if (entry.hasSkippedAction) {
+      return '已跳過';
+    }
+    if (entry.bundle.item.status == ItemLifecycleStatus.paused) {
+      return ReminderUiText.lifecyclePausedLabel;
+    }
+    return viewModel.dueDateLabel ?? viewModel.compactSummaryLabel;
+  }
+}
+
+class _StageOccurrenceTile extends StatelessWidget {
   const _StageOccurrenceTile({
     required this.occurrence,
     required this.now,
-    required this.showRelatedAction,
     this.showSource = false,
   });
 
   final StageOccurrence occurrence;
   final DateTime now;
-  final bool showRelatedAction;
   final bool showSource;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final summary = occurrence.relatedItemSummary;
     final palette = context.reminderPalette;
     return ReminderPaperCard(
@@ -1476,14 +2080,6 @@ class _StageOccurrenceTile extends ConsumerWidget {
               Text(ReminderFormatters.relatedItemSummary(summary!)),
           ],
         ),
-        trailing: showRelatedAction
-            ? IconButton(
-                tooltip: '建立相關提醒',
-                onPressed: () =>
-                    _showRelatedItemDialog(context, ref, occurrence),
-                icon: const Icon(Icons.add_circle_outline),
-              )
-            : null,
       ),
     );
   }

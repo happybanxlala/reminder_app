@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/local/reminder_dao.dart';
 import '../data/stage_tracker_models.dart';
 import '../data/stage_tracker_repository.dart';
 import '../domain/item_pack.dart';
@@ -167,6 +168,13 @@ final stageTrackerDetailProvider = FutureProvider.autoDispose
       return ref
           .watch(stageTrackerRepositoryProvider)
           .getStageTrackerDetailById(id, now: previewDate);
+    });
+
+final stageRelatedItemEntriesProvider = FutureProvider.autoDispose
+    .family<List<StageRelatedItemEntry>, int>((ref, stageRecordId) {
+      return ref
+          .watch(stageTrackerRepositoryProvider)
+          .getRelatedItemEntriesForStageRecord(stageRecordId);
     });
 
 ({Object error, StackTrace stackTrace})? _firstAsyncError(

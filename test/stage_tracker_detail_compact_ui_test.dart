@@ -6,15 +6,20 @@ import 'package:go_router/go_router.dart';
 import 'package:reminder_app/app/theme/reminder_theme.dart';
 import 'package:reminder_app/features/reminders/data/item_repository.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
+import 'package:reminder_app/features/reminders/data/local/reminder_dao.dart';
 import 'package:reminder_app/features/reminders/data/stage_tracker_models.dart';
 import 'package:reminder_app/features/reminders/data/stage_tracker_repository.dart';
+import 'package:reminder_app/features/reminders/domain/item.dart';
+import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/stage_occurrence.dart';
 import 'package:reminder_app/features/reminders/domain/stage_record.dart';
 import 'package:reminder_app/features/reminders/domain/stage_related_item.dart';
 import 'package:reminder_app/features/reminders/domain/stage_rule.dart';
 import 'package:reminder_app/features/reminders/domain/stage_tracker.dart';
+import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
 import 'package:reminder_app/features/reminders/providers/database_providers.dart';
 import 'package:reminder_app/features/reminders/providers/developer_settings_providers.dart';
+import 'package:reminder_app/features/reminders/providers/item_providers.dart';
 import 'package:reminder_app/features/reminders/providers/stage_tracker_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/stage_tracker_pages.dart';
 import 'package:reminder_app/features/reminders/ui/widgets/reminder_components.dart';
@@ -45,6 +50,103 @@ void main() {
       find.byKey(const Key('stage-tracker-timeline-page')),
       findsOneWidget,
     );
+  });
+
+  testWidgets('detail overflow edits tracker and confirms archive', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    final repository = _RecordingStageTrackerRepository(
+      db,
+      detail: _detailWithPendingAndUpcoming(
+        tracker: _tracker(
+          subjectName: '小米',
+          trackingEndDate: DateTime(2026, 12, 31),
+        ),
+      ),
+    );
+    await _pumpDetail(
+      tester,
+      detail: repository.detail!,
+      database: db,
+      repository: repository,
+      packs: [_pack()],
+    );
+
+    await tester.tap(find.byKey(const Key('stage-tracker-detail-overflow')));
+    await tester.pumpAndSettle();
+
+    expect(find.text(ReminderUiText.editStageTracker), findsOneWidget);
+    expect(find.text(ReminderUiText.stageTrackerTimelineTitle), findsOneWidget);
+    expect(find.text(ReminderUiText.archiveStageTracker), findsOneWidget);
+    final archiveText = tester.widget<Text>(
+      find.byKey(const Key('stage-tracker-archive-menu-text')),
+    );
+    expect(archiveText.style?.color, ReminderTheme.light().colorScheme.error);
+
+    await tester.tap(find.text(ReminderUiText.editStageTracker));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(ReminderUiText.stageTrackerBasicSectionTitle),
+      findsOneWidget,
+    );
+    expect(
+      find.text(ReminderUiText.stageTrackerAdvancedSectionTitle),
+      findsOneWidget,
+    );
+    expect(find.text(ReminderUiText.trackingStartDateEditHelp), findsOneWidget);
+    expect(
+      _editableTextValue(tester, const Key('stage-tracker-title-field')),
+      '寶寶成長',
+    );
+    expect(
+      _editableTextValue(tester, const Key('stage-tracker-subject-field')),
+      '小米',
+    );
+    expect(find.text('👶 寶寶'), findsOneWidget);
+    expect(find.text('2026/05/01'), findsWidgets);
+    expect(find.text('2026/12/31'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('stage-tracker-title-field')),
+      '成長追蹤',
+    );
+    await tester.tap(
+      find.widgetWithText(FilledButton, ReminderUiText.saveAction),
+    );
+    await tester.pumpAndSettle();
+
+    expect(repository.updatedTrackers.single.title, '成長追蹤');
+    expect(find.text('成長追蹤'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('stage-tracker-detail-overflow')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(ReminderUiText.archiveStageTracker));
+    await tester.pumpAndSettle();
+
+    expect(find.text(ReminderUiText.archiveStageTrackerTitle), findsOneWidget);
+    await tester.tap(
+      find.text(
+        MaterialLocalizations.of(
+          tester.element(find.byType(AlertDialog)),
+        ).cancelButtonLabel,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(repository.archiveTrackerCalls, 0);
+
+    await tester.tap(find.byKey(const Key('stage-tracker-detail-overflow')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(ReminderUiText.archiveStageTracker));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.widgetWithText(TextButton, ReminderUiText.archiveAction),
+    );
+    await tester.pumpAndSettle();
+
+    expect(repository.archiveTrackerCalls, 1);
+    expect(find.text('overview'), findsOneWidget);
   });
 
   testWidgets('compact hero shows title, accumulated days, pending and next', (
@@ -85,7 +187,7 @@ void main() {
     expect(find.text('疫苗提醒'), findsOneWidget);
   });
 
-  testWidgets('upcoming rows are compact and switch related action icons', (
+  testWidgets('upcoming rows are compact without related action buttons', (
     tester,
   ) async {
     await _pumpDetail(tester, detail: _detailWithPendingAndUpcoming());
@@ -94,26 +196,13 @@ void main() {
     expect(find.byType(ListTile), findsNothing);
     expect(
       find.byKey(const Key('detail-add-related-rule-101-1')),
-      findsOneWidget,
+      findsNothing,
     );
     expect(
       find.byKey(const Key('detail-view-related-record-302')),
-      findsOneWidget,
+      findsNothing,
     );
-
-    await tester.tap(find.byKey(const Key('detail-view-related-record-302')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('相關提醒'), findsOneWidget);
-    expect(find.text('相關提醒：1 / 2 已完成'), findsOneWidget);
-
-    await tester.tap(find.text('關閉'));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const Key('detail-add-related-rule-101-1')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('建立相關提醒'), findsOneWidget);
+    expect(find.textContaining('相關提醒：1 / 2 已完成'), findsOneWidget);
   });
 
   testWidgets('zero related item summary is hidden from compact rows', (
@@ -143,9 +232,91 @@ void main() {
     expect(find.textContaining('相關提醒：0 / 0'), findsNothing);
     expect(
       find.byKey(const Key('detail-add-related-record-303')),
-      findsOneWidget,
+      findsNothing,
     );
   });
+
+  testWidgets('upcoming occurrence rows expand to compact related reminders', (
+    tester,
+  ) async {
+    final relatedEntry = _relatedEntry(1, title: '準備針卡');
+    await _pumpDetail(
+      tester,
+      detail: _detailWithPendingAndUpcoming(),
+      relatedEntries: {
+        302: [relatedEntry],
+      },
+    );
+
+    await tester.tap(find.text('成貓期'));
+    await tester.pumpAndSettle();
+    expect(find.text(ReminderUiText.noRelatedReminders), findsOneWidget);
+    expect(find.text(ReminderUiText.addRelatedReminder), findsOneWidget);
+
+    await tester.tap(find.text('疫苗提醒'));
+    await tester.pumpAndSettle();
+    expect(find.text(ReminderUiText.relatedItemsTitle), findsOneWidget);
+    expect(find.text('準備針卡'), findsOneWidget);
+    expect(find.textContaining('2026/06/01'), findsWidgets);
+    expect(find.text(ReminderUiText.addRelatedReminder), findsWidgets);
+
+    await tester.tap(find.text('成貓期'));
+    await tester.pumpAndSettle();
+    expect(find.text(ReminderUiText.noRelatedReminders), findsNothing);
+    expect(find.text('準備針卡'), findsOneWidget);
+  });
+
+  testWidgets('expanded related reminder row opens item summary dialog', (
+    tester,
+  ) async {
+    await _pumpDetail(
+      tester,
+      detail: _detailWithPendingAndUpcoming(),
+      relatedEntries: {
+        302: [_relatedEntry(1, title: '準備針卡')],
+      },
+    );
+
+    await tester.tap(find.text('疫苗提醒'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('stage-related-item-1')));
+    await tester.pumpAndSettle();
+
+    expect(find.text(ReminderUiText.itemDetailTitle), findsOneWidget);
+    expect(find.text('準備針卡'), findsWidgets);
+    expect(find.byType(ListTile), findsNothing);
+  });
+
+  testWidgets(
+    'expanded create related button opens dialog and keeps row side clean',
+    (tester) async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      final repository = _RecordingStageTrackerRepository(
+        db,
+        detail: _detailWithPendingAndUpcoming(),
+      );
+      await _pumpDetail(
+        tester,
+        detail: repository.detail!,
+        database: db,
+        repository: repository,
+      );
+
+      await tester.tap(find.text('疫苗提醒'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const Key('stage-related-create-record-302')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text(ReminderUiText.addRelatedReminder), findsWidgets);
+      expect(find.byIcon(Icons.visibility_outlined), findsNothing);
+      expect(
+        find.byKey(const Key('detail-manual-stage-overflow-record-302')),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('large action buttons are replaced by compact add-stage entry', (
     tester,
@@ -236,6 +407,140 @@ void main() {
     expect(find.byIcon(Icons.pause_outlined), findsNothing);
   });
 
+  testWidgets('stage rule overflow supports edit pause resume and archive', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    final repository = _RecordingStageTrackerRepository(
+      db,
+      detail: _detailWithPendingAndUpcoming(),
+    );
+    await _pumpDetail(
+      tester,
+      detail: repository.detail!,
+      database: db,
+      repository: repository,
+    );
+
+    await tester.tap(find.byKey(const Key('stage-rule-overflow-201')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('規則管理尚未支援'), findsNothing);
+    expect(find.text(ReminderUiText.editStageRule), findsOneWidget);
+    expect(find.text(ReminderUiText.pauseStageRule), findsOneWidget);
+    expect(find.text(ReminderUiText.archiveStageRule), findsOneWidget);
+
+    await tester.tap(find.text(ReminderUiText.editStageRule));
+    await tester.pumpAndSettle();
+    expect(
+      _editableTextValue(tester, const Key('stage-rule-interval-field')),
+      '1',
+    );
+    await tester.enterText(
+      find.byKey(const Key('stage-rule-interval-field')),
+      '2',
+    );
+    await tester.tap(
+      find.widgetWithText(FilledButton, ReminderUiText.saveAction),
+    );
+    await tester.pumpAndSettle();
+    expect(repository.updatedRules.single.intervalValue, 2);
+
+    await tester.tap(find.byKey(const Key('stage-rule-overflow-201')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(ReminderUiText.pauseStageRule));
+    await tester.pumpAndSettle();
+    expect(repository.ruleStatuses.last, StageRuleStatus.paused);
+
+    await tester.tap(find.byKey(const Key('stage-rule-overflow-201')));
+    await tester.pumpAndSettle();
+    expect(find.text(ReminderUiText.resumeStageRule), findsOneWidget);
+    await tester.tap(find.text(ReminderUiText.resumeStageRule));
+    await tester.pumpAndSettle();
+    expect(repository.ruleStatuses.last, StageRuleStatus.active);
+
+    await tester.tap(find.byKey(const Key('stage-rule-overflow-201')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(ReminderUiText.archiveStageRule));
+    await tester.pumpAndSettle();
+    expect(find.text(ReminderUiText.archiveStageRuleTitle), findsOneWidget);
+    await tester.tap(
+      find.widgetWithText(TextButton, ReminderUiText.archiveAction),
+    );
+    await tester.pumpAndSettle();
+    expect(repository.ruleStatuses.last, StageRuleStatus.archived);
+  });
+
+  testWidgets('stage rule rows expand with next occurrence reminder context', (
+    tester,
+  ) async {
+    await _pumpDetail(tester, detail: _detailWithPendingAndUpcoming());
+
+    await tester.tap(find.text('每 1 週'));
+    await tester.pumpAndSettle();
+
+    expect(find.text(ReminderUiText.nextRecurringStageTitle), findsOneWidget);
+    expect(find.textContaining('成貓期'), findsWidgets);
+    expect(find.text('相關提醒 0'), findsOneWidget);
+    expect(find.text(ReminderUiText.createNextStageReminder), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('stage-rule-overflow-201')));
+    await tester.pumpAndSettle();
+    expect(find.text(ReminderUiText.createNextStageReminder), findsWidgets);
+    expect(find.text(ReminderUiText.nextRecurringStageTitle), findsOneWidget);
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('每 1 週'));
+    await tester.pumpAndSettle();
+    expect(find.text(ReminderUiText.nextRecurringStageTitle), findsNothing);
+  });
+
+  testWidgets('stage rule next reminder uses derived next occurrence', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    final repository = _RecordingStageTrackerRepository(
+      db,
+      detail: _detailWithPendingAndUpcoming(),
+    );
+    await _pumpDetail(
+      tester,
+      detail: repository.detail!,
+      database: db,
+      repository: repository,
+    );
+
+    await tester.tap(find.byKey(const Key('stage-rule-overflow-201')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(ReminderUiText.createNextStageReminder));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.widgetWithText(FilledButton, ReminderUiText.saveAction),
+    );
+    await tester.pumpAndSettle();
+
+    expect(repository.relatedReminderOccurrences.single.stageRuleId, 201);
+    expect(repository.relatedReminderOccurrences.single.occurrenceIndex, 1);
+    expect(repository.relatedReminderOccurrences.single.label, '成貓期');
+  });
+
+  testWidgets('paused rule expands without next reminder creation', (
+    tester,
+  ) async {
+    await _pumpDetail(tester, detail: _detailWithPausedRule());
+
+    await tester.tap(find.text('每 1 週'));
+    await tester.pumpAndSettle();
+
+    expect(find.text(ReminderUiText.nextRecurringStageTitle), findsOneWidget);
+    expect(find.text(ReminderUiText.createNextStageReminder), findsNothing);
+
+    await tester.tap(find.byKey(const Key('stage-rule-overflow-201')));
+    await tester.pumpAndSettle();
+    expect(find.text(ReminderUiText.createNextStageReminder), findsNothing);
+  });
+
   testWidgets('timeline page groups, sorts, de-duplicates, and shows actions', (
     tester,
   ) async {
@@ -252,11 +557,11 @@ void main() {
     expect(find.textContaining('相關提醒：1 / 2 已完成'), findsOneWidget);
     expect(
       find.byKey(const Key('timeline-add-related-rule-101-1')),
-      findsOneWidget,
+      findsNothing,
     );
     expect(
       find.byKey(const Key('timeline-view-related-record-302')),
-      findsOneWidget,
+      findsNothing,
     );
 
     final upcomingLabels = tester
@@ -281,12 +586,88 @@ void main() {
       upcomingLabels.indexOf('滿 18 天'),
       lessThan(upcomingLabels.indexOf('滿 10 天')),
     );
+    expect(find.textContaining('相關提醒：1 / 2 已完成'), findsWidgets);
 
-    await tester.tap(find.byKey(const Key('timeline-view-related-record-302')));
+    await tester.tap(find.text('成貓期'));
+    await tester.pumpAndSettle();
+    expect(find.text(ReminderUiText.noRelatedReminders), findsNothing);
+  });
+
+  testWidgets('manual important stage timeline rows expose management menu', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    final repository = _RecordingStageTrackerRepository(
+      db,
+      detail: _detailWithPendingAndUpcoming(),
+    );
+    await _pumpTimeline(
+      tester,
+      detail: repository.detail!,
+      database: db,
+      repository: repository,
+    );
+
+    expect(
+      find.byKey(const Key('timeline-manual-stage-overflow-record-302')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('timeline-manual-stage-overflow-rule-101-1')),
+      findsNothing,
+    );
+
+    await tester.tap(
+      find.byKey(const Key('timeline-manual-stage-overflow-record-302')),
+    );
     await tester.pumpAndSettle();
 
-    expect(find.text('相關提醒'), findsOneWidget);
-    expect(find.textContaining('相關提醒：1 / 2 已完成'), findsWidgets);
+    expect(find.text(ReminderUiText.addRelatedReminder), findsOneWidget);
+    expect(find.text(ReminderUiText.editImportantStage), findsOneWidget);
+    expect(find.text(ReminderUiText.archiveImportantStage), findsOneWidget);
+
+    await tester.tap(find.text(ReminderUiText.addRelatedReminder));
+    await tester.pumpAndSettle();
+    expect(find.text('建立相關提醒'), findsOneWidget);
+
+    await tester.tap(find.text(ReminderUiText.closeAction));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const Key('timeline-manual-stage-overflow-record-302')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(ReminderUiText.editImportantStage));
+    await tester.pumpAndSettle();
+    expect(
+      _editableTextValue(tester, const Key('important-stage-title-field')),
+      '疫苗提醒',
+    );
+    await tester.enterText(
+      find.byKey(const Key('important-stage-title-field')),
+      '疫苗回診',
+    );
+    await tester.tap(
+      find.widgetWithText(FilledButton, ReminderUiText.saveAction),
+    );
+    await tester.pumpAndSettle();
+    expect(repository.updatedImportantStages.single.label, '疫苗回診');
+
+    await tester.tap(
+      find.byKey(const Key('timeline-manual-stage-overflow-record-302')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(ReminderUiText.archiveImportantStage));
+    await tester.pumpAndSettle();
+    expect(
+      find.text(ReminderUiText.archiveImportantStageTitle),
+      findsOneWidget,
+    );
+    await tester.tap(
+      find.widgetWithText(TextButton, ReminderUiText.archiveAction),
+    );
+    await tester.pumpAndSettle();
+
+    expect(repository.archivedImportantStageIds.single, 302);
   });
 
   testWidgets('legacy schedule and history routes still render', (
@@ -330,6 +711,8 @@ Future<void> _pumpDetail(
   required StageTrackerDetail detail,
   AppDatabase? database,
   StageTrackerRepository? repository,
+  List<ItemPack> packs = const [],
+  Map<int, List<StageRelatedItemEntry>> relatedEntries = const {},
 }) async {
   final db = database ?? AppDatabase.forTesting(NativeDatabase.memory());
   final router = GoRouter(
@@ -386,10 +769,20 @@ Future<void> _pumpDetail(
         appDatabaseProvider.overrideWithValue(db),
         if (repository != null)
           stageTrackerRepositoryProvider.overrideWithValue(repository),
+        activeItemPacksProvider.overrideWith((ref) => Stream.value(packs)),
         effectivePreviewDateProvider.overrideWith(
           (ref) => DateTime(2026, 5, 20),
         ),
-        stageTrackerDetailProvider.overrideWith((ref, id) async => detail),
+        stageTrackerDetailProvider.overrideWith((ref, id) async {
+          if (repository case _RecordingStageTrackerRepository recording) {
+            return recording.detail ?? detail;
+          }
+          return detail;
+        }),
+        stageRelatedItemEntriesProvider.overrideWith(
+          (ref, stageRecordId) async =>
+              relatedEntries[stageRecordId] ?? const <StageRelatedItemEntry>[],
+        ),
       ],
       child: MaterialApp.router(
         theme: ReminderTheme.light(),
@@ -405,8 +798,10 @@ Future<void> _pumpDetail(
 Future<void> _pumpTimeline(
   WidgetTester tester, {
   required StageTrackerDetail detail,
+  AppDatabase? database,
+  StageTrackerRepository? repository,
 }) async {
-  final db = AppDatabase.forTesting(NativeDatabase.memory());
+  final db = database ?? AppDatabase.forTesting(NativeDatabase.memory());
   final router = GoRouter(
     initialLocation: '/stage-tracker/1/timeline',
     routes: [
@@ -427,10 +822,17 @@ Future<void> _pumpTimeline(
     ProviderScope(
       overrides: [
         appDatabaseProvider.overrideWithValue(db),
+        if (repository != null)
+          stageTrackerRepositoryProvider.overrideWithValue(repository),
         effectivePreviewDateProvider.overrideWith(
           (ref) => DateTime(2026, 5, 20),
         ),
-        stageTrackerDetailProvider.overrideWith((ref, id) async => detail),
+        stageTrackerDetailProvider.overrideWith((ref, id) async {
+          if (repository case _RecordingStageTrackerRepository recording) {
+            return recording.detail ?? detail;
+          }
+          return detail;
+        }),
       ],
       child: MaterialApp.router(
         theme: ReminderTheme.light(),
@@ -511,11 +913,19 @@ Future<void> _pumpLegacyRoutes(
 }
 
 class _RecordingStageTrackerRepository extends StageTrackerRepository {
-  _RecordingStageTrackerRepository(AppDatabase db)
+  _RecordingStageTrackerRepository(AppDatabase db, {this.detail})
     : super(db.reminderDao, itemRepository: ItemRepository(db.reminderDao));
 
+  StageTrackerDetail? detail;
   final importantStages = <ManualStageInput>[];
   final stageRules = <StageRuleInput>[];
+  final updatedTrackers = <StageTrackerInput>[];
+  final updatedRules = <StageRuleInput>[];
+  final updatedImportantStages = <ManualStageInput>[];
+  final ruleStatuses = <StageRuleStatus>[];
+  final archivedImportantStageIds = <int>[];
+  final relatedReminderOccurrences = <StageOccurrence>[];
+  int archiveTrackerCalls = 0;
 
   @override
   Future<int> createImportantStage(
@@ -531,37 +941,168 @@ class _RecordingStageTrackerRepository extends StageTrackerRepository {
     stageRules.add(input);
     return stageRules.length;
   }
+
+  @override
+  Future<bool> updateStageTracker(int id, StageTrackerInput input) async {
+    updatedTrackers.add(input);
+    final current = detail;
+    if (current == null || current.stageTracker.id != id) {
+      return false;
+    }
+    detail = StageTrackerDetail(
+      stageTracker: StageTracker(
+        id: current.stageTracker.id,
+        packId: input.packId ?? current.stageTracker.packId,
+        title: input.title,
+        subjectName: input.subjectName,
+        trackingStartDate: input.trackingStartDate,
+        trackingEndDate: input.trackingEndDate,
+        status: current.stageTracker.status,
+        createdAt: current.stageTracker.createdAt,
+        updatedAt: DateTime(2026, 5, 21),
+      ),
+      stageRules: current.stageRules,
+      stageRecords: current.stageRecords,
+      dashboardUpcomingStages: current.dashboardUpcomingStages,
+      scheduleStages: current.scheduleStages,
+      historyStages: current.historyStages,
+    );
+    return true;
+  }
+
+  @override
+  Future<bool> archiveStageTracker(int id) async {
+    archiveTrackerCalls += 1;
+    return true;
+  }
+
+  @override
+  Future<bool> updateStageRule(int id, StageRuleInput input) async {
+    updatedRules.add(input);
+    final current = detail;
+    if (current == null) {
+      return false;
+    }
+    detail = _replaceRule(
+      current,
+      id,
+      (rule) => StageRule(
+        id: rule.id,
+        stageTrackerId: rule.stageTrackerId,
+        type: input.type,
+        intervalValue: input.intervalValue,
+        intervalUnit: input.intervalUnit,
+        labelTemplate: input.labelTemplate,
+        reminderOffsetDays: input.reminderOffsetDays,
+        status: rule.status,
+        createdAt: rule.createdAt,
+        updatedAt: DateTime(2026, 5, 21),
+      ),
+    );
+    return true;
+  }
+
+  @override
+  Future<bool> updateStageRuleStatus(int id, StageRuleStatus status) async {
+    ruleStatuses.add(status);
+    final current = detail;
+    if (current == null) {
+      return false;
+    }
+    detail = _replaceRule(
+      current,
+      id,
+      (rule) => StageRule(
+        id: rule.id,
+        stageTrackerId: rule.stageTrackerId,
+        type: rule.type,
+        intervalValue: rule.intervalValue,
+        intervalUnit: rule.intervalUnit,
+        labelTemplate: rule.labelTemplate,
+        reminderOffsetDays: rule.reminderOffsetDays,
+        status: status,
+        createdAt: rule.createdAt,
+        updatedAt: DateTime(2026, 5, 21),
+      ),
+    );
+    return true;
+  }
+
+  @override
+  Future<bool> updateImportantStage(
+    int stageRecordId,
+    ManualStageInput input,
+  ) async {
+    updatedImportantStages.add(input);
+    return true;
+  }
+
+  @override
+  Future<bool> deleteOrArchiveImportantStage(int stageRecordId) async {
+    archivedImportantStageIds.add(stageRecordId);
+    return true;
+  }
+
+  @override
+  Future<int> createRelatedItemFromOccurrence(
+    StageOccurrence occurrence, {
+    required String title,
+    String? description,
+    DateTime? dueDate,
+    int? packId,
+  }) async {
+    relatedReminderOccurrences.add(occurrence);
+    return 1;
+  }
 }
 
-StageTrackerDetail _detailWithPendingAndUpcoming() {
-  final tracker = _tracker();
+StageTrackerDetail _replaceRule(
+  StageTrackerDetail detail,
+  int id,
+  StageRule Function(StageRule rule) replace,
+) {
+  return StageTrackerDetail(
+    stageTracker: detail.stageTracker,
+    stageRules: [
+      for (final rule in detail.stageRules)
+        rule.id == id ? replace(rule) : rule,
+    ],
+    stageRecords: detail.stageRecords,
+    dashboardUpcomingStages: detail.dashboardUpcomingStages,
+    scheduleStages: detail.scheduleStages,
+    historyStages: detail.historyStages,
+  );
+}
+
+StageTrackerDetail _detailWithPendingAndUpcoming({StageTracker? tracker}) {
+  final currentTracker = tracker ?? _tracker();
   final next = _generatedOccurrence(
-    tracker,
-    ruleId: 101,
+    currentTracker,
+    ruleId: 201,
     index: 1,
     date: DateTime(2026, 5, 21),
     label: '成貓期',
   );
   final related = _manualOccurrence(
-    tracker,
+    currentTracker,
     recordId: 302,
     date: DateTime(2026, 6, 1),
     label: '疫苗提醒',
     summary: const StageRelatedItemSummary(doneCount: 1, activeCount: 1),
   );
   final later = _generatedOccurrence(
-    tracker,
-    ruleId: 101,
+    currentTracker,
+    ruleId: 201,
     index: 2,
     date: DateTime(2026, 5, 23),
     label: '兩週後',
   );
   return StageTrackerDetail(
-    stageTracker: tracker,
+    stageTracker: currentTracker,
     stageRules: [
       StageRule(
         id: 201,
-        stageTrackerId: tracker.id,
+        stageTrackerId: currentTracker.id,
         type: StageRuleType.everyNWeeks,
         intervalValue: 1,
         intervalUnit: StageIntervalUnit.weeks,
@@ -576,20 +1117,44 @@ StageTrackerDetail _detailWithPendingAndUpcoming() {
     scheduleStages: [next, later],
     historyStages: [
       _manualOccurrence(
-        tracker,
+        currentTracker,
         recordId: 401,
         date: DateTime(2026, 5, 18),
         label: '滿 18 天',
         status: StageRecordStatus.normal,
       ),
       _manualOccurrence(
-        tracker,
+        currentTracker,
         recordId: 402,
         date: DateTime(2026, 5, 10),
         label: '滿 10 天',
         status: StageRecordStatus.acknowledged,
       ),
     ],
+  );
+}
+
+StageTrackerDetail _detailWithPausedRule() {
+  final detail = _detailWithPendingAndUpcoming();
+  return StageTrackerDetail(
+    stageTracker: detail.stageTracker,
+    stageRules: [
+      StageRule(
+        id: 201,
+        stageTrackerId: detail.stageTracker.id,
+        type: StageRuleType.everyNWeeks,
+        intervalValue: 1,
+        intervalUnit: StageIntervalUnit.weeks,
+        labelTemplate: '第 {value} {unit}',
+        status: StageRuleStatus.paused,
+        createdAt: DateTime(2026, 5),
+        updatedAt: DateTime(2026, 5),
+      ),
+    ],
+    stageRecords: detail.stageRecords,
+    dashboardUpcomingStages: detail.dashboardUpcomingStages,
+    scheduleStages: detail.scheduleStages,
+    historyStages: detail.historyStages,
   );
 }
 
@@ -624,16 +1189,65 @@ StageTrackerDetail _emptyDetail() {
   );
 }
 
-StageTracker _tracker() {
+StageTracker _tracker({String? subjectName, DateTime? trackingEndDate}) {
   return StageTracker(
     id: 1,
     packId: 1,
     title: '寶寶成長',
+    subjectName: subjectName,
     trackingStartDate: DateTime(2026, 5, 1),
+    trackingEndDate: trackingEndDate,
     status: StageTrackerStatus.active,
     createdAt: DateTime(2026, 5),
     updatedAt: DateTime(2026, 5),
   );
+}
+
+ItemPack _pack() {
+  return ItemPack(
+    id: 1,
+    title: '寶寶',
+    iconEmoji: '👶',
+    orderIndex: 1,
+    status: ItemPackStatus.active,
+    isSystemDefault: false,
+    createdAt: DateTime(2026, 5),
+    updatedAt: DateTime(2026, 5),
+  );
+}
+
+StageRelatedItemEntry _relatedEntry(int id, {required String title}) {
+  return StageRelatedItemEntry(
+    relatedItemId: id,
+    bundle: ItemBundle(
+      item: Item(
+        id: id,
+        packId: 1,
+        title: title,
+        type: ItemType.fixed,
+        config: FixedItemConfig(
+          scheduleType: FixedScheduleType.oneTime,
+          anchorDate: DateTime(2026, 6, 1),
+          dueDate: DateTime(2026, 6, 1),
+        ),
+        createdAt: DateTime(2026, 5),
+        updatedAt: DateTime(2026, 5),
+      ),
+      pack: _pack(),
+    ),
+    hasDoneAction: false,
+    hasSkippedAction: false,
+  );
+}
+
+String _editableTextValue(WidgetTester tester, Key fieldKey) {
+  final editable = tester.widget<EditableText>(
+    find.descendant(
+      of: find.byKey(fieldKey),
+      matching: find.byType(EditableText),
+    ),
+  );
+  return editable.controller.text;
 }
 
 StageOccurrence _generatedOccurrence(

@@ -128,6 +128,20 @@ class StageRelatedItemSource {
   final String stageLabel;
 }
 
+class StageRelatedItemEntry {
+  const StageRelatedItemEntry({
+    required this.relatedItemId,
+    required this.bundle,
+    required this.hasDoneAction,
+    required this.hasSkippedAction,
+  });
+
+  final int relatedItemId;
+  final ItemBundle bundle;
+  final bool hasDoneAction;
+  final bool hasSkippedAction;
+}
+
 @DriftAccessor(
   tables: [
     ItemPacks,
@@ -732,6 +746,13 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     return into(stageRules).insert(entry);
   }
 
+  Future<StageRule?> getStageRuleById(int id) async {
+    final row = await (select(
+      stageRules,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _toStageRule(row);
+  }
+
   Future<bool> updateStageRuleRecord(StageRuleRow entry) {
     return update(stageRules).replace(entry);
   }
@@ -938,6 +959,49 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
       pausedCount: paused,
       skippedCount: skipped,
     );
+  }
+
+  Future<List<StageRelatedItemEntry>> relatedItemEntriesForRecord(
+    int stageRecordId,
+  ) async {
+    final query =
+        select(stageRelatedItems).join([
+            innerJoin(items, items.id.equalsExp(stageRelatedItems.itemId)),
+            innerJoin(itemPacks, itemPacks.id.equalsExp(items.packId)),
+          ])
+          ..where(stageRelatedItems.stageRecordId.equals(stageRecordId))
+          ..where(
+            items.status.equals(ItemLifecycleStatus.active.name) |
+                items.status.equals(ItemLifecycleStatus.paused.name),
+          )
+          ..orderBy([OrderingTerm.asc(stageRelatedItems.id)]);
+    final rows = await query.get();
+    final entries = <StageRelatedItemEntry>[];
+    for (final row in rows) {
+      final relatedItem = _toStageRelatedItem(row.readTable(stageRelatedItems));
+      final item = _toItem(row.readTable(items));
+      final actions = await listItemActionRecordsForItem(item.id);
+      final hasDoneAction = actions.any(
+        (record) =>
+            record.actionType == ItemActionType.done && !record.isReverted,
+      );
+      final hasSkippedAction = actions.any(
+        (record) =>
+            record.actionType == ItemActionType.skipped && !record.isReverted,
+      );
+      entries.add(
+        StageRelatedItemEntry(
+          relatedItemId: relatedItem.id,
+          bundle: ItemBundle(
+            item: item,
+            pack: _toItemPack(row.readTable(itemPacks)),
+          ),
+          hasDoneAction: hasDoneAction,
+          hasSkippedAction: hasSkippedAction,
+        ),
+      );
+    }
+    return entries;
   }
 
   Future<StageRelatedItemSource?> getStageRelatedItemSourceForItem(
