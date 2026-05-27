@@ -190,9 +190,6 @@ class ReminderUiText {
   static const addRelatedReminder = '建立相關提醒';
   static const relatedItemsTitle = '相關提醒';
   static const noRelatedReminders = '尚未建立相關提醒';
-  static const createNextStageReminder = '建立下一輪提醒';
-  static const nextRecurringStageTitle = '下一輪階段';
-  static const noNextRecurringStage = '目前沒有下一輪階段。';
   static const relatedItemSourceLabel = '來自';
   static const resourceCompletionDialogTitle = '補充了多少天份？';
   static const resourceCompletionDialogLabel = '新增可用天數';

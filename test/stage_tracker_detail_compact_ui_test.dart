@@ -202,6 +202,14 @@ void main() {
       find.byKey(const Key('detail-view-related-record-302')),
       findsNothing,
     );
+    expect(
+      find.byKey(const Key('detail-recurring-occurrence-icon-rule-201-1')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('detail-recurring-occurrence-icon-record-302')),
+      findsNothing,
+    );
     expect(find.textContaining('相關提醒：1 / 2 已完成'), findsOneWidget);
   });
 
@@ -248,19 +256,36 @@ void main() {
       },
     );
 
-    await tester.tap(find.text('成貓期'));
+    final generatedRow = find.byKey(
+      const Key('detail-stage-occurrence-body-rule-201-1'),
+    );
+    final manualRow = find.byKey(
+      const Key('detail-stage-occurrence-body-record-302'),
+    );
+
+    await tester.ensureVisible(generatedRow);
+    await tester.tap(generatedRow);
     await tester.pumpAndSettle();
     expect(find.text(ReminderUiText.noRelatedReminders), findsOneWidget);
     expect(find.text(ReminderUiText.addRelatedReminder), findsOneWidget);
 
-    await tester.tap(find.text('疫苗提醒'));
+    await tester.ensureVisible(manualRow);
+    await tester.tap(manualRow);
     await tester.pumpAndSettle();
-    expect(find.text(ReminderUiText.relatedItemsTitle), findsOneWidget);
+    await tester.ensureVisible(
+      find.byKey(const Key('stage-related-expanded-record-302')),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text(ReminderUiText.relatedItemsTitle, skipOffstage: false),
+      findsOneWidget,
+    );
     expect(find.text('準備針卡'), findsOneWidget);
     expect(find.textContaining('2026/06/01'), findsWidgets);
     expect(find.text(ReminderUiText.addRelatedReminder), findsWidgets);
 
-    await tester.tap(find.text('成貓期'));
+    await tester.ensureVisible(generatedRow);
+    await tester.tap(generatedRow);
     await tester.pumpAndSettle();
     expect(find.text(ReminderUiText.noRelatedReminders), findsNothing);
     expect(find.text('準備針卡'), findsOneWidget);
@@ -277,7 +302,9 @@ void main() {
       },
     );
 
-    await tester.tap(find.text('疫苗提醒'));
+    await tester.tap(
+      find.byKey(const Key('detail-stage-occurrence-body-record-302')),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('stage-related-item-1')));
     await tester.pumpAndSettle();
@@ -302,7 +329,9 @@ void main() {
         repository: repository,
       );
 
-      await tester.tap(find.text('疫苗提醒'));
+      await tester.tap(
+        find.byKey(const Key('detail-stage-occurrence-body-record-302')),
+      );
       await tester.pumpAndSettle();
       await tester.tap(
         find.byKey(const Key('stage-related-create-record-302')),
@@ -405,6 +434,61 @@ void main() {
     expect(find.byKey(const Key('stage-rule-overflow-201')), findsOneWidget);
     expect(find.byIcon(Icons.edit_outlined), findsNothing);
     expect(find.byIcon(Icons.pause_outlined), findsNothing);
+    expect(find.text('第{value}{unit}'), findsNothing);
+    expect(find.text('下一階段：成貓期・2026/05/21・明天'), findsOneWidget);
+  });
+
+  testWidgets('stage rule rows show resolved next occurrence fallback', (
+    tester,
+  ) async {
+    final tracker = _tracker();
+    final firstRule = StageRule(
+      id: 501,
+      stageTrackerId: tracker.id,
+      type: StageRuleType.everyNDays,
+      intervalValue: 2,
+      intervalUnit: StageIntervalUnit.days,
+      labelTemplate: '由到{value}{unit}',
+      status: StageRuleStatus.active,
+      createdAt: DateTime(2026, 5),
+      updatedAt: DateTime(2026, 5),
+    );
+    final secondRule = StageRule(
+      id: 502,
+      stageTrackerId: tracker.id,
+      type: StageRuleType.everyNWeeks,
+      intervalValue: 1,
+      intervalUnit: StageIntervalUnit.weeks,
+      labelTemplate: '第{value}{unit}',
+      status: StageRuleStatus.active,
+      createdAt: DateTime(2026, 5),
+      updatedAt: DateTime(2026, 5),
+    );
+
+    await _pumpDetail(
+      tester,
+      detail: StageTrackerDetail(
+        stageTracker: tracker,
+        stageRules: [firstRule, secondRule],
+        stageRecords: const [],
+        dashboardUpcomingStages: const [],
+        scheduleStages: [
+          _generatedOccurrence(
+            tracker,
+            ruleId: firstRule.id,
+            index: 1,
+            date: DateTime(2026, 5, 24),
+            label: '由到2天',
+          ),
+        ],
+        historyStages: const [],
+      ),
+    );
+
+    expect(find.text('由到{value}{unit}'), findsNothing);
+    expect(find.text('第{value}{unit}'), findsNothing);
+    expect(find.text('下一階段：由到2天・2026/05/24・4天後'), findsOneWidget);
+    expect(find.text('尚未安排下一階段・啟用中'), findsOneWidget);
   });
 
   testWidgets('stage rule overflow supports edit pause resume and archive', (
@@ -426,6 +510,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('規則管理尚未支援'), findsNothing);
+    expect(find.text('建立下一輪提醒'), findsNothing);
     expect(find.text(ReminderUiText.editStageRule), findsOneWidget);
     expect(find.text(ReminderUiText.pauseStageRule), findsOneWidget);
     expect(find.text(ReminderUiText.archiveStageRule), findsOneWidget);
@@ -471,7 +556,7 @@ void main() {
     expect(repository.ruleStatuses.last, StageRuleStatus.archived);
   });
 
-  testWidgets('stage rule rows expand with next occurrence reminder context', (
+  testWidgets('stage rule rows do not expand next occurrence context', (
     tester,
   ) async {
     await _pumpDetail(tester, detail: _detailWithPendingAndUpcoming());
@@ -479,53 +564,25 @@ void main() {
     await tester.tap(find.text('每 1 週'));
     await tester.pumpAndSettle();
 
-    expect(find.text(ReminderUiText.nextRecurringStageTitle), findsOneWidget);
-    expect(find.textContaining('成貓期'), findsWidgets);
-    expect(find.text('相關提醒 0'), findsOneWidget);
-    expect(find.text(ReminderUiText.createNextStageReminder), findsOneWidget);
+    expect(find.text('下一輪階段'), findsNothing);
+    expect(find.text('建立下一輪提醒'), findsNothing);
+    expect(find.byKey(const Key('stage-rule-expanded-201')), findsNothing);
+    expect(
+      find.byKey(const Key('stage-rule-next-related-count-201')),
+      findsNothing,
+    );
+    expect(find.text('相關提醒 0'), findsNothing);
+    expect(find.text('成貓期'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('stage-rule-overflow-201')));
     await tester.pumpAndSettle();
-    expect(find.text(ReminderUiText.createNextStageReminder), findsWidgets);
-    expect(find.text(ReminderUiText.nextRecurringStageTitle), findsOneWidget);
-    await tester.tapAt(const Offset(10, 10));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('每 1 週'));
-    await tester.pumpAndSettle();
-    expect(find.text(ReminderUiText.nextRecurringStageTitle), findsNothing);
+    expect(find.text('建立下一輪提醒'), findsNothing);
+    expect(find.text(ReminderUiText.editStageRule), findsOneWidget);
+    expect(find.text(ReminderUiText.pauseStageRule), findsOneWidget);
+    expect(find.text(ReminderUiText.archiveStageRule), findsOneWidget);
   });
 
-  testWidgets('stage rule next reminder uses derived next occurrence', (
-    tester,
-  ) async {
-    final db = AppDatabase.forTesting(NativeDatabase.memory());
-    final repository = _RecordingStageTrackerRepository(
-      db,
-      detail: _detailWithPendingAndUpcoming(),
-    );
-    await _pumpDetail(
-      tester,
-      detail: repository.detail!,
-      database: db,
-      repository: repository,
-    );
-
-    await tester.tap(find.byKey(const Key('stage-rule-overflow-201')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text(ReminderUiText.createNextStageReminder));
-    await tester.pumpAndSettle();
-    await tester.tap(
-      find.widgetWithText(FilledButton, ReminderUiText.saveAction),
-    );
-    await tester.pumpAndSettle();
-
-    expect(repository.relatedReminderOccurrences.single.stageRuleId, 201);
-    expect(repository.relatedReminderOccurrences.single.occurrenceIndex, 1);
-    expect(repository.relatedReminderOccurrences.single.label, '成貓期');
-  });
-
-  testWidgets('paused rule expands without next reminder creation', (
+  testWidgets('paused rule stays compact without next reminder creation', (
     tester,
   ) async {
     await _pumpDetail(tester, detail: _detailWithPausedRule());
@@ -533,12 +590,14 @@ void main() {
     await tester.tap(find.text('每 1 週'));
     await tester.pumpAndSettle();
 
-    expect(find.text(ReminderUiText.nextRecurringStageTitle), findsOneWidget);
-    expect(find.text(ReminderUiText.createNextStageReminder), findsNothing);
+    expect(find.text('下一輪階段'), findsNothing);
+    expect(find.text('建立下一輪提醒'), findsNothing);
+    expect(find.byKey(const Key('stage-rule-expanded-201')), findsNothing);
 
     await tester.tap(find.byKey(const Key('stage-rule-overflow-201')));
     await tester.pumpAndSettle();
-    expect(find.text(ReminderUiText.createNextStageReminder), findsNothing);
+    expect(find.text('建立下一輪提醒'), findsNothing);
+    expect(find.text(ReminderUiText.resumeStageRule), findsOneWidget);
   });
 
   testWidgets('timeline page groups, sorts, de-duplicates, and shows actions', (
@@ -702,6 +761,50 @@ void main() {
 
     expect(find.byKey(const Key('detail-upcoming-empty')), findsOneWidget);
     expect(find.byKey(const Key('stage-rule-empty-state')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('long recurring upcoming title with icon fits phone width', (
+    tester,
+  ) async {
+    final view = tester.view;
+    view.physicalSize = const Size(393, 852);
+    view.devicePixelRatio = 1;
+    addTearDown(() {
+      view.resetPhysicalSize();
+      view.resetDevicePixelRatio();
+    });
+    final tracker = _tracker();
+
+    await _pumpDetail(
+      tester,
+      detail: StageTrackerDetail(
+        stageTracker: tracker,
+        stageRules: const [],
+        stageRecords: const [],
+        dashboardUpcomingStages: [
+          _generatedOccurrence(
+            tracker,
+            ruleId: 901,
+            index: 1,
+            date: DateTime(2026, 5, 21),
+            label: '這是一個非常非常長但仍然應該保留循環圖示並用省略號收斂的階段名稱',
+          ),
+        ],
+        scheduleStages: const [],
+        historyStages: const [],
+      ),
+    );
+
+    final title = tester.widget<Text>(
+      find.text('這是一個非常非常長但仍然應該保留循環圖示並用省略號收斂的階段名稱'),
+    );
+    expect(title.maxLines, 1);
+    expect(title.overflow, TextOverflow.ellipsis);
+    expect(
+      find.byKey(const Key('detail-recurring-occurrence-icon-rule-901-1')),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 }
@@ -1106,7 +1209,7 @@ StageTrackerDetail _detailWithPendingAndUpcoming({StageTracker? tracker}) {
         type: StageRuleType.everyNWeeks,
         intervalValue: 1,
         intervalUnit: StageIntervalUnit.weeks,
-        labelTemplate: '第 {value} {unit}',
+        labelTemplate: '第{value}{unit}',
         status: StageRuleStatus.active,
         createdAt: DateTime(2026, 5),
         updatedAt: DateTime(2026, 5),
@@ -1145,7 +1248,7 @@ StageTrackerDetail _detailWithPausedRule() {
         type: StageRuleType.everyNWeeks,
         intervalValue: 1,
         intervalUnit: StageIntervalUnit.weeks,
-        labelTemplate: '第 {value} {unit}',
+        labelTemplate: '第{value}{unit}',
         status: StageRuleStatus.paused,
         createdAt: DateTime(2026, 5),
         updatedAt: DateTime(2026, 5),

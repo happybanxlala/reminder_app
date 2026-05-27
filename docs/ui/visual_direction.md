@@ -917,7 +917,9 @@ flutter test
 
 - StageTracker management uses a compact summary card followed by a 3-column achievement grid.
 - The page is an achievement overview and entry point, not a high-frequency editing list.
-- StageTracker cards show only pack emoji/icon, accumulated days, a title or short title with display-only ellipsis, and a muted core status only when there is a meaningful upcoming countdown or archived state.
+- StageTracker cards show only pack emoji/icon, accumulated days, tracker title with display-only ellipsis, and optional nearest status.
+- StageTracker cards never substitute Pack title for tracker title; Pack identity belongs to the emoji/icon.
+- Nearest status is compact: `今天`, `明天`, `N天後`, or `暫停` when supported by the domain; upcoming includes the next recurring rule occurrence, and when there is no upcoming stage, the status line is hidden.
 - Upcoming count, longest accumulated tracker, and next-stage context belong in the summary card so grid cards stay compact.
 - Dots, progress dots, and fake progress indicators are intentionally absent because StageTracker data may not define total progress.
 - Tapping a card body navigates directly to the StageTracker detail management page.
@@ -930,10 +932,13 @@ flutter test
 - Fixed hero timeline dots are removed; no fake progress indicator replaces them.
 - `下一個階段` and `即將到來的階段` are merged into one compact `即將到來` section.
 - Upcoming stages render as compact timeline rows with date, countdown, optional note, and related reminder summary.
+- Generated upcoming stages show a compact recurring icon next to the title; manual important stages do not show this icon.
 - Rows show related reminder summary as metadata only; standalone create/view related-reminder buttons are not shown on rows.
 - The compact `加入階段` entry stays under the hero and opens the unified stage-entry flow.
 - Large middle action buttons are removed; full timeline lives in the AppBar overflow.
-- Repeat rules are compact settings rows with only row overflow; rule edit / pause / archive support remains future work.
+- Repeat rules are compact settings rows with rule summary, next resolved occurrence label / date / relative days, and row overflow for edit, pause / resume, and archive; they do not support inline expansion.
+- Repeat rule rows never show raw `labelTemplate` strings such as `{value}` / `{unit}`.
+- Repeat rules do not expose a `建立下一輪提醒` entry because related reminders belong to concrete stage occurrences.
 - The detail page does not add a history section; history belongs in the complete timeline flow.
 
 ### 19.14 StageTracker Unified Stage Entry And Timeline 2026-05-21
@@ -961,6 +966,5 @@ flutter test
 - Expanded stage content shows a compact related-reminder list with status marker, title, and due/status text only; it does not render full Item cards.
 - Empty expanded stage content shows compact `建立相關提醒`; rows with existing related reminders still show the same compact create entry.
 - Tapping a related reminder row opens the existing Item summary dialog.
-- StageRule rows can expand inline to show the next occurrence context and related reminder count.
-- StageRule overflow keeps edit / pause or resume / archive, and active rules with a next occurrence can create `建立下一輪提醒`.
-- Next-cycle rule reminders are created for the materialized next StageOccurrence, not directly for the StageRule, and no automatic per-cycle reminder template is introduced.
+- Related reminder inline expansion belongs only to concrete upcoming occurrence rows in StageTracker detail.
+- StageRule rows stay compact settings rows; their overflow keeps edit / pause or resume / archive and does not create next-cycle reminders.

@@ -101,13 +101,14 @@ void main() {
     expect(find.byKey(const Key('stage-tracker-card-1')), findsOneWidget);
     expect(find.byKey(const Key('stage-tracker-emoji-1')), findsOneWidget);
     expect(find.text('🐱'), findsOneWidget);
-    expect(find.text('養貓'), findsOneWidget);
+    expect(find.text('貓咪照顧'), findsOneWidget);
+    expect(find.text('養貓'), findsNothing);
     expect(find.text('19天'), findsOneWidget);
     expect(find.text('90天'), findsOneWidget);
     expect(find.text('15天'), findsOneWidget);
-    expect(find.text('寶寶'), findsOneWidget);
-    expect(find.text('今日'), findsOneWidget);
-    expect(find.text('持續記錄中'), findsNothing);
+    expect(find.text('寶寶成長'), findsWidgets);
+    expect(find.text('今天'), findsOneWidget);
+    expect(find.text('持續中'), findsNothing);
     expect(find.text('第4階'), findsNothing);
 
     final shortTitle = tester.widget<Text>(
@@ -122,13 +123,145 @@ void main() {
     final status = tester.widget<Text>(
       find.byKey(const Key('stage-tracker-status-1')),
     );
-    expect(status.data, '今日');
+    expect(status.data, '今天');
     expect(find.byKey(const Key('stage-tracker-status-2')), findsNothing);
+    expect(find.byKey(const Key('stage-tracker-status-3')), findsNothing);
 
     expect(find.byType(ReminderTimelineDots), findsNothing);
     expect(find.byType(PopupMenuButton), findsNothing);
     expect(find.byType(AlertDialog), findsNothing);
     expect(find.byKey(const Key('stage-tracker-overflow-1')), findsNothing);
+  });
+
+  testWidgets('tracker cards keep tracker titles and nearest status labels', (
+    tester,
+  ) async {
+    final previewDate = DateTime(2026, 5, 20);
+    final packs = [
+      _pack(id: 1, title: '工作', iconEmoji: '💼'),
+      _pack(id: 2, title: '貓', iconEmoji: '🐱'),
+      _pack(id: 3, title: '植', iconEmoji: '🌱'),
+      _pack(id: 4, title: '空', iconEmoji: '📌'),
+      _pack(id: 5, title: '舊', iconEmoji: '🗂️'),
+      _pack(id: 6, title: '停', iconEmoji: '⏹️'),
+    ];
+    final trackers = [
+      _tracker(
+        id: 1,
+        packId: 1,
+        title: 'ReminderApp',
+        start: DateTime(2026, 5, 25),
+      ),
+      _tracker(id: 2, packId: 2, title: '貓咪成長', start: DateTime(2026, 5, 15)),
+      _tracker(id: 3, packId: 3, title: '植物觀察', start: DateTime(2026, 1, 12)),
+      _tracker(id: 4, packId: 4, title: '', start: DateTime(2026, 5, 1)),
+      _tracker(
+        id: 5,
+        packId: 5,
+        title: '封存追蹤',
+        start: DateTime(2026, 5, 1),
+        status: StageTrackerStatus.archived,
+      ),
+      _tracker(
+        id: 6,
+        packId: 6,
+        title: '停止追蹤',
+        start: DateTime(2026, 5, 1),
+        end: DateTime(2026, 5, 10),
+      ),
+    ];
+    final attentionOccurrences = [
+      _occurrence(tracker: trackers[0], ruleId: 1, index: 1, date: previewDate),
+      _occurrence(
+        tracker: trackers[1],
+        ruleId: 2,
+        index: 1,
+        date: previewDate.add(const Duration(days: 1)),
+      ),
+      _occurrence(
+        tracker: trackers[2],
+        ruleId: 3,
+        index: 1,
+        date: previewDate.add(const Duration(days: 3)),
+      ),
+    ];
+    await _pumpStageTrackerManagement(
+      tester,
+      previewDate: previewDate,
+      trackers: trackers,
+      packs: packs,
+      rules: const [],
+      details: {for (final tracker in trackers) tracker.id: _detail(tracker)},
+      attentionOccurrences: attentionOccurrences,
+    );
+
+    expect(find.text('0天'), findsOneWidget);
+    expect(find.text('128天'), findsOneWidget);
+    expect(find.text('ReminderApp'), findsOneWidget);
+    expect(find.text('工作'), findsNothing);
+    expect(
+      tester
+          .widget<Text>(find.byKey(const Key('stage-tracker-short-title-4')))
+          .data,
+      ReminderUiText.stageTrackerLabel,
+    );
+
+    expect(
+      tester.widget<Text>(find.byKey(const Key('stage-tracker-status-1'))).data,
+      '今天',
+    );
+    expect(
+      tester.widget<Text>(find.byKey(const Key('stage-tracker-status-2'))).data,
+      '明天',
+    );
+    expect(
+      tester.widget<Text>(find.byKey(const Key('stage-tracker-status-3'))).data,
+      '3天後',
+    );
+    expect(find.byKey(const Key('stage-tracker-status-4')), findsNothing);
+    expect(find.byKey(const Key('stage-tracker-status-5')), findsNothing);
+    expect(find.byKey(const Key('stage-tracker-status-6')), findsNothing);
+    expect(find.text('持續中'), findsNothing);
+    expect(find.text('已封存'), findsNothing);
+    expect(find.text('已停止'), findsNothing);
+
+    expect(find.byType(ReminderTimelineDots), findsNothing);
+  });
+
+  testWidgets('tracker cards use next rule occurrence as nearest status', (
+    tester,
+  ) async {
+    final previewDate = DateTime(2026, 5, 20);
+    final pack = _pack(id: 1, title: '植物', iconEmoji: '🌱');
+    final tracker = _tracker(
+      id: 1,
+      packId: pack.id,
+      title: '植物觀察',
+      start: DateTime(2026, 5, 18),
+    );
+
+    await _pumpStageTrackerManagement(
+      tester,
+      previewDate: previewDate,
+      trackers: [tracker],
+      packs: [pack],
+      rules: [
+        _rule(
+          id: 101,
+          stageTrackerId: tracker.id,
+          intervalValue: 3,
+          unit: StageIntervalUnit.days,
+        ),
+      ],
+      details: {tracker.id: _detail(tracker)},
+    );
+
+    expect(find.text('植物觀察'), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.byKey(const Key('stage-tracker-status-1'))).data,
+      '明天',
+    );
+    expect(find.text('滿 1 階'), findsNothing);
   });
 
   testWidgets('tapping card body navigates to existing detail route', (
@@ -196,17 +329,31 @@ void main() {
     });
 
     final fixture = _stageFixture();
+    final longTitleTracker = _tracker(
+      id: 9,
+      packId: fixture.packs.first.id,
+      title: '這是一個非常非常長但仍然應該用省略號收斂的階段追蹤標題',
+      start: DateTime(2026, 5, 1),
+    );
     await _pumpStageTrackerManagement(
       tester,
       previewDate: DateTime(2026, 5, 20),
-      trackers: fixture.trackers,
+      trackers: [longTitleTracker, ...fixture.trackers],
       packs: fixture.packs,
       rules: fixture.rules,
-      details: fixture.details,
+      details: {
+        longTitleTracker.id: _detail(longTitleTracker),
+        ...fixture.details,
+      },
     );
 
     expect(tester.takeException(), isNull);
     expect(find.byType(StageTrackerManagementContent), findsOneWidget);
+    final longTitle = tester.widget<Text>(
+      find.byKey(const Key('stage-tracker-short-title-9')),
+    );
+    expect(longTitle.maxLines, 1);
+    expect(longTitle.overflow, TextOverflow.ellipsis);
   });
 }
 
@@ -217,6 +364,7 @@ Future<void> _pumpStageTrackerManagement(
   required List<ItemPack> packs,
   required List<StageRule> rules,
   required Map<int, StageTrackerDetail> details,
+  List<StageOccurrence>? attentionOccurrences,
 }) async {
   final db = AppDatabase.forTesting(NativeDatabase.memory());
   final router = GoRouter(
@@ -249,6 +397,10 @@ Future<void> _pumpStageTrackerManagement(
         stageTrackersProvider.overrideWith((ref) => Stream.value(trackers)),
         stageRulesProvider.overrideWith((ref) => Stream.value(rules)),
         stageRecordsProvider.overrideWith((ref) => Stream.value(const [])),
+        if (attentionOccurrences != null)
+          stageTrackerAttentionOccurrencesProvider.overrideWith(
+            (ref) => AsyncData(attentionOccurrences),
+          ),
         stageTrackerDetailProvider.overrideWith((ref, id) async => details[id]),
       ],
       child: MaterialApp.router(
@@ -343,13 +495,16 @@ StageTracker _tracker({
   required int packId,
   required String title,
   required DateTime start,
+  DateTime? end,
+  StageTrackerStatus status = StageTrackerStatus.active,
 }) {
   return StageTracker(
     id: id,
     packId: packId,
     title: title,
     trackingStartDate: start,
-    status: StageTrackerStatus.active,
+    trackingEndDate: end,
+    status: status,
     createdAt: DateTime(2026, 5),
     updatedAt: DateTime(2026, 5),
   );
