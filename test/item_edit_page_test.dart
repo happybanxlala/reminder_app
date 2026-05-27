@@ -10,7 +10,6 @@ import 'package:reminder_app/features/reminders/domain/attention_policy.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/resource.dart';
-import 'package:reminder_app/features/reminders/presentation/formatters/reminder_formatters.dart';
 import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
 import 'package:reminder_app/features/reminders/providers/item_providers.dart';
 import 'package:reminder_app/features/reminders/providers/resource_providers.dart';
@@ -18,6 +17,86 @@ import 'package:reminder_app/features/reminders/providers/settings_providers.dar
 import 'package:reminder_app/features/reminders/ui/pages/item_edit_page.dart';
 
 void main() {
+  testWidgets('create page uses editor form shell and Chinese basic fields', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          ..._emptyResourceOverrides(),
+          reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
+          activeItemPacksProvider.overrideWith(
+            (ref) => Stream.value([
+              ItemPack(
+                id: 1,
+                title: 'Default Item Pack',
+                status: ItemPackStatus.active,
+                isSystemDefault: true,
+                createdAt: DateTime(2026, 4, 1),
+                updatedAt: DateTime(2026, 4, 1),
+              ),
+            ]),
+          ),
+        ],
+        child: const MaterialApp(home: ItemEditPage(mode: ItemEditMode.create)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('editor-bottom-save-bar')), findsOneWidget);
+    expect(find.byKey(const Key('cancel-button')), findsNothing);
+    expect(find.byKey(const Key('editor-section-basic-info')), findsOneWidget);
+    expect(find.text(ReminderUiText.basicInfoSectionTitle), findsOneWidget);
+    expect(find.text(ReminderUiText.itemTitleFieldLabel), findsOneWidget);
+    expect(find.text(ReminderUiText.itemNoteFieldLabel), findsOneWidget);
+    expect(find.text('Title'), findsNothing);
+    expect(find.text('Note'), findsNothing);
+    expect(find.byKey(const Key('pack-picker-row')), findsOneWidget);
+    expect(find.byKey(const Key('item-type-field')), findsNothing);
+    expect(find.byKey(const Key('item-type-fixed-card')), findsOneWidget);
+    expect(find.byKey(const Key('item-type-state-based-card')), findsOneWidget);
+    expect(find.byKey(const Key('warning-after-field')), findsNothing);
+    expect(find.byKey(const Key('danger-after-field')), findsNothing);
+    expect(
+      find.byKey(const Key('editor-section-resource-binding')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('create page fits iPhone 15 width smoke test', (tester) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          ..._emptyResourceOverrides(),
+          reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
+          activeItemPacksProvider.overrideWith(
+            (ref) => Stream.value([
+              ItemPack(
+                id: 1,
+                title: 'Default Item Pack',
+                status: ItemPackStatus.active,
+                isSystemDefault: true,
+                createdAt: DateTime(2026, 4, 1),
+                updatedAt: DateTime(2026, 4, 1),
+              ),
+            ]),
+          ),
+        ],
+        child: const MaterialApp(home: ItemEditPage(mode: ItemEditMode.create)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), null);
+  });
+
   testWidgets('item editor toggles fields by item type', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -50,25 +129,48 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.byKey(const Key('item-type-field')), findsOneWidget);
-    expect(find.byKey(const Key('state-anchor-date-field')), findsOneWidget);
-    expect(find.byKey(const Key('expected-interval-field')), findsOneWidget);
-    expect(find.byKey(const Key('warning-after-field')), findsNothing);
-    expect(find.byKey(const Key('danger-after-field')), findsNothing);
-    expect(find.byKey(const Key('estimated-duration-field')), findsNothing);
-    expect(find.byKey(const Key('pack-field')), findsOneWidget);
+    expect(find.byKey(const Key('item-type-field')), findsNothing);
+    expect(find.byKey(const Key('item-type-state-based-card')), findsOneWidget);
+    expect(find.byKey(const Key('item-type-fixed-card')), findsOneWidget);
+    expect(find.byKey(const Key('pack-picker-row')), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('pack-field')));
+    await tester.tap(find.byKey(const Key('pack-picker-row')));
     await tester.pumpAndSettle();
     expect(find.text('Default Item Pack'), findsNothing);
     expect(find.text('🏷️ Cat Care').last, findsOneWidget);
     await tester.tap(find.text('🏷️ Cat Care').last);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('item-type-field')));
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('expected-interval-field')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('state-anchor-date-row')), findsOneWidget);
+    expect(find.byKey(const Key('expected-interval-field')), findsOneWidget);
+    expect(find.byKey(const Key('warning-after-field')), findsNothing);
+    expect(find.byKey(const Key('danger-after-field')), findsNothing);
+    expect(find.byKey(const Key('estimated-duration-field')), findsNothing);
+
+    await tester.drag(find.byType(ListView), const Offset(0, 500));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('item-type-fixed-card')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('fixed-repeat-row')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
     expect(find.text('庫存'), findsNothing);
     expect(find.byKey(const Key('resource-danger-before-field')), findsNothing);
+    expect(find.text(ReminderUiText.repeatRuleLabel), findsOneWidget);
+    expect(find.byKey(const Key('fixed-anchor-date-row')), findsOneWidget);
+    expect(find.byKey(const Key('fixed-due-date-row')), findsOneWidget);
+    expect(find.byKey(const Key('fixed-overdue-policy-row')), findsOneWidget);
+    expect(find.byKey(const Key('fixed-warning-before-field')), findsNothing);
+    expect(find.byKey(const Key('fixed-danger-before-field')), findsNothing);
   });
 
   testWidgets('fixed repeat row opens custom stepper and updates summary', (
@@ -97,13 +199,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(
-      find.text(ReminderFormatters.itemType(ItemType.stateBased)),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(
-      find.text(ReminderFormatters.itemType(ItemType.fixed)).last,
+    await tester.tap(find.byKey(const Key('item-type-fixed-card')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('fixed-repeat-row')),
+      120,
+      scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
 
@@ -113,8 +214,14 @@ void main() {
       findsNothing,
     );
     expect(find.text('每 X 天'), findsNothing);
-    expect(find.byKey(const Key('fixed-repeat-summary')), findsOneWidget);
+    expect(find.text(ReminderUiText.repeatRuleLabel), findsOneWidget);
     expect(find.text('每天'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('fixed-anchor-date-row')));
+    await tester.pumpAndSettle();
+    expect(find.byType(DatePickerDialog), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('fixed-repeat-row')));
     await tester.pumpAndSettle();
@@ -189,6 +296,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(find.byKey(const Key('editor-bottom-save-bar')), findsOneWidget);
+    expect(find.byKey(const Key('cancel-button')), findsNothing);
     expect(find.text('Weekly grooming'), findsOneWidget);
     expect(find.text('Brush and trim'), findsOneWidget);
     expect(find.text('2026/04/01'), findsOneWidget);
@@ -196,23 +305,26 @@ void main() {
     expect(
       tester
           .widget<TextFormField>(
-            find.descendant(
-              of: find.byKey(const Key('expected-interval-field')),
-              matching: find.byType(TextFormField),
-            ),
+            find.byKey(const Key('expected-interval-field')),
           )
           .controller!
           .text,
       '14',
     );
     expect(find.byKey(const Key('danger-after-field')), findsNothing);
-    expect(
-      find.byKey(const Key('attention-policy-advanced-section')),
-      findsOneWidget,
-    );
-    expect(find.byKey(const Key('pack-field')), findsNothing);
+    expect(find.byKey(const Key('pack-picker-row')), findsNothing);
     expect(find.byKey(const Key('pack-readonly')), findsOneWidget);
     expect(find.text('📌 一般'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('editor-section-toggle-advanced-settings')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const Key('editor-section-toggle-advanced-settings')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('editor keeps archived current pack visible while editing', (
@@ -333,20 +445,21 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('pack-field')), findsNothing);
+    expect(find.byKey(const Key('pack-picker-row')), findsNothing);
 
     await tester.enterText(find.byType(TextFormField).first, 'Locked item');
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('expected-interval-field')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const Key('expected-interval-field')),
       '21',
     );
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('save-button')),
-      120,
-      scrollable: find.byType(Scrollable).first,
-    );
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.byKey(const Key('save-button')).last);
+    await tester.tap(find.byKey(const Key('save-button')));
     await tester.pump(const Duration(milliseconds: 300));
 
     final items = (await tester.runAsync(() => db.select(db.items).get()))!;
@@ -407,14 +520,15 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     await tester.enterText(find.byType(TextFormField).first, 'Urgent item');
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('expected-interval-field')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const Key('expected-interval-field')),
       '21',
-    );
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('save-button')),
-      120,
-      scrollable: find.byType(Scrollable).first,
     );
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.byKey(const Key('save-button')));
@@ -475,8 +589,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('warning-after-field')), findsNothing);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('editor-section-toggle-advanced-settings')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     await tester.tap(
-      find.byKey(const Key('attention-policy-advanced-section')),
+      find.byKey(const Key('editor-section-toggle-advanced-settings')),
     );
     await tester.pumpAndSettle();
     await tester.ensureVisible(
@@ -486,12 +606,15 @@ void main() {
     await tester.tap(find.byKey(const Key('attention-policy-custom-switch')));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byKey(const Key('warning-after-field')), '5');
-    await tester.enterText(find.byKey(const Key('danger-after-field')), '9');
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('save-button')),
-      120,
-      scrollable: find.byType(Scrollable).first,
+    expect(find.text(ReminderUiText.warningTimingLabel), findsOneWidget);
+    expect(find.text(ReminderUiText.dangerTimingLabel), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const Key('attention-warning-field')),
+      '5',
+    );
+    await tester.enterText(
+      find.byKey(const Key('attention-danger-field')),
+      '9',
     );
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('save-button')));
@@ -558,8 +681,14 @@ void main() {
       find.byKey(const Key('expected-interval-field')),
       '21',
     );
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('editor-section-toggle-advanced-settings')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     await tester.tap(
-      find.byKey(const Key('attention-policy-advanced-section')),
+      find.byKey(const Key('editor-section-toggle-advanced-settings')),
     );
     await tester.pumpAndSettle();
     await tester.ensureVisible(
@@ -568,11 +697,6 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('attention-policy-custom-switch')));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('save-button')),
-      120,
-      scrollable: find.byType(Scrollable).first,
-    );
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('save-button')));
     await tester.pump(const Duration(milliseconds: 300));
@@ -646,7 +770,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('pack-field')), findsNothing);
+    expect(find.byKey(const Key('pack-picker-row')), findsNothing);
     expect(find.byKey(const Key('pack-readonly')), findsOneWidget);
     expect(find.text('Weekly grooming'), findsOneWidget);
     expect(find.text('Brush and trim'), findsOneWidget);
@@ -714,6 +838,103 @@ void main() {
     expect(find.text('2026/04/03'), findsNothing);
   });
 
+  testWidgets('edit resource consumption renders compact editor rows', (
+    tester,
+  ) async {
+    final pack = ItemPack(
+      id: 1,
+      title: 'Default Item Pack',
+      status: ItemPackStatus.active,
+      isSystemDefault: true,
+      createdAt: DateTime(2026, 4, 1),
+      updatedAt: DateTime(2026, 4, 1),
+    );
+    final resource = Resource(
+      id: 9,
+      packId: pack.id,
+      title: 'Water filter',
+      type: ResourceType.quantityBased,
+      config: const QuantityBasedResourceConfig(
+        currentQuantity: 5,
+        unitLabel: '個',
+        warningThreshold: 2,
+        dangerThreshold: 1,
+      ),
+      createdAt: DateTime(2026, 4, 1),
+      updatedAt: DateTime(2026, 4, 1),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
+          activeItemPacksProvider.overrideWith((ref) => Stream.value([pack])),
+          resourcesProvider.overrideWith(
+            (ref) =>
+                Stream.value([ResourceBundle(resource: resource, pack: pack)]),
+          ),
+          itemConsumptionRulesProvider.overrideWith(
+            (ref, itemId) => Stream.value([
+              ResourceConsumptionRule(
+                id: 3,
+                resourceId: resource.id,
+                itemId: 10,
+                consumeAmount: 2,
+                createdAt: DateTime(2026, 4, 1),
+                updatedAt: DateTime(2026, 4, 1),
+              ),
+            ]),
+          ),
+          itemProvider(10).overrideWith(
+            (ref) => Future.value(
+              ItemBundle(
+                item: Item(
+                  id: 10,
+                  packId: pack.id,
+                  title: 'Daily item',
+                  type: ItemType.fixed,
+                  config: FixedItemConfig(
+                    scheduleType: FixedScheduleType.daily,
+                    anchorDate: DateTime(2026, 4, 1),
+                    dueDate: DateTime(2026, 4, 1),
+                  ),
+                  createdAt: DateTime(2026, 4, 1),
+                  updatedAt: DateTime(2026, 4, 1),
+                ),
+                pack: pack,
+              ),
+            ),
+          ),
+        ],
+        child: const MaterialApp(
+          home: ItemEditPage(mode: ItemEditMode.edit, id: 10),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('editor-section-toggle-resource-consumption')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(
+      find.byKey(const Key('editor-section-toggle-resource-consumption')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('resource-consumption-section')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('resource-consumption-row-0')), findsOneWidget);
+    expect(find.text('Water filter'), findsOneWidget);
+    expect(
+      find.text('${ReminderUiText.resourceBindingConsumePrefix} 2 個'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('locked fixed item edit also keeps stored dates', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -768,57 +989,40 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('pack-field')), findsNothing);
+    expect(find.byKey(const Key('pack-picker-row')), findsNothing);
     expect(find.byKey(const Key('pack-readonly')), findsOneWidget);
     expect(find.byKey(const Key('item-type-readonly')), findsOneWidget);
     expect(find.text('2026/04/01'), findsNWidgets(2));
     expect(find.text('2026/04/03'), findsNothing);
   });
 
-  testWidgets('edit cancel exits immediately when there are no changes', (
+  testWidgets('edit back exits immediately when there are no changes', (
     tester,
   ) async {
     await _pumpEditableItemRoute(tester);
 
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('cancel-button')),
-      120,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('cancel-button')));
+    expect(find.byKey(const Key('cancel-button')), findsNothing);
+    await tester.pageBack();
     await tester.pumpAndSettle();
 
     expect(find.text('Home'), findsOneWidget);
     expect(find.text(ReminderUiText.discardChangesTitle), findsNothing);
   });
 
-  testWidgets('edit cancel asks before discarding changes', (tester) async {
+  testWidgets('edit back asks before discarding changes', (tester) async {
     await _pumpEditableItemRoute(tester);
 
     await tester.enterText(find.byKey(const Key('title-field')), 'Changed');
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('cancel-button')),
-      120,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('cancel-button')));
+    await tester.pageBack();
     await tester.pumpAndSettle();
 
     expect(find.text(ReminderUiText.discardChangesTitle), findsOneWidget);
     await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
     await tester.pumpAndSettle();
-    expect(find.text(ReminderUiText.editItem), findsOneWidget);
+    expect(find.text(ReminderUiText.itemEditorEditTitle), findsOneWidget);
 
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('cancel-button')),
-      120,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('cancel-button')));
+    await tester.pageBack();
     await tester.pumpAndSettle();
     await tester.tap(find.text(ReminderUiText.discardChangesAction));
     await tester.pumpAndSettle();
@@ -876,7 +1080,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text(ReminderUiText.editItem), findsOneWidget);
+    expect(find.text(ReminderUiText.itemEditorEditTitle), findsOneWidget);
     expect(find.byKey(const Key('title-field')), findsOneWidget);
   });
 
@@ -929,6 +1133,16 @@ void main() {
       find.byKey(const Key('title-field')),
       'Replace filter',
     );
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('editor-section-toggle-resource-binding')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const Key('editor-section-toggle-resource-binding')),
+    );
+    await tester.pumpAndSettle();
     await tester.drag(find.byType(ListView), const Offset(0, -300));
     await tester.pump();
     await tester.ensureVisible(
@@ -937,17 +1151,40 @@ void main() {
     final addBindingButton = tester.widget<TextButton>(
       find.byKey(const Key('add-resource-binding-draft-button')),
     );
+    expect(
+      find.text(ReminderUiText.resourceBindingEmptySummary),
+      findsOneWidget,
+    );
     addBindingButton.onPressed!();
     await tester.pumpAndSettle();
     expect(repository.recordedBindings, null);
 
     await tester.tap(find.byKey(const Key('resource-binding-save-button')));
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('resource-binding-summary')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(
+      find.text('1 ${ReminderUiText.resourceBindingCountSuffix}'),
+      findsOneWidget,
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('resource-binding-row-0')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.byKey(const Key('resource-binding-row-0')), findsOneWidget);
     expect(find.text('Water filter'), findsOneWidget);
+    expect(
+      find.text('${ReminderUiText.resourceBindingConsumePrefix} 1 個'),
+      findsOneWidget,
+    );
 
     await tester.drag(find.byType(ListView), const Offset(0, -600));
     await tester.pump();
-    await tester.tap(find.byKey(const Key('save-button')).last);
+    await tester.tap(find.byKey(const Key('save-button')));
     await tester.pumpAndSettle();
 
     expect(repository.recordedInput?.title, 'Replace filter');

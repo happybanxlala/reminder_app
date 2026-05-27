@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../presentation/text/reminder_ui_text.dart';
+
 class EditorTitleField extends StatelessWidget {
   const EditorTitleField({
     super.key,
@@ -16,10 +18,13 @@ class EditorTitleField extends StatelessWidget {
       key: const Key('title-field'),
       controller: controller,
       enabled: enabled,
-      decoration: const InputDecoration(labelText: 'Title'),
+      decoration: const InputDecoration(
+        labelText: ReminderUiText.itemTitleFieldLabel,
+        hintText: ReminderUiText.itemTitleFieldHint,
+      ),
       validator: (value) {
         if (value == null || value.trim().isEmpty) {
-          return '請輸入標題';
+          return ReminderUiText.itemTitleFieldRequiredError;
         }
         return null;
       },
@@ -37,7 +42,10 @@ class EditorNoteField extends StatelessWidget {
     return TextFormField(
       key: const Key('note-field'),
       controller: controller,
-      decoration: const InputDecoration(labelText: 'Note'),
+      decoration: const InputDecoration(
+        labelText: ReminderUiText.itemNoteFieldLabel,
+        hintText: ReminderUiText.itemNoteFieldHint,
+      ),
       maxLines: 2,
     );
   }

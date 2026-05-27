@@ -6,7 +6,7 @@ import '../../domain/repeat_rule.dart';
 import '../../domain/repeat_rule_v2.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
-import 'editor_common_fields.dart';
+import 'editor_form_components.dart';
 
 part 'repeat_rule_sheet.dart';
 
@@ -275,35 +275,54 @@ class AttentionPolicyAdvancedSection extends StatelessWidget {
     super.key,
     required this.controller,
     required this.onChanged,
+    this.embedded = false,
   });
 
   final ItemConfigFormController controller;
   final VoidCallback onChanged;
+  final bool embedded;
 
   @override
   Widget build(BuildContext context) {
+    final previewStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+    );
+    final content = [
+      Text(
+        ReminderFormatters.attentionPolicySummary(_previewConfig),
+        style: previewStyle,
+      ),
+      SwitchListTile(
+        key: const Key('attention-policy-custom-switch'),
+        contentPadding: EdgeInsets.zero,
+        title: const Text(ReminderUiText.customAttentionPolicyLabel),
+        subtitle: const Text(ReminderUiText.customAttentionPolicyHelp),
+        value: controller.customizeAttentionPolicy,
+        onChanged: (value) {
+          controller.setCustomizeAttentionPolicy(value);
+          onChanged();
+        },
+      ),
+      if (controller.customizeAttentionPolicy) ...[
+        const SizedBox(height: 8),
+        ..._buildRawFields(),
+      ],
+    ];
+
+    if (embedded) {
+      return Column(
+        key: const Key('attention-policy-advanced-section-content'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: content,
+      );
+    }
+
     return ExpansionTile(
       key: const Key('attention-policy-advanced-section'),
       tilePadding: EdgeInsets.zero,
       title: const Text(ReminderUiText.attentionPolicyAdvancedTitle),
       subtitle: Text(ReminderFormatters.attentionPolicySummary(_previewConfig)),
-      children: [
-        SwitchListTile(
-          key: const Key('attention-policy-custom-switch'),
-          contentPadding: EdgeInsets.zero,
-          title: const Text(ReminderUiText.attentionPolicyCustomToggleLabel),
-          subtitle: const Text(ReminderUiText.attentionPolicyCustomToggleHelp),
-          value: controller.customizeAttentionPolicy,
-          onChanged: (value) {
-            controller.setCustomizeAttentionPolicy(value);
-            onChanged();
-          },
-        ),
-        if (controller.customizeAttentionPolicy) ...[
-          const SizedBox(height: 8),
-          ..._buildRawFields(),
-        ],
-      ],
+      children: content.skip(1).toList(growable: false),
     );
   }
 
@@ -313,29 +332,33 @@ class AttentionPolicyAdvancedSection extends StatelessWidget {
   List<Widget> _buildRawFields() {
     return switch (controller.type) {
       ItemType.fixed => [
-        _DaysField(
-          key: const Key('fixed-warning-before-field'),
+        ReminderEditorNumberField(
+          fieldKey: const Key('attention-warning-field'),
           controller: controller.fixedWarningBeforeController,
-          label: ReminderUiText.warningBeforeDaysFieldLabel,
+          label: ReminderUiText.warningTimingLabel,
+          suffixText: '天前',
         ),
         const SizedBox(height: 12),
-        _DaysField(
-          key: const Key('fixed-danger-before-field'),
+        ReminderEditorNumberField(
+          fieldKey: const Key('attention-danger-field'),
           controller: controller.fixedDangerBeforeController,
-          label: ReminderUiText.dangerBeforeDaysFieldLabel,
+          label: ReminderUiText.dangerTimingLabel,
+          suffixText: '天前',
         ),
       ],
       ItemType.stateBased => [
-        _DaysField(
-          key: const Key('warning-after-field'),
+        ReminderEditorNumberField(
+          fieldKey: const Key('attention-warning-field'),
           controller: controller.warningAfterController,
-          label: ReminderUiText.warningAfterDaysFieldLabel,
+          label: ReminderUiText.warningTimingLabel,
+          suffixText: '天後',
         ),
         const SizedBox(height: 12),
-        _DaysField(
-          key: const Key('danger-after-field'),
+        ReminderEditorNumberField(
+          fieldKey: const Key('attention-danger-field'),
           controller: controller.dangerAfterController,
-          label: ReminderUiText.dangerAfterDaysFieldLabel,
+          label: ReminderUiText.dangerTimingLabel,
+          suffixText: '天後',
         ),
       ],
     };
@@ -373,32 +396,11 @@ class ItemConfigFormSection extends StatelessWidget {
         onTap: () => _showRepeatRuleSheet(context),
       ),
       const SizedBox(height: 12),
-      DropdownButtonFormField<ItemOverduePolicy>(
-        initialValue: controller.overduePolicy,
-        decoration: const InputDecoration(
-          labelText: ReminderUiText.overduePolicyFieldLabel,
-        ),
-        items: ItemOverduePolicy.values
-            .map(
-              (value) => DropdownMenuItem(
-                value: value,
-                child: Text(ReminderFormatters.itemOverduePolicy(value)),
-              ),
-            )
-            .toList(growable: false),
-        onChanged: (value) {
-          if (value == null) {
-            return;
-          }
-          controller.overduePolicy = value;
-          onChanged();
-        },
-      ),
-      const SizedBox(height: 12),
-      EditorDateField(
-        controller: controller.fixedAnchorDateController,
-        label: ReminderUiText.fixedAnchorDateFieldLabel,
-        onPickDate: () => _pickDate(
+      ReminderEditorDateRow(
+        key: const Key('fixed-anchor-date-row'),
+        label: ReminderUiText.fixedAnchorDateLabel,
+        date: controller.selectedFixedAnchorDate,
+        onTap: () => _pickDate(
           context,
           initialDate: controller.selectedFixedAnchorDate,
           onSelected: (value) {
@@ -409,10 +411,11 @@ class ItemConfigFormSection extends StatelessWidget {
         ),
       ),
       const SizedBox(height: 12),
-      EditorDateField(
-        controller: controller.fixedDueDateController,
-        label: ReminderUiText.fixedDueDateFieldLabel,
-        onPickDate: () => _pickDate(
+      ReminderEditorDateRow(
+        key: const Key('fixed-due-date-row'),
+        label: ReminderUiText.fixedDueDateLabel,
+        date: controller.selectedFixedDueDate,
+        onTap: () => _pickDate(
           context,
           initialDate: controller.selectedFixedDueDate,
           onSelected: (value) {
@@ -422,24 +425,67 @@ class ItemConfigFormSection extends StatelessWidget {
           },
         ),
       ),
+      const SizedBox(height: 12),
+      ReminderEditorPickerRow(
+        key: const Key('fixed-overdue-policy-row'),
+        label: ReminderUiText.overduePolicyLabel,
+        value: ReminderFormatters.itemOverduePolicy(controller.overduePolicy),
+        onTap: () => _showOverduePolicySheet(context),
+      ),
       if (showAttentionFields) ...[
         const SizedBox(height: 12),
-        _DaysField(
-          key: const Key('fixed-warning-before-field'),
+        ReminderEditorNumberField(
+          fieldKey: const Key('config-warning-timing-field'),
           controller: controller.fixedWarningBeforeController,
-          label: ReminderUiText.warningBeforeDaysFieldLabel,
+          label: ReminderUiText.warningTimingLabel,
+          suffixText: '天前',
         ),
         const SizedBox(height: 12),
-        _DaysField(
-          key: const Key('fixed-danger-before-field'),
+        ReminderEditorNumberField(
+          fieldKey: const Key('config-danger-timing-field'),
           controller: controller.fixedDangerBeforeController,
-          label: ReminderUiText.dangerBeforeDaysFieldLabel,
+          label: ReminderUiText.dangerTimingLabel,
+          suffixText: '天前',
         ),
       ] else ...[
         const SizedBox(height: 12),
         _AttentionPolicyPreview(config: controller.buildConfigForCreate()),
       ],
     ];
+  }
+
+  Future<void> _showOverduePolicySheet(BuildContext context) async {
+    final selection = await showModalBottomSheet<ItemOverduePolicy>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          children: [
+            Text(
+              ReminderUiText.overduePolicyLabel,
+              style: Theme.of(sheetContext).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            for (final value in ItemOverduePolicy.values)
+              ListTile(
+                key: Key('overdue-policy-${value.name}'),
+                title: Text(ReminderFormatters.itemOverduePolicy(value)),
+                trailing: controller.overduePolicy == value
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () => Navigator.of(sheetContext).pop(value),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (selection == null || !context.mounted) {
+      return;
+    }
+    controller.overduePolicy = selection;
+    onChanged();
   }
 
   Future<void> _showRepeatRuleSheet(BuildContext context) async {
@@ -464,11 +510,11 @@ class ItemConfigFormSection extends StatelessWidget {
 
   List<Widget> _buildStateBasedFields(BuildContext context) {
     return [
-      EditorDateField(
-        key: const Key('state-anchor-date-field'),
-        controller: controller.stateAnchorDateController,
-        label: ReminderUiText.stateAnchorDateFieldLabel,
-        onPickDate: () => _pickDate(
+      ReminderEditorDateRow(
+        key: const Key('state-anchor-date-row'),
+        label: ReminderUiText.stateAnchorDateLabel,
+        date: controller.selectedStateAnchorDate,
+        onTap: () => _pickDate(
           context,
           initialDate: controller.selectedStateAnchorDate,
           onSelected: (value) {
@@ -480,24 +526,28 @@ class ItemConfigFormSection extends StatelessWidget {
       ),
       if (showAttentionFields) ...[
         const SizedBox(height: 12),
-        _DaysField(
-          key: const Key('warning-after-field'),
+        ReminderEditorNumberField(
+          fieldKey: const Key('config-warning-timing-field'),
           controller: controller.warningAfterController,
-          label: ReminderUiText.warningAfterDaysFieldLabel,
+          label: ReminderUiText.warningTimingLabel,
+          suffixText: '天後',
         ),
         const SizedBox(height: 12),
-        _DaysField(
-          key: const Key('danger-after-field'),
+        ReminderEditorNumberField(
+          fieldKey: const Key('config-danger-timing-field'),
           controller: controller.dangerAfterController,
-          label: ReminderUiText.dangerAfterDaysFieldLabel,
+          label: ReminderUiText.dangerTimingLabel,
+          suffixText: '天後',
         ),
       ] else ...[
         const SizedBox(height: 12),
-        _DaysField(
-          key: const Key('expected-interval-field'),
+        ReminderEditorNumberField(
+          fieldKey: const Key('expected-interval-field'),
           controller: controller.stateExpectedIntervalController,
-          label: ReminderUiText.expectedIntervalDaysFieldLabel,
+          label: ReminderUiText.expectedIntervalLabel,
+          suffixText: '天',
           minimum: 1,
+          onChanged: onChanged,
         ),
         const SizedBox(height: 12),
         _AttentionPolicyPreview(config: controller.buildConfigForCreate()),
@@ -555,56 +605,13 @@ class _RepeatRuleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      child: ListTile(
-        key: const Key('fixed-repeat-row'),
-        title: const Text('重複'),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              ReminderFormatters.repeatRuleV2Summary(rule),
-              key: const Key('fixed-repeat-summary'),
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Icon(Icons.chevron_right),
-          ],
-        ),
-        onTap: onTap,
-      ),
-    );
-  }
-}
-
-class _DaysField extends StatelessWidget {
-  const _DaysField({
-    super.key,
-    required this.controller,
-    required this.label,
-    this.minimum = 0,
-  });
-
-  final TextEditingController controller;
-  final String label;
-  final int minimum;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: TextInputType.number,
-      decoration: InputDecoration(labelText: label),
-      validator: (value) {
-        final parsed = int.tryParse((value ?? '').trim());
-        if (parsed == null || parsed < minimum) {
-          return minimum <= 0 ? '請輸入 0 或以上整數' : '請輸入 $minimum 或以上整數';
-        }
-        return null;
-      },
+    return ReminderEditorPickerRow(
+      key: const Key('fixed-repeat-row'),
+      label: ReminderUiText.repeatRuleLabel,
+      value: rule == null
+          ? ReminderUiText.noRepeatLabel
+          : ReminderFormatters.repeatRuleV2Summary(rule),
+      onTap: onTap,
     );
   }
 }

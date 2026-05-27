@@ -80,7 +80,11 @@ class _RepeatRuleSheetState extends State<RepeatRuleSheet> {
 
   Widget _buildQuickOptions(BuildContext context) {
     final options = <_QuickRepeatOption>[
-      const _QuickRepeatOption(label: '永不', keyValue: 'never', rule: null),
+      const _QuickRepeatOption(
+        label: ReminderUiText.noRepeatLabel,
+        keyValue: 'never',
+        rule: null,
+      ),
       _QuickRepeatOption(
         label: '每天',
         keyValue: 'daily',
@@ -107,33 +111,60 @@ class _RepeatRuleSheetState extends State<RepeatRuleSheet> {
       mainAxisSize: MainAxisSize.min,
       children: [
         _SheetHeader(title: '重複', onBack: null),
-        Card(
-          margin: EdgeInsets.zero,
-          child: Column(
-            children: [
-              for (final option in options)
-                _RepeatOptionTile(
-                  key: Key('repeat-option-${option.keyValue}'),
-                  label: option.label,
-                  selected: _matchesQuickOption(option.rule),
-                  onTap: () => Navigator.of(
-                    context,
-                  ).pop(_RepeatRuleSelection(option.rule)),
-                ),
-              const Divider(height: 1),
-              ListTile(
-                key: const Key('repeat-option-custom'),
-                title: const Text('自訂…'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => setState(() {
-                  _isCustom = true;
-                }),
+        Column(
+          children: [
+            for (final option in options)
+              _RepeatOptionTile(
+                key: Key('repeat-option-${option.keyValue}'),
+                label: option.label,
+                selected: _matchesQuickOption(option.rule),
+                onTap: () => Navigator.of(
+                  context,
+                ).pop(_RepeatRuleSelection(option.rule)),
               ),
-            ],
-          ),
+            const Divider(height: 1),
+            ReminderEditorPickerRow(
+              key: const Key('repeat-option-custom'),
+              label: '自訂',
+              value: '設定頻率、星期與結束條件',
+              onTap: () => setState(() {
+                _isCustom = true;
+              }),
+            ),
+          ],
         ),
       ],
     );
+  }
+
+  Future<void> _showUnitPicker(BuildContext context) async {
+    final value = await showModalBottomSheet<RepeatUnit>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          children: [
+            Text('頻率', style: Theme.of(sheetContext).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            for (final unit in RepeatUnit.values)
+              ListTile(
+                key: Key('repeat-frequency-${unit.name}'),
+                title: Text(_unitTitle(unit)),
+                trailing: unit == _unit ? const Icon(Icons.check) : null,
+                onTap: () => Navigator.of(sheetContext).pop(unit),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (value == null || !context.mounted) {
+      return;
+    }
+    setState(() {
+      _unit = value;
+    });
   }
 
   Widget _buildCustom(BuildContext context) {
@@ -152,53 +183,19 @@ class _RepeatRuleSheetState extends State<RepeatRuleSheet> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                Card(
-                  margin: EdgeInsets.zero,
-                  child: Column(
-                    children: [
-                      ListTile(
-                        title: const Text('頻率'),
-                        trailing: DropdownButton<RepeatUnit>(
-                          key: const Key('repeat-frequency-field'),
-                          value: _unit,
-                          items: const [
-                            DropdownMenuItem(
-                              value: RepeatUnit.day,
-                              child: Text('每天'),
-                            ),
-                            DropdownMenuItem(
-                              value: RepeatUnit.week,
-                              child: Text('每週'),
-                            ),
-                            DropdownMenuItem(
-                              value: RepeatUnit.month,
-                              child: Text('每月'),
-                            ),
-                            DropdownMenuItem(
-                              value: RepeatUnit.year,
-                              child: Text('每年'),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            if (value == null) {
-                              return;
-                            }
-                            setState(() {
-                              _unit = value;
-                            });
-                          },
-                        ),
-                      ),
-                      const Divider(height: 1),
-                      _StepperTile(
-                        value: _interval,
-                        unitLabel: _unitLabel(_unit),
-                        onChanged: (value) => setState(() {
-                          _interval = value;
-                        }),
-                      ),
-                    ],
-                  ),
+                ReminderEditorPickerRow(
+                  key: const Key('repeat-frequency-field'),
+                  label: '頻率',
+                  value: _unitTitle(_unit),
+                  onTap: () => _showUnitPicker(context),
+                ),
+                const SizedBox(height: 12),
+                _StepperTile(
+                  value: _interval,
+                  unitLabel: _unitLabel(_unit),
+                  onChanged: (value) => setState(() {
+                    _interval = value;
+                  }),
                 ),
                 if (_unit == RepeatUnit.week) ...[
                   const SizedBox(height: 12),
@@ -336,6 +333,15 @@ class _RepeatRuleSheetState extends State<RepeatRuleSheet> {
     };
   }
 
+  String _unitTitle(RepeatUnit unit) {
+    return switch (unit) {
+      RepeatUnit.day => '每天',
+      RepeatUnit.week => '每週',
+      RepeatUnit.month => '每月',
+      RepeatUnit.year => '每年',
+    };
+  }
+
   MonthlyWeekOrdinal _ordinalForDate(DateTime value) {
     final ordinal = ((value.day - 1) ~/ 7) + 1;
     return switch (ordinal) {
@@ -469,39 +475,33 @@ class _WeekdaySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('星期', style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
           children: [
-            Text('星期', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final weekday in _weekdays)
-                  FilterChip(
-                    key: Key('repeat-weekday-$weekday'),
-                    label: Text(_shortWeekday(weekday)),
-                    selected: selected.contains(weekday),
-                    onSelected: (value) {
-                      final next = {...selected};
-                      if (value) {
-                        next.add(weekday);
-                      } else if (next.length > 1) {
-                        next.remove(weekday);
-                      }
-                      onChanged(next);
-                    },
-                  ),
-              ],
-            ),
+            for (final weekday in _weekdays)
+              FilterChip(
+                key: Key('repeat-weekday-$weekday'),
+                label: Text(_shortWeekday(weekday)),
+                selected: selected.contains(weekday),
+                onSelected: (value) {
+                  final next = {...selected};
+                  if (value) {
+                    next.add(weekday);
+                  } else if (next.length > 1) {
+                    next.remove(weekday);
+                  }
+                  onChanged(next);
+                },
+              ),
           ],
         ),
-      ),
+      ],
     );
   }
 }
@@ -529,101 +529,115 @@ class _MonthlySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SegmentedButton<MonthlyRepeatMode>(
-              key: const Key('repeat-monthly-mode'),
-              segments: const [
-                ButtonSegment(
-                  value: MonthlyRepeatMode.dates,
-                  label: Text('日期'),
-                ),
-                ButtonSegment(
-                  value: MonthlyRepeatMode.nthWeekday,
-                  label: Text('星期…'),
-                ),
-              ],
-              selected: {mode},
-              onSelectionChanged: (value) => onModeChanged(value.single),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SegmentedButton<MonthlyRepeatMode>(
+          key: const Key('repeat-monthly-mode'),
+          segments: const [
+            ButtonSegment(value: MonthlyRepeatMode.dates, label: Text('日期')),
+            ButtonSegment(
+              value: MonthlyRepeatMode.nthWeekday,
+              label: Text('星期'),
             ),
-            const SizedBox(height: 12),
-            if (mode == MonthlyRepeatMode.dates)
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (var day = 1; day <= 31; day += 1)
-                    FilterChip(
-                      key: Key('repeat-month-day-$day'),
-                      label: Text('$day'),
-                      selected: monthDays.contains(day),
-                      onSelected: (value) {
-                        final next = {...monthDays};
-                        if (value) {
-                          next.add(day);
-                        } else if (next.length > 1) {
-                          next.remove(day);
-                        }
-                        onMonthDaysChanged(next);
-                      },
-                    ),
-                ],
-              )
-            else
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButton<MonthlyWeekOrdinal>(
-                      key: const Key('repeat-monthly-ordinal'),
-                      value: ordinal,
-                      isExpanded: true,
-                      items: MonthlyWeekOrdinal.values
-                          .map(
-                            (value) => DropdownMenuItem(
-                              value: value,
-                              child: Text(_ordinalLabel(value)),
-                            ),
-                          )
-                          .toList(growable: false),
-                      onChanged: (value) {
-                        if (value != null) {
-                          onOrdinalChanged(value);
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: DropdownButton<int>(
-                      key: const Key('repeat-monthly-weekday'),
-                      value: weekday,
-                      isExpanded: true,
-                      items: _weekdays
-                          .map(
-                            (value) => DropdownMenuItem(
-                              value: value,
-                              child: Text(_weekday(value)),
-                            ),
-                          )
-                          .toList(growable: false),
-                      onChanged: (value) {
-                        if (value != null) {
-                          onWeekdayChanged(value);
-                        }
-                      },
-                    ),
-                  ),
-                ],
+          ],
+          selected: {mode},
+          onSelectionChanged: (value) => onModeChanged(value.single),
+        ),
+        const SizedBox(height: 12),
+        if (mode == MonthlyRepeatMode.dates)
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (var day = 1; day <= 31; day += 1)
+                FilterChip(
+                  key: Key('repeat-month-day-$day'),
+                  label: Text('$day'),
+                  selected: monthDays.contains(day),
+                  onSelected: (value) {
+                    final next = {...monthDays};
+                    if (value) {
+                      next.add(day);
+                    } else if (next.length > 1) {
+                      next.remove(day);
+                    }
+                    onMonthDaysChanged(next);
+                  },
+                ),
+            ],
+          )
+        else ...[
+          ReminderEditorPickerRow(
+            key: const Key('repeat-monthly-ordinal'),
+            label: '第幾個',
+            value: _ordinalLabel(ordinal),
+            onTap: () => _showOrdinalPicker(context),
+          ),
+          const SizedBox(height: 12),
+          ReminderEditorPickerRow(
+            key: const Key('repeat-monthly-weekday'),
+            label: '星期',
+            value: _weekday(weekday),
+            onTap: () => _showWeekdayPicker(context),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _showOrdinalPicker(BuildContext context) async {
+    final value = await showModalBottomSheet<MonthlyWeekOrdinal>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          children: [
+            Text('第幾個', style: Theme.of(sheetContext).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            for (final value in MonthlyWeekOrdinal.values)
+              ListTile(
+                key: Key('repeat-monthly-ordinal-${value.name}'),
+                title: Text(_ordinalLabel(value)),
+                trailing: value == ordinal ? const Icon(Icons.check) : null,
+                onTap: () => Navigator.of(sheetContext).pop(value),
               ),
           ],
         ),
       ),
     );
+    if (value != null) {
+      onOrdinalChanged(value);
+    }
+  }
+
+  Future<void> _showWeekdayPicker(BuildContext context) async {
+    final value = await showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          children: [
+            Text('星期', style: Theme.of(sheetContext).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            for (final value in _weekdays)
+              ListTile(
+                key: Key('repeat-monthly-weekday-$value'),
+                title: Text(_weekday(value)),
+                trailing: value == weekday ? const Icon(Icons.check) : null,
+                onTap: () => Navigator.of(sheetContext).pop(value),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (value != null) {
+      onWeekdayChanged(value);
+    }
   }
 }
 
@@ -646,65 +660,72 @@ class _EndRepeatSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Column(
-        children: [
-          ListTile(
-            title: const Text('結束重複'),
-            trailing: DropdownButton<RepeatEndType>(
-              key: const Key('repeat-end-type'),
-              value: endType,
-              items: const [
-                DropdownMenuItem(value: RepeatEndType.never, child: Text('永不')),
-                DropdownMenuItem(
-                  value: RepeatEndType.onDate,
-                  child: Text('指定日期'),
-                ),
-                DropdownMenuItem(
-                  value: RepeatEndType.afterCount,
-                  child: Text('重複次數'),
-                ),
-              ],
-              onChanged: (value) {
-                if (value != null) {
-                  onEndTypeChanged(value);
-                }
-              },
-            ),
-          ),
-          if (endType == RepeatEndType.onDate) ...[
-            const Divider(height: 1),
-            ListTile(
-              key: const Key('repeat-end-date-row'),
-              title: const Text('直到'),
-              trailing: Text(ReminderFormatters.date(endDate)),
-              onTap: () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: endDate,
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime(2035),
+    return Column(
+      children: [
+        ReminderEditorPickerRow(
+          key: const Key('repeat-end-type'),
+          label: '結束重複',
+          value: _endTypeLabel(endType),
+          onTap: () => _showEndTypePicker(context),
+        ),
+        if (endType == RepeatEndType.onDate) ...[
+          const SizedBox(height: 12),
+          ReminderEditorDateRow(
+            key: const Key('repeat-end-date-row'),
+            label: '直到',
+            date: endDate,
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: endDate,
+                firstDate: DateTime(2020),
+                lastDate: DateTime(2035),
+              );
+              if (picked != null) {
+                onEndDateChanged(
+                  DateTime(picked.year, picked.month, picked.day),
                 );
-                if (picked != null) {
-                  onEndDateChanged(
-                    DateTime(picked.year, picked.month, picked.day),
-                  );
-                }
-              },
-            ),
-          ],
-          if (endType == RepeatEndType.afterCount) ...[
-            const Divider(height: 1),
-            _StepperTile(
-              value: endCount,
-              unitLabel: '次',
-              onChanged: onEndCountChanged,
-            ),
-          ],
+              }
+            },
+          ),
         ],
+        if (endType == RepeatEndType.afterCount) ...[
+          const SizedBox(height: 12),
+          _StepperTile(
+            value: endCount,
+            unitLabel: '次',
+            onChanged: onEndCountChanged,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _showEndTypePicker(BuildContext context) async {
+    final value = await showModalBottomSheet<RepeatEndType>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          children: [
+            Text('結束重複', style: Theme.of(sheetContext).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            for (final value in RepeatEndType.values)
+              ListTile(
+                key: Key('repeat-end-option-${value.name}'),
+                title: Text(_endTypeLabel(value)),
+                trailing: value == endType ? const Icon(Icons.check) : null,
+                onTap: () => Navigator.of(sheetContext).pop(value),
+              ),
+          ],
+        ),
       ),
     );
+    if (value != null) {
+      onEndTypeChanged(value);
+    }
   }
 }
 
@@ -743,5 +764,13 @@ String _ordinalLabel(MonthlyWeekOrdinal ordinal) {
     MonthlyWeekOrdinal.fourth => '第四個',
     MonthlyWeekOrdinal.fifth => '第五個',
     MonthlyWeekOrdinal.last => '最後一個',
+  };
+}
+
+String _endTypeLabel(RepeatEndType type) {
+  return switch (type) {
+    RepeatEndType.never => '永不',
+    RepeatEndType.onDate => '指定日期',
+    RepeatEndType.afterCount => '重複次數',
   };
 }

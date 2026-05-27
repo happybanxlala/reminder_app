@@ -968,3 +968,23 @@ flutter test
 - Tapping a related reminder row opens the existing Item summary dialog.
 - Related reminder inline expansion belongs only to concrete upcoming occurrence rows in StageTracker detail.
 - StageRule rows stay compact settings rows; their overflow keeps edit / pause or resume / archive and does not create next-cycle reminders.
+
+### 19.17 Editor Form Design System 2026-05-27
+
+- Create / update pages now use an Editor Form Design System with comfortable compact density, card sections, row fields, selectable cards, and a sticky bottom action bar.
+- Create item follows a fast-create strategy: it asks for basic information, reminder mode, and necessary schedule fields; warning / danger raw fields are not exposed during create.
+- Edit item keeps complete management capabilities through collapsible advanced sections, including custom attention policy and resource consumption binding.
+- Text input remains standard TextField / TextFormField, while selection-style fields use picker rows instead of raw dropdown form fields.
+- Item type selection in create uses two selectable cards: fixed rhythm and flexible rhythm. Existing item type remains read-only in edit.
+- Save lives in the sticky bottom action bar for create and edit. AppBar/system back keeps dirty discard confirmation semantics.
+- Create resource binding remains available only when the selected pack has active quantity resources, is collapsed by default, and stays hidden when no bindable resources exist.
+
+### 19.18 Item Config Editor Rows 2026-05-27
+
+- Item config internals now use editor rows and compact form fields so fixed rhythm, flexible rhythm, repeat rules, advanced attention timing, and resource binding read as one form language.
+- Fixed item create/edit uses a single `重複規則` picker row with readable summaries, plus `開始日期`, `到期日期`, and `逾期處理` rows.
+- Flexible item create/edit uses `開始計算日` and a compact `預期處理間隔` number field; warning / danger timing stays out of create.
+- Warning / danger raw timing fields are available only in edit advanced after enabling `自訂提醒時機`; system default copy explains automatic timing.
+- Repeat rule editing enters from the picker row and keeps readable summaries such as `每天`, `每 2 天`, `每週五`, and `不重複`.
+- Resource binding and resource consumption use compact rows showing resource title and `完成時消耗 N 單位`; create binding summary shows `未設定` or the number of linked resources.
+- The form keeps comfortable compact density and preserves existing domain, repository, routing, and persistence semantics.

@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/reminder_theme.dart';
 import '../../data/item_repository.dart';
 import '../../data/local/reminder_dao.dart';
-import '../../data/resource_repository.dart';
 import '../../domain/attention_policy.dart';
 import '../../domain/item.dart';
 import '../../domain/item_pack.dart';
@@ -15,10 +14,11 @@ import '../../providers/item_providers.dart';
 import '../../providers/resource_providers.dart';
 import '../../providers/settings_providers.dart';
 import '../widgets/editor_common_fields.dart';
+import '../widgets/editor_form_components.dart';
 import '../widgets/item_config_form_section.dart';
 import '../widgets/pack_picker.dart';
 import '../widgets/resource_binding_draft_section.dart';
-import '../widgets/reminder_components.dart';
+import '../widgets/resource_consumption_section.dart';
 
 enum ItemEditMode { create, edit }
 
@@ -106,6 +106,11 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     _initializeIfNeeded(bundle);
     final packOptions = _packOptions(activePacks, bundle?.pack);
     final draftPackId = _resolvedPackId(activePacks);
+    final showCreateResourceBinding =
+        !_isEdit &&
+        draftPackId != null &&
+        (_availableBindingResources(resources, draftPackId).isNotEmpty ||
+            _resourceBindingDrafts.isNotEmpty);
 
     return PopScope<Object?>(
       canPop: !_shouldConfirmDiscard,
@@ -115,154 +120,95 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
         }
         await _discardAndPopIfConfirmed();
       },
-      child: Scaffold(
-        appBar: AppBar(title: Text(_pageTitle)),
+      child: ReminderEditorScaffold(
+        title: _pageTitle,
+        bottomBar: ReminderEditorBottomBar(onSave: _save),
         body: Form(
           key: _formKey,
           child: ListView(
-            padding: const EdgeInsets.all(ReminderSpacing.page),
+            padding: const EdgeInsets.fromLTRB(
+              ReminderSpacing.page,
+              ReminderSpacing.page,
+              ReminderSpacing.page,
+              96,
+            ),
             children: [
-              EditorTitleField(controller: _titleController),
+              _buildBasicSection(activePacks, bundle, packOptions),
               const SizedBox(height: 12),
-              EditorNoteField(controller: _descriptionController),
-              if (_isEdit) ...[
-                const SizedBox(height: 12),
-                InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: ReminderUiText.packFieldLabel,
-                  ),
-                  child: Text(
-                    _readOnlyPackLabel(bundle?.pack),
-                    key: const Key('pack-readonly'),
-                  ),
-                ),
-              ] else if (!_isPackLocked) ...[
-                const SizedBox(height: 12),
-                DropdownButtonFormField<int?>(
-                  key: const Key('pack-field'),
-                  initialValue: _selectedPackId,
-                  decoration: const InputDecoration(
-                    labelText: ReminderUiText.packFieldLabel,
-                  ),
-                  items: packOptions
-                      .map(
-                        (option) => DropdownMenuItem<int?>(
-                          value: option.id,
-                          enabled: option.enabled,
-                          child: Text(option.label),
-                        ),
-                      )
-                      .toList(growable: false),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedPackId = value;
-                    });
-                  },
-                ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    key: const Key('create-item-add-pack-button'),
-                    onPressed: _createPackInline,
-                    icon: const Icon(Icons.add),
-                    label: const Text(ReminderUiText.addItemPack),
-                  ),
-                ),
-              ],
+              _buildReminderModeSection(),
               const SizedBox(height: 12),
-              if (_isEdit)
-                InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: ReminderUiText.itemTypeFieldLabel,
+              ReminderEditorSection(
+                key: const Key('editor-section-schedule-settings'),
+                title: ReminderUiText.scheduleSettingsSectionTitle,
+                children: [
+                  ItemConfigFormSection(
+                    controller: _configController,
+                    onChanged: () => setState(() {}),
+                    showAttentionFields: false,
                   ),
-                  child: Text(
-                    ReminderFormatters.itemType(_configController.type),
-                    key: const Key('item-type-readonly'),
-                  ),
-                )
-              else
-                DropdownButtonFormField<ItemType>(
-                  key: const Key('item-type-field'),
-                  initialValue: _configController.type,
-                  decoration: const InputDecoration(
-                    labelText: ReminderUiText.itemTypeFieldLabel,
-                  ),
-                  items: ItemType.values
-                      .map(
-                        (value) => DropdownMenuItem(
-                          value: value,
-                          child: Text(ReminderFormatters.itemType(value)),
-                        ),
-                      )
-                      .toList(growable: false),
-                  onChanged: (value) {
-                    if (value == null) {
-                      return;
-                    }
-                    setState(() {
-                      _configController.type = value;
-                    });
-                  },
-                ),
-              const SizedBox(height: 12),
-              ItemConfigFormSection(
-                controller: _configController,
-                onChanged: () => setState(() {}),
-                showAttentionFields: false,
+                ],
               ),
-              if (!_isEdit) ...[
+              if (showCreateResourceBinding) ...[
                 const SizedBox(height: 12),
-                ResourceBindingDraftSection(
-                  drafts: _resourceBindingDrafts,
-                  resources: resources,
-                  packId: draftPackId,
-                  onChanged: (drafts) {
-                    setState(() {
-                      _resourceBindingDrafts = drafts;
-                    });
-                  },
+                ReminderEditorSection(
+                  key: const Key('editor-section-resource-binding'),
+                  title: ReminderUiText.resourceBindingSectionTitle,
+                  trailing: Text(
+                    _resourceBindingSummary,
+                    key: const Key('resource-binding-summary'),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  collapsible: true,
+                  initiallyExpanded: false,
+                  toggleKey: const Key(
+                    'editor-section-toggle-resource-binding',
+                  ),
+                  children: [
+                    ResourceBindingDraftSection(
+                      drafts: _resourceBindingDrafts,
+                      resources: resources,
+                      packId: draftPackId,
+                      embedded: true,
+                      onChanged: (drafts) {
+                        setState(() {
+                          _resourceBindingDrafts = drafts;
+                        });
+                      },
+                    ),
+                  ],
                 ),
               ],
               if (_isEdit) ...[
                 const SizedBox(height: 12),
-                AttentionPolicyAdvancedSection(
-                  controller: _configController,
-                  onChanged: () => setState(() {}),
+                ReminderEditorAdvancedSection(
+                  key: const Key('attention-policy-advanced-section'),
+                  title: ReminderUiText.advancedSettingsSectionTitle,
+                  subtitle: ReminderUiText.attentionPolicyAdvancedTitle,
+                  toggleKey: const Key(
+                    'editor-section-toggle-advanced-settings',
+                  ),
+                  children: [
+                    AttentionPolicyAdvancedSection(
+                      controller: _configController,
+                      onChanged: () => setState(() {}),
+                      embedded: true,
+                    ),
+                  ],
                 ),
                 if (bundle != null) ...[
                   const SizedBox(height: 12),
-                  _ResourceConsumptionSection(itemId: widget.id!),
+                  ReminderEditorSection(
+                    key: const Key('editor-section-resource-consumption'),
+                    title: ReminderUiText.resourceBindingSectionTitle,
+                    collapsible: true,
+                    initiallyExpanded: false,
+                    toggleKey: const Key(
+                      'editor-section-toggle-resource-consumption',
+                    ),
+                    children: [ResourceConsumptionSection(itemId: widget.id!)],
+                  ),
                 ],
               ],
-              const SizedBox(height: 24),
-              if (_isEdit)
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        key: const Key('cancel-button'),
-                        onPressed: _cancel,
-                        child: Text(
-                          MaterialLocalizations.of(context).cancelButtonLabel,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton(
-                        key: const Key('save-button'),
-                        onPressed: _save,
-                        child: const Text(ReminderUiText.saveAction),
-                      ),
-                    ),
-                  ],
-                )
-              else
-                FilledButton(
-                  key: const Key('save-button'),
-                  onPressed: _save,
-                  child: const Text(ReminderUiText.saveAction),
-                ),
             ],
           ),
         ),
@@ -271,9 +217,101 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
   }
 
   String get _pageTitle => switch (widget.mode) {
-    ItemEditMode.create => ReminderUiText.addItem,
-    ItemEditMode.edit => ReminderUiText.editItem,
+    ItemEditMode.create => ReminderUiText.itemEditorCreateTitle,
+    ItemEditMode.edit => ReminderUiText.itemEditorEditTitle,
   };
+
+  String get _resourceBindingSummary => _resourceBindingDrafts.isEmpty
+      ? ReminderUiText.resourceBindingEmptySummary
+      : '${_resourceBindingDrafts.length} ${ReminderUiText.resourceBindingCountSuffix}';
+
+  Widget _buildBasicSection(
+    List<ItemPack> activePacks,
+    ItemBundle? bundle,
+    List<_PackOption> packOptions,
+  ) {
+    return ReminderEditorSection(
+      key: const Key('editor-section-basic-info'),
+      title: ReminderUiText.basicInfoSectionTitle,
+      children: [
+        EditorTitleField(controller: _titleController),
+        EditorNoteField(controller: _descriptionController),
+        _buildPackRow(activePacks, bundle, packOptions),
+      ],
+    );
+  }
+
+  Widget _buildPackRow(
+    List<ItemPack> activePacks,
+    ItemBundle? bundle,
+    List<_PackOption> packOptions,
+  ) {
+    final readOnly = _isEdit || _isPackLocked;
+    final value = readOnly
+        ? _readOnlyPackLabel(
+            _isEdit
+                ? bundle?.pack
+                : _findPack(activePacks, widget.lockedPackId),
+          )
+        : _selectedPackLabel(activePacks);
+
+    return KeyedSubtree(
+      key: readOnly ? const Key('pack-readonly') : const Key('pack-picker-row'),
+      child: ReminderEditorPickerRow(
+        label: ReminderUiText.packFieldLabel,
+        value: value,
+        readOnly: readOnly,
+        showChevron: !readOnly,
+        onTap: readOnly ? null : () => _showPackPicker(packOptions),
+      ),
+    );
+  }
+
+  Widget _buildReminderModeSection() {
+    return ReminderEditorSection(
+      key: const Key('editor-section-reminder-mode'),
+      title: ReminderUiText.reminderModeSectionTitle,
+      children: [
+        if (_isEdit)
+          KeyedSubtree(
+            key: const Key('item-type-readonly'),
+            child: ReminderEditorPickerRow(
+              label: ReminderUiText.itemTypeFieldLabel,
+              value: ReminderFormatters.itemType(_configController.type),
+              readOnly: true,
+              showChevron: false,
+            ),
+          )
+        else ...[
+          ReminderEditorSelectableCard(
+            key: const Key('item-type-fixed-card'),
+            selected: _configController.type == ItemType.fixed,
+            title: ReminderUiText.fixedItemTypeTitle,
+            description: ReminderUiText.fixedItemTypeDescription,
+            icon: Icons.event_repeat_outlined,
+            onTap: () => _setItemType(ItemType.fixed),
+          ),
+          ReminderEditorSelectableCard(
+            key: const Key('item-type-state-based-card'),
+            selected: _configController.type == ItemType.stateBased,
+            title: ReminderUiText.stateBasedItemTypeTitle,
+            description: ReminderUiText.stateBasedItemTypeDescription,
+            icon: Icons.trending_up_outlined,
+            onTap: () => _setItemType(ItemType.stateBased),
+          ),
+        ],
+      ],
+    );
+  }
+
+  void _setItemType(ItemType value) {
+    if (_configController.type == value) {
+      return;
+    }
+    setState(() {
+      _configController.type = value;
+    });
+  }
 
   void _initializeIfNeeded(ItemBundle? bundle) {
     if (_initialized) {
@@ -343,22 +381,12 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     }
   }
 
-  Future<void> _cancel() async {
-    if (_shouldConfirmDiscard) {
-      await _discardAndPopIfConfirmed();
-      return;
-    }
-    if (mounted) {
-      Navigator.of(context).pop();
-    }
-  }
-
   List<_PackOption> _packOptions(
     List<ItemPack> activePacks,
     ItemPack? currentPack,
   ) {
     final options = <_PackOption>[
-      const _PackOption(id: null, label: ReminderUiText.unassignedPackOption),
+      const _PackOption(id: null, label: ReminderUiText.unassignedPackTitle),
       ...activePacks.map(
         (pack) => _PackOption(id: pack.id, label: packDisplayLabel(pack)),
       ),
@@ -380,6 +408,62 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     return options;
   }
 
+  Future<void> _showPackPicker(List<_PackOption> packOptions) async {
+    final selection = await showModalBottomSheet<_PackPickerSelection>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          children: [
+            Text(
+              ReminderUiText.packFieldLabel,
+              style: Theme.of(sheetContext).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            for (final option in packOptions)
+              ListTile(
+                key: Key('pack-option-${option.id ?? 'none'}'),
+                enabled: option.enabled,
+                title: Text(option.label),
+                trailing: _selectedPackId == option.id
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: option.enabled
+                    ? () => Navigator.of(
+                        sheetContext,
+                      ).pop(_PackPickerSelection(id: option.id))
+                    : null,
+              ),
+            const Divider(),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                key: const Key('create-item-add-pack-button'),
+                onPressed: () => Navigator.of(
+                  sheetContext,
+                ).pop(const _PackPickerSelection.createPack()),
+                icon: const Icon(Icons.add),
+                label: const Text(ReminderUiText.addItemPack),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (selection == null || !mounted) {
+      return;
+    }
+    if (selection.createPack) {
+      await _createPackInline();
+      return;
+    }
+    setState(() {
+      _selectedPackId = selection.id;
+    });
+  }
+
   String _readOnlyPackLabel(ItemPack? pack) {
     if (pack == null || pack.isSystemDefault) {
       return pack == null
@@ -394,6 +478,49 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
 
   String _packLabel(ItemPack pack) {
     return packDisplayLabel(pack);
+  }
+
+  String _selectedPackLabel(List<ItemPack> activePacks) {
+    final selectedPackId = _selectedPackId;
+    if (selectedPackId == null) {
+      return ReminderUiText.selectPackPlaceholder;
+    }
+    final pack = _findPack(activePacks, selectedPackId);
+    return pack == null
+        ? ReminderUiText.selectPackPlaceholder
+        : packDisplayLabel(pack);
+  }
+
+  ItemPack? _findPack(List<ItemPack> packs, int? id) {
+    if (id == null) {
+      return null;
+    }
+    for (final pack in packs) {
+      if (pack.id == id) {
+        return pack;
+      }
+    }
+    return null;
+  }
+
+  List<Resource> _availableBindingResources(
+    List<ResourceBundle> resources,
+    int packId,
+  ) {
+    final usedResourceIds = _resourceBindingDrafts
+        .map((draft) => draft.resourceId)
+        .whereType<int>()
+        .toSet();
+    return resources
+        .map((bundle) => bundle.resource)
+        .where(
+          (resource) =>
+              resource.packId == packId &&
+              resource.status == ResourceLifecycleStatus.active &&
+              resource.config is QuantityBasedResourceConfig &&
+              !usedResourceIds.contains(resource.id),
+        )
+        .toList(growable: false);
   }
 
   int? _resolvedPackId(List<ItemPack> activePacks) {
@@ -561,232 +688,11 @@ class _PackOption {
   final bool enabled;
 }
 
-class _ResourceConsumptionSection extends ConsumerWidget {
-  const _ResourceConsumptionSection({required this.itemId});
+class _PackPickerSelection {
+  const _PackPickerSelection({required this.id}) : createPack = false;
 
-  final int itemId;
+  const _PackPickerSelection.createPack() : id = null, createPack = true;
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final rulesAsync = ref.watch(itemConsumptionRulesProvider(itemId));
-    final resourcesAsync = ref.watch(resourcesProvider);
-    return ReminderPaperCard(
-      key: const Key('resource-consumption-section'),
-      child: Padding(
-        padding: EdgeInsets.zero,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                // const Expanded(child: Text('消耗資源')),
-                TextButton.icon(
-                  key: const Key('add-resource-rule-button'),
-                  onPressed: () => _showAddResourceRuleDialog(context, ref),
-                  icon: const Icon(Icons.add),
-                  label: const Text('綁定資源'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            rulesAsync.when(
-              data: (rules) => resourcesAsync.when(
-                data: (resources) {
-                  final enabledRules = rules
-                      .where((rule) => rule.isEnabled)
-                      .toList(growable: false);
-                  if (enabledRules.isEmpty) {
-                    return const Text('尚未綁定會消耗的資源。');
-                  }
-                  return Column(
-                    children: [
-                      for (final rule in enabledRules)
-                        _ResourceRuleTile(
-                          rule: rule,
-                          resource: _findResource(resources, rule.resourceId),
-                        ),
-                    ],
-                  );
-                },
-                error: (error, stack) => Text('讀取資源失敗: $error'),
-                loading: () => const Text('正在讀取資源...'),
-              ),
-              error: (error, stack) => Text('讀取綁定失敗: $error'),
-              loading: () => const Text('正在讀取綁定...'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Resource? _findResource(List<ResourceBundle> bundles, int resourceId) {
-    for (final bundle in bundles) {
-      if (bundle.resource.id == resourceId) {
-        return bundle.resource;
-      }
-    }
-    return null;
-  }
-
-  Future<void> _showAddResourceRuleDialog(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
-    final resources = await ref.read(resourcesProvider.future);
-    final quantityResources = resources
-        .map((bundle) => bundle.resource)
-        .where((resource) => resource.config is QuantityBasedResourceConfig)
-        .toList(growable: false);
-    if (!context.mounted) {
-      return;
-    }
-    if (quantityResources.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('目前沒有可綁定的數量資源。')));
-      return;
-    }
-    final input = await showDialog<_ResourceRuleDraft>(
-      context: context,
-      builder: (dialogContext) =>
-          _ResourceRuleDialog(resources: quantityResources),
-    );
-    if (input == null) {
-      return;
-    }
-    await ref
-        .read(resourceRepositoryProvider)
-        .createConsumptionRule(
-          ResourceConsumptionRuleInput(
-            resourceId: input.resourceId,
-            itemId: itemId,
-            consumeAmount: input.consumeAmount,
-          ),
-        );
-  }
-}
-
-class _ResourceRuleTile extends ConsumerWidget {
-  const _ResourceRuleTile({required this.rule, required this.resource});
-
-  final ResourceConsumptionRule rule;
-  final Resource? resource;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final config = resource?.config;
-    final unit = config is QuantityBasedResourceConfig ? config.unitLabel : '';
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(resource?.title ?? '已不存在的資源'),
-      subtitle: Text('每次完成此 item 扣 ${rule.consumeAmount} $unit'),
-      trailing: IconButton(
-        key: Key('remove-resource-rule-${rule.id}'),
-        onPressed: () async {
-          await ref
-              .read(resourceRepositoryProvider)
-              .disableConsumptionRule(rule.id);
-        },
-        tooltip: '移除綁定',
-        icon: const Icon(Icons.close),
-      ),
-    );
-  }
-}
-
-class _ResourceRuleDraft {
-  const _ResourceRuleDraft({
-    required this.resourceId,
-    required this.consumeAmount,
-  });
-
-  final int resourceId;
-  final int consumeAmount;
-}
-
-class _ResourceRuleDialog extends StatefulWidget {
-  const _ResourceRuleDialog({required this.resources});
-
-  final List<Resource> resources;
-
-  @override
-  State<_ResourceRuleDialog> createState() => _ResourceRuleDialogState();
-}
-
-class _ResourceRuleDialogState extends State<_ResourceRuleDialog> {
-  late int _resourceId;
-  late final TextEditingController _amountController;
-
-  @override
-  void initState() {
-    super.initState();
-    _resourceId = widget.resources.first.id;
-    _amountController = TextEditingController(text: '1');
-  }
-
-  @override
-  void dispose() {
-    _amountController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('綁定資源'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          DropdownButtonFormField<int>(
-            key: const Key('resource-rule-resource-field'),
-            initialValue: _resourceId,
-            decoration: const InputDecoration(labelText: '資源'),
-            items: widget.resources
-                .map(
-                  (resource) => DropdownMenuItem<int>(
-                    value: resource.id,
-                    child: Text(resource.title),
-                  ),
-                )
-                .toList(growable: false),
-            onChanged: (value) {
-              if (value == null) {
-                return;
-              }
-              setState(() {
-                _resourceId = value;
-              });
-            },
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            key: const Key('resource-rule-amount-field'),
-            controller: _amountController,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: '每次完成扣多少'),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
-        ),
-        FilledButton(
-          key: const Key('resource-rule-save-button'),
-          onPressed: () {
-            final amount = int.tryParse(_amountController.text.trim()) ?? 1;
-            Navigator.of(context).pop(
-              _ResourceRuleDraft(
-                resourceId: _resourceId,
-                consumeAmount: amount < 1 ? 1 : amount,
-              ),
-            );
-          },
-          child: const Text(ReminderUiText.saveAction),
-        ),
-      ],
-    );
-  }
+  final int? id;
+  final bool createPack;
 }
