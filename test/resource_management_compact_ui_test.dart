@@ -6,12 +6,15 @@ import 'package:go_router/go_router.dart';
 import 'package:reminder_app/app/theme/reminder_theme.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/local/reminder_dao.dart';
+import 'package:reminder_app/features/reminders/data/resource_repository.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/resource.dart';
 import 'package:reminder_app/features/reminders/providers/database_providers.dart';
 import 'package:reminder_app/features/reminders/providers/developer_settings_providers.dart';
+import 'package:reminder_app/features/reminders/providers/item_providers.dart';
 import 'package:reminder_app/features/reminders/providers/resource_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/feature_management_sections.dart';
+import 'package:reminder_app/features/reminders/ui/pages/resource_edit_page.dart';
 import 'package:reminder_app/features/reminders/ui/pages/resource_history_page.dart';
 import 'package:reminder_app/features/reminders/ui/widgets/reminder_components.dart';
 
@@ -119,6 +122,157 @@ void main() {
     expect(addButton.tooltip, '新增資源');
   });
 
+  testWidgets('add resource opens editor-style create dialog', (tester) async {
+    _useTallViewport(tester);
+    await _pumpResourceManagement(tester, resources: const []);
+
+    await tester.tap(find.byKey(const Key('add-resource-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('新增資源'), findsOneWidget);
+    expect(
+      find.byKey(const Key('resource-create-section-basic-info')),
+      findsOneWidget,
+    );
+    expect(find.text('資源名稱'), findsOneWidget);
+    expect(find.text('備註'), findsOneWidget);
+    expect(find.byKey(const Key('resource-pack-picker-row')), findsOneWidget);
+    expect(find.byType(DropdownButtonFormField<int?>), findsNothing);
+    expect(find.byType(DropdownButtonFormField<ResourceType>), findsNothing);
+    expect(
+      find.byKey(const Key('resource-type-quantity-card')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('resource-type-time-card')), findsOneWidget);
+    expect(
+      find.byKey(const Key('resource-initial-quantity-field')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('resource-unit-field')), findsOneWidget);
+    expect(
+      find.byKey(const Key('resource-warning-quantity-field')),
+      findsNothing,
+    );
+
+    await tester.ensureVisible(
+      find.byKey(const Key('resource-type-time-card')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('resource-type-time-card')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const Key('resource-available-days-field')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('create dialog validates name and creates quantity config', (
+    tester,
+  ) async {
+    _useTallViewport(tester);
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = _RecordingResourceRepository(db);
+    await _pumpResourceManagement(
+      tester,
+      resources: const [],
+      db: db,
+      repository: repository,
+    );
+
+    await tester.tap(find.byKey(const Key('add-resource-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('resource-save-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('請輸入資源名稱'), findsOneWidget);
+
+    await tester.enterText(find.byKey(const Key('resource-title-field')), '濾芯');
+    await tester.enterText(
+      find.byKey(const Key('resource-initial-quantity-field')),
+      '6',
+    );
+    await tester.enterText(find.byKey(const Key('resource-unit-field')), '');
+    await tester.tap(find.byKey(const Key('resource-save-button')));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final input = repository.createdInputs.single;
+    final config = input.config as QuantityBasedResourceConfig;
+    expect(input.title, '濾芯');
+    expect(config.currentQuantity, 6);
+    expect(config.unitLabel, '個');
+    expect(config.warningThreshold, 2);
+    expect(config.dangerThreshold, 1);
+  });
+
+  testWidgets('time create defaults anchor date to today', (tester) async {
+    _useTallViewport(tester);
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = _RecordingResourceRepository(db);
+    await _pumpResourceManagement(
+      tester,
+      resources: const [],
+      db: db,
+      repository: repository,
+    );
+
+    await tester.tap(find.byKey(const Key('add-resource-button')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('resource-title-field')),
+      '洗髮精',
+    );
+    await tester.ensureVisible(
+      find.byKey(const Key('resource-type-time-card')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('resource-type-time-card')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('resource-available-days-field')),
+      '20',
+    );
+    final today = _today();
+    await tester.tap(find.byKey(const Key('resource-save-button')));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final config =
+        repository.createdInputs.single.config as TimeBasedResourceConfig;
+    expect(config.anchorDate, today);
+    expect(config.durationDays, 20);
+    expect(config.warningBeforeDays, 3);
+    expect(config.dangerBeforeDays, 1);
+  });
+
+  testWidgets('resource edit action navigates to full page editor', (
+    tester,
+  ) async {
+    final catPack = _pack(id: 1, title: '養貓', iconEmoji: '🐱');
+    await _pumpResourceManagement(
+      tester,
+      resources: [_quantityBundle(id: 11, pack: catPack, title: '貓砂')],
+    );
+
+    await tester.tap(find.byKey(const Key('resource-overflow-11')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('編輯'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('編輯資源'), findsOneWidget);
+    expect(find.byKey(const Key('editor-bottom-save-bar')), findsOneWidget);
+    expect(find.byKey(const Key('resource-title-field')), findsOneWidget);
+    expect(find.byKey(const Key('resource-type-readonly-row')), findsOneWidget);
+    expect(
+      find.byKey(const Key('resource-current-status-readonly-row')),
+      findsOneWidget,
+    );
+    expect(find.text('如要修正數量，請使用「調整庫存」。'), findsOneWidget);
+    expect(
+      find.byKey(const Key('resource-initial-quantity-field')),
+      findsNothing,
+    );
+  });
+
   testWidgets('compact resource management fits phone viewport', (
     tester,
   ) async {
@@ -148,8 +302,12 @@ void main() {
 Future<void> _pumpResourceManagement(
   WidgetTester tester, {
   required List<ResourceBundle> resources,
+  AppDatabase? db,
+  ResourceRepository? repository,
 }) async {
-  final db = AppDatabase.forTesting(NativeDatabase.memory());
+  final database = db ?? AppDatabase.forTesting(NativeDatabase.memory());
+  final ownsDatabase = db == null;
+  final packs = _packsFromResources(resources);
   final router = GoRouter(
     initialLocation: ResourceManagementPage.routePath,
     routes: [
@@ -157,6 +315,14 @@ Future<void> _pumpResourceManagement(
         path: ResourceManagementPage.routePath,
         name: ResourceManagementPage.routeName,
         builder: (context, state) => const ResourceManagementContent(),
+      ),
+      GoRoute(
+        path: ResourceEditPage.routePath,
+        name: ResourceEditPage.routeName,
+        builder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+          return ResourceEditPage(resourceId: id);
+        },
       ),
       GoRoute(
         path: ResourceHistoryPage.routePath,
@@ -169,17 +335,30 @@ Future<void> _pumpResourceManagement(
   );
   addTearDown(() async {
     router.dispose();
-    await db.close();
+    if (ownsDatabase) {
+      await database.close();
+    }
   });
 
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        appDatabaseProvider.overrideWithValue(db),
+        appDatabaseProvider.overrideWithValue(database),
         effectivePreviewDateProvider.overrideWith(
           (ref) => DateTime(2026, 5, 20),
         ),
+        activeItemPacksProvider.overrideWith((ref) => Stream.value(packs)),
+        if (repository != null)
+          resourceRepositoryProvider.overrideWith((ref) => repository),
         managedResourcesProvider.overrideWith((ref) => Stream.value(resources)),
+        resourceProvider.overrideWith((ref, resourceId) async {
+          for (final resource in resources) {
+            if (resource.resource.id == resourceId) {
+              return resource;
+            }
+          }
+          return null;
+        }),
         resourceBindingsProvider.overrideWith(
           (ref, resourceId) => Stream.value(const <ResourceBinding>[]),
         ),
@@ -191,6 +370,40 @@ Future<void> _pumpResourceManagement(
     ),
   );
   await tester.pumpAndSettle();
+}
+
+List<ItemPack> _packsFromResources(List<ResourceBundle> resources) {
+  final byId = <int, ItemPack>{};
+  for (final resource in resources) {
+    byId[resource.pack.id] = resource.pack;
+  }
+  return byId.values.toList(growable: false);
+}
+
+DateTime _today() {
+  final now = DateTime.now();
+  return DateTime(now.year, now.month, now.day);
+}
+
+void _useTallViewport(WidgetTester tester) {
+  tester.view.physicalSize = const Size(800, 1200);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(() {
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  });
+}
+
+class _RecordingResourceRepository extends ResourceRepository {
+  _RecordingResourceRepository(AppDatabase db) : super(db.reminderDao);
+
+  final List<ResourceInput> createdInputs = [];
+
+  @override
+  Future<int> createResource(ResourceInput input) async {
+    createdInputs.add(input);
+    return createdInputs.length;
+  }
 }
 
 ItemPack _pack({

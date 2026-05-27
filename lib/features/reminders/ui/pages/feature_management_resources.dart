@@ -307,16 +307,10 @@ class _ManagedResourceCard extends ConsumerWidget {
         await _showResourceAdjustDialog(context, ref, resource);
         return;
       case _ManagedResourceMenuAction.edit:
-        final input = await showDialog<ResourceInput>(
-          context: context,
-          builder: (dialogContext) => _ResourceFormDialog(resource: resource),
+        context.pushNamed(
+          ResourceEditPage.routeName,
+          pathParameters: {'id': resource.id.toString()},
         );
-        if (input == null || !context.mounted) {
-          return;
-        }
-        await ref
-            .read(resourceRepositoryProvider)
-            .updateResource(resource.id, input);
         return;
       case _ManagedResourceMenuAction.details:
         await _showResourceDetailDialog(
@@ -565,9 +559,7 @@ String _resourceThresholdSummary(ResourceConfig config) {
 }
 
 class _ResourceFormDialog extends ConsumerStatefulWidget {
-  const _ResourceFormDialog({this.resource});
-
-  final Resource? resource;
+  const _ResourceFormDialog();
 
   @override
   ConsumerState<_ResourceFormDialog> createState() =>
@@ -587,32 +579,7 @@ class _ResourceFormDialogState extends ConsumerState<_ResourceFormDialog> {
   final _dangerQuantityController = TextEditingController(text: '1');
   ResourceType _type = ResourceType.quantityBased;
   int? _selectedPackId;
-
-  @override
-  void initState() {
-    super.initState();
-    final resource = widget.resource;
-    if (resource == null) {
-      return;
-    }
-    _type = resource.type;
-    _titleController.text = resource.title;
-    _descriptionController.text = resource.description ?? '';
-    _selectedPackId = resource.packId;
-    switch (resource.config) {
-      case TimeBasedResourceConfig config:
-        _durationController.text = '${config.durationDays}';
-        _warningDaysController.text = '${config.warningBeforeDays}';
-        _dangerDaysController.text = '${config.dangerBeforeDays}';
-      case QuantityBasedResourceConfig config:
-        _quantityController.text = '${config.currentQuantity}';
-        _unitController.text = config.unitLabel;
-        _warningQuantityController.text = '${config.warningThreshold}';
-        _dangerQuantityController.text = '${config.dangerThreshold}';
-      default:
-        break;
-    }
-  }
+  late DateTime _anchorDate = _today();
 
   @override
   void dispose() {
@@ -633,117 +600,132 @@ class _ResourceFormDialogState extends ConsumerState<_ResourceFormDialog> {
     final packsAsync = ref.watch(activeItemPacksProvider);
     final packs = packsAsync.valueOrNull ?? const <ItemPack>[];
     return AlertDialog(
-      title: Text(widget.resource == null ? '新增資源' : '編輯資源'),
+      title: const Text(ReminderUiText.addResourceTitle),
       content: SizedBox(
-        width: 420,
+        width: 480,
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextFormField(
-                  key: const Key('resource-title-field'),
-                  controller: _titleController,
-                  decoration: const InputDecoration(labelText: '名稱'),
-                  validator: (value) =>
-                      (value ?? '').trim().isEmpty ? '請輸入名稱' : null,
+                ReminderEditorSection(
+                  key: const Key('resource-create-section-basic-info'),
+                  title: ReminderUiText.basicInfoSectionTitle,
+                  children: [
+                    EditorTitleField(
+                      controller: _titleController,
+                      fieldKey: const Key('resource-title-field'),
+                      labelText: ReminderUiText.resourceNameFieldLabel,
+                      hintText: ReminderUiText.resourceNameFieldHint,
+                      requiredErrorText:
+                          ReminderUiText.resourceNameFieldRequiredError,
+                    ),
+                    EditorNoteField(
+                      controller: _descriptionController,
+                      fieldKey: const Key('resource-note-field'),
+                    ),
+                    ReminderEditorPickerRow(
+                      key: const Key('resource-pack-picker-row'),
+                      label: ReminderUiText.packFieldLabel,
+                      value: _selectedPackLabel(packs),
+                      onTap: () => _showPackPicker(_packOptions(packs)),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
-                if (widget.resource == null) ...[
-                  DropdownButtonFormField<int?>(
-                    key: const Key('resource-pack-field'),
-                    initialValue: _selectedPackId,
-                    decoration: const InputDecoration(
-                      labelText: ReminderUiText.packFieldLabel,
+                ReminderEditorSection(
+                  key: const Key('resource-create-section-type'),
+                  title: ReminderUiText.resourceTypeSectionTitle,
+                  children: [
+                    ReminderEditorSelectableCard(
+                      key: const Key('resource-type-quantity-card'),
+                      selected: _type == ResourceType.quantityBased,
+                      title: ReminderUiText.quantityResourceTitle,
+                      description: ReminderUiText.quantityResourceDescription,
+                      icon: Icons.inventory_2_outlined,
+                      onTap: () => _setType(ResourceType.quantityBased),
                     ),
-                    items: [
-                      const DropdownMenuItem<int?>(
-                        value: null,
-                        child: Text(ReminderUiText.unassignedPackOption),
+                    ReminderEditorSelectableCard(
+                      key: const Key('resource-type-time-card'),
+                      selected: _type == ResourceType.timeBased,
+                      title: ReminderUiText.timeBasedResourceTitle,
+                      description: ReminderUiText.timeBasedResourceDescription,
+                      icon: Icons.hourglass_bottom_outlined,
+                      onTap: () => _setType(ResourceType.timeBased),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ReminderEditorSection(
+                  key: const Key('resource-create-section-settings'),
+                  title: ReminderUiText.resourceSettingsSectionTitle,
+                  children: [
+                    if (_type == ResourceType.timeBased)
+                      ReminderEditorNumberField(
+                        fieldKey: const Key('resource-available-days-field'),
+                        controller: _durationController,
+                        label: ReminderUiText.availableDaysLabel,
+                        suffixText: ReminderUiText.dayUnit,
+                        minimum: 1,
+                      )
+                    else ...[
+                      ReminderEditorNumberField(
+                        fieldKey: const Key('resource-initial-quantity-field'),
+                        controller: _quantityController,
+                        label: ReminderUiText.initialQuantityLabel,
                       ),
-                      ...packs.map(
-                        (pack) => DropdownMenuItem<int?>(
-                          value: pack.id,
-                          child: Text(packDisplayLabel(pack)),
+                      TextFormField(
+                        key: const Key('resource-unit-field'),
+                        controller: _unitController,
+                        decoration: const InputDecoration(
+                          labelText: ReminderUiText.resourceUnitLabel,
                         ),
                       ),
                     ],
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedPackId = value;
-                      });
-                    },
-                  ),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      key: const Key('resource-add-pack-button'),
-                      onPressed: _createPackInline,
-                      icon: const Icon(Icons.add),
-                      label: const Text(ReminderUiText.addItemPack),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ] else ...[
-                  InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: ReminderUiText.packFieldLabel,
-                    ),
-                    child: Text(
-                      _packReadonlyLabel(packs, widget.resource!.packId),
-                      key: const Key('resource-pack-readonly'),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-                TextFormField(
-                  controller: _descriptionController,
-                  decoration: const InputDecoration(labelText: '備註'),
+                  ],
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<ResourceType>(
-                  key: const Key('resource-type-field'),
-                  initialValue: _type,
-                  decoration: const InputDecoration(labelText: '資源類型'),
-                  items: ResourceType.values
-                      .map(
-                        (type) => DropdownMenuItem(
-                          value: type,
-                          child: Text(ReminderFormatters.resourceType(type)),
-                        ),
-                      )
-                      .toList(growable: false),
-                  onChanged: widget.resource == null
-                      ? (value) {
-                          if (value == null) {
-                            return;
-                          }
-                          setState(() {
-                            _type = value;
-                          });
-                        }
-                      : null,
+                ReminderEditorAdvancedSection(
+                  key: const Key('resource-create-section-thresholds'),
+                  title: ReminderUiText.resourceThresholdSectionTitle,
+                  toggleKey: const Key('resource-create-toggle-thresholds'),
+                  children: [
+                    if (_type == ResourceType.timeBased) ...[
+                      ReminderEditorNumberField(
+                        fieldKey: const Key('resource-warning-days-field'),
+                        controller: _warningDaysController,
+                        label: ReminderUiText.warningDaysLabel,
+                        suffixText: ReminderUiText.dayUnit,
+                      ),
+                      ReminderEditorNumberField(
+                        fieldKey: const Key('resource-danger-days-field'),
+                        controller: _dangerDaysController,
+                        label: ReminderUiText.dangerDaysLabel,
+                        suffixText: ReminderUiText.dayUnit,
+                      ),
+                      ReminderEditorDateRow(
+                        key: const Key('resource-anchor-date-row'),
+                        label: ReminderUiText.startCountingDateLabel,
+                        date: _anchorDate,
+                        onTap: _pickAnchorDate,
+                      ),
+                    ] else ...[
+                      ReminderEditorNumberField(
+                        fieldKey: const Key('resource-warning-quantity-field'),
+                        controller: _warningQuantityController,
+                        label: ReminderUiText.warningQuantityLabel,
+                        suffixText: _unitLabel,
+                      ),
+                      ReminderEditorNumberField(
+                        fieldKey: const Key('resource-danger-quantity-field'),
+                        controller: _dangerQuantityController,
+                        label: ReminderUiText.dangerQuantityLabel,
+                        suffixText: _unitLabel,
+                      ),
+                    ],
+                  ],
                 ),
-                const SizedBox(height: 12),
-                if (_type == ResourceType.timeBased) ...[
-                  _numberField(_durationController, '大約還能用幾天'),
-                  const SizedBox(height: 12),
-                  _numberField(_warningDaysController, '剩幾天開始提醒'),
-                  const SizedBox(height: 12),
-                  _numberField(_dangerDaysController, '剩幾天進入危急'),
-                ] else ...[
-                  _numberField(_quantityController, '目前有多少'),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _unitController,
-                    decoration: const InputDecoration(labelText: '單位'),
-                  ),
-                  const SizedBox(height: 12),
-                  _numberField(_warningQuantityController, '剩多少開始提醒'),
-                  const SizedBox(height: 12),
-                  _numberField(_dangerQuantityController, '剩多少進入危急'),
-                ],
               ],
             ),
           ),
@@ -763,25 +745,16 @@ class _ResourceFormDialogState extends ConsumerState<_ResourceFormDialog> {
     );
   }
 
-  Widget _numberField(TextEditingController controller, String label) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: TextInputType.number,
-      decoration: InputDecoration(labelText: label),
-    );
-  }
+  String get _unitLabel =>
+      _unitController.text.trim().isEmpty ? '個' : _unitController.text.trim();
 
   void _submit() {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    final now = DateTime.now();
-    final existingConfig = widget.resource?.config;
     final config = _type == ResourceType.timeBased
         ? TimeBasedResourceConfig(
-            anchorDate: existingConfig is TimeBasedResourceConfig
-                ? existingConfig.anchorDate
-                : DateTime(now.year, now.month, now.day),
+            anchorDate: _anchorDate,
             durationDays: _positiveInt(_durationController),
             warningBeforeDays: _nonNegativeInt(_warningDaysController),
             dangerBeforeDays: _nonNegativeInt(_dangerDaysController),
@@ -800,9 +773,89 @@ class _ResourceFormDialogState extends ConsumerState<_ResourceFormDialog> {
         description: _normalizeOptionalText(_descriptionController.text),
         type: _type,
         config: config,
-        packId: widget.resource?.packId ?? _selectedPackId,
+        packId: _selectedPackId,
       ),
     );
+  }
+
+  void _setType(ResourceType type) {
+    if (_type == type) {
+      return;
+    }
+    setState(() {
+      _type = type;
+    });
+  }
+
+  List<_ResourceCreatePackOption> _packOptions(List<ItemPack> packs) {
+    return [
+      const _ResourceCreatePackOption(
+        id: null,
+        label: ReminderUiText.unassignedPackTitle,
+      ),
+      ...packs.map(
+        (pack) => _ResourceCreatePackOption(
+          id: pack.id,
+          label: packDisplayLabel(pack),
+        ),
+      ),
+    ];
+  }
+
+  Future<void> _showPackPicker(
+    List<_ResourceCreatePackOption> packOptions,
+  ) async {
+    final selection =
+        await showModalBottomSheet<_ResourceCreatePackPickerSelection>(
+          context: context,
+          showDragHandle: true,
+          builder: (sheetContext) => SafeArea(
+            child: ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              children: [
+                Text(
+                  ReminderUiText.packFieldLabel,
+                  style: Theme.of(sheetContext).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                for (final option in packOptions)
+                  ListTile(
+                    key: Key('resource-pack-option-${option.id ?? 'none'}'),
+                    title: Text(option.label),
+                    trailing: _selectedPackId == option.id
+                        ? const Icon(Icons.check)
+                        : null,
+                    onTap: () => Navigator.of(
+                      sheetContext,
+                    ).pop(_ResourceCreatePackPickerSelection(id: option.id)),
+                  ),
+                const Divider(),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    key: const Key('resource-add-pack-button'),
+                    onPressed: () => Navigator.of(sheetContext).pop(
+                      const _ResourceCreatePackPickerSelection.createPack(),
+                    ),
+                    icon: const Icon(Icons.add),
+                    label: const Text(ReminderUiText.addItemPack),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+    if (selection == null || !mounted) {
+      return;
+    }
+    if (selection.createPack) {
+      await _createPackInline();
+      return;
+    }
+    setState(() {
+      _selectedPackId = selection.id;
+    });
   }
 
   Future<void> _createPackInline() async {
@@ -822,13 +875,32 @@ class _ResourceFormDialogState extends ConsumerState<_ResourceFormDialog> {
     });
   }
 
-  String _packReadonlyLabel(List<ItemPack> packs, int packId) {
+  Future<void> _pickAnchorDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _anchorDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked == null || !mounted) {
+      return;
+    }
+    setState(() {
+      _anchorDate = DateTime(picked.year, picked.month, picked.day);
+    });
+  }
+
+  String _selectedPackLabel(List<ItemPack> packs) {
+    final selectedPackId = _selectedPackId;
+    if (selectedPackId == null) {
+      return ReminderUiText.selectPackPlaceholder;
+    }
     for (final pack in packs) {
-      if (pack.id == packId) {
+      if (pack.id == selectedPackId) {
         return packDisplayLabel(pack);
       }
     }
-    return ReminderUiText.unassignedPackTitle;
+    return ReminderUiText.selectPackPlaceholder;
   }
 
   int _positiveInt(TextEditingController controller) {
@@ -851,6 +923,30 @@ class _ResourceFormDialogState extends ConsumerState<_ResourceFormDialog> {
     final normalized = value.trim();
     return normalized.isEmpty ? null : normalized;
   }
+
+  DateTime _today() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
+}
+
+class _ResourceCreatePackOption {
+  const _ResourceCreatePackOption({required this.id, required this.label});
+
+  final int? id;
+  final String label;
+}
+
+class _ResourceCreatePackPickerSelection {
+  const _ResourceCreatePackPickerSelection({required this.id})
+    : createPack = false;
+
+  const _ResourceCreatePackPickerSelection.createPack()
+    : id = null,
+      createPack = true;
+
+  final int? id;
+  final bool createPack;
 }
 
 class _NumberInputDialog extends StatefulWidget {

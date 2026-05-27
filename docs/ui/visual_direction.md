@@ -978,6 +978,13 @@ flutter test
 - Item type selection in create uses two selectable cards: fixed rhythm and flexible rhythm. Existing item type remains read-only in edit.
 - Save lives in the sticky bottom action bar for create and edit. AppBar/system back keeps dirty discard confirmation semantics.
 - Create resource binding remains available only when the selected pack has active quantity resources, is collapsed by default, and stays hidden when no bindable resources exist.
+- Resource create uses an editor-style dialog, not a full page. It asks only for basic info, resource type, and the minimum resource settings.
+- Resource create type selection uses selectable cards. Quantity resources use `初始數量` and unit; time-based resources use `大約還能用幾天` and default the start date to today.
+- Resource create warning / danger thresholds and time-based `開始計算日` live in the collapsed `提醒準則` advanced section.
+- Resource edit uses a full page editor with sticky bottom save. Resource type and current state are read-only; current quantity / remaining days are not editable in the edit form.
+- Resource quantity movement must stay in `補充` / `調整庫存` flows so ResourceActionRecord history remains the source for stock changes.
+- Resource edit can change pack only when the resource has no item bindings; bound resources show a read-only pack row with helper copy.
+- Resource edit exposes warning / danger thresholds directly in a `提醒準則` section and preserves current quantity / duration when saving.
 
 ### 19.18 Item Config Editor Rows 2026-05-27
 

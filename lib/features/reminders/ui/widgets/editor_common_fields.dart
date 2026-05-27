@@ -7,24 +7,29 @@ class EditorTitleField extends StatelessWidget {
     super.key,
     required this.controller,
     this.enabled = true,
+    this.fieldKey = const Key('title-field'),
+    this.labelText = ReminderUiText.itemTitleFieldLabel,
+    this.hintText = ReminderUiText.itemTitleFieldHint,
+    this.requiredErrorText = ReminderUiText.itemTitleFieldRequiredError,
   });
 
   final TextEditingController controller;
   final bool enabled;
+  final Key fieldKey;
+  final String labelText;
+  final String hintText;
+  final String requiredErrorText;
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
-      key: const Key('title-field'),
+      key: fieldKey,
       controller: controller,
       enabled: enabled,
-      decoration: const InputDecoration(
-        labelText: ReminderUiText.itemTitleFieldLabel,
-        hintText: ReminderUiText.itemTitleFieldHint,
-      ),
+      decoration: InputDecoration(labelText: labelText, hintText: hintText),
       validator: (value) {
         if (value == null || value.trim().isEmpty) {
-          return ReminderUiText.itemTitleFieldRequiredError;
+          return requiredErrorText;
         }
         return null;
       },
@@ -33,19 +38,25 @@ class EditorTitleField extends StatelessWidget {
 }
 
 class EditorNoteField extends StatelessWidget {
-  const EditorNoteField({super.key, required this.controller});
+  const EditorNoteField({
+    super.key,
+    required this.controller,
+    this.fieldKey = const Key('note-field'),
+    this.labelText = ReminderUiText.itemNoteFieldLabel,
+    this.hintText = ReminderUiText.itemNoteFieldHint,
+  });
 
   final TextEditingController controller;
+  final Key fieldKey;
+  final String labelText;
+  final String hintText;
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
-      key: const Key('note-field'),
+      key: fieldKey,
       controller: controller,
-      decoration: const InputDecoration(
-        labelText: ReminderUiText.itemNoteFieldLabel,
-        hintText: ReminderUiText.itemNoteFieldHint,
-      ),
+      decoration: InputDecoration(labelText: labelText, hintText: hintText),
       maxLines: 2,
     );
   }

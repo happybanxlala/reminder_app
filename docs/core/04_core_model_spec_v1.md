@@ -377,6 +377,7 @@ QuantityBasedResourceConfig {
 - `archiveResource` 只更新 lifecycle status，不刪除 action history 或 consumption rules。
 - time-based resource 使用 `anchorDate + durationDays - 1` 推導 depletion date。
 - quantity-based resource 使用 `currentQuantity` 與 warning / danger thresholds 推導狀態。
+- Resource edit 可調整名稱、備註、Pack、單位與提醒 thresholds，但不應直接修改目前數量或剩餘可用天數；資源數量 / 可用天數變動應透過 `refillResource` 或 `adjustResourceQuantity` 寫入 `ResourceActionRecord`。
 - `ResourceStatusService` 對異常或不足資料回傳 `unknown`。
 - `watchResources` 只回傳 active resources；`watchManagedResources` 回傳 active / paused resources。
 - Home danger / warning attention sections 會依 `ResourceStatus` 混合顯示 active Resource 與 Item，並可套用 Pack filter。
