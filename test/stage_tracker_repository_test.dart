@@ -10,6 +10,64 @@ import 'package:reminder_app/features/reminders/domain/stage_tracker.dart';
 
 void main() {
   test(
+    'ensures one system default tracker and preserves first start date',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = StageTrackerRepository(
+        db.reminderDao,
+        clock: () => DateTime(2026, 5, 1),
+      );
+
+      final first = await repository.ensureSystemStageTracker();
+      final second = await repository.ensureSystemStageTracker();
+      final rows = await db.select(db.stageTrackers).get();
+      final systemRows = rows.where((row) => row.systemKey == 'reminder_app');
+
+      expect(first.id, second.id);
+      expect(systemRows, hasLength(1));
+      expect(second.title, 'Reminder App');
+      expect(second.subjectName, '系統');
+      expect(second.isSystemDefault, isTrue);
+      expect(second.trackingStartDate, first.trackingStartDate);
+    },
+  );
+
+  test(
+    'system default tracker rejects update and archive but can hide/show',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = StageTrackerRepository(
+        db.reminderDao,
+        clock: () => DateTime(2026, 5, 1),
+      );
+
+      final tracker = await repository.ensureSystemStageTracker();
+
+      expect(
+        await repository.updateStageTracker(
+          tracker.id,
+          StageTrackerInput(
+            title: 'Changed',
+            trackingStartDate: DateTime(2026, 4, 1),
+          ),
+        ),
+        isFalse,
+      );
+      expect(await repository.archiveStageTracker(tracker.id), isFalse);
+      expect(await repository.hideSystemStageTracker(), isTrue);
+
+      var visible = await repository.watchStageTrackers().first;
+      expect(visible.any((item) => item.id == tracker.id), isFalse);
+
+      expect(await repository.showSystemStageTracker(), isTrue);
+      visible = await repository.watchStageTrackers().first;
+      expect(visible.any((item) => item.id == tracker.id), isTrue);
+    },
+  );
+
+  test(
     'stage schedule respects end date and shows multiple generated stages',
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());

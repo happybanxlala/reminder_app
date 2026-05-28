@@ -4,11 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 
 void main() {
-  test('database uses schema version 3 and core tables are writable', () async {
+  test('database uses schema version 4 and core tables are writable', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
 
-    expect(db.schemaVersion, 3);
+    expect(db.schemaVersion, 4);
 
     final packId = await db
         .into(db.itemPacks)
@@ -152,6 +152,7 @@ void main() {
           AppSettingsEntriesCompanion.insert(
             id: const Value(1),
             reminderTone: const Value('early'),
+            notificationReminderTime: const Value('20:30'),
             createdAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
             updatedAt: DateTime(2026, 4, 2).millisecondsSinceEpoch,
           ),
@@ -161,10 +162,22 @@ void main() {
       db.itemPacks,
     )..where((t) => t.isSystemDefault.equals(true))).get();
     final items = await db.select(db.items).get();
+    final stageTrackers = await db.select(db.stageTrackers).get();
     final settings = await db.select(db.appSettingsEntries).get();
     expect(defaultPacks, hasLength(1));
     expect(items.single.status, 'active');
     expect(items.single.attentionPolicySource, 'systemDefault');
+    expect(
+      stageTrackers.where((tracker) => tracker.systemKey == 'reminder_app'),
+      hasLength(1),
+    );
+    expect(
+      stageTrackers
+          .firstWhere((tracker) => tracker.id == stageTrackerId)
+          .isSystemDefault,
+      isFalse,
+    );
     expect(settings.single.reminderTone, 'early');
+    expect(settings.single.notificationReminderTime, '20:30');
   });
 }

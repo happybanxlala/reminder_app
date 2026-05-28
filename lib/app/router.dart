@@ -40,10 +40,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: StageTrackerManagementPage.routePath,
-                name: StageTrackerManagementPage.routeName,
-                builder: (context, state) =>
-                    const StageTrackerManagementContent(),
+                path: ItemActivityPage.routePath,
+                name: ItemActivityPage.routeName,
+                builder: (context, state) => const ItemActivityContent(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: MorePage.routePath,
+                name: MorePage.routeName,
+                builder: (context, state) => const MoreContent(),
               ),
             ],
           ),
@@ -55,9 +63,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const FeaturePage(),
       ),
       GoRoute(
-        path: ItemActivityPage.routePath,
-        name: ItemActivityPage.routeName,
-        builder: (context, state) => const ItemActivityPage(),
+        path: StageTrackerManagementPage.routePath,
+        name: StageTrackerManagementPage.routeName,
+        builder: (context, state) => const StageTrackerManagementPage(),
       ),
       GoRoute(
         path: ResourceManagementPage.routePath,
@@ -67,6 +75,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: ItemsManagementPage.legacyRoutePath,
         redirect: (context, state) => ItemsManagementPage.routePath,
+      ),
+      GoRoute(
+        path: ItemActivityPage.legacyRoutePath,
+        redirect: (context, state) => ItemActivityPage.routePath,
       ),
       GoRoute(
         path: ItemPacksManagementPage.routePath,

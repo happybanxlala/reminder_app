@@ -221,6 +221,7 @@ class _StageTrackerFormDialogState
   @override
   Widget build(BuildContext context) {
     final selectedPack = _selectedPack;
+    final previewDate = ref.watch(effectivePreviewDateProvider);
     return AlertDialog(
       title: Text(
         _isEdit
@@ -241,6 +242,9 @@ class _StageTrackerFormDialogState
                   subjectName: _previewSubject,
                   packLabel: _selectedPackLabel,
                   emoji: selectedPack?.iconEmoji ?? '🏷️',
+                  startDate: _startDate,
+                  endDate: _endDate,
+                  previewDate: previewDate,
                 ),
                 const SizedBox(height: 12),
                 ReminderEditorSection(
@@ -1446,12 +1450,18 @@ class _StageTrackerPreviewCard extends StatelessWidget {
     required this.subjectName,
     required this.packLabel,
     required this.emoji,
+    required this.startDate,
+    required this.endDate,
+    required this.previewDate,
   });
 
   final String title;
   final String? subjectName;
   final String packLabel;
   final String emoji;
+  final DateTime startDate;
+  final DateTime? endDate;
+  final DateTime previewDate;
 
   @override
   Widget build(BuildContext context) {
@@ -1489,7 +1499,20 @@ class _StageTrackerPreviewCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '已累積 0 天',
+                  ReminderFormatters.stageTrackerDayLabel(
+                    StageTracker(
+                      id: 0,
+                      packId: 0,
+                      title: title,
+                      subjectName: subjectName,
+                      trackingStartDate: startDate,
+                      trackingEndDate: endDate,
+                      status: StageTrackerStatus.active,
+                      createdAt: previewDate,
+                      updatedAt: previewDate,
+                    ),
+                    now: previewDate,
+                  ),
                   key: const Key('stage-tracker-preview-days'),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: palette.textSecondary,

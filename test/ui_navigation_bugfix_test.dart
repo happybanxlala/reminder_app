@@ -12,6 +12,7 @@ import 'package:reminder_app/features/reminders/ui/pages/feature_page.dart';
 import 'package:reminder_app/features/reminders/ui/pages/feature_management_sections.dart';
 import 'package:reminder_app/features/reminders/ui/pages/stage_tracker_pages.dart';
 import 'package:reminder_app/features/reminders/ui/widgets/reminder_components.dart';
+import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
 
 void main() {
   testWidgets('rail card lays out and hit-tests inside a scrolling page', (
@@ -67,27 +68,49 @@ void main() {
       await _pumpRoute(tester);
 
       expect(tester.takeException(), isNull);
-      expect(find.byKey(const Key('add-stage-tracker-button')), findsOneWidget);
+      expect(
+        find.byKey(const Key('stage-tracker-content-add-button')),
+        findsOneWidget,
+      );
 
       await _disposeReminderApp(tester);
     },
   );
 
   testWidgets(
-    'stage tracking branch shows empty state and has no self-push FAB',
+    'bottom navigation uses home items activity more and More opens entries',
     (tester) async {
-      await _pumpShellRouter(tester);
+      final router = await _pumpShellRouter(tester);
 
-      await tester.tapAt(
-        tester.getBottomLeft(find.byType(NavigationBar)) +
-            const Offset(650, -40),
-      );
+      expect(find.text(ReminderUiText.bottomNavHome), findsAtLeastNWidgets(1));
+      expect(find.text(ReminderUiText.bottomNavItems), findsOneWidget);
+      expect(find.text(ReminderUiText.bottomNavActivity), findsOneWidget);
+      expect(find.text(ReminderUiText.bottomNavMore), findsOneWidget);
+      expect(find.text(ReminderUiText.bottomNavStageTracker), findsNothing);
+
+      await tester.tap(find.text(ReminderUiText.bottomNavMore));
       await _pumpRoute(tester);
 
       expect(tester.takeException(), isNull);
-      expect(find.byKey(const Key('add-stage-tracker-button')), findsOneWidget);
-      expect(find.text('還沒有階段追蹤。'), findsOneWidget);
+      expect(find.byKey(const Key('more-page')), findsOneWidget);
+      expect(find.byKey(const Key('more-resources-entry')), findsOneWidget);
+      expect(
+        find.byKey(const Key('more-stage-trackers-entry')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('more-packs-entry')), findsOneWidget);
+      expect(find.byKey(const Key('more-settings-entry')), findsOneWidget);
       expect(find.byType(FloatingActionButton), findsNothing);
+
+      await tester.tap(find.byKey(const Key('more-stage-trackers-entry')));
+      await _pumpRoute(tester);
+      expect(find.byKey(const Key('stage-tracker-grid')), findsOneWidget);
+
+      router.go(MorePage.routePath);
+      await _pumpRoute(tester);
+      await tester.tap(find.byKey(const Key('more-settings-entry')));
+      await _pumpRoute(tester);
+      expect(find.byKey(const Key('settings-page')), findsOneWidget);
 
       await _disposeReminderApp(tester);
     },
@@ -125,10 +148,18 @@ Future<GoRouter> _pumpShellRouter(WidgetTester tester) async {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: StageTrackerManagementPage.routePath,
-                name: StageTrackerManagementPage.routeName,
-                builder: (context, state) =>
-                    const StageTrackerManagementContent(),
+                path: ItemActivityPage.routePath,
+                name: ItemActivityPage.routeName,
+                builder: (context, state) => const ItemActivityContent(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: MorePage.routePath,
+                name: MorePage.routeName,
+                builder: (context, state) => const MoreContent(),
               ),
             ],
           ),
@@ -138,6 +169,26 @@ Future<GoRouter> _pumpShellRouter(WidgetTester tester) async {
         path: FeaturePage.routePath,
         name: FeaturePage.routeName,
         builder: (context, state) => const FeaturePage(),
+      ),
+      GoRoute(
+        path: ResourceManagementPage.routePath,
+        name: ResourceManagementPage.routeName,
+        builder: (context, state) => const ResourceManagementPage(),
+      ),
+      GoRoute(
+        path: StageTrackerManagementPage.routePath,
+        name: StageTrackerManagementPage.routeName,
+        builder: (context, state) => const StageTrackerManagementPage(),
+      ),
+      GoRoute(
+        path: ItemPacksManagementPage.routePath,
+        name: ItemPacksManagementPage.routeName,
+        builder: (context, state) => const ItemPacksManagementPage(),
+      ),
+      GoRoute(
+        path: SettingsPage.routePath,
+        name: SettingsPage.routeName,
+        builder: (context, state) => const SettingsPage(),
       ),
     ],
   );
@@ -176,7 +227,7 @@ Future<GoRouter> _pumpFeatureHubRouter(WidgetTester tester) async {
       GoRoute(
         path: StageTrackerManagementPage.routePath,
         name: StageTrackerManagementPage.routeName,
-        builder: (context, state) => const StageTrackerManagementContent(),
+        builder: (context, state) => const StageTrackerManagementPage(),
       ),
     ],
   );

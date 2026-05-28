@@ -28,6 +28,8 @@ class StageTrackerRepository {
   final StageOccurrenceService _occurrenceService;
   final DateTime Function() _clock;
 
+  static const systemDefaultKey = AppDatabase.systemDefaultStageTrackerKey;
+
   Stream<List<StageTracker>> watchStageTrackers() {
     return _dao.watchStageTrackers();
   }
@@ -52,6 +54,53 @@ class StageTrackerRepository {
 
   Future<StageTracker?> getStageTrackerById(int id) {
     return _dao.getStageTrackerById(id);
+  }
+
+  Future<StageTracker> ensureSystemStageTracker({bool? isHidden}) async {
+    final now = _clock();
+    return _dao.attachedDatabase.transaction(() async {
+      final existing = await _dao.getSystemStageTrackerByKey(systemDefaultKey);
+      final defaultPackId = await _ensureDefaultPackId(now);
+      if (existing != null) {
+        final shouldHide = isHidden ?? existing.isHidden;
+        await _dao.updateStageTrackerRecord(
+          StageTrackerRow(
+            id: existing.id,
+            packId: defaultPackId,
+            title: AppDatabase.systemDefaultStageTrackerTitle,
+            subjectName: AppDatabase.systemDefaultStageTrackerSubject,
+            trackingStartDate:
+                existing.trackingStartDate.millisecondsSinceEpoch,
+            trackingEndDate: existing.trackingEndDate?.millisecondsSinceEpoch,
+            status: StageTrackerStatus.active.name,
+            isSystemDefault: true,
+            systemKey: systemDefaultKey,
+            isHidden: shouldHide,
+            createdAt: existing.createdAt.millisecondsSinceEpoch,
+            updatedAt: now.millisecondsSinceEpoch,
+          ),
+        );
+        return (await _dao.getSystemStageTrackerByKey(systemDefaultKey))!;
+      }
+
+      final id = await _dao.insertStageTracker(
+        StageTrackersCompanion.insert(
+          packId: defaultPackId,
+          title: AppDatabase.systemDefaultStageTrackerTitle,
+          subjectName: const Value(
+            AppDatabase.systemDefaultStageTrackerSubject,
+          ),
+          trackingStartDate: _normalizeDate(now).millisecondsSinceEpoch,
+          status: Value(StageTrackerStatus.active.name),
+          isSystemDefault: const Value(true),
+          systemKey: const Value(systemDefaultKey),
+          isHidden: Value(isHidden ?? false),
+          createdAt: now.millisecondsSinceEpoch,
+          updatedAt: now.millisecondsSinceEpoch,
+        ),
+      );
+      return (await _dao.getStageTrackerById(id))!;
+    });
   }
 
   Future<StageTrackerDetail?> getStageTrackerDetailById(
@@ -123,6 +172,9 @@ class StageTrackerRepository {
                 : _normalizeDate(input.trackingEndDate!).millisecondsSinceEpoch,
           ),
           status: Value(StageTrackerStatus.active.name),
+          isSystemDefault: const Value(false),
+          systemKey: const Value(null),
+          isHidden: const Value(false),
           createdAt: now.millisecondsSinceEpoch,
           updatedAt: now.millisecondsSinceEpoch,
         ),
@@ -136,7 +188,9 @@ class StageTrackerRepository {
 
   Future<int> createStageRule(int stageTrackerId, StageRuleInput input) async {
     final tracker = await getStageTrackerById(stageTrackerId);
-    if (tracker == null || tracker.status == StageTrackerStatus.archived) {
+    if (tracker == null ||
+        tracker.status == StageTrackerStatus.archived ||
+        tracker.isSystemDefault) {
       return 0;
     }
     return _insertRule(stageTrackerId, input, _clock());
@@ -147,7 +201,9 @@ class StageTrackerRepository {
     ManualStageInput input,
   ) async {
     final tracker = await getStageTrackerById(stageTrackerId);
-    if (tracker == null || tracker.status == StageTrackerStatus.archived) {
+    if (tracker == null ||
+        tracker.status == StageTrackerStatus.archived ||
+        tracker.isSystemDefault) {
       return 0;
     }
     final now = _clock();
@@ -174,7 +230,9 @@ class StageTrackerRepository {
 
   Future<bool> updateStageTracker(int id, StageTrackerInput input) async {
     final tracker = await getStageTrackerById(id);
-    if (tracker == null || tracker.status == StageTrackerStatus.archived) {
+    if (tracker == null ||
+        tracker.status == StageTrackerStatus.archived ||
+        tracker.isSystemDefault) {
       return false;
     }
     final now = _clock();
@@ -192,6 +250,9 @@ class StageTrackerRepository {
             ? null
             : _normalizeDate(input.trackingEndDate!).millisecondsSinceEpoch,
         status: tracker.status.name,
+        isSystemDefault: tracker.isSystemDefault,
+        systemKey: tracker.systemKey,
+        isHidden: tracker.isHidden,
         createdAt: tracker.createdAt.millisecondsSinceEpoch,
         updatedAt: now.millisecondsSinceEpoch,
       ),
@@ -204,7 +265,9 @@ class StageTrackerRepository {
       return false;
     }
     final tracker = await getStageTrackerById(rule.stageTrackerId);
-    if (tracker == null || tracker.status == StageTrackerStatus.archived) {
+    if (tracker == null ||
+        tracker.status == StageTrackerStatus.archived ||
+        tracker.isSystemDefault) {
       return false;
     }
     if (input.intervalValue <= 0) {
@@ -233,7 +296,9 @@ class StageTrackerRepository {
       return false;
     }
     final tracker = await getStageTrackerById(rule.stageTrackerId);
-    if (tracker == null || tracker.status == StageTrackerStatus.archived) {
+    if (tracker == null ||
+        tracker.status == StageTrackerStatus.archived ||
+        tracker.isSystemDefault) {
       return false;
     }
     final now = _clock();
@@ -264,7 +329,9 @@ class StageTrackerRepository {
       return false;
     }
     final tracker = await getStageTrackerById(record.stageTrackerId);
-    if (tracker == null || tracker.status == StageTrackerStatus.archived) {
+    if (tracker == null ||
+        tracker.status == StageTrackerStatus.archived ||
+        tracker.isSystemDefault) {
       return false;
     }
     final now = _clock();
@@ -306,7 +373,9 @@ class StageTrackerRepository {
 
   Future<bool> archiveStageTracker(int id) async {
     final tracker = await getStageTrackerById(id);
-    if (tracker == null || tracker.status == StageTrackerStatus.archived) {
+    if (tracker == null ||
+        tracker.status == StageTrackerStatus.archived ||
+        tracker.isSystemDefault) {
       return false;
     }
     final now = _clock();
@@ -319,10 +388,31 @@ class StageTrackerRepository {
         trackingStartDate: tracker.trackingStartDate.millisecondsSinceEpoch,
         trackingEndDate: tracker.trackingEndDate?.millisecondsSinceEpoch,
         status: StageTrackerStatus.archived.name,
+        isSystemDefault: tracker.isSystemDefault,
+        systemKey: tracker.systemKey,
+        isHidden: tracker.isHidden,
         createdAt: tracker.createdAt.millisecondsSinceEpoch,
         updatedAt: now.millisecondsSinceEpoch,
       ),
     );
+  }
+
+  Future<bool> hideSystemStageTracker() async {
+    await ensureSystemStageTracker();
+    return await _dao.updateSystemStageTrackerVisibility(
+          systemKey: systemDefaultKey,
+          isHidden: true,
+        ) >
+        0;
+  }
+
+  Future<bool> showSystemStageTracker() async {
+    await ensureSystemStageTracker(isHidden: false);
+    return await _dao.updateSystemStageTrackerVisibility(
+          systemKey: systemDefaultKey,
+          isHidden: false,
+        ) >
+        0;
   }
 
   Future<bool> deleteOrArchiveImportantStage(int stageRecordId) async {
@@ -330,6 +420,10 @@ class StageTrackerRepository {
     if (record == null ||
         record.sourceType != StageRecordSourceType.manual ||
         record.status == StageRecordStatus.archived) {
+      return false;
+    }
+    final tracker = await getStageTrackerById(record.stageTrackerId);
+    if (tracker == null || tracker.isSystemDefault) {
       return false;
     }
     final current = _normalizeDate(_clock());
@@ -395,7 +489,7 @@ class StageTrackerRepository {
     final current = _normalizeDate(now ?? _clock());
     return [
       for (final tracker in trackers.where(
-        (item) => item.status == StageTrackerStatus.active,
+        (item) => item.status == StageTrackerStatus.active && !item.isHidden,
       ))
         ..._occurrenceService.getHomeAttentionOccurrences(
           tracker,

@@ -4,6 +4,7 @@ import '../services/app_badge_service.dart';
 import '../services/attention_sync_service.dart';
 import '../services/reminder_notification_service.dart';
 import 'attention_summary_providers.dart';
+import 'settings_providers.dart';
 
 final reminderNotificationClientProvider = Provider<ReminderNotificationClient>(
   (ref) {
@@ -34,6 +35,7 @@ final appBadgeServiceProvider = Provider<AppBadgeService>((ref) {
 final attentionSyncServiceProvider = Provider<AttentionSyncService>((ref) {
   return AttentionSyncService(
     repository: ref.watch(attentionSummaryRepositoryProvider),
+    settingsRepository: ref.watch(settingsRepositoryProvider),
     notificationService: ref.watch(reminderNotificationServiceProvider),
     badgeService: ref.watch(appBadgeServiceProvider),
   );

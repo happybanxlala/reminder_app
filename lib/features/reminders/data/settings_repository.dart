@@ -18,4 +18,8 @@ class SettingsRepository {
   Future<void> updateReminderTone(ReminderTone tone) {
     return _dao.updateReminderTone(tone);
   }
+
+  Future<void> updateNotificationReminderTime(String time) {
+    return _dao.updateNotificationReminderTime(time);
+  }
 }

@@ -145,8 +145,17 @@ class StageTrackers extends Table {
   IntColumn get trackingStartDate => integer()();
   IntColumn get trackingEndDate => integer().nullable()();
   TextColumn get status => text().withDefault(const Constant('active'))();
+  BoolColumn get isSystemDefault =>
+      boolean().withDefault(const Constant(false))();
+  TextColumn get systemKey => text().nullable()();
+  BoolColumn get isHidden => boolean().withDefault(const Constant(false))();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+    {systemKey},
+  ];
 }
 
 @DataClassName('StageRuleRow')
@@ -213,6 +222,8 @@ class AppSettingsEntries extends Table {
   IntColumn get id => integer().withDefault(const Constant(1))();
   TextColumn get reminderTone =>
       text().withDefault(const Constant('standard'))();
+  TextColumn get notificationReminderTime =>
+      text().withDefault(const Constant('09:00'))();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 

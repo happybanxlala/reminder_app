@@ -250,14 +250,46 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
 
   Future<void> updateReminderTone(ReminderTone tone) async {
     final now = DateTime.now().millisecondsSinceEpoch;
-    await into(appSettingsEntries).insertOnConflictUpdate(
-      AppSettingsEntriesCompanion.insert(
-        id: const Value(1),
-        reminderTone: Value(tone.name),
-        createdAt: now,
-        updatedAt: now,
-      ),
-    );
+    final updated =
+        await (update(appSettingsEntries)..where((t) => t.id.equals(1))).write(
+          AppSettingsEntriesCompanion(
+            reminderTone: Value(tone.name),
+            updatedAt: Value(now),
+          ),
+        );
+    if (updated == 0) {
+      await into(appSettingsEntries).insert(
+        AppSettingsEntriesCompanion.insert(
+          id: const Value(1),
+          reminderTone: Value(tone.name),
+          notificationReminderTime: const Value('09:00'),
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+    }
+  }
+
+  Future<void> updateNotificationReminderTime(String time) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final updated =
+        await (update(appSettingsEntries)..where((t) => t.id.equals(1))).write(
+          AppSettingsEntriesCompanion(
+            notificationReminderTime: Value(time),
+            updatedAt: Value(now),
+          ),
+        );
+    if (updated == 0) {
+      await into(appSettingsEntries).insert(
+        AppSettingsEntriesCompanion.insert(
+          id: const Value(1),
+          reminderTone: const Value('standard'),
+          notificationReminderTime: Value(time),
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+    }
   }
 
   Future<bool> updateItemPackRecord(ItemPackRow entry) {
@@ -761,7 +793,8 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     return (update(stageTrackers)..where(
           (t) =>
               t.packId.equals(packId) &
-              t.status.equals(StageTrackerStatus.active.name),
+              t.status.equals(StageTrackerStatus.active.name) &
+              t.isSystemDefault.equals(false),
         ))
         .write(
           StageTrackersCompanion(
@@ -852,18 +885,32 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
 
   Stream<List<StageTracker>> watchStageTrackers({
     bool includeArchived = false,
+    bool includeHidden = false,
   }) {
     final query = select(stageTrackers)
       ..orderBy([
         (t) => OrderingTerm.asc(t.status),
+        (t) => OrderingTerm.desc(t.isSystemDefault),
         (t) => OrderingTerm.desc(t.updatedAt),
       ]);
     if (!includeArchived) {
       query.where((t) => t.status.equals(StageTrackerStatus.active.name));
     }
+    if (!includeHidden) {
+      query.where((t) => t.isHidden.equals(false));
+    }
     return query.watch().map(
       (rows) => rows.map(_toStageTracker).toList(growable: false),
     );
+  }
+
+  Future<StageTracker?> getSystemStageTrackerByKey(String systemKey) async {
+    final row =
+        await (select(stageTrackers)
+              ..where((t) => t.systemKey.equals(systemKey))
+              ..limit(1))
+            .getSingleOrNull();
+    return row == null ? null : _toStageTracker(row);
   }
 
   Future<StageTracker?> getStageTrackerById(int id) async {
@@ -871,6 +918,22 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
       stageTrackers,
     )..where((t) => t.id.equals(id))).getSingleOrNull();
     return row == null ? null : _toStageTracker(row);
+  }
+
+  Future<int> updateSystemStageTrackerVisibility({
+    required String systemKey,
+    required bool isHidden,
+  }) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    return (update(
+      stageTrackers,
+    )..where((t) => t.systemKey.equals(systemKey))).write(
+      StageTrackersCompanion(
+        isHidden: Value(isHidden),
+        status: Value(StageTrackerStatus.active.name),
+        updatedAt: Value(now),
+      ),
+    );
   }
 
   Stream<List<StageRule>> watchStageRules() {
@@ -1592,6 +1655,9 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
           ? null
           : DateTime.fromMillisecondsSinceEpoch(row.trackingEndDate!),
       status: StageTrackerStatus.values.byName(row.status),
+      isSystemDefault: row.isSystemDefault,
+      systemKey: row.systemKey,
+      isHidden: row.isHidden,
       createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
     );
@@ -1646,6 +1712,7 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
   AppSettings _toAppSettings(AppSettingsRow row) {
     return AppSettings(
       reminderTone: _reminderTone(row.reminderTone),
+      notificationReminderTime: row.notificationReminderTime,
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
     );
   }

@@ -5447,6 +5447,47 @@ class $StageTrackersTable extends StageTrackers
     requiredDuringInsert: false,
     defaultValue: const Constant('active'),
   );
+  static const VerificationMeta _isSystemDefaultMeta = const VerificationMeta(
+    'isSystemDefault',
+  );
+  @override
+  late final GeneratedColumn<bool> isSystemDefault = GeneratedColumn<bool>(
+    'is_system_default',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_system_default" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _systemKeyMeta = const VerificationMeta(
+    'systemKey',
+  );
+  @override
+  late final GeneratedColumn<String> systemKey = GeneratedColumn<String>(
+    'system_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isHiddenMeta = const VerificationMeta(
+    'isHidden',
+  );
+  @override
+  late final GeneratedColumn<bool> isHidden = GeneratedColumn<bool>(
+    'is_hidden',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_hidden" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -5478,6 +5519,9 @@ class $StageTrackersTable extends StageTrackers
     trackingStartDate,
     trackingEndDate,
     status,
+    isSystemDefault,
+    systemKey,
+    isHidden,
     createdAt,
     updatedAt,
   ];
@@ -5547,6 +5591,27 @@ class $StageTrackersTable extends StageTrackers
         status.isAcceptableOrUnknown(data['status']!, _statusMeta),
       );
     }
+    if (data.containsKey('is_system_default')) {
+      context.handle(
+        _isSystemDefaultMeta,
+        isSystemDefault.isAcceptableOrUnknown(
+          data['is_system_default']!,
+          _isSystemDefaultMeta,
+        ),
+      );
+    }
+    if (data.containsKey('system_key')) {
+      context.handle(
+        _systemKeyMeta,
+        systemKey.isAcceptableOrUnknown(data['system_key']!, _systemKeyMeta),
+      );
+    }
+    if (data.containsKey('is_hidden')) {
+      context.handle(
+        _isHiddenMeta,
+        isHidden.isAcceptableOrUnknown(data['is_hidden']!, _isHiddenMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -5568,6 +5633,10 @@ class $StageTrackersTable extends StageTrackers
 
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {systemKey},
+  ];
   @override
   StageTrackerRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -5600,6 +5669,18 @@ class $StageTrackersTable extends StageTrackers
         DriftSqlType.string,
         data['${effectivePrefix}status'],
       )!,
+      isSystemDefault: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_system_default'],
+      )!,
+      systemKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}system_key'],
+      ),
+      isHidden: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_hidden'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
@@ -5625,6 +5706,9 @@ class StageTrackerRow extends DataClass implements Insertable<StageTrackerRow> {
   final int trackingStartDate;
   final int? trackingEndDate;
   final String status;
+  final bool isSystemDefault;
+  final String? systemKey;
+  final bool isHidden;
   final int createdAt;
   final int updatedAt;
   const StageTrackerRow({
@@ -5635,6 +5719,9 @@ class StageTrackerRow extends DataClass implements Insertable<StageTrackerRow> {
     required this.trackingStartDate,
     this.trackingEndDate,
     required this.status,
+    required this.isSystemDefault,
+    this.systemKey,
+    required this.isHidden,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -5652,6 +5739,11 @@ class StageTrackerRow extends DataClass implements Insertable<StageTrackerRow> {
       map['tracking_end_date'] = Variable<int>(trackingEndDate);
     }
     map['status'] = Variable<String>(status);
+    map['is_system_default'] = Variable<bool>(isSystemDefault);
+    if (!nullToAbsent || systemKey != null) {
+      map['system_key'] = Variable<String>(systemKey);
+    }
+    map['is_hidden'] = Variable<bool>(isHidden);
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     return map;
@@ -5670,6 +5762,11 @@ class StageTrackerRow extends DataClass implements Insertable<StageTrackerRow> {
           ? const Value.absent()
           : Value(trackingEndDate),
       status: Value(status),
+      isSystemDefault: Value(isSystemDefault),
+      systemKey: systemKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(systemKey),
+      isHidden: Value(isHidden),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -5688,6 +5785,9 @@ class StageTrackerRow extends DataClass implements Insertable<StageTrackerRow> {
       trackingStartDate: serializer.fromJson<int>(json['trackingStartDate']),
       trackingEndDate: serializer.fromJson<int?>(json['trackingEndDate']),
       status: serializer.fromJson<String>(json['status']),
+      isSystemDefault: serializer.fromJson<bool>(json['isSystemDefault']),
+      systemKey: serializer.fromJson<String?>(json['systemKey']),
+      isHidden: serializer.fromJson<bool>(json['isHidden']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -5703,6 +5803,9 @@ class StageTrackerRow extends DataClass implements Insertable<StageTrackerRow> {
       'trackingStartDate': serializer.toJson<int>(trackingStartDate),
       'trackingEndDate': serializer.toJson<int?>(trackingEndDate),
       'status': serializer.toJson<String>(status),
+      'isSystemDefault': serializer.toJson<bool>(isSystemDefault),
+      'systemKey': serializer.toJson<String?>(systemKey),
+      'isHidden': serializer.toJson<bool>(isHidden),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -5716,6 +5819,9 @@ class StageTrackerRow extends DataClass implements Insertable<StageTrackerRow> {
     int? trackingStartDate,
     Value<int?> trackingEndDate = const Value.absent(),
     String? status,
+    bool? isSystemDefault,
+    Value<String?> systemKey = const Value.absent(),
+    bool? isHidden,
     int? createdAt,
     int? updatedAt,
   }) => StageTrackerRow(
@@ -5728,6 +5834,9 @@ class StageTrackerRow extends DataClass implements Insertable<StageTrackerRow> {
         ? trackingEndDate.value
         : this.trackingEndDate,
     status: status ?? this.status,
+    isSystemDefault: isSystemDefault ?? this.isSystemDefault,
+    systemKey: systemKey.present ? systemKey.value : this.systemKey,
+    isHidden: isHidden ?? this.isHidden,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -5746,6 +5855,11 @@ class StageTrackerRow extends DataClass implements Insertable<StageTrackerRow> {
           ? data.trackingEndDate.value
           : this.trackingEndDate,
       status: data.status.present ? data.status.value : this.status,
+      isSystemDefault: data.isSystemDefault.present
+          ? data.isSystemDefault.value
+          : this.isSystemDefault,
+      systemKey: data.systemKey.present ? data.systemKey.value : this.systemKey,
+      isHidden: data.isHidden.present ? data.isHidden.value : this.isHidden,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -5761,6 +5875,9 @@ class StageTrackerRow extends DataClass implements Insertable<StageTrackerRow> {
           ..write('trackingStartDate: $trackingStartDate, ')
           ..write('trackingEndDate: $trackingEndDate, ')
           ..write('status: $status, ')
+          ..write('isSystemDefault: $isSystemDefault, ')
+          ..write('systemKey: $systemKey, ')
+          ..write('isHidden: $isHidden, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -5776,6 +5893,9 @@ class StageTrackerRow extends DataClass implements Insertable<StageTrackerRow> {
     trackingStartDate,
     trackingEndDate,
     status,
+    isSystemDefault,
+    systemKey,
+    isHidden,
     createdAt,
     updatedAt,
   );
@@ -5790,6 +5910,9 @@ class StageTrackerRow extends DataClass implements Insertable<StageTrackerRow> {
           other.trackingStartDate == this.trackingStartDate &&
           other.trackingEndDate == this.trackingEndDate &&
           other.status == this.status &&
+          other.isSystemDefault == this.isSystemDefault &&
+          other.systemKey == this.systemKey &&
+          other.isHidden == this.isHidden &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -5802,6 +5925,9 @@ class StageTrackersCompanion extends UpdateCompanion<StageTrackerRow> {
   final Value<int> trackingStartDate;
   final Value<int?> trackingEndDate;
   final Value<String> status;
+  final Value<bool> isSystemDefault;
+  final Value<String?> systemKey;
+  final Value<bool> isHidden;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   const StageTrackersCompanion({
@@ -5812,6 +5938,9 @@ class StageTrackersCompanion extends UpdateCompanion<StageTrackerRow> {
     this.trackingStartDate = const Value.absent(),
     this.trackingEndDate = const Value.absent(),
     this.status = const Value.absent(),
+    this.isSystemDefault = const Value.absent(),
+    this.systemKey = const Value.absent(),
+    this.isHidden = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -5823,6 +5952,9 @@ class StageTrackersCompanion extends UpdateCompanion<StageTrackerRow> {
     required int trackingStartDate,
     this.trackingEndDate = const Value.absent(),
     this.status = const Value.absent(),
+    this.isSystemDefault = const Value.absent(),
+    this.systemKey = const Value.absent(),
+    this.isHidden = const Value.absent(),
     required int createdAt,
     required int updatedAt,
   }) : packId = Value(packId),
@@ -5838,6 +5970,9 @@ class StageTrackersCompanion extends UpdateCompanion<StageTrackerRow> {
     Expression<int>? trackingStartDate,
     Expression<int>? trackingEndDate,
     Expression<String>? status,
+    Expression<bool>? isSystemDefault,
+    Expression<String>? systemKey,
+    Expression<bool>? isHidden,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
@@ -5849,6 +5984,9 @@ class StageTrackersCompanion extends UpdateCompanion<StageTrackerRow> {
       if (trackingStartDate != null) 'tracking_start_date': trackingStartDate,
       if (trackingEndDate != null) 'tracking_end_date': trackingEndDate,
       if (status != null) 'status': status,
+      if (isSystemDefault != null) 'is_system_default': isSystemDefault,
+      if (systemKey != null) 'system_key': systemKey,
+      if (isHidden != null) 'is_hidden': isHidden,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -5862,6 +6000,9 @@ class StageTrackersCompanion extends UpdateCompanion<StageTrackerRow> {
     Value<int>? trackingStartDate,
     Value<int?>? trackingEndDate,
     Value<String>? status,
+    Value<bool>? isSystemDefault,
+    Value<String?>? systemKey,
+    Value<bool>? isHidden,
     Value<int>? createdAt,
     Value<int>? updatedAt,
   }) {
@@ -5873,6 +6014,9 @@ class StageTrackersCompanion extends UpdateCompanion<StageTrackerRow> {
       trackingStartDate: trackingStartDate ?? this.trackingStartDate,
       trackingEndDate: trackingEndDate ?? this.trackingEndDate,
       status: status ?? this.status,
+      isSystemDefault: isSystemDefault ?? this.isSystemDefault,
+      systemKey: systemKey ?? this.systemKey,
+      isHidden: isHidden ?? this.isHidden,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -5902,6 +6046,15 @@ class StageTrackersCompanion extends UpdateCompanion<StageTrackerRow> {
     if (status.present) {
       map['status'] = Variable<String>(status.value);
     }
+    if (isSystemDefault.present) {
+      map['is_system_default'] = Variable<bool>(isSystemDefault.value);
+    }
+    if (systemKey.present) {
+      map['system_key'] = Variable<String>(systemKey.value);
+    }
+    if (isHidden.present) {
+      map['is_hidden'] = Variable<bool>(isHidden.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -5921,6 +6074,9 @@ class StageTrackersCompanion extends UpdateCompanion<StageTrackerRow> {
           ..write('trackingStartDate: $trackingStartDate, ')
           ..write('trackingEndDate: $trackingEndDate, ')
           ..write('status: $status, ')
+          ..write('isSystemDefault: $isSystemDefault, ')
+          ..write('systemKey: $systemKey, ')
+          ..write('isHidden: $isHidden, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -7784,6 +7940,18 @@ class $AppSettingsEntriesTable extends AppSettingsEntries
     requiredDuringInsert: false,
     defaultValue: const Constant('standard'),
   );
+  static const VerificationMeta _notificationReminderTimeMeta =
+      const VerificationMeta('notificationReminderTime');
+  @override
+  late final GeneratedColumn<String> notificationReminderTime =
+      GeneratedColumn<String>(
+        'notification_reminder_time',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('09:00'),
+      );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -7810,6 +7978,7 @@ class $AppSettingsEntriesTable extends AppSettingsEntries
   List<GeneratedColumn> get $columns => [
     id,
     reminderTone,
+    notificationReminderTime,
     createdAt,
     updatedAt,
   ];
@@ -7834,6 +8003,15 @@ class $AppSettingsEntriesTable extends AppSettingsEntries
         reminderTone.isAcceptableOrUnknown(
           data['reminder_tone']!,
           _reminderToneMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notification_reminder_time')) {
+      context.handle(
+        _notificationReminderTimeMeta,
+        notificationReminderTime.isAcceptableOrUnknown(
+          data['notification_reminder_time']!,
+          _notificationReminderTimeMeta,
         ),
       );
     }
@@ -7870,6 +8048,10 @@ class $AppSettingsEntriesTable extends AppSettingsEntries
         DriftSqlType.string,
         data['${effectivePrefix}reminder_tone'],
       )!,
+      notificationReminderTime: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notification_reminder_time'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
@@ -7890,11 +8072,13 @@ class $AppSettingsEntriesTable extends AppSettingsEntries
 class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
   final int id;
   final String reminderTone;
+  final String notificationReminderTime;
   final int createdAt;
   final int updatedAt;
   const AppSettingsRow({
     required this.id,
     required this.reminderTone,
+    required this.notificationReminderTime,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -7903,6 +8087,9 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['reminder_tone'] = Variable<String>(reminderTone);
+    map['notification_reminder_time'] = Variable<String>(
+      notificationReminderTime,
+    );
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     return map;
@@ -7912,6 +8099,7 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
     return AppSettingsEntriesCompanion(
       id: Value(id),
       reminderTone: Value(reminderTone),
+      notificationReminderTime: Value(notificationReminderTime),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -7925,6 +8113,9 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
     return AppSettingsRow(
       id: serializer.fromJson<int>(json['id']),
       reminderTone: serializer.fromJson<String>(json['reminderTone']),
+      notificationReminderTime: serializer.fromJson<String>(
+        json['notificationReminderTime'],
+      ),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -7935,6 +8126,9 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'reminderTone': serializer.toJson<String>(reminderTone),
+      'notificationReminderTime': serializer.toJson<String>(
+        notificationReminderTime,
+      ),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -7943,11 +8137,14 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
   AppSettingsRow copyWith({
     int? id,
     String? reminderTone,
+    String? notificationReminderTime,
     int? createdAt,
     int? updatedAt,
   }) => AppSettingsRow(
     id: id ?? this.id,
     reminderTone: reminderTone ?? this.reminderTone,
+    notificationReminderTime:
+        notificationReminderTime ?? this.notificationReminderTime,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -7957,6 +8154,9 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
       reminderTone: data.reminderTone.present
           ? data.reminderTone.value
           : this.reminderTone,
+      notificationReminderTime: data.notificationReminderTime.present
+          ? data.notificationReminderTime.value
+          : this.notificationReminderTime,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -7967,6 +8167,7 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
     return (StringBuffer('AppSettingsRow(')
           ..write('id: $id, ')
           ..write('reminderTone: $reminderTone, ')
+          ..write('notificationReminderTime: $notificationReminderTime, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -7974,13 +8175,20 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
   }
 
   @override
-  int get hashCode => Object.hash(id, reminderTone, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+    id,
+    reminderTone,
+    notificationReminderTime,
+    createdAt,
+    updatedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is AppSettingsRow &&
           other.id == this.id &&
           other.reminderTone == this.reminderTone &&
+          other.notificationReminderTime == this.notificationReminderTime &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -7988,17 +8196,20 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
 class AppSettingsEntriesCompanion extends UpdateCompanion<AppSettingsRow> {
   final Value<int> id;
   final Value<String> reminderTone;
+  final Value<String> notificationReminderTime;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   const AppSettingsEntriesCompanion({
     this.id = const Value.absent(),
     this.reminderTone = const Value.absent(),
+    this.notificationReminderTime = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
   AppSettingsEntriesCompanion.insert({
     this.id = const Value.absent(),
     this.reminderTone = const Value.absent(),
+    this.notificationReminderTime = const Value.absent(),
     required int createdAt,
     required int updatedAt,
   }) : createdAt = Value(createdAt),
@@ -8006,12 +8217,15 @@ class AppSettingsEntriesCompanion extends UpdateCompanion<AppSettingsRow> {
   static Insertable<AppSettingsRow> custom({
     Expression<int>? id,
     Expression<String>? reminderTone,
+    Expression<String>? notificationReminderTime,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (reminderTone != null) 'reminder_tone': reminderTone,
+      if (notificationReminderTime != null)
+        'notification_reminder_time': notificationReminderTime,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -8020,12 +8234,15 @@ class AppSettingsEntriesCompanion extends UpdateCompanion<AppSettingsRow> {
   AppSettingsEntriesCompanion copyWith({
     Value<int>? id,
     Value<String>? reminderTone,
+    Value<String>? notificationReminderTime,
     Value<int>? createdAt,
     Value<int>? updatedAt,
   }) {
     return AppSettingsEntriesCompanion(
       id: id ?? this.id,
       reminderTone: reminderTone ?? this.reminderTone,
+      notificationReminderTime:
+          notificationReminderTime ?? this.notificationReminderTime,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -8039,6 +8256,11 @@ class AppSettingsEntriesCompanion extends UpdateCompanion<AppSettingsRow> {
     }
     if (reminderTone.present) {
       map['reminder_tone'] = Variable<String>(reminderTone.value);
+    }
+    if (notificationReminderTime.present) {
+      map['notification_reminder_time'] = Variable<String>(
+        notificationReminderTime.value,
+      );
     }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
@@ -8054,6 +8276,7 @@ class AppSettingsEntriesCompanion extends UpdateCompanion<AppSettingsRow> {
     return (StringBuffer('AppSettingsEntriesCompanion(')
           ..write('id: $id, ')
           ..write('reminderTone: $reminderTone, ')
+          ..write('notificationReminderTime: $notificationReminderTime, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -12244,6 +12467,9 @@ typedef $$StageTrackersTableCreateCompanionBuilder =
       required int trackingStartDate,
       Value<int?> trackingEndDate,
       Value<String> status,
+      Value<bool> isSystemDefault,
+      Value<String?> systemKey,
+      Value<bool> isHidden,
       required int createdAt,
       required int updatedAt,
     });
@@ -12256,6 +12482,9 @@ typedef $$StageTrackersTableUpdateCompanionBuilder =
       Value<int> trackingStartDate,
       Value<int?> trackingEndDate,
       Value<String> status,
+      Value<bool> isSystemDefault,
+      Value<String?> systemKey,
+      Value<bool> isHidden,
       Value<int> createdAt,
       Value<int> updatedAt,
     });
@@ -12367,6 +12596,21 @@ class $$StageTrackersTableFilterComposer
 
   ColumnFilters<String> get status => $composableBuilder(
     column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isSystemDefault => $composableBuilder(
+    column: $table.isSystemDefault,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get systemKey => $composableBuilder(
+    column: $table.systemKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isHidden => $composableBuilder(
+    column: $table.isHidden,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -12493,6 +12737,21 @@ class $$StageTrackersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get isSystemDefault => $composableBuilder(
+    column: $table.isSystemDefault,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get systemKey => $composableBuilder(
+    column: $table.systemKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isHidden => $composableBuilder(
+    column: $table.isHidden,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -12559,6 +12818,17 @@ class $$StageTrackersTableAnnotationComposer
 
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<bool> get isSystemDefault => $composableBuilder(
+    column: $table.isSystemDefault,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get systemKey =>
+      $composableBuilder(column: $table.systemKey, builder: (column) => column);
+
+  GeneratedColumn<bool> get isHidden =>
+      $composableBuilder(column: $table.isHidden, builder: (column) => column);
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -12679,6 +12949,9 @@ class $$StageTrackersTableTableManager
                 Value<int> trackingStartDate = const Value.absent(),
                 Value<int?> trackingEndDate = const Value.absent(),
                 Value<String> status = const Value.absent(),
+                Value<bool> isSystemDefault = const Value.absent(),
+                Value<String?> systemKey = const Value.absent(),
+                Value<bool> isHidden = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
               }) => StageTrackersCompanion(
@@ -12689,6 +12962,9 @@ class $$StageTrackersTableTableManager
                 trackingStartDate: trackingStartDate,
                 trackingEndDate: trackingEndDate,
                 status: status,
+                isSystemDefault: isSystemDefault,
+                systemKey: systemKey,
+                isHidden: isHidden,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -12701,6 +12977,9 @@ class $$StageTrackersTableTableManager
                 required int trackingStartDate,
                 Value<int?> trackingEndDate = const Value.absent(),
                 Value<String> status = const Value.absent(),
+                Value<bool> isSystemDefault = const Value.absent(),
+                Value<String?> systemKey = const Value.absent(),
+                Value<bool> isHidden = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
               }) => StageTrackersCompanion.insert(
@@ -12711,6 +12990,9 @@ class $$StageTrackersTableTableManager
                 trackingStartDate: trackingStartDate,
                 trackingEndDate: trackingEndDate,
                 status: status,
+                isSystemDefault: isSystemDefault,
+                systemKey: systemKey,
+                isHidden: isHidden,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -14479,6 +14761,7 @@ typedef $$AppSettingsEntriesTableCreateCompanionBuilder =
     AppSettingsEntriesCompanion Function({
       Value<int> id,
       Value<String> reminderTone,
+      Value<String> notificationReminderTime,
       required int createdAt,
       required int updatedAt,
     });
@@ -14486,6 +14769,7 @@ typedef $$AppSettingsEntriesTableUpdateCompanionBuilder =
     AppSettingsEntriesCompanion Function({
       Value<int> id,
       Value<String> reminderTone,
+      Value<String> notificationReminderTime,
       Value<int> createdAt,
       Value<int> updatedAt,
     });
@@ -14506,6 +14790,11 @@ class $$AppSettingsEntriesTableFilterComposer
 
   ColumnFilters<String> get reminderTone => $composableBuilder(
     column: $table.reminderTone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notificationReminderTime => $composableBuilder(
+    column: $table.notificationReminderTime,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -14539,6 +14828,11 @@ class $$AppSettingsEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get notificationReminderTime => $composableBuilder(
+    column: $table.notificationReminderTime,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -14564,6 +14858,11 @@ class $$AppSettingsEntriesTableAnnotationComposer
 
   GeneratedColumn<String> get reminderTone => $composableBuilder(
     column: $table.reminderTone,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get notificationReminderTime => $composableBuilder(
+    column: $table.notificationReminderTime,
     builder: (column) => column,
   );
 
@@ -14616,11 +14915,13 @@ class $$AppSettingsEntriesTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<String> reminderTone = const Value.absent(),
+                Value<String> notificationReminderTime = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
               }) => AppSettingsEntriesCompanion(
                 id: id,
                 reminderTone: reminderTone,
+                notificationReminderTime: notificationReminderTime,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -14628,11 +14929,13 @@ class $$AppSettingsEntriesTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<String> reminderTone = const Value.absent(),
+                Value<String> notificationReminderTime = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
               }) => AppSettingsEntriesCompanion.insert(
                 id: id,
                 reminderTone: reminderTone,
+                notificationReminderTime: notificationReminderTime,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),

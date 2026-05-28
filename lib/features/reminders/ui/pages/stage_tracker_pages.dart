@@ -70,9 +70,9 @@ class StageTrackerManagementContent extends ConsumerWidget {
         const SizedBox(height: _StageTrackerManagementDensity.sectionGap),
         trackersAsync.when(
           data: (trackers) {
-            if (trackers.isEmpty) {
-              return const _StageTrackerCompactEmptyState();
-            }
+            final showAddCard = trackers
+                .where((tracker) => !tracker.isSystemDefault)
+                .isEmpty;
             final packs = packsAsync.valueOrNull ?? const <ItemPack>[];
             final rules = rulesAsync.valueOrNull ?? const <StageRule>[];
             final records = recordsAsync.valueOrNull ?? const <StageRecord>[];
@@ -80,7 +80,7 @@ class StageTrackerManagementContent extends ConsumerWidget {
               key: const Key('stage-tracker-grid'),
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: trackers.length,
+              itemCount: trackers.length + (showAddCard ? 1 : 0),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
                 crossAxisSpacing: _StageTrackerManagementDensity.gridGap,
@@ -88,6 +88,11 @@ class StageTrackerManagementContent extends ConsumerWidget {
                 childAspectRatio: 0.88,
               ),
               itemBuilder: (context, index) {
+                if (showAddCard && index == trackers.length) {
+                  return _StageTrackerDashedAddCard(
+                    onTap: () => _showCreateStageTrackerDialog(context, ref),
+                  );
+                }
                 final tracker = trackers[index];
                 return _StageTrackerAchievementCard(
                   tracker: tracker,
@@ -184,17 +189,11 @@ class _StageTrackerManagementHeader extends StatelessWidget {
             style: Theme.of(context).textTheme.titleLarge,
           ),
         ),
-        Semantics(
-          label: ReminderUiText.addStageTracker,
-          button: true,
-          child: IconButton.filled(
-            key: const Key('add-stage-tracker-button'),
-            onPressed: onAddTracker,
-            tooltip: ReminderUiText.addStageTracker,
-            icon: const Icon(Icons.add),
-            visualDensity: VisualDensity.compact,
-            constraints: const BoxConstraints.tightFor(width: 40, height: 40),
-          ),
+        TextButton.icon(
+          key: const Key('stage-tracker-content-add-button'),
+          onPressed: onAddTracker,
+          icon: const Icon(Icons.add, size: 18),
+          label: const Text(ReminderUiText.addStageTracker),
         ),
       ],
     );
@@ -275,42 +274,115 @@ class _StageTrackerSummaryCard extends StatelessWidget {
   }
 }
 
-class _StageTrackerCompactEmptyState extends StatelessWidget {
-  const _StageTrackerCompactEmptyState();
+class _StageTrackerDashedAddCard extends StatelessWidget {
+  const _StageTrackerDashedAddCard({required this.onTap});
+
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.reminderPalette;
-    return Container(
-      key: const Key('stage-tracker-empty-state'),
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: palette.surfaceWarm,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: palette.borderSubtle),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            '還沒有階段追蹤。',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: palette.textSecondary,
-              fontWeight: FontWeight.w700,
+    return Semantics(
+      button: true,
+      label: ReminderUiText.addStageTrackerCardTitle,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(
+          _StageTrackerManagementDensity.cardRadius,
+        ),
+        child: InkWell(
+          key: const Key('stage-tracker-dashed-add-card'),
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(
+            _StageTrackerManagementDensity.cardRadius,
+          ),
+          child: CustomPaint(
+            painter: _DashedBorderPainter(
+              color: palette.domainStage.withValues(alpha: 0.45),
+              radius: _StageTrackerManagementDensity.cardRadius,
+            ),
+            child: Container(
+              alignment: Alignment.center,
+              padding: const EdgeInsets.all(
+                _StageTrackerManagementDensity.cardPadding,
+              ),
+              decoration: BoxDecoration(
+                color: palette.surfaceWarm.withValues(alpha: 0.72),
+                borderRadius: BorderRadius.circular(
+                  _StageTrackerManagementDensity.cardRadius,
+                ),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    '+',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: palette.domainStage,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    ReminderUiText.addStageTrackerCardTitle,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: palette.textPrimary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    ReminderUiText.addStageTrackerCardSubtitle,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: palette.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            '建立第一個追蹤，看看時間累積起來的樣子。',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: palette.textSecondary),
-          ),
-        ],
+        ),
       ),
     );
+  }
+}
+
+class _DashedBorderPainter extends CustomPainter {
+  const _DashedBorderPainter({required this.color, required this.radius});
+
+  final Color color;
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4;
+    final path = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(Offset.zero & size, Radius.circular(radius)),
+      );
+    for (final metric in path.computeMetrics()) {
+      var distance = 0.0;
+      while (distance < metric.length) {
+        final end = (distance + 6).clamp(0.0, metric.length);
+        canvas.drawPath(metric.extractPath(distance, end), paint);
+        distance += 10;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedBorderPainter oldDelegate) {
+    return color != oldDelegate.color || radius != oldDelegate.radius;
   }
 }
 
@@ -353,7 +425,7 @@ class _StageTrackerAchievementCard extends StatelessWidget {
               _StageTrackerEmojiBubble(pack: pack, trackerId: tracker.id),
               const SizedBox(height: 7),
               Text(
-                _accumulatedDaysLabel(tracker, now),
+                ReminderFormatters.stageTrackerDayLabel(tracker, now: now),
                 key: Key('stage-tracker-days-${tracker.id}'),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -394,23 +466,6 @@ class _StageTrackerAchievementCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _accumulatedDaysLabel(StageTracker tracker, DateTime now) {
-    final start = _normalizeDate(tracker.trackingStartDate);
-    final current = _normalizeDate(now);
-    if (current.isBefore(start)) {
-      return '0天';
-    }
-    final end = tracker.trackingEndDate == null
-        ? null
-        : _normalizeDate(tracker.trackingEndDate!);
-    final effectiveDate = end != null && current.isAfter(end) ? end : current;
-    final days = effectiveDate.difference(start).inDays;
-    if (days < 0) {
-      return '0天';
-    }
-    return '$days天';
   }
 
   String? _statusLabel(StageOccurrence? attentionOccurrence, DateTime now) {
@@ -529,11 +584,13 @@ class _StageTrackerDetailPageState
                 recentState: _heroRecentState(detail.historyStages),
                 nextStage: detail.nextStage,
               ),
-              const SizedBox(height: _StageTrackerDetailDensity.cardGap),
-              _CompactAddStageAction(
-                onPressed: () =>
-                    _showStageEntryDialog(context, ref, tracker.id),
-              ),
+              if (!tracker.isSystemDefault) ...[
+                const SizedBox(height: _StageTrackerDetailDensity.cardGap),
+                _CompactAddStageAction(
+                  onPressed: () =>
+                      _showStageEntryDialog(context, ref, tracker.id),
+                ),
+              ],
               const SizedBox(height: _StageTrackerDetailDensity.sectionGap),
               _CompactSection(
                 title: '即將到來',
@@ -564,6 +621,7 @@ class _StageTrackerDetailPageState
                 rules: detail.stageRules,
                 nextOccurrencesByRule: nextOccurrencesByRule,
                 now: previewDate,
+                canManage: !tracker.isSystemDefault,
                 onAddRule: () => _showStageEntryDialog(
                   context,
                   ref,
@@ -641,7 +699,7 @@ class _StageTrackerDetailPageState
   }
 }
 
-enum _StageTrackerDetailMenuAction { edit, timeline, archive }
+enum _StageTrackerDetailMenuAction { edit, timeline, hide, archive }
 
 class _StageTrackerDetailOverflowMenu extends ConsumerWidget {
   const _StageTrackerDetailOverflowMenu({
@@ -672,6 +730,30 @@ class _StageTrackerDetailOverflowMenu extends ConsumerWidget {
               pathParameters: {'id': stageTrackerId.toString()},
             );
             return;
+          case _StageTrackerDetailMenuAction.hide:
+            final confirmed = await _showStageActionConfirmation(
+              context,
+              title: ReminderUiText.hideSystemStageTrackerTitle,
+              message: ReminderUiText.hideSystemStageTrackerMessage,
+              confirmLabel: ReminderUiText.hideSystemStageTrackerLabel,
+            );
+            if (confirmed != true || !context.mounted) {
+              return;
+            }
+            final hidden = await ref
+                .read(stageTrackerRepositoryProvider)
+                .hideSystemStageTracker();
+            ref.invalidate(systemStageTrackerProvider);
+            ref.invalidate(stageTrackersProvider);
+            if (!context.mounted) {
+              return;
+            }
+            if (!hidden) {
+              _showStageTrackerSaveFailed(context);
+              return;
+            }
+            context.goNamed(StageTrackerManagementPage.routeName);
+            return;
           case _StageTrackerDetailMenuAction.archive:
             final confirmed = await _showStageActionConfirmation(
               context,
@@ -698,26 +780,36 @@ class _StageTrackerDetailOverflowMenu extends ConsumerWidget {
             return;
         }
       },
-      itemBuilder: (context) => [
-        PopupMenuItem(
-          value: _StageTrackerDetailMenuAction.edit,
-          enabled: tracker != null,
-          child: const Text(ReminderUiText.editStageTracker),
-        ),
-        const PopupMenuItem(
-          value: _StageTrackerDetailMenuAction.timeline,
-          child: Text(ReminderUiText.stageTrackerTimelineTitle),
-        ),
-        const PopupMenuDivider(),
-        PopupMenuItem(
-          value: _StageTrackerDetailMenuAction.archive,
-          child: Text(
-            ReminderUiText.archiveStageTracker,
-            key: const Key('stage-tracker-archive-menu-text'),
-            style: TextStyle(color: Theme.of(context).colorScheme.error),
+      itemBuilder: (context) {
+        final isSystemDefault = tracker?.isSystemDefault ?? false;
+        return [
+          if (!isSystemDefault)
+            PopupMenuItem(
+              value: _StageTrackerDetailMenuAction.edit,
+              enabled: tracker != null,
+              child: const Text(ReminderUiText.editStageTracker),
+            ),
+          const PopupMenuItem(
+            value: _StageTrackerDetailMenuAction.timeline,
+            child: Text(ReminderUiText.stageTrackerTimelineTitle),
           ),
-        ),
-      ],
+          const PopupMenuDivider(),
+          if (isSystemDefault)
+            const PopupMenuItem(
+              value: _StageTrackerDetailMenuAction.hide,
+              child: Text(ReminderUiText.hideSystemStageTrackerLabel),
+            )
+          else
+            PopupMenuItem(
+              value: _StageTrackerDetailMenuAction.archive,
+              child: Text(
+                ReminderUiText.archiveStageTracker,
+                key: const Key('stage-tracker-archive-menu-text'),
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+        ];
+      },
     );
   }
 }
@@ -992,6 +1084,7 @@ class _StageTrackerTimelinePageState
                   _StageCompleteTimelineRow(
                     entry: entry,
                     previewDate: previewDate,
+                    canManage: !detail.stageTracker.isSystemDefault,
                   ),
             ],
           );
@@ -1229,10 +1322,12 @@ class _StageCompleteTimelineRow extends ConsumerWidget {
   const _StageCompleteTimelineRow({
     required this.entry,
     required this.previewDate,
+    required this.canManage,
   });
 
   final _StageTimelineEntry entry;
   final DateTime previewDate;
+  final bool canManage;
 
   StageOccurrence get occurrence => entry.occurrence;
 
@@ -1241,7 +1336,7 @@ class _StageCompleteTimelineRow extends ConsumerWidget {
     final palette = context.reminderPalette;
     final key = _stageOccurrenceKey(occurrence);
     final canManageManualStage =
-        occurrence.isManual && occurrence.stageRecordId != null;
+        canManage && occurrence.isManual && occurrence.stageRecordId != null;
     return Container(
       key: Key('timeline-stage-occurrence-$key'),
       margin: const EdgeInsets.only(bottom: _StageTrackerDetailDensity.cardGap),
@@ -1474,17 +1569,7 @@ String _stageTimelineAccumulatedDaysLabel(
   StageTracker tracker,
   DateTime previewDate,
 ) {
-  final start = _normalizeDate(tracker.trackingStartDate);
-  final current = _normalizeDate(previewDate);
-  if (current.isBefore(start)) {
-    return '已累積 0 天';
-  }
-  final end = tracker.trackingEndDate == null
-      ? null
-      : _normalizeDate(tracker.trackingEndDate!);
-  final effectiveDate = end != null && current.isAfter(end) ? end : current;
-  final days = effectiveDate.difference(start).inDays;
-  return '已累積 ${days < 0 ? 0 : days} 天';
+  return ReminderFormatters.stageTrackerDayLabel(tracker, now: previewDate);
 }
 
 String _stageTimelineNextStageLabel(
@@ -1619,7 +1704,10 @@ class _StageHeroCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      _accumulatedDaysLabel(tracker, now),
+                      ReminderFormatters.stageTrackerDayLabel(
+                        tracker,
+                        now: now,
+                      ),
                       key: const Key('stage-tracker-detail-accumulated-days'),
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         color: palette.textPrimary,
@@ -1676,20 +1764,6 @@ class _StageHeroCard extends StatelessWidget {
     );
   }
 
-  String _accumulatedDaysLabel(StageTracker tracker, DateTime now) {
-    final start = _normalizeDate(tracker.trackingStartDate);
-    final current = _normalizeDate(now);
-    if (current.isBefore(start)) {
-      return '已累積 0 天';
-    }
-    final end = tracker.trackingEndDate == null
-        ? null
-        : _normalizeDate(tracker.trackingEndDate!);
-    final effectiveDate = end != null && current.isAfter(end) ? end : current;
-    final days = effectiveDate.difference(start).inDays;
-    return '已累積 ${days < 0 ? 0 : days} 天';
-  }
-
   String _nextStageLabel(StageOccurrence? occurrence, DateTime now) {
     if (occurrence == null) {
       return '尚未安排下一階段';
@@ -1740,12 +1814,14 @@ class _StageRuleList extends StatelessWidget {
     required this.rules,
     required this.nextOccurrencesByRule,
     required this.now,
+    required this.canManage,
     required this.onAddRule,
   });
 
   final List<StageRule> rules;
   final Map<int, StageOccurrence> nextOccurrencesByRule;
   final DateTime now;
+  final bool canManage;
   final VoidCallback onAddRule;
 
   @override
@@ -1753,7 +1829,10 @@ class _StageRuleList extends StatelessWidget {
     return _CompactSection(
       title: ReminderUiText.stageRulesTitle,
       child: rules.isEmpty
-          ? _CompactStageRuleEmptyState(onAddRule: onAddRule)
+          ? _CompactStageRuleEmptyState(
+              canManage: canManage,
+              onAddRule: onAddRule,
+            )
           : Column(
               children: [
                 for (final rule in rules)
@@ -1761,6 +1840,7 @@ class _StageRuleList extends StatelessWidget {
                     rule: rule,
                     nextOccurrence: nextOccurrencesByRule[rule.id],
                     now: now,
+                    canManage: canManage,
                   ),
               ],
             ),
@@ -1769,8 +1849,12 @@ class _StageRuleList extends StatelessWidget {
 }
 
 class _CompactStageRuleEmptyState extends StatelessWidget {
-  const _CompactStageRuleEmptyState({required this.onAddRule});
+  const _CompactStageRuleEmptyState({
+    required this.canManage,
+    required this.onAddRule,
+  });
 
+  final bool canManage;
   final VoidCallback onAddRule;
 
   @override
@@ -1797,15 +1881,16 @@ class _CompactStageRuleEmptyState extends StatelessWidget {
               ).textTheme.bodySmall?.copyWith(color: palette.textSecondary),
             ),
           ),
-          TextButton(
-            key: const Key('stage-rule-empty-add-action'),
-            onPressed: onAddRule,
-            style: TextButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          if (canManage)
+            TextButton(
+              key: const Key('stage-rule-empty-add-action'),
+              onPressed: onAddRule,
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              ),
+              child: const Text(ReminderUiText.addRecurringStage),
             ),
-            child: const Text(ReminderUiText.addRecurringStage),
-          ),
         ],
       ),
     );
@@ -1819,11 +1904,13 @@ class _CompactStageRuleRow extends ConsumerWidget {
     required this.rule,
     required this.nextOccurrence,
     required this.now,
+    required this.canManage,
   });
 
   final StageRule rule;
   final StageOccurrence? nextOccurrence;
   final DateTime now;
+  final bool canManage;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1870,49 +1957,50 @@ class _CompactStageRuleRow extends ConsumerWidget {
                   ],
                 ),
               ),
-              PopupMenuButton<_StageRuleMenuAction>(
-                key: Key('stage-rule-overflow-${rule.id}'),
-                tooltip: '重複階段操作',
-                icon: const Icon(Icons.more_horiz),
-                onSelected: (action) =>
-                    _handleStageRuleAction(context, ref, rule, action),
-                itemBuilder: (context) {
-                  if (rule.status == StageRuleStatus.archived) {
-                    return const [
+              if (canManage)
+                PopupMenuButton<_StageRuleMenuAction>(
+                  key: Key('stage-rule-overflow-${rule.id}'),
+                  tooltip: '重複階段操作',
+                  icon: const Icon(Icons.more_horiz),
+                  onSelected: (action) =>
+                      _handleStageRuleAction(context, ref, rule, action),
+                  itemBuilder: (context) {
+                    if (rule.status == StageRuleStatus.archived) {
+                      return const [
+                        PopupMenuItem<_StageRuleMenuAction>(
+                          enabled: false,
+                          child: Text(ReminderUiText.lifecycleArchivedLabel),
+                        ),
+                      ];
+                    }
+                    return [
+                      const PopupMenuItem<_StageRuleMenuAction>(
+                        value: _StageRuleMenuAction.edit,
+                        child: Text(ReminderUiText.editStageRule),
+                      ),
                       PopupMenuItem<_StageRuleMenuAction>(
-                        enabled: false,
-                        child: Text(ReminderUiText.lifecycleArchivedLabel),
-                      ),
-                    ];
-                  }
-                  return [
-                    const PopupMenuItem<_StageRuleMenuAction>(
-                      value: _StageRuleMenuAction.edit,
-                      child: Text(ReminderUiText.editStageRule),
-                    ),
-                    PopupMenuItem<_StageRuleMenuAction>(
-                      value: rule.status == StageRuleStatus.paused
-                          ? _StageRuleMenuAction.resume
-                          : _StageRuleMenuAction.pause,
-                      child: Text(
-                        rule.status == StageRuleStatus.paused
-                            ? ReminderUiText.resumeStageRule
-                            : ReminderUiText.pauseStageRule,
-                      ),
-                    ),
-                    const PopupMenuDivider(),
-                    PopupMenuItem<_StageRuleMenuAction>(
-                      value: _StageRuleMenuAction.archive,
-                      child: Text(
-                        ReminderUiText.archiveStageRule,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
+                        value: rule.status == StageRuleStatus.paused
+                            ? _StageRuleMenuAction.resume
+                            : _StageRuleMenuAction.pause,
+                        child: Text(
+                          rule.status == StageRuleStatus.paused
+                              ? ReminderUiText.resumeStageRule
+                              : ReminderUiText.pauseStageRule,
                         ),
                       ),
-                    ),
-                  ];
-                },
-              ),
+                      const PopupMenuDivider(),
+                      PopupMenuItem<_StageRuleMenuAction>(
+                        value: _StageRuleMenuAction.archive,
+                        child: Text(
+                          ReminderUiText.archiveStageRule,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                      ),
+                    ];
+                  },
+                ),
             ],
           ),
         ],

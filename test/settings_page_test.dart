@@ -71,7 +71,7 @@ void main() {
     );
   });
 
-  testWidgets('general section shows only supported reminder tone setting', (
+  testWidgets('general section shows reminder tone time and system tracker', (
     tester,
   ) async {
     await _pumpSettings(tester, developerVisible: false);
@@ -82,9 +82,18 @@ void main() {
     );
     expect(find.text(ReminderUiText.reminderToneSettingLabel), findsOneWidget);
     expect(
+      find.text(ReminderUiText.notificationReminderTimeLabel),
+      findsOneWidget,
+    );
+    expect(
+      find.text(ReminderUiText.showSystemStageTrackerSetting),
+      findsOneWidget,
+    );
+    expect(
       find.text(ReminderFormatters.reminderTone(ReminderTone.standard)),
       findsOneWidget,
     );
+    expect(find.text(ReminderUiText.previewDateSettingLabel), findsNothing);
     expect(find.text('外觀密度'), findsNothing);
   });
 
@@ -98,6 +107,15 @@ void main() {
 
     final settings = await db.reminderDao.getAppSettings();
     expect(settings.reminderTone, ReminderTone.early);
+  });
+
+  testWidgets('reminder time row opens time picker', (tester) async {
+    await _pumpSettings(tester, developerVisible: false);
+
+    await tester.tap(find.byKey(const Key('settings-reminder-time-row')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TimePickerDialog), findsOneWidget);
   });
 
   testWidgets('developer tools are visible when flag is enabled', (
@@ -162,7 +180,7 @@ void main() {
 
       expect(find.text(ReminderUiText.debugInfoSectionTitle), findsOneWidget);
       expect(find.text(ReminderUiText.databaseVersionLabel), findsOneWidget);
-      expect(find.text('3'), findsOneWidget);
+      expect(find.text('4'), findsOneWidget);
       expect(find.text(ReminderUiText.seedDemoDataLabel), findsNothing);
       expect(find.text(ReminderUiText.resetDatabaseLabel), findsOneWidget);
       expect(
@@ -287,6 +305,13 @@ Future<void> _pumpSettingsRouter(
   await tester.pumpAndSettle();
 }
 
-AppSettings _appSettings({ReminderTone tone = ReminderTone.standard}) {
-  return AppSettings(reminderTone: tone, updatedAt: DateTime(2026, 5, 28));
+AppSettings _appSettings({
+  ReminderTone tone = ReminderTone.standard,
+  String reminderTime = '09:00',
+}) {
+  return AppSettings(
+    reminderTone: tone,
+    notificationReminderTime: reminderTime,
+    updatedAt: DateTime(2026, 5, 28),
+  );
 }

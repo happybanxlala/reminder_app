@@ -529,6 +529,9 @@ StageTracker {
   trackingStartDate: DateTime
   trackingEndDate?: DateTime
   status: "active" | "archived"
+  isSystemDefault: boolean
+  systemKey?: string
+  isHidden: boolean
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -540,10 +543,14 @@ StageTracker {
 - 建立時未指定 `packId` 會寫入 system default pack。
 - `trackingStartDate` 在 UI 顯示為「從哪一天開始追蹤」。
 - `trackingEndDate == null` 代表持續追蹤。
-- StageTracker 可編輯 title、subjectName、pack、trackingStartDate、trackingEndDate。
+- 一般 StageTracker 可編輯 title、subjectName、pack、trackingStartDate、trackingEndDate。
 - trackingStartDate / trackingEndDate 屬於進階設定；修改後會影響累積天數與階段推算，但不會重寫既有 StageRecord。
 - 到達 `trackingEndDate` 後不自動 archive，而是由 presentation 分到「已完成追蹤」。
-- StageTracker 可封存；封存後不出現在一般管理列表，既有 StageRule、StageRecord 與 related item links 保留。
+- 一般 StageTracker 可封存；封存後不出現在一般管理列表，既有 StageRule、StageRecord 與 related item links 保留。
+- App 會建立一個 system default StageTracker：title `Reminder App`、subjectName `系統`、systemKey `reminder_app`。
+- system default StageTracker 的 `trackingStartDate` 使用首次建立日期，後續 ensure 不重置。
+- system default StageTracker 不可 edit / archive / delete，也不可新增或修改底下階段；唯一使用者操作是 hide / show。
+- system default StageTracker hidden 後不出現在 StageTracker overview，但資料不刪除、不封存，可在 Settings 恢復顯示。
 - active trackers 出現在 StageTracker 管理頁；archived trackers 不出現在一般 watch query。
 - StageTracker 管理 route 已實作：`/feature/stage-trackers`，route name 是 `stage-trackers`。
 - StageTracker detail route 已實作：`/stage-tracker/:id`，route name 是 `stage-tracker-detail`。
@@ -551,7 +558,8 @@ StageTracker {
 - StageTracker full schedule route 已實作：`/stage-tracker/:id/schedule`，route name 是 `stage-tracker-schedule`。
 - StageTracker history route 已實作：`/stage-tracker/:id/history`，route name 是 `stage-tracker-history`。
 - 建立 StageTracker 後進入 detail dashboard。
-- detail dashboard 顯示累積時間、最近 / 待確認階段、即將到來、重複階段列表、加入階段、完整時間線入口。
+- detail dashboard 顯示第 N 天、最近 / 待確認階段、即將到來、重複階段列表、加入階段、完整時間線入口。
+- StageTracker display day count 以 `trackingStartDate` 當天為「第1天」起算，後一天為「第2天」；早於 start date 的 preview date 最小顯示「第1天」，不顯示 `0天`。
 
 #### 範例
 
@@ -566,7 +574,7 @@ StageTracker:
 UI 可顯示：
 
 ```text
-小米已經 5 個月 20 天
+第173天
 下一個階段：10 天後滿 6 個月
 ```
 
@@ -820,6 +828,7 @@ AttentionPolicy {
 ```ts
 AppSettings {
   reminderTone: "gentle" | "standard" | "early" | "urgent"
+  notificationReminderTime: "HH:mm"
   updatedAt: DateTime
 }
 ```
@@ -831,7 +840,9 @@ Drift table `app_settings` 另有固定 `id = 1`、`createdAt`、`updatedAt`。
 - `AttentionPolicyResolver` 可根據 `ReminderTone` 推導 fixed、flexible、stock 類型的提醒門檻。
 - `AppDatabase.beforeOpen` 會確保 `app_settings` 有 `id = 1` 的 row。
 - 設定頁 route 已實作：`/feature/settings`，route name 是 `settings`。
-- 設定頁目前只暴露 `reminderTone`。
+- 設定頁一般設定暴露 `reminderTone`、notification reminder time，以及 system StageTracker 顯示開關。
+- Notification reminder time 預設為 `09:00`，更新後會透過既有 daily attention notification sync 使用新時間。
+- `Preview date` 是 developer-only setting，用於測試不同日期下的提醒狀態，不出現在一般設定。
 
 #### 範例
 
@@ -1026,7 +1037,7 @@ StageTracker 管理 route：`/feature/stage-trackers`，route name：`stage-trac
 
 已實作 UI：
 
-- bottom navigation 有階段追蹤主入口。
+- bottom navigation 不再有階段追蹤主入口；StageTracker overview 從 More page 的「階段追蹤」入口進入。
 - 列表分為「進行中」與「已完成追蹤」。
 - 建立流程填入名稱、對象名稱、開始日期、生活場景。
 - 建立後進入 detail dashboard。
@@ -1042,6 +1053,8 @@ StageTracker 管理 route：`/feature/stage-trackers`，route name：`stage-trac
 - expanded related reminders 使用 compact list，顯示 title 與 due/status，點 row 開啟 Item summary dialog。
 - 無 related reminders 時，expanded content 顯示 compact「建立相關提醒」文字 button；已有 related reminders 時仍可建立更多。
 - complete timeline 的 stage row 不支援 inline expansion，維持 compact timeline row 與 manual stage overflow。
+- overview 在沒有 user-created visible tracker，或只有 system default tracker 時，顯示 dashed add card：`新增追蹤 / 記錄一件正在累積的事`。
+- system default tracker 在 detail overflow 顯示「從列表隱藏」，不顯示 edit / archive。
 
 ### 4.6 Pack 管理
 
@@ -1058,7 +1071,7 @@ Pack 管理 route：`/feature/item-packs-management`，route name：`item-packs-
 
 ## 5. Drift Schema
 
-目前 schema version：`2`。
+目前 schema version：`4`。
 
 ### 5.1 item_packs
 
@@ -1181,6 +1194,9 @@ subjectName
 trackingStartDate
 trackingEndDate
 status
+isSystemDefault
+systemKey
+isHidden
 createdAt
 updatedAt
 ```
@@ -1240,6 +1256,7 @@ updatedAt
 ```text
 id
 reminderTone
+notificationReminderTime
 createdAt
 updatedAt
 ```

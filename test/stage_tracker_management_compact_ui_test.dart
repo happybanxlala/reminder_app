@@ -60,7 +60,7 @@ void main() {
       );
 
       expect(find.text('今日有 1 個階段快到了'), findsOneWidget);
-      expect(find.text('最久累積：寶寶成長 90 天'), findsOneWidget);
+      expect(find.text('最久累積：寶寶成長 第91天'), findsOneWidget);
       expect(find.text('最近更新：貓咪照顧 今天進入下一階段'), findsOneWidget);
     },
   );
@@ -105,9 +105,9 @@ void main() {
     expect(find.text('🐱'), findsOneWidget);
     expect(find.text('貓咪照顧'), findsOneWidget);
     expect(find.text('養貓'), findsNothing);
-    expect(find.text('19天'), findsOneWidget);
-    expect(find.text('90天'), findsOneWidget);
-    expect(find.text('15天'), findsOneWidget);
+    expect(find.text('第20天'), findsOneWidget);
+    expect(find.text('第91天'), findsOneWidget);
+    expect(find.text('第16天'), findsOneWidget);
     expect(find.text('寶寶成長'), findsWidgets);
     expect(find.text('今天'), findsOneWidget);
     expect(find.text('持續中'), findsNothing);
@@ -121,7 +121,7 @@ void main() {
     final accumulatedDays = tester.widget<Text>(
       find.byKey(const Key('stage-tracker-days-1')),
     );
-    expect(accumulatedDays.data, '19天');
+    expect(accumulatedDays.data, '第20天');
     final status = tester.widget<Text>(
       find.byKey(const Key('stage-tracker-status-1')),
     );
@@ -197,8 +197,8 @@ void main() {
       attentionOccurrences: attentionOccurrences,
     );
 
-    expect(find.text('0天'), findsOneWidget);
-    expect(find.text('128天'), findsOneWidget);
+    expect(find.text('第1天'), findsOneWidget);
+    expect(find.text('第129天'), findsOneWidget);
     expect(find.text('ReminderApp'), findsOneWidget);
     expect(find.text('工作'), findsNothing);
     expect(
@@ -285,7 +285,9 @@ void main() {
     expect(find.text('detail-route-1'), findsOneWidget);
   });
 
-  testWidgets('header uses compact add icon action', (tester) async {
+  testWidgets('overview uses content add action and dashed onboarding card', (
+    tester,
+  ) async {
     await _pumpStageTrackerManagement(
       tester,
       previewDate: DateTime(2026, 5, 20),
@@ -295,11 +297,15 @@ void main() {
       details: const {},
     );
 
-    final addButton = tester.widget<IconButton>(
-      find.byKey(const Key('add-stage-tracker-button')),
+    expect(find.byKey(const Key('add-stage-tracker-button')), findsNothing);
+    expect(
+      find.byKey(const Key('stage-tracker-content-add-button')),
+      findsOneWidget,
     );
-
-    expect(addButton.tooltip, ReminderUiText.addStageTracker);
+    expect(
+      find.byKey(const Key('stage-tracker-dashed-add-card')),
+      findsOneWidget,
+    );
     expect(
       find.widgetWithText(FilledButton, ReminderUiText.addStageTracker),
       findsNothing,
@@ -323,10 +329,10 @@ void main() {
       repository: repository,
     );
 
-    await tester.tap(find.byKey(const Key('add-stage-tracker-button')));
+    await tester.tap(find.byKey(const Key('stage-tracker-content-add-button')));
     await tester.pumpAndSettle();
 
-    expect(find.text(ReminderUiText.addStageTracker), findsOneWidget);
+    expect(find.text(ReminderUiText.addStageTracker), findsAtLeastNWidgets(1));
     expect(find.byKey(const Key('stage-tracker-preview-card')), findsOneWidget);
     expect(
       find.text(ReminderUiText.stageTrackerPreviewFallbackTitle),
@@ -412,7 +418,7 @@ void main() {
       repository: repository,
     );
 
-    await tester.tap(find.byKey(const Key('add-stage-tracker-button')));
+    await tester.tap(find.byKey(const Key('stage-tracker-dashed-add-card')));
     await tester.pumpAndSettle();
     await tester.tap(
       find.widgetWithText(FilledButton, ReminderUiText.saveAction),
@@ -446,7 +452,7 @@ void main() {
     expect(repository.createdTrackers.single.packId, isNotNull);
   });
 
-  testWidgets('empty state stays compact', (tester) async {
+  testWidgets('dashed add card replaces empty state', (tester) async {
     await _pumpStageTrackerManagement(
       tester,
       previewDate: DateTime(2026, 5, 20),
@@ -456,9 +462,16 @@ void main() {
       details: const {},
     );
 
-    expect(find.byKey(const Key('stage-tracker-empty-state')), findsOneWidget);
-    expect(find.text('還沒有階段追蹤。'), findsOneWidget);
-    expect(find.text('建立第一個追蹤，看看時間累積起來的樣子。'), findsOneWidget);
+    expect(find.byKey(const Key('stage-tracker-empty-state')), findsNothing);
+    expect(
+      find.byKey(const Key('stage-tracker-dashed-add-card')),
+      findsOneWidget,
+    );
+    expect(find.text(ReminderUiText.addStageTrackerCardTitle), findsOneWidget);
+    expect(
+      find.text(ReminderUiText.addStageTrackerCardSubtitle),
+      findsOneWidget,
+    );
   });
 
   testWidgets('3-column achievement grid fits iPhone 15 width', (tester) async {

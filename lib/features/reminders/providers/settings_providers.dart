@@ -21,3 +21,12 @@ final reminderToneProvider = Provider<ReminderTone>((ref) {
         orElse: () => ReminderTone.standard,
       );
 });
+
+final notificationReminderTimeProvider = Provider<String>((ref) {
+  return ref
+      .watch(appSettingsProvider)
+      .maybeWhen(
+        data: (settings) => settings.notificationReminderTime,
+        orElse: () => '09:00',
+      );
+});

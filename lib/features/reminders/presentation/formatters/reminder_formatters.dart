@@ -142,29 +142,35 @@ class ReminderFormatters {
   }
 
   static String stageProgress(StageTracker tracker, {DateTime? now}) {
-    final current = _normalizeDate(now ?? DateTime.now());
-    final start = _normalizeDate(tracker.trackingStartDate);
-    if (current.isBefore(start)) {
-      return '尚未開始追蹤';
-    }
-    final subject = _subjectPrefix(tracker);
-    final years = _wholeMonthsBetween(start, current) ~/ 12;
-    final months = _wholeMonthsBetween(start, current) % 12;
-    final monthBase = DateTime(
-      start.year,
-      start.month + years * 12 + months,
-      start.day,
+    return stageTrackerDayLabel(tracker, now: now ?? DateTime.now());
+  }
+
+  static String stageTrackerDayLabel(
+    StageTracker tracker, {
+    required DateTime now,
+  }) {
+    return ReminderUiText.stageTrackerDayLabelTemplate.replaceFirst(
+      '{day}',
+      '${stageTrackerDayNumber(tracker, now: now)}',
     );
-    final days = current.difference(monthBase).inDays;
-    if (years > 0) {
-      final monthText = months > 0 ? ' $months 個月' : '';
-      return '$subject已經 $years 年$monthText';
-    }
-    if (months > 0) {
-      final dayText = days > 0 ? ' $days 天' : '';
-      return '$subject已經 $months 個月$dayText';
-    }
-    return '$subject已經 ${current.difference(start).inDays} 天';
+  }
+
+  static int stageTrackerDayNumber(
+    StageTracker tracker, {
+    required DateTime now,
+  }) {
+    final current = _normalizeDate(now);
+    final start = _normalizeDate(tracker.trackingStartDate);
+    final end = tracker.trackingEndDate == null
+        ? null
+        : _normalizeDate(tracker.trackingEndDate!);
+    final effectiveDate = current.isBefore(start)
+        ? start
+        : end != null && current.isAfter(end)
+        ? end
+        : current;
+    final days = effectiveDate.difference(start).inDays + 1;
+    return days < 1 ? 1 : days;
   }
 
   static String stageRelativeLabel(
@@ -731,19 +737,5 @@ class ReminderFormatters {
 
   static DateTime _normalizeDate(DateTime value) {
     return DateTime(value.year, value.month, value.day);
-  }
-
-  static String _subjectPrefix(StageTracker tracker) {
-    final subject = tracker.subjectName?.trim();
-    return subject == null || subject.isEmpty ? '' : subject;
-  }
-
-  static int _wholeMonthsBetween(DateTime start, DateTime end) {
-    var months = (end.year - start.year) * 12 + end.month - start.month;
-    final candidate = DateTime(end.year, end.month, start.day);
-    if (candidate.isAfter(end)) {
-      months--;
-    }
-    return months.clamp(0, 12000);
   }
 }

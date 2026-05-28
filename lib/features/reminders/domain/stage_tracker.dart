@@ -9,6 +9,9 @@ class StageTracker {
     required this.trackingStartDate,
     this.trackingEndDate,
     required this.status,
+    this.isSystemDefault = false,
+    this.systemKey,
+    this.isHidden = false,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -20,6 +23,9 @@ class StageTracker {
   final DateTime trackingStartDate;
   final DateTime? trackingEndDate;
   final StageTrackerStatus status;
+  final bool isSystemDefault;
+  final String? systemKey;
+  final bool isHidden;
   final DateTime createdAt;
   final DateTime updatedAt;
 

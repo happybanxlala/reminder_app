@@ -13,6 +13,7 @@ void main() {
     final settings = await repository.getSettings();
 
     expect(settings.reminderTone, ReminderTone.standard);
+    expect(settings.notificationReminderTime, '09:00');
   });
 
   test(
@@ -40,4 +41,16 @@ void main() {
       expect(emitted, contains(ReminderTone.early));
     },
   );
+
+  test('settings repository persists notification reminder time', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = SettingsRepository(db.reminderDao);
+
+    await repository.updateNotificationReminderTime('20:30');
+
+    final settings = await repository.getSettings();
+    expect(settings.notificationReminderTime, '20:30');
+    expect(settings.reminderTone, ReminderTone.standard);
+  });
 }

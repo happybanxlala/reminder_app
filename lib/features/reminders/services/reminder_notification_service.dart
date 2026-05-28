@@ -77,7 +77,10 @@ class ReminderNotificationService {
     await _client.requestPermissions();
   }
 
-  Future<void> syncDailyNotification(AttentionSummary summary) async {
+  Future<void> syncDailyNotification(
+    AttentionSummary summary, {
+    String reminderTime = '09:00',
+  }) async {
     if (!_isInitialized) {
       return;
     }
@@ -91,14 +94,24 @@ class ReminderNotificationService {
       id: attentionNotificationId,
       title: '今天有 ${summary.totalCount} 項需要留意',
       body: '打開看看哪些項目需要留意',
-      scheduledDate: _nextNineAm(),
+      scheduledDate: _nextReminderTime(reminderTime),
       payload: attentionPayload,
     );
   }
 
-  tz.TZDateTime _nextNineAm() {
+  tz.TZDateTime _nextReminderTime(String reminderTime) {
     final now = tz.TZDateTime.from(_clock(), tz.local);
-    var scheduled = tz.TZDateTime(tz.local, now.year, now.month, now.day, 9);
+    final parts = reminderTime.split(':');
+    final hour = parts.isNotEmpty ? int.tryParse(parts[0]) : null;
+    final minute = parts.length > 1 ? int.tryParse(parts[1]) : null;
+    var scheduled = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      hour == null || hour < 0 || hour > 23 ? 9 : hour,
+      minute == null || minute < 0 || minute > 59 ? 0 : minute,
+    );
     if (!scheduled.isAfter(now)) {
       scheduled = scheduled.add(const Duration(days: 1));
     }

@@ -1009,6 +1009,16 @@ flutter test
 - The developer section is debug/dev-only by default, and `Preview date` is treated as a developer testing tool rather than a general user setting.
 - Destructive developer actions belong only in the developer section. Because no safe reset API exists yet, `重設資料庫` is shown as an unavailable destructive row instead of wiring an unsafe reset flow.
 
+### 19.18 Navigation And System Tracker Structure 2026-05-29
+
+- Bottom navigation is `首頁 / 事項 / 動態 / 更多`; StageTracker overview is no longer a primary bottom tab.
+- More page is the function entry page and uses compact editor/settings-style rows for `資源管理`, `階段追蹤`, `生活場景`, and `設定`; it does not use a large grid or ListTile stack.
+- Primary add actions live in content. AppBar is reserved for page-level secondary actions, and destructive actions stay in overflow with confirmation.
+- StageTracker overview keeps the compact 3-column achievement grid. When there is no visible user-created tracker, including the case where only the system tracker is visible, it shows a muted dashed `新增追蹤` card.
+- StageTracker day display uses `第N天` with start date as `第1天`; StageTracker UI must not show `0天`.
+- The system tracker `Reminder App / 系統` can be hidden from the list through detail overflow and restored from Settings. It does not expose edit or archive actions.
+- Settings general section includes `提醒時間`; `Preview date` remains only in the debug/developer section.
+
 ### 19.18 Item Config Editor Rows 2026-05-27
 
 - Item config internals now use editor rows and compact form fields so fixed rhythm, flexible rhythm, repeat rules, advanced attention timing, and resource binding read as one form language.

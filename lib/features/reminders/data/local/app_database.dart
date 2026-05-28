@@ -31,12 +31,15 @@ class AppDatabase extends _$AppDatabase {
   static const systemDefaultPackIconEmoji = '📌';
   static const systemDefaultPackOrderIndex = 0;
   static const systemDefaultPackDescription = 'System default pack';
+  static const systemDefaultStageTrackerTitle = 'Reminder App';
+  static const systemDefaultStageTrackerSubject = '系統';
+  static const systemDefaultStageTrackerKey = 'reminder_app';
 
   AppDatabase() : super(_openConnection());
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -48,10 +51,14 @@ class AppDatabase extends _$AppDatabase {
       if (from < 3) {
         await _upgradeToV3(m);
       }
+      if (from < 4) {
+        await _upgradeToV4(m);
+      }
     },
     beforeOpen: (details) async {
       await _ensureSystemDefaultPack();
       await _ensureAppSettings();
+      await _ensureSystemDefaultStageTracker();
     },
   );
 
@@ -129,6 +136,21 @@ class AppDatabase extends _$AppDatabase {
       resourceActionRecords,
       resourceActionRecords.revertedByActionRecordId,
     );
+  }
+
+  Future<void> _upgradeToV4(Migrator m) async {
+    await m.addColumn(stageTrackers, stageTrackers.isSystemDefault);
+    await m.addColumn(stageTrackers, stageTrackers.systemKey);
+    await m.addColumn(stageTrackers, stageTrackers.isHidden);
+    await m.addColumn(
+      appSettingsEntries,
+      appSettingsEntries.notificationReminderTime,
+    );
+    await customStatement('''
+      CREATE UNIQUE INDEX IF NOT EXISTS stage_trackers_system_key_unique
+      ON stage_trackers(system_key)
+      WHERE system_key IS NOT NULL
+      ''');
   }
 
   Future<void> _ensureSystemDefaultPack() async {
@@ -212,8 +234,49 @@ class AppDatabase extends _$AppDatabase {
       AppSettingsEntriesCompanion.insert(
         id: const Value(1),
         reminderTone: const Value('standard'),
+        notificationReminderTime: const Value('09:00'),
         createdAt: now,
         updatedAt: now,
+      ),
+    );
+  }
+
+  Future<void> _ensureSystemDefaultStageTracker() async {
+    final existingDefault = await customSelect('''
+      SELECT id
+      FROM stage_trackers
+      WHERE system_key = '$systemDefaultStageTrackerKey'
+      LIMIT 1
+      ''').getSingleOrNull();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day).millisecondsSinceEpoch;
+    final defaultPackId = await _systemDefaultPackId();
+
+    if (existingDefault != null) {
+      await customStatement('''
+        UPDATE stage_trackers
+        SET pack_id = $defaultPackId,
+            title = '$systemDefaultStageTrackerTitle',
+            subject_name = '$systemDefaultStageTrackerSubject',
+            status = 'active',
+            is_system_default = 1
+        WHERE system_key = '$systemDefaultStageTrackerKey'
+        ''');
+      return;
+    }
+
+    await into(stageTrackers).insert(
+      StageTrackersCompanion.insert(
+        packId: defaultPackId,
+        title: systemDefaultStageTrackerTitle,
+        subjectName: const Value(systemDefaultStageTrackerSubject),
+        trackingStartDate: today,
+        status: const Value('active'),
+        isSystemDefault: const Value(true),
+        systemKey: const Value(systemDefaultStageTrackerKey),
+        isHidden: const Value(false),
+        createdAt: now.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
       ),
     );
   }

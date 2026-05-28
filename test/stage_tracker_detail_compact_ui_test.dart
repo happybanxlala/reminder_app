@@ -165,7 +165,7 @@ void main() {
 
     expect(find.byKey(const Key('stage-tracker-detail-hero')), findsOneWidget);
     expect(find.text('寶寶成長'), findsOneWidget);
-    expect(find.text('已累積 19 天'), findsOneWidget);
+    expect(find.text('第20天'), findsOneWidget);
     expect(find.text('待確認：滿 18 天'), findsOneWidget);
     expect(find.textContaining('最近經歷'), findsNothing);
     expect(find.text('下一階段：成貓期・明日'), findsOneWidget);
@@ -1220,7 +1220,7 @@ void main() {
       find.byKey(const Key('stage-tracker-timeline-summary-card')),
       findsOneWidget,
     );
-    expect(find.text('已累積 19 天'), findsOneWidget);
+    expect(find.text('第20天'), findsOneWidget);
     expect(find.byType(ReminderTimelineDots), findsNothing);
     expect(find.text('即將到來'), findsOneWidget);
     expect(find.text('已經歷'), findsOneWidget);

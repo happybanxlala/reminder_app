@@ -8,6 +8,7 @@ import '../domain/stage_occurrence.dart';
 import '../domain/stage_record.dart';
 import '../domain/stage_rule.dart';
 import '../domain/stage_tracker.dart';
+import '../presentation/formatters/reminder_formatters.dart';
 import 'database_providers.dart';
 import 'developer_settings_providers.dart';
 import 'item_providers.dart';
@@ -19,8 +20,10 @@ final stageTrackerRepositoryProvider = Provider<StageTrackerRepository>((ref) {
   );
 });
 
-final stageTrackersProvider = StreamProvider<List<StageTracker>>((ref) {
-  return ref.watch(stageTrackerRepositoryProvider).watchStageTrackers();
+final stageTrackersProvider = StreamProvider<List<StageTracker>>((ref) async* {
+  final repository = ref.watch(stageTrackerRepositoryProvider);
+  await repository.ensureSystemStageTracker();
+  yield* repository.watchStageTrackers();
 });
 
 final stageRulesProvider = StreamProvider<List<StageRule>>((ref) {
@@ -29,6 +32,10 @@ final stageRulesProvider = StreamProvider<List<StageRule>>((ref) {
 
 final stageRecordsProvider = StreamProvider<List<StageRecord>>((ref) {
   return ref.watch(stageTrackerRepositoryProvider).watchStageRecords();
+});
+
+final systemStageTrackerProvider = FutureProvider<StageTracker>((ref) {
+  return ref.watch(stageTrackerRepositoryProvider).ensureSystemStageTracker();
 });
 
 final stageTrackerAttentionOccurrencesProvider =
@@ -119,7 +126,7 @@ final stageTrackerOverviewSummaryProvider =
             kind: StageTrackerSummaryEntryKind.longest,
             text:
                 '最久累積：${_summaryTrackerLabel(longest.tracker, packs)} '
-                '${longest.days} 天',
+                '${ReminderFormatters.stageTrackerDayLabel(longest.tracker, now: previewDate)}',
           ),
         );
       }
@@ -207,13 +214,21 @@ StageTracker? _trackerById(List<StageTracker> trackers, int id) {
   final current = normalizePreviewDate(previewDate);
   ({StageTracker tracker, int days})? longest;
   for (final tracker in trackers.where(
-    (item) => item.status == StageTrackerStatus.active,
+    (item) =>
+        item.status == StageTrackerStatus.active &&
+        !item.isHidden &&
+        !item.isSystemDefault,
   )) {
     final start = normalizePreviewDate(tracker.trackingStartDate);
-    if (current.isBefore(start)) {
-      continue;
-    }
-    final days = current.difference(start).inDays;
+    final end = tracker.trackingEndDate == null
+        ? null
+        : normalizePreviewDate(tracker.trackingEndDate!);
+    final effectiveDate = current.isBefore(start)
+        ? start
+        : end != null && current.isAfter(end)
+        ? end
+        : current;
+    final days = effectiveDate.difference(start).inDays + 1;
     if (longest == null || days > longest.days) {
       longest = (tracker: tracker, days: days);
     }
