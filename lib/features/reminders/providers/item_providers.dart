@@ -85,6 +85,11 @@ final itemActionHistoryProvider =
       return ref.watch(itemRepositoryProvider).watchActionHistory(id);
     });
 
+final itemHistoryEntriesProvider =
+    StreamProvider.family<List<ItemHistoryEntry>, int>((ref, id) {
+      return ref.watch(itemRepositoryProvider).watchHistoryEntries(id);
+    });
+
 final itemPackProvider = FutureProvider.family<ItemPack?, int>((ref, id) {
   return ref.watch(itemRepositoryProvider).getPackById(id);
 });

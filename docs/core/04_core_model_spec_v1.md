@@ -299,6 +299,9 @@ ItemActionRecord {
 - 建立、完成、略過都會形成 history。
 - 新增的 done record 會在 payload 寫入 `undoSnapshot`，保存完成前 item snapshot，供精準 undo 使用。
 - undo done 不刪除原 done record；原 done 會標記 `isReverted = true`，並新增 `ItemActionRecord(reverted)` 指向被撤銷的 done record。
+- Item history 以 `ItemActionRecord` 為核心資料來源；一般 UI read model 會把 done 與後續 reverted 合併為同一筆使用者可讀紀錄，避免把完成與回復拆成會計分錄。
+- Item history 的 resource impact 可從相關 `ResourceActionRecord.sourceItemActionRecordId` 推導；完成造成的 consumed record 顯示為扣除資源，回復造成的 reverted compensation record 顯示為已補回資源。
+- Fixed item history 在一般 UI 顯示 action date；不顯示 preview date、cycle preview 或虛擬週期資訊。
 - 缺少 `undoSnapshot` 的既有舊 done record 不提供精準 undo。
 - item 操作寫入 record 後，仍需要同步更新 item snapshot 欄位。
 - `ItemActivityPage` 以 `ItemActionRecord` 顯示近期活動，支援搜尋與載入更多。
@@ -488,9 +491,11 @@ ResourceActionRecord {
 - `refillResource`：
   - time-based resource 要求 `addedDays > 0`。
   - quantity-based resource 要求 `addedQuantity > 0`。
-  - time-based refill 會 carry over 尚未耗盡的剩餘天數。
+  - quantity-based refill 代表增加目前數量，並寫入 refilled action record。
+  - time-based refill 代表新增可用天數；既有 repository 會 carry over 尚未耗盡的剩餘天數，不直接把剩餘天數修正為輸入值。
 - `adjustResourceQuantity`：
   - 只支援 quantity-based resource。
+  - quantity-based adjustment 代表直接修正目前數量，並寫入 adjusted action record。
   - `newQuantity` 經 `ResourceRefillService.adjustQuantity` 處理，負數 clamp 到 `0`。
 
 #### 範例
@@ -595,6 +600,7 @@ StageRule {
 #### 已實作行為
 
 - `createStageRule` 只允許建立在存在且未 archived 的 StageTracker 底下。
+- `createStageRule` 只建立 StageRule；StageRule 是 generated occurrence 的推算規則，不是具體 StageRecord。
 - `intervalValue <= 0` 會丟出 `ArgumentError`。
 - active rule 會產生 generated occurrences。
 - paused rule 不產生 occurrence。
@@ -705,7 +711,9 @@ StageRecord {
 #### 已實作行為
 
 - manual important stage 一建立就寫入 `StageRecord(sourceType = manual, status = normal)`。
+- manual important stage 可建立在過去日期，用於補記已經歷階段。
 - generated occurrence 只有被 acknowledged、ignored、建立 related item 等互動時才建立 `StageRecord`。
+- 建立 recurring StageRule 後不立即 materialize future occurrence；只有 related reminder、acknowledged、ignored 或其他需要保存互動狀態時才寫入 generated StageRecord。
 - generated record 以 `stageRuleId + occurrenceIndex` 作 unique key。
 - `acknowledgeOccurrence` 會 upsert generated record 並設為 `acknowledged`。
 - `ignoreOccurrence` 會 upsert generated record 並設為 `ignored`。
@@ -1000,8 +1008,17 @@ Resource 管理 route：`/feature/resources-management`，route name：`resource
 - add icon 執行補充。
 - overflow menu 支援調整、編輯、詳細資訊、歷史紀錄、封存。
 - `adjust` 只出現在 quantity-based resource。
+- Resource edit 不直接修改目前數量 / 可用天數；資源變動需透過補充或調整流程留下 `ResourceActionRecord`。
 
 Resource history route：`/resource/:id/history`，route name：`resource-history`。
+
+Resource history 使用 compact timeline UI：頁首顯示 resource summary，支援 action filter chips 與「顯示已抵銷紀錄」切換。一般狀態預設隱藏 `isReverted = true` 的原紀錄與 `actionType = reverted` 的補償紀錄，但資料仍保留並可在切換後顯示。
+
+Item history route：`/item/:id/history`，route name：`item-history`。
+
+Item history 使用 compact timeline UI：頁首顯示 item summary，支援「全部 / 完成 / 已回復 / 資源影響」filter chips 與日期分組。Item edit AppBar overflow 與 Item management row overflow 都提供「歷史紀錄」入口。
+
+Item history 的 done + reverted 以 read model 合併成「完成，後來已回復」一筆主要 timeline row，並在同一列顯示完成日期、回復日期與 resource impact sub rows。Fixed item history 不顯示 preview date。
 
 ### 4.5 StageTracker UI
 

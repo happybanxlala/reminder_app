@@ -33,6 +33,26 @@ final resourceActionHistoryProvider =
           .watchActionHistory(resourceId);
     });
 
+final resourceActionHistoryEntriesProvider =
+    StreamProvider.family<List<ResourceActionHistoryEntry>, int>((
+      ref,
+      resourceId,
+    ) {
+      return ref
+          .watch(resourceRepositoryProvider)
+          .watchActionHistoryEntries(resourceId);
+    });
+
+final resourceActionHistoryEntriesWithRevertedProvider =
+    StreamProvider.family<List<ResourceActionHistoryEntry>, int>((
+      ref,
+      resourceId,
+    ) {
+      return ref
+          .watch(resourceRepositoryProvider)
+          .watchActionHistoryEntries(resourceId, includeReverted: true);
+    });
+
 final itemConsumptionRulesProvider =
     StreamProvider.family<List<ResourceConsumptionRule>, int>((ref, itemId) {
       return ref.watch(resourceRepositoryProvider).watchRulesForItem(itemId);

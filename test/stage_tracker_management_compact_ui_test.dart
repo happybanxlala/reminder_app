@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:reminder_app/app/theme/reminder_theme.dart';
+import 'package:reminder_app/features/reminders/data/item_repository.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/stage_tracker_models.dart';
+import 'package:reminder_app/features/reminders/data/stage_tracker_repository.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/stage_occurrence.dart';
 import 'package:reminder_app/features/reminders/domain/stage_record.dart';
@@ -304,6 +306,146 @@ void main() {
     );
   });
 
+  testWidgets('create dialog uses editor sections and live preview', (
+    tester,
+  ) async {
+    final fixture = _stageFixture();
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    final repository = _RecordingStageTrackerRepository(db);
+    await _pumpStageTrackerManagement(
+      tester,
+      previewDate: DateTime(2026, 5, 20),
+      trackers: const [],
+      packs: fixture.packs,
+      rules: const [],
+      details: const {},
+      database: db,
+      repository: repository,
+    );
+
+    await tester.tap(find.byKey(const Key('add-stage-tracker-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text(ReminderUiText.addStageTracker), findsOneWidget);
+    expect(find.byKey(const Key('stage-tracker-preview-card')), findsOneWidget);
+    expect(
+      find.text(ReminderUiText.stageTrackerPreviewFallbackTitle),
+      findsOneWidget,
+    );
+    expect(
+      find.text(ReminderUiText.stageTrackerBasicSectionTitle),
+      findsOneWidget,
+    );
+    expect(
+      find.text(ReminderUiText.stageTrackerTrackingSettingsTitle),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('stage-tracker-pack-picker-row')),
+      findsOneWidget,
+    );
+    expect(find.byType(DropdownButtonFormField<int?>), findsNothing);
+    expect(
+      find.byKey(const Key('stage-tracker-start-date-row')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('stage-tracker-end-date-row')), findsNothing);
+
+    await tester.enterText(
+      find.byKey(const Key('stage-tracker-title-field')),
+      '貓咪成長',
+    );
+    await tester.pump();
+    expect(
+      tester
+          .widget<Text>(find.byKey(const Key('stage-tracker-preview-title')))
+          .data,
+      '貓咪成長',
+    );
+
+    await tester.enterText(
+      find.byKey(const Key('stage-tracker-subject-field')),
+      '小咪',
+    );
+    await tester.pump();
+    expect(find.text('追蹤對象：小咪'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('stage-tracker-pack-picker-row')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('🐱 養貓').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('🐱'), findsOneWidget);
+    expect(find.text('追蹤對象：小咪'), findsOneWidget);
+
+    await tester.ensureVisible(
+      find.byKey(const Key('stage-tracker-advanced-toggle')),
+    );
+    await tester.tap(find.byKey(const Key('stage-tracker-advanced-toggle')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('stage-tracker-end-date-row')), findsOneWidget);
+
+    await tester.tap(
+      find.widgetWithText(FilledButton, ReminderUiText.saveAction),
+    );
+    await tester.pumpAndSettle();
+
+    expect(repository.createdTrackers.single.title, '貓咪成長');
+    expect(repository.createdTrackers.single.subjectName, '小咪');
+    expect(repository.createdTrackers.single.packId, 1);
+    expect(repository.createdTrackers.single.trackingStartDate.hour, 0);
+  });
+
+  testWidgets('create dialog validates title and selects inline created pack', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    final repository = _RecordingStageTrackerRepository(db);
+    await _pumpStageTrackerManagement(
+      tester,
+      previewDate: DateTime(2026, 5, 20),
+      trackers: const [],
+      packs: const [],
+      rules: const [],
+      details: const {},
+      database: db,
+      repository: repository,
+    );
+
+    await tester.tap(find.byKey(const Key('add-stage-tracker-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.widgetWithText(FilledButton, ReminderUiText.saveAction),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text(ReminderUiText.stageTrackerNameRequiredError),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('stage-tracker-pack-picker-row')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('stage-tracker-add-pack-button')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('pack-title-field')), '貓家庭');
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('pack-save-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('🐱 貓家庭'), findsWidgets);
+
+    await tester.enterText(
+      find.byKey(const Key('stage-tracker-title-field')),
+      '成長紀錄',
+    );
+    await tester.tap(
+      find.widgetWithText(FilledButton, ReminderUiText.saveAction),
+    );
+    await tester.pumpAndSettle();
+
+    expect(repository.createdTrackers.single.packId, isNotNull);
+  });
+
   testWidgets('empty state stays compact', (tester) async {
     await _pumpStageTrackerManagement(
       tester,
@@ -365,8 +507,10 @@ Future<void> _pumpStageTrackerManagement(
   required List<StageRule> rules,
   required Map<int, StageTrackerDetail> details,
   List<StageOccurrence>? attentionOccurrences,
+  AppDatabase? database,
+  StageTrackerRepository? repository,
 }) async {
-  final db = AppDatabase.forTesting(NativeDatabase.memory());
+  final db = database ?? AppDatabase.forTesting(NativeDatabase.memory());
   final router = GoRouter(
     initialLocation: StageTrackerManagementPage.routePath,
     routes: [
@@ -392,7 +536,10 @@ Future<void> _pumpStageTrackerManagement(
     ProviderScope(
       overrides: [
         appDatabaseProvider.overrideWithValue(db),
+        if (repository != null)
+          stageTrackerRepositoryProvider.overrideWithValue(repository),
         effectivePreviewDateProvider.overrideWith((ref) => previewDate),
+        activeItemPacksProvider.overrideWith((ref) => Stream.value(packs)),
         itemPacksProvider.overrideWith((ref) => Stream.value(packs)),
         stageTrackersProvider.overrideWith((ref) => Stream.value(trackers)),
         stageRulesProvider.overrideWith((ref) => Stream.value(rules)),
@@ -410,6 +557,19 @@ Future<void> _pumpStageTrackerManagement(
     ),
   );
   await tester.pumpAndSettle();
+}
+
+class _RecordingStageTrackerRepository extends StageTrackerRepository {
+  _RecordingStageTrackerRepository(AppDatabase db)
+    : super(db.reminderDao, itemRepository: ItemRepository(db.reminderDao));
+
+  final createdTrackers = <StageTrackerInput>[];
+
+  @override
+  Future<int> createStageTracker(StageTrackerInput input) async {
+    createdTrackers.add(input);
+    return 99;
+  }
 }
 
 _StageFixture _stageFixture() {

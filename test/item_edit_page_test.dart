@@ -3,6 +3,8 @@ import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:reminder_app/app/theme/reminder_theme.dart';
 import 'package:reminder_app/features/reminders/data/item_repository.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/local/reminder_dao.dart';
@@ -15,6 +17,7 @@ import 'package:reminder_app/features/reminders/providers/item_providers.dart';
 import 'package:reminder_app/features/reminders/providers/resource_providers.dart';
 import 'package:reminder_app/features/reminders/providers/settings_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/item_edit_page.dart';
+import 'package:reminder_app/features/reminders/ui/pages/item_history_page.dart';
 
 void main() {
   testWidgets('create page uses editor form shell and Chinese basic fields', (
@@ -325,6 +328,82 @@ void main() {
       find.byKey(const Key('editor-section-toggle-advanced-settings')),
       findsOneWidget,
     );
+  });
+
+  testWidgets('edit page history overflow opens item history route', (
+    tester,
+  ) async {
+    final pack = ItemPack(
+      id: 1,
+      title: 'Default Item Pack',
+      status: ItemPackStatus.active,
+      isSystemDefault: true,
+      createdAt: DateTime(2026, 4, 1),
+      updatedAt: DateTime(2026, 4, 2),
+    );
+    final bundle = ItemBundle(
+      item: Item(
+        id: 21,
+        packId: pack.id,
+        title: 'Weekly grooming',
+        type: ItemType.stateBased,
+        config: StateBasedItemConfig(
+          anchorDate: DateTime(2026, 4, 1),
+          infoAfter: Duration(days: 7),
+          warningAfter: Duration(days: 7),
+          dangerAfter: Duration(days: 14),
+        ),
+        createdAt: DateTime(2026, 4, 1),
+        updatedAt: DateTime(2026, 4, 2),
+      ),
+      pack: pack,
+    );
+    final router = GoRouter(
+      initialLocation: '/item/21',
+      routes: [
+        GoRoute(
+          path: ItemEditPage.editRoutePath,
+          name: ItemEditPage.editRouteName,
+          builder: (context, state) =>
+              const ItemEditPage(mode: ItemEditMode.edit, id: 21),
+        ),
+        GoRoute(
+          path: ItemHistoryPage.routePath,
+          name: ItemHistoryPage.routeName,
+          builder: (context, state) => Scaffold(
+            body: Text('history-route-${state.pathParameters['id']}'),
+          ),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          ..._emptyResourceOverrides(),
+          reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
+          activeItemPacksProvider.overrideWith((ref) => Stream.value([pack])),
+          itemProvider(21).overrideWith((ref) async => bundle),
+        ],
+        child: MaterialApp.router(
+          theme: ReminderTheme.light(),
+          routerConfig: router,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('item-edit-overflow')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('item-edit-overflow')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('item-edit-menu-history')), findsOneWidget);
+    expect(find.text(ReminderUiText.itemHistoryMenuLabel), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('item-edit-menu-history')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('history-route-21'), findsOneWidget);
   });
 
   testWidgets('editor keeps archived current pack visible while editing', (

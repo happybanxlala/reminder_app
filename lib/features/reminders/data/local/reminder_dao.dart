@@ -71,6 +71,18 @@ class ItemActionEntry {
   int get packId => pack.id;
 }
 
+class ItemHistoryActionResourceRow {
+  const ItemHistoryActionResourceRow({
+    required this.actionRecord,
+    this.resourceActionRecord,
+    this.resource,
+  });
+
+  final ItemActionRecord actionRecord;
+  final ResourceActionRecord? resourceActionRecord;
+  final Resource? resource;
+}
+
 class ResourceActionEntry {
   const ResourceActionEntry({
     required this.record,
@@ -83,6 +95,13 @@ class ResourceActionEntry {
   final ItemPack pack;
 
   int get packId => pack.id;
+}
+
+class ResourceActionHistoryEntry {
+  const ResourceActionHistoryEntry({required this.record, this.sourceItem});
+
+  final ResourceActionRecord record;
+  final Item? sourceItem;
 }
 
 class StageRecordBundle {
@@ -487,6 +506,38 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  Stream<List<ResourceActionHistoryEntry>>
+  watchResourceActionHistoryEntriesForResource(
+    int resourceId, {
+    bool includeReverted = false,
+  }) {
+    final query = select(resourceActionRecords).join([
+      leftOuterJoin(
+        itemActionRecords,
+        itemActionRecords.id.equalsExp(
+          resourceActionRecords.sourceItemActionRecordId,
+        ),
+      ),
+      leftOuterJoin(items, items.id.equalsExp(itemActionRecords.itemId)),
+    ])..where(resourceActionRecords.resourceId.equals(resourceId));
+    if (!includeReverted) {
+      query.where(
+        resourceActionRecords.isReverted.equals(false) &
+            resourceActionRecords.actionType.isNotValue(
+              ResourceActionType.reverted.name,
+            ),
+      );
+    }
+    query.orderBy([
+      OrderingTerm.desc(resourceActionRecords.actionDate),
+      OrderingTerm.desc(resourceActionRecords.id),
+    ]);
+    return query.watch().map(
+      (rows) =>
+          rows.map(_mapResourceActionHistoryEntry).toList(growable: false),
+    );
+  }
+
   Future<List<ResourceActionRecord>> listResourceActionRecordsForResource(
     int resourceId, {
     bool includeReverted = false,
@@ -519,6 +570,32 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
             ))
             .get();
     return rows.map(_toResourceActionRecord).toList(growable: false);
+  }
+
+  Stream<List<ItemHistoryActionResourceRow>> watchItemHistoryActionResourceRows(
+    int itemId,
+  ) {
+    final query = select(itemActionRecords).join([
+      leftOuterJoin(
+        resourceActionRecords,
+        resourceActionRecords.sourceItemActionRecordId.equalsExp(
+          itemActionRecords.id,
+        ),
+      ),
+      leftOuterJoin(
+        resources,
+        resources.id.equalsExp(resourceActionRecords.resourceId),
+      ),
+    ])..where(itemActionRecords.itemId.equals(itemId));
+    query.orderBy([
+      OrderingTerm.desc(itemActionRecords.actionDate),
+      OrderingTerm.desc(itemActionRecords.id),
+      OrderingTerm.asc(resourceActionRecords.id),
+    ]);
+    return query.watch().map(
+      (rows) =>
+          rows.map(_mapItemHistoryActionResourceRow).toList(growable: false),
+    );
   }
 
   Stream<List<ItemActionRecord>> watchItemActionRecordsForItem(int itemId) {
@@ -1251,11 +1328,33 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  ItemHistoryActionResourceRow _mapItemHistoryActionResourceRow(
+    TypedResult row,
+  ) {
+    final resourceActionRow = row.readTableOrNull(resourceActionRecords);
+    final resourceRow = row.readTableOrNull(resources);
+    return ItemHistoryActionResourceRow(
+      actionRecord: _toItemActionRecord(row.readTable(itemActionRecords)),
+      resourceActionRecord: resourceActionRow == null
+          ? null
+          : _toResourceActionRecord(resourceActionRow),
+      resource: resourceRow == null ? null : _toResource(resourceRow),
+    );
+  }
+
   ResourceActionEntry _mapResourceActionEntry(TypedResult row) {
     return ResourceActionEntry(
       record: _toResourceActionRecord(row.readTable(resourceActionRecords)),
       resource: _toResource(row.readTable(resources)),
       pack: _toItemPack(row.readTable(itemPacks)),
+    );
+  }
+
+  ResourceActionHistoryEntry _mapResourceActionHistoryEntry(TypedResult row) {
+    final sourceItemRow = row.readTableOrNull(items);
+    return ResourceActionHistoryEntry(
+      record: _toResourceActionRecord(row.readTable(resourceActionRecords)),
+      sourceItem: sourceItemRow == null ? null : _toItem(sourceItemRow),
     );
   }
 

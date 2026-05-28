@@ -394,7 +394,7 @@ Future<void> _showManagedItemActionSheet(
               ),
               _ItemActionSheetTile(
                 key: Key('item-menu-history-${bundle.item.id}'),
-                label: ReminderUiText.itemHistoryAction,
+                label: ReminderUiText.itemHistoryMenuLabel,
                 onTap: () => Navigator.of(
                   sheetContext,
                 ).pop(_ManagedItemMenuAction.history),

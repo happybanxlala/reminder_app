@@ -11,16 +11,18 @@ class ReminderEditorScaffold extends StatelessWidget {
     required this.title,
     required this.body,
     this.bottomBar,
+    this.actions,
   });
 
   final String title;
   final Widget body;
   final Widget? bottomBar;
+  final List<Widget>? actions;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(title: Text(title), actions: actions),
       body: SafeArea(bottom: false, child: body),
       bottomNavigationBar: bottomBar,
     );

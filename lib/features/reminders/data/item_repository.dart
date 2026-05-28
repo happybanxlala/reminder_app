@@ -50,6 +50,55 @@ class ItemResourceBindingInput {
   final int consumeAmount;
 }
 
+class ItemResourceImpactEntry {
+  const ItemResourceImpactEntry({
+    required this.resourceId,
+    required this.resourceTitle,
+    required this.amount,
+    required this.unitLabel,
+    required this.isCompensation,
+  });
+
+  final int resourceId;
+  final String resourceTitle;
+  final int amount;
+  final String unitLabel;
+  final bool isCompensation;
+
+  String get label {
+    final prefix = isCompensation ? '已補回' : '扣除';
+    return '$prefix：$resourceTitle $amount $unitLabel';
+  }
+}
+
+class ItemHistoryEntry {
+  const ItemHistoryEntry({
+    required this.id,
+    required this.actionRecordId,
+    required this.actionType,
+    required this.actionDate,
+    required this.titleLabel,
+    this.revertedAt,
+    this.revertedActionRecordId,
+    this.remark,
+    this.resourceImpacts = const <ItemResourceImpactEntry>[],
+  });
+
+  final String id;
+  final int actionRecordId;
+  final ItemActionType actionType;
+  final DateTime actionDate;
+  final String titleLabel;
+  final DateTime? revertedAt;
+  final int? revertedActionRecordId;
+  final String? remark;
+  final List<ItemResourceImpactEntry> resourceImpacts;
+
+  bool get isDone => actionType == ItemActionType.done;
+  bool get isReverted => revertedAt != null;
+  bool get hasResourceImpact => resourceImpacts.isNotEmpty;
+}
+
 enum ArchivePackMode { archiveWithContents, moveContentsToDefault }
 
 class ItemRepository {
@@ -108,6 +157,12 @@ class ItemRepository {
 
   Stream<List<ItemActionRecord>> watchActionHistory(int itemId) {
     return _dao.watchItemActionRecordsForItem(itemId);
+  }
+
+  Stream<List<ItemHistoryEntry>> watchHistoryEntries(int itemId) {
+    return _dao
+        .watchItemHistoryActionResourceRows(itemId)
+        .map(_buildHistoryEntries);
   }
 
   Future<List<ItemActionRecord>> listActionHistory(int itemId) {
@@ -1309,6 +1364,144 @@ class ItemRepository {
     }
     return Value(value.value);
   }
+
+  List<ItemHistoryEntry> _buildHistoryEntries(
+    List<ItemHistoryActionResourceRow> rows,
+  ) {
+    final actionsById = <int, ItemActionRecord>{};
+    final resourceActionsByItemActionId = <int, List<_ResourceImpactSource>>{};
+    for (final row in rows) {
+      final action = row.actionRecord;
+      actionsById[action.id] = action;
+      final resourceAction = row.resourceActionRecord;
+      if (resourceAction != null) {
+        resourceActionsByItemActionId
+            .putIfAbsent(action.id, () => <_ResourceImpactSource>[])
+            .add(
+              _ResourceImpactSource(
+                action: resourceAction,
+                resource: row.resource,
+              ),
+            );
+      }
+    }
+
+    final entries = <ItemHistoryEntry>[];
+    for (final action in actionsById.values) {
+      if (action.actionType == ItemActionType.reverted) {
+        continue;
+      }
+      final revertedAction = _revertedActionFor(action, actionsById);
+      final resourceImpacts = <ItemResourceImpactEntry>[
+        ..._resourceImpactsFor(
+          resourceActionsByItemActionId[action.id] ?? const [],
+          isCompensation: false,
+        ),
+        if (revertedAction != null)
+          ..._resourceImpactsFor(
+            resourceActionsByItemActionId[revertedAction.id] ?? const [],
+            isCompensation: true,
+          ),
+      ];
+      entries.add(
+        ItemHistoryEntry(
+          id: '${action.actionType.name}-${action.id}',
+          actionRecordId: action.id,
+          actionType: action.actionType,
+          actionDate: action.actionDate,
+          titleLabel: _itemHistoryTitleFor(action, revertedAction),
+          revertedAt: action.revertedAt ?? revertedAction?.actionDate,
+          revertedActionRecordId:
+              action.revertedByActionRecordId ?? revertedAction?.id,
+          remark: action.remark,
+          resourceImpacts: resourceImpacts,
+        ),
+      );
+    }
+    entries.sort((a, b) {
+      final dateCompare = b.actionDate.compareTo(a.actionDate);
+      if (dateCompare != 0) {
+        return dateCompare;
+      }
+      return b.actionRecordId.compareTo(a.actionRecordId);
+    });
+    return entries;
+  }
+
+  ItemActionRecord? _revertedActionFor(
+    ItemActionRecord action,
+    Map<int, ItemActionRecord> actionsById,
+  ) {
+    final directId = action.revertedByActionRecordId;
+    if (directId != null) {
+      return actionsById[directId];
+    }
+    for (final candidate in actionsById.values) {
+      if (candidate.actionType != ItemActionType.reverted) {
+        continue;
+      }
+      if (candidate.payload?['revertedActionRecordId'] == action.id) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
+  String _itemHistoryTitleFor(
+    ItemActionRecord action,
+    ItemActionRecord? revertedAction,
+  ) {
+    if (action.actionType == ItemActionType.done && revertedAction != null) {
+      return '完成，後來已回復';
+    }
+    if (action.actionType == ItemActionType.done) {
+      return '完成';
+    }
+    return switch (action.actionType) {
+      ItemActionType.created => '新增',
+      ItemActionType.skipped => '跳過',
+      ItemActionType.deferred => '延期',
+      ItemActionType.reverted => '已回復',
+      ItemActionType.done => '完成',
+    };
+  }
+
+  List<ItemResourceImpactEntry> _resourceImpactsFor(
+    List<_ResourceImpactSource> sources, {
+    required bool isCompensation,
+  }) {
+    final expectedType = isCompensation
+        ? ResourceActionType.reverted
+        : ResourceActionType.consumed;
+    return sources
+        .where((source) => source.action.actionType == expectedType)
+        .map(
+          (source) => ItemResourceImpactEntry(
+            resourceId: source.action.resourceId,
+            resourceTitle: source.resource?.title ?? '已封存資源',
+            amount: source.action.amount ?? 0,
+            unitLabel: _resourceUnitLabel(source.resource),
+            isCompensation: isCompensation,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  String _resourceUnitLabel(Resource? resource) {
+    final config = resource?.config;
+    if (config is QuantityBasedResourceConfig &&
+        config.unitLabel.trim().isNotEmpty) {
+      return config.unitLabel.trim();
+    }
+    return '個';
+  }
+}
+
+class _ResourceImpactSource {
+  const _ResourceImpactSource({required this.action, this.resource});
+
+  final ResourceActionRecord action;
+  final Resource? resource;
 }
 
 class _ItemUndoSnapshot {

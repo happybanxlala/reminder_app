@@ -58,7 +58,100 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('補充資源'), findsOneWidget);
+    expect(
+      find.byKey(const Key('resource-refill-editor-section')),
+      findsOneWidget,
+    );
     expect(find.byKey(const Key('resource-detail-dialog-11')), findsNothing);
+  });
+
+  testWidgets('quantity refill dialog validates and submits refillResource', (
+    tester,
+  ) async {
+    _useTallViewport(tester);
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = _RecordingResourceRepository(db);
+    final catPack = _pack(id: 1, title: '養貓', iconEmoji: '🐱');
+    await _pumpResourceManagement(
+      tester,
+      resources: [_quantityBundle(id: 11, pack: catPack, title: '貓砂')],
+      db: db,
+      repository: repository,
+    );
+
+    await tester.tap(find.byKey(const Key('resource-refill-11')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('resource-refill-editor-section')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('resource-refill-quantity-field')),
+      findsOneWidget,
+    );
+    expect(find.text('補充數量'), findsOneWidget);
+    expect(find.text('目前 1 包，補充後 2 包'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('resource-refill-quantity-field')),
+      '0',
+    );
+    await tester.tap(find.byKey(const Key('resource-refill-submit')));
+    await tester.pumpAndSettle();
+    expect(find.text('請輸入 1 或以上整數'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('resource-refill-quantity-field')),
+      '3',
+    );
+    await tester.enterText(
+      find.byKey(const Key('resource-refill-note-field')),
+      '買了一包',
+    );
+    await tester.tap(find.byKey(const Key('resource-refill-submit')));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(repository.refillCalls.single.resourceId, 11);
+    expect(repository.refillCalls.single.addedQuantity, 3);
+    expect(repository.refillCalls.single.addedDays, isNull);
+    expect(repository.refillCalls.single.remark, '買了一包');
+  });
+
+  testWidgets('time refill dialog uses added-days flow and preview', (
+    tester,
+  ) async {
+    _useTallViewport(tester);
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = _RecordingResourceRepository(db);
+    final homePack = _pack(id: 2, title: '家務', iconEmoji: '🏠');
+    await _pumpResourceManagement(
+      tester,
+      resources: [_timeBundle(id: 12, pack: homePack, title: '洗髮精')],
+      db: db,
+      repository: repository,
+    );
+
+    await tester.tap(find.byKey(const Key('resource-refill-12')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('resource-refill-days-field')), findsOneWidget);
+    expect(find.text('新增可用天數'), findsOneWidget);
+    expect(find.text('預計用完：2026/05/24'), findsOneWidget);
+    expect(find.textContaining('增加'), findsNothing);
+
+    await tester.enterText(
+      find.byKey(const Key('resource-refill-days-field')),
+      '5',
+    );
+    await tester.tap(find.byKey(const Key('resource-refill-submit')));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(repository.refillCalls.single.resourceId, 12);
+    expect(repository.refillCalls.single.addedDays, 5);
+    expect(repository.refillCalls.single.addedQuantity, isNull);
   });
 
   testWidgets('row body opens resource detail dialog', (tester) async {
@@ -108,6 +201,61 @@ void main() {
     expect(find.text('詳細資訊'), findsOneWidget);
     expect(find.text('歷史紀錄'), findsOneWidget);
     expect(find.text('封存'), findsOneWidget);
+  });
+
+  testWidgets('quantity adjust dialog validates and submits adjustment', (
+    tester,
+  ) async {
+    _useTallViewport(tester);
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = _RecordingResourceRepository(db);
+    final catPack = _pack(id: 1, title: '養貓', iconEmoji: '🐱');
+    await _pumpResourceManagement(
+      tester,
+      resources: [_quantityBundle(id: 11, pack: catPack, title: '貓砂')],
+      db: db,
+      repository: repository,
+    );
+
+    await tester.tap(find.byKey(const Key('resource-overflow-11')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('調整').last);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('resource-adjust-editor-section')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('resource-adjust-quantity-field')),
+      findsOneWidget,
+    );
+    expect(find.text('修正後數量'), findsOneWidget);
+    expect(find.text('目前 1 包，將修正為 1 包'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('resource-adjust-quantity-field')),
+      '-1',
+    );
+    await tester.tap(find.byKey(const Key('resource-adjust-submit')));
+    await tester.pumpAndSettle();
+    expect(find.text('請輸入 0 或以上整數'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('resource-adjust-quantity-field')),
+      '5',
+    );
+    await tester.enterText(
+      find.byKey(const Key('resource-adjust-note-field')),
+      '盤點修正',
+    );
+    await tester.tap(find.byKey(const Key('resource-adjust-submit')));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(repository.adjustCalls.single.resourceId, 11);
+    expect(repository.adjustCalls.single.newQuantity, 5);
+    expect(repository.adjustCalls.single.remark, '盤點修正');
   });
 
   testWidgets('resource management header keeps compact add action', (
@@ -398,12 +546,82 @@ class _RecordingResourceRepository extends ResourceRepository {
   _RecordingResourceRepository(AppDatabase db) : super(db.reminderDao);
 
   final List<ResourceInput> createdInputs = [];
+  final List<_RefillCall> refillCalls = [];
+  final List<_AdjustCall> adjustCalls = [];
 
   @override
   Future<int> createResource(ResourceInput input) async {
     createdInputs.add(input);
     return createdInputs.length;
   }
+
+  @override
+  Future<bool> refillResource(
+    int resourceId, {
+    DateTime? actionAt,
+    int? addedDays,
+    int? addedQuantity,
+    String? remark,
+  }) async {
+    refillCalls.add(
+      _RefillCall(
+        resourceId: resourceId,
+        actionAt: actionAt,
+        addedDays: addedDays,
+        addedQuantity: addedQuantity,
+        remark: remark,
+      ),
+    );
+    return true;
+  }
+
+  @override
+  Future<bool> adjustResourceQuantity(
+    int resourceId, {
+    required int newQuantity,
+    DateTime? actionAt,
+    String? remark,
+  }) async {
+    adjustCalls.add(
+      _AdjustCall(
+        resourceId: resourceId,
+        newQuantity: newQuantity,
+        actionAt: actionAt,
+        remark: remark,
+      ),
+    );
+    return true;
+  }
+}
+
+class _RefillCall {
+  const _RefillCall({
+    required this.resourceId,
+    this.actionAt,
+    this.addedDays,
+    this.addedQuantity,
+    this.remark,
+  });
+
+  final int resourceId;
+  final DateTime? actionAt;
+  final int? addedDays;
+  final int? addedQuantity;
+  final String? remark;
+}
+
+class _AdjustCall {
+  const _AdjustCall({
+    required this.resourceId,
+    required this.newQuantity,
+    this.actionAt,
+    this.remark,
+  });
+
+  final int resourceId;
+  final int newQuantity;
+  final DateTime? actionAt;
+  final String? remark;
 }
 
 ItemPack _pack({

@@ -985,6 +985,29 @@ flutter test
 - Resource quantity movement must stay in `補充` / `調整庫存` flows so ResourceActionRecord history remains the source for stock changes.
 - Resource edit can change pack only when the resource has no item bindings; bound resources show a read-only pack row with helper copy.
 - Resource edit exposes warning / danger thresholds directly in a `提醒準則` section and preserves current quantity / duration when saving.
+- Resource history uses a compact timeline rail with a summary card, action filter chips, and date grouping instead of large record cards or ListTile stacks.
+- Resource history hides reverted / compensation records by default and exposes them through `顯示已抵銷紀錄`, using muted styling and explicit labels.
+- Resource refill and quantity adjust use editor-style dialogs. Quantity refill adds stock, quantity adjust directly corrects stock, and time-based refill keeps the existing added-days carry-over semantics.
+- Item history uses the same compact timeline rail direction: a small summary card, filter chips, date groups, and rail markers instead of large record cards or ListTile stacks.
+- Item history merges done + reverted into one row labeled `完成，後來已回復`; resource consumption and compensation display as compact sub rows on that same entry.
+- Item history is reachable from Item edit AppBar overflow and Item management row overflow through `歷史紀錄`, while fixed item history shows action dates rather than preview / virtual-cycle dates.
+- StageTracker create / edit remains dialog-based but now uses editor-style sections and a compact preview card.
+- StageTracker create keeps `開始追蹤日` in the main `追蹤設定` section and moves `停止追蹤日` into advanced settings; edit keeps both tracking dates in advanced settings.
+- StageEntryDialog keeps the `重要階段` / `重複階段` tabs, while each tab uses editor sections and unified bottom form actions.
+- ImportantStageForm keeps `提前提醒` in a collapsed `提醒設定` advanced section, allows past dates, and shows `這會成為已經歷階段。` as muted helper copy for historical entries.
+- After important stage creation, StageTracker detail confirms with `已新增重要階段` and offers a snackbar action to create a related reminder when the created occurrence can be identified.
+- StageRuleForm uses `每週` / `每月` / `每年` / `自訂` frequency chips; custom frequency reveals interval value and unit controls.
+- StageRuleForm shows readable rule and next-stage previews so recurring setup reads as a generation rule, not as immediate occurrence creation.
+- StageRuleForm keeps custom name format in advanced settings and presents label templates through token insert buttons plus preview instead of exposing `{value}` / `{unit}` as primary UI.
+- RelatedItemDialog is a quick editor-style form for related reminder title, note, and due date only.
+- StageTracker complete timeline uses compact segmented filters `全部 / 即將到來 / 已經歷`, then renders one rail timeline list instead of separate heavy sections.
+- Complete timeline source is icon-first: manual important stages use `⭐`, recurring generated occurrences use `🔁`.
+- Past complete timeline rows show `待確認` when not acknowledged and `已確認` when acknowledged; they do not use overdue wording as the primary state.
+- Complete timeline rows do not support inline expansion and only show related reminder summary. Detail page upcoming rows remain the only stage rows with related-reminder inline expansion.
+- Settings uses editor-style sections and picker rows rather than a ListTile stack.
+- General settings and developer tools live on the same Settings page, with `一般設定` first and `開發工具` second.
+- The developer section is debug/dev-only by default, and `Preview date` is treated as a developer testing tool rather than a general user setting.
+- Destructive developer actions belong only in the developer section. Because no safe reset API exists yet, `重設資料庫` is shown as an unavailable destructive row instead of wiring an unsafe reset flow.
 
 ### 19.18 Item Config Editor Rows 2026-05-27
 

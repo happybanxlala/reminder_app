@@ -15,6 +15,7 @@ import 'package:reminder_app/features/reminders/providers/item_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/feature_management_sections.dart';
 import 'package:reminder_app/features/reminders/ui/pages/feature_page.dart';
 import 'package:reminder_app/features/reminders/ui/pages/item_edit_page.dart';
+import 'package:reminder_app/features/reminders/ui/pages/item_history_page.dart';
 import 'package:reminder_app/features/reminders/ui/widgets/reminder_components.dart';
 
 void main() {
@@ -98,11 +99,32 @@ void main() {
 
     expect(find.byKey(const Key('item-menu-edit-101')), findsOneWidget);
     expect(find.text(ReminderUiText.editAction), findsOneWidget);
+    expect(find.byKey(const Key('item-menu-history-101')), findsOneWidget);
+    expect(find.text(ReminderUiText.itemHistoryMenuLabel), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('item-menu-edit-101')));
     await tester.pumpAndSettle();
 
     expect(find.text('edit-route-101'), findsOneWidget);
+  });
+
+  testWidgets('item management history menu opens item history route', (
+    tester,
+  ) async {
+    final catPack = _pack(id: 1, title: '養貓', iconEmoji: '🐱');
+    await _pumpManagement(
+      tester,
+      initialGroups: [
+        _group(catPack, [_stateBundle(id: 102, pack: catPack, title: '濾芯')]),
+      ],
+    );
+
+    await tester.tap(find.byKey(const Key('item-overflow-102')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('item-menu-history-102')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('history-route-102'), findsOneWidget);
   });
 
   testWidgets('management header keeps compact resource and add item actions', (
@@ -182,6 +204,12 @@ Future<_ManagementFixture> _pumpManagement(
         name: ItemEditPage.editRouteName,
         builder: (context, state) =>
             Scaffold(body: Text('edit-route-${state.pathParameters['id']}')),
+      ),
+      GoRoute(
+        path: ItemHistoryPage.routePath,
+        name: ItemHistoryPage.routeName,
+        builder: (context, state) =>
+            Scaffold(body: Text('history-route-${state.pathParameters['id']}')),
       ),
     ],
   );

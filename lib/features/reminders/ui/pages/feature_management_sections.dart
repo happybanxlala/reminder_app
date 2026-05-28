@@ -9,6 +9,7 @@ import '../../data/resource_repository.dart';
 import '../../domain/item.dart';
 import '../../domain/item_pack.dart';
 import '../../domain/resource.dart';
+import '../../domain/resource_refill_service.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
 import '../../presentation/view_models/management_item_card_view_model.dart';

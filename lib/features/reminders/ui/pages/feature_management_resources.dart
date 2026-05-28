@@ -348,13 +348,10 @@ class _ManagedResourceCard extends ConsumerWidget {
     WidgetRef ref,
     Resource resource,
   ) async {
-    final input = await showDialog<int>(
+    final input = await showDialog<_ResourceActionDialogResult>(
       context: context,
-      builder: (dialogContext) => _NumberInputDialog(
-        title: '補充資源',
-        label: resource.config is TimeBasedResourceConfig ? '新增可用天數' : '新增數量',
-        initialValue: '1',
-      ),
+      builder: (dialogContext) =>
+          _ResourceRefillDialog(resource: resource, actionDate: previewDate),
     );
     if (input == null) {
       return;
@@ -364,10 +361,13 @@ class _ManagedResourceCard extends ConsumerWidget {
         .refillResource(
           resource.id,
           actionAt: previewDate,
-          addedDays: resource.config is TimeBasedResourceConfig ? input : null,
-          addedQuantity: resource.config is QuantityBasedResourceConfig
-              ? input
+          addedDays: resource.config is TimeBasedResourceConfig
+              ? input.value
               : null,
+          addedQuantity: resource.config is QuantityBasedResourceConfig
+              ? input.value
+              : null,
+          remark: input.remark,
         );
   }
 
@@ -380,14 +380,10 @@ class _ManagedResourceCard extends ConsumerWidget {
     if (config is! QuantityBasedResourceConfig) {
       return;
     }
-    final input = await showDialog<int>(
+    final input = await showDialog<_ResourceActionDialogResult>(
       context: context,
-      builder: (dialogContext) => _NumberInputDialog(
-        title: '調整庫存',
-        label: '目前數量',
-        initialValue: '${config.currentQuantity}',
-        allowZero: true,
-      ),
+      builder: (dialogContext) =>
+          _ResourceAdjustDialog(resource: resource, config: config),
     );
     if (input == null) {
       return;
@@ -396,8 +392,9 @@ class _ManagedResourceCard extends ConsumerWidget {
         .read(resourceRepositoryProvider)
         .adjustResourceQuantity(
           resource.id,
-          newQuantity: input,
+          newQuantity: input.value,
           actionAt: previewDate,
+          remark: input.remark,
         );
   }
 }
@@ -949,69 +946,297 @@ class _ResourceCreatePackPickerSelection {
   final bool createPack;
 }
 
-class _NumberInputDialog extends StatefulWidget {
-  const _NumberInputDialog({
-    required this.title,
-    required this.label,
-    required this.initialValue,
-    this.allowZero = false,
-  });
+class _ResourceActionDialogResult {
+  const _ResourceActionDialogResult({required this.value, this.remark});
 
-  final String title;
-  final String label;
-  final String initialValue;
-  final bool allowZero;
-
-  @override
-  State<_NumberInputDialog> createState() => _NumberInputDialogState();
+  final int value;
+  final String? remark;
 }
 
-class _NumberInputDialogState extends State<_NumberInputDialog> {
-  late String _inputValue;
-  String? _errorText;
+class _ResourceRefillDialog extends StatefulWidget {
+  const _ResourceRefillDialog({
+    required this.resource,
+    required this.actionDate,
+  });
+
+  final Resource resource;
+  final DateTime actionDate;
+
+  @override
+  State<_ResourceRefillDialog> createState() => _ResourceRefillDialogState();
+}
+
+class _ResourceRefillDialogState extends State<_ResourceRefillDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _amountController = TextEditingController(text: '1');
+  final _noteController = TextEditingController();
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final config = widget.resource.config;
+    final isTimeBased = config is TimeBasedResourceConfig;
+    return AlertDialog(
+      title: const Text(ReminderUiText.refillResourceTitle),
+      content: SizedBox(
+        width: 460,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ReminderEditorSection(
+                  key: const Key('resource-refill-editor-section'),
+                  title: ReminderUiText.resourceActionSectionTitle,
+                  children: [
+                    ReminderEditorNumberField(
+                      fieldKey: isTimeBased
+                          ? const Key('resource-refill-days-field')
+                          : const Key('resource-refill-quantity-field'),
+                      controller: _amountController,
+                      label: isTimeBased
+                          ? ReminderUiText.addAvailableDaysLabel
+                          : ReminderUiText.refillQuantityLabel,
+                      suffixText: isTimeBased
+                          ? ReminderUiText.dayUnit
+                          : _quantityUnitLabel(config),
+                      minimum: 1,
+                      onChanged: () => setState(() {}),
+                    ),
+                    _ResourceActionPreview(
+                      key: const Key('resource-refill-preview'),
+                      text: _refillPreviewText(config),
+                    ),
+                    EditorNoteField(
+                      controller: _noteController,
+                      fieldKey: const Key('resource-refill-note-field'),
+                      labelText: ReminderUiText.resourceActionNoteLabel,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _submitting ? null : () => Navigator.of(context).pop(),
+          child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+        ),
+        FilledButton(
+          key: const Key('resource-refill-submit'),
+          onPressed: _submitting ? null : _submit,
+          child: _submitting
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text(ReminderUiText.refillAction),
+        ),
+      ],
+    );
+  }
+
+  String _refillPreviewText(ResourceConfig config) {
+    final value = _nonNegativeInput(_amountController);
+    if (config is QuantityBasedResourceConfig) {
+      final after = config.currentQuantity + value;
+      return '${ReminderUiText.resourceHistoryCurrentLabel} ${config.currentQuantity} ${config.unitLabel}，${ReminderUiText.afterRefillPreviewLabel} $after ${config.unitLabel}';
+    }
+    if (config is TimeBasedResourceConfig) {
+      final refill = const ResourceRefillService().refillTimeBased(
+        config,
+        actionDate: widget.actionDate,
+        addedDays: value < 1 ? 1 : value,
+      );
+      final depletion = refill.anchorDate.add(
+        Duration(days: refill.durationDays - 1),
+      );
+      return '${ReminderUiText.estimatedRunOutDateLabel}：${ReminderFormatters.date(depletion)}';
+    }
+    return '';
+  }
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+    setState(() {
+      _submitting = true;
+    });
+    Navigator.of(context).pop(
+      _ResourceActionDialogResult(
+        value: _positiveInput(_amountController),
+        remark: _normalizeOptionalText(_noteController.text),
+      ),
+    );
+  }
+}
+
+class _ResourceAdjustDialog extends StatefulWidget {
+  const _ResourceAdjustDialog({required this.resource, required this.config});
+
+  final Resource resource;
+  final QuantityBasedResourceConfig config;
+
+  @override
+  State<_ResourceAdjustDialog> createState() => _ResourceAdjustDialogState();
+}
+
+class _ResourceAdjustDialogState extends State<_ResourceAdjustDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _quantityController;
+  final _noteController = TextEditingController();
+  bool _submitting = false;
 
   @override
   void initState() {
     super.initState();
-    _inputValue = widget.initialValue;
+    _quantityController = TextEditingController(
+      text: '${widget.config.currentQuantity}',
+    );
+  }
+
+  @override
+  void dispose() {
+    _quantityController.dispose();
+    _noteController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.title),
-      content: TextFormField(
-        autofocus: true,
-        initialValue: _inputValue,
-        keyboardType: TextInputType.number,
-        onChanged: (value) {
-          _inputValue = value;
-        },
-        decoration: InputDecoration(
-          labelText: widget.label,
-          errorText: _errorText,
+      title: const Text(ReminderUiText.adjustResourceTitle),
+      content: SizedBox(
+        width: 460,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ReminderEditorSection(
+                  key: const Key('resource-adjust-editor-section'),
+                  title: ReminderUiText.resourceActionSectionTitle,
+                  children: [
+                    ReminderEditorNumberField(
+                      fieldKey: const Key('resource-adjust-quantity-field'),
+                      controller: _quantityController,
+                      label: ReminderUiText.adjustQuantityLabel,
+                      suffixText: widget.config.unitLabel,
+                      minimum: 0,
+                      onChanged: () => setState(() {}),
+                    ),
+                    _ResourceActionPreview(
+                      key: const Key('resource-adjust-preview'),
+                      text: _adjustPreviewText(),
+                    ),
+                    EditorNoteField(
+                      controller: _noteController,
+                      fieldKey: const Key('resource-adjust-note-field'),
+                      labelText: ReminderUiText.resourceActionReasonLabel,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ),
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: _submitting ? null : () => Navigator.of(context).pop(),
           child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
         ),
         FilledButton(
-          onPressed: () {
-            final value = int.tryParse(_inputValue.trim());
-            final minimum = widget.allowZero ? 0 : 1;
-            if (value == null || value < minimum) {
-              setState(() {
-                _errorText = widget.allowZero ? '請輸入 0 或以上' : '請輸入 1 或以上';
-              });
-              return;
-            }
-            Navigator.of(context).pop(value);
-          },
-          child: const Text(ReminderUiText.saveAction),
+          key: const Key('resource-adjust-submit'),
+          onPressed: _submitting ? null : _submit,
+          child: _submitting
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text(ReminderUiText.adjustAction),
         ),
       ],
     );
   }
+
+  String _adjustPreviewText() {
+    final value = _nonNegativeInput(_quantityController);
+    return '${ReminderUiText.resourceHistoryCurrentLabel} ${widget.config.currentQuantity} ${widget.config.unitLabel}，${ReminderUiText.afterAdjustPreviewLabel} $value ${widget.config.unitLabel}';
+  }
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+    setState(() {
+      _submitting = true;
+    });
+    Navigator.of(context).pop(
+      _ResourceActionDialogResult(
+        value: _nonNegativeInput(_quantityController),
+        remark: _normalizeOptionalText(_noteController.text),
+      ),
+    );
+  }
+}
+
+class _ResourceActionPreview extends StatelessWidget {
+  const _ResourceActionPreview({super.key, required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.reminderPalette;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: palette.surfaceWarm,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: palette.borderSubtle),
+      ),
+      child: Text(
+        text,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: palette.textSecondary,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+String? _quantityUnitLabel(ResourceConfig config) {
+  return config is QuantityBasedResourceConfig ? config.unitLabel : null;
+}
+
+int _positiveInput(TextEditingController controller) {
+  final parsed = int.tryParse(controller.text.trim());
+  return parsed == null || parsed < 1 ? 1 : parsed;
+}
+
+int _nonNegativeInput(TextEditingController controller) {
+  final parsed = int.tryParse(controller.text.trim());
+  return parsed == null || parsed < 0 ? 0 : parsed;
+}
+
+String? _normalizeOptionalText(String value) {
+  final normalized = value.trim();
+  return normalized.isEmpty ? null : normalized;
 }

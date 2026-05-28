@@ -105,6 +105,16 @@ class ResourceRepository {
     );
   }
 
+  Stream<List<ResourceActionHistoryEntry>> watchActionHistoryEntries(
+    int resourceId, {
+    bool includeReverted = false,
+  }) {
+    return _dao.watchResourceActionHistoryEntriesForResource(
+      resourceId,
+      includeReverted: includeReverted,
+    );
+  }
+
   Stream<List<ResourceActionEntry>> watchCompletedActionEntriesForDate(
     DateTime date,
   ) {

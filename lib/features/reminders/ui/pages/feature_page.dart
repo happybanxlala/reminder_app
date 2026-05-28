@@ -8,11 +8,13 @@ import '../../domain/attention_policy.dart';
 import '../../domain/item_pack.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
+import '../../providers/database_providers.dart';
 import '../../providers/developer_settings_providers.dart';
 import '../../providers/item_providers.dart';
 import '../../providers/settings_providers.dart';
 import 'feature_management_sections.dart';
 import 'stage_tracker_pages.dart';
+import '../widgets/editor_form_components.dart';
 import '../widgets/item_summary_dialog.dart';
 import '../widgets/pack_picker.dart';
 import '../widgets/reminder_components.dart';
@@ -84,7 +86,7 @@ class FeaturePage extends StatelessWidget {
           const SizedBox(height: 12),
           _FeatureEntryCard(
             itemKey: 'settings',
-            title: '設定',
+            title: ReminderUiText.settingsTitle,
             subtitle: '調整提醒風格、外觀與開發者工具',
             icon: Icons.settings_outlined,
             routeName: SettingsPage.routeName,
@@ -318,68 +320,325 @@ class ItemPacksManagementPage extends StatelessWidget {
 }
 
 class SettingsPage extends ConsumerWidget {
-  const SettingsPage({super.key});
+  const SettingsPage({super.key, this.pickDate});
 
   static const routeName = 'settings';
   static const routePath = '/feature/settings';
+  final PreviewDatePicker? pickDate;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settingsAsync = ref.watch(appSettingsProvider);
     final currentTone = ref.watch(reminderToneProvider);
+    final showDeveloperSettings = ref.watch(developerSettingsVisibleProvider);
+    final overrideDate = ref.watch(developerDateOverrideProvider);
+    final effectiveDate = ref.watch(effectivePreviewDateProvider);
+    final isOverridden = overrideDate != null;
+    final databaseVersion = ref.watch(appDatabaseProvider).schemaVersion;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(ReminderUiText.userSettingsFeatureTitle),
-      ),
+    return ReminderEditorScaffold(
+      title: ReminderUiText.settingsTitle,
       body: ListView(
-        padding: const EdgeInsets.all(ReminderSpacing.page),
+        key: const Key('settings-page'),
+        padding: const EdgeInsets.all(12),
         children: [
-          ReminderPaperCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          ReminderEditorSection(
+            key: const Key('settings-general-section'),
+            title: ReminderUiText.settingsGeneralSectionTitle,
+            children: [
+              ReminderEditorPickerRow(
+                key: const Key('settings-reminder-tone-row'),
+                label: ReminderUiText.reminderToneSettingLabel,
+                value: ReminderFormatters.reminderTone(currentTone),
+                leading: Icon(
+                  Icons.notifications_active_outlined,
+                  size: 18,
+                  color: context.reminderPalette.primaryWarm,
+                ),
+                onTap: settingsAsync.isLoading
+                    ? null
+                    : () => _showReminderTonePicker(context, ref, currentTone),
+              ),
+              Text(
+                ReminderFormatters.reminderToneDescription(currentTone),
+                key: const Key('reminder-tone-description'),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.reminderPalette.textSecondary,
+                ),
+              ),
+            ],
+          ),
+          if (showDeveloperSettings) ...[
+            const SizedBox(height: 12),
+            ReminderEditorSection(
+              key: const Key('settings-developer-section'),
+              title: ReminderUiText.settingsDeveloperSectionTitle,
               children: [
-                ReminderSectionHeader(
-                  title: ReminderUiText.reminderToneSettingsTitle,
-                  icon: Icons.notifications_active_outlined,
-                ),
-                const SizedBox(height: 8),
-                const Text(ReminderUiText.reminderToneSettingsDescription),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<ReminderTone>(
-                  key: const Key('reminder-tone-field'),
-                  initialValue: currentTone,
-                  decoration: const InputDecoration(
-                    labelText: ReminderUiText.reminderToneSettingsTitle,
+                ReminderEditorPickerRow(
+                  key: const Key('settings-preview-date-row'),
+                  label: ReminderUiText.previewDateSettingLabel,
+                  value: ReminderFormatters.date(effectiveDate),
+                  leading: Icon(
+                    Icons.calendar_today_outlined,
+                    size: 18,
+                    color: context.reminderPalette.primaryWarm,
                   ),
-                  items: ReminderTone.values
-                      .map(
-                        (tone) => DropdownMenuItem(
-                          value: tone,
-                          child: Text(ReminderFormatters.reminderTone(tone)),
-                        ),
-                      )
-                      .toList(growable: false),
-                  onChanged: settingsAsync.isLoading
-                      ? null
-                      : (value) async {
-                          if (value == null) {
-                            return;
-                          }
-                          await ref
-                              .read(settingsRepositoryProvider)
-                              .updateReminderTone(value);
-                        },
+                  onTap: () => _pickPreviewDate(context, ref, effectiveDate),
                 ),
-                const SizedBox(height: 8),
                 Text(
-                  ReminderFormatters.reminderToneDescription(currentTone),
-                  key: const Key('reminder-tone-description'),
+                  ReminderUiText.previewDateHelp,
+                  key: const Key('settings-preview-date-help'),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.reminderPalette.textSecondary,
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    key: const Key('reset-preview-date-button'),
+                    onPressed: isOverridden
+                        ? () {
+                            ref
+                                    .read(
+                                      developerDateOverrideProvider.notifier,
+                                    )
+                                    .state =
+                                null;
+                          }
+                        : null,
+                    child: const Text(ReminderUiText.clearPreviewDateLabel),
+                  ),
+                ),
+                Text(
+                  ReminderUiText.debugInfoSectionTitle,
+                  key: const Key('settings-debug-info-title'),
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: context.reminderPalette.textSecondary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                _SettingsReadOnlyRow(
+                  key: const Key('settings-debug-db-version'),
+                  label: ReminderUiText.databaseVersionLabel,
+                  value: '$databaseVersion',
+                ),
+                _SettingsReadOnlyRow(
+                  key: const Key('settings-debug-date-source'),
+                  label: ReminderUiText.dateSourceLabel,
+                  value: isOverridden
+                      ? ReminderUiText.dateSourcePreview
+                      : ReminderUiText.dateSourceRealToday,
+                ),
+                _SettingsActionRow(
+                  key: const Key('settings-reset-database-row'),
+                  label: ReminderUiText.resetDatabaseLabel,
+                  value: ReminderUiText.resetDatabaseUnavailable,
+                  icon: Icons.delete_forever_outlined,
+                  destructive: true,
+                  enabled: false,
+                  onTap: null,
                 ),
               ],
             ),
-          ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Future<void> _showReminderTonePicker(
+    BuildContext context,
+    WidgetRef ref,
+    ReminderTone currentTone,
+  ) async {
+    final selected = await showModalBottomSheet<ReminderTone>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                ReminderUiText.reminderToneSettingLabel,
+                style: Theme.of(sheetContext).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              for (final tone in ReminderTone.values)
+                _SettingsToneOption(
+                  tone: tone,
+                  selected: tone == currentTone,
+                  onTap: () => Navigator.of(sheetContext).pop(tone),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (selected == null) {
+      return;
+    }
+    await ref.read(settingsRepositoryProvider).updateReminderTone(selected);
+  }
+
+  Future<void> _pickPreviewDate(
+    BuildContext context,
+    WidgetRef ref,
+    DateTime initialDate,
+  ) async {
+    final picker = pickDate ?? DeveloperSettingsPage.showPreviewDatePicker;
+    final selected = await picker(context, initialDate);
+    if (selected == null) {
+      return;
+    }
+    ref.read(developerDateOverrideProvider.notifier).state =
+        normalizePreviewDate(selected);
+  }
+}
+
+class _SettingsToneOption extends StatelessWidget {
+  const _SettingsToneOption({
+    required this.tone,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final ReminderTone tone;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.reminderPalette;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: Key('settings-tone-option-${tone.name}'),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      ReminderFormatters.reminderTone(tone),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: palette.textPrimary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      ReminderFormatters.reminderToneDescription(tone),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: palette.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (selected)
+                Icon(Icons.check, size: 18, color: palette.primaryWarm),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsReadOnlyRow extends StatelessWidget {
+  const _SettingsReadOnlyRow({
+    super.key,
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return ReminderEditorPickerRow(
+      label: label,
+      value: value,
+      readOnly: true,
+      showChevron: false,
+    );
+  }
+}
+
+class _SettingsActionRow extends StatelessWidget {
+  const _SettingsActionRow({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.icon,
+    this.destructive = false,
+    this.enabled = true,
+    this.onTap,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final bool destructive;
+  final bool enabled;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.reminderPalette;
+    final rowColor = destructive
+        ? Theme.of(context).colorScheme.error
+        : palette.textPrimary;
+    final labelColor = destructive
+        ? rowColor
+        : enabled
+        ? rowColor
+        : palette.textMuted;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: labelColor),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: labelColor,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: palette.textMuted,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -619,104 +878,10 @@ class DeveloperSettingsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final overrideDate = ref.watch(developerDateOverrideProvider);
-    final effectiveDate = ref.watch(effectivePreviewDateProvider);
-    final isOverridden = overrideDate != null;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(ReminderUiText.developerSettingsFeatureTitle),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(ReminderSpacing.page),
-        children: [
-          ReminderPaperCard(
-            child: Padding(
-              padding: EdgeInsets.zero,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    ReminderUiText.developerPreviewDateTitle,
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: 16),
-                  ListTile(
-                    key: const Key('developer-preview-date-tile'),
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text(
-                      ReminderUiText.developerPreviewDateCurrentLabel,
-                    ),
-                    subtitle: Text(ReminderFormatters.date(effectiveDate)),
-                  ),
-                  ListTile(
-                    key: const Key('developer-preview-status-tile'),
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text(
-                      ReminderUiText.developerPreviewDateOverrideStatusLabel,
-                    ),
-                    subtitle: Text(
-                      isOverridden
-                          ? ReminderUiText.developerPreviewDateOverrideEnabled
-                          : ReminderUiText.developerPreviewDateOverrideDisabled,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      FilledButton(
-                        key: const Key('pick-preview-date-button'),
-                        onPressed: () =>
-                            _pickPreviewDate(context, ref, effectiveDate),
-                        child: const Text(
-                          ReminderUiText.developerPreviewDatePickAction,
-                        ),
-                      ),
-                      OutlinedButton(
-                        key: const Key('reset-preview-date-button'),
-                        onPressed: isOverridden
-                            ? () {
-                                ref
-                                        .read(
-                                          developerDateOverrideProvider
-                                              .notifier,
-                                        )
-                                        .state =
-                                    null;
-                              }
-                            : null,
-                        child: const Text(
-                          ReminderUiText.developerPreviewDateResetAction,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return SettingsPage(pickDate: pickDate);
   }
 
-  Future<void> _pickPreviewDate(
-    BuildContext context,
-    WidgetRef ref,
-    DateTime initialDate,
-  ) async {
-    final picker = pickDate ?? _showPreviewDatePicker;
-    final selected = await picker(context, initialDate);
-    if (selected == null) {
-      return;
-    }
-    ref.read(developerDateOverrideProvider.notifier).state =
-        normalizePreviewDate(selected);
-  }
-
-  static Future<DateTime?> _showPreviewDatePicker(
+  static Future<DateTime?> showPreviewDatePicker(
     BuildContext context,
     DateTime initialDate,
   ) {

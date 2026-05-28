@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/reminder_theme.dart';
 import '../../data/item_repository.dart';
@@ -19,8 +20,11 @@ import '../widgets/item_config_form_section.dart';
 import '../widgets/pack_picker.dart';
 import '../widgets/resource_binding_draft_section.dart';
 import '../widgets/resource_consumption_section.dart';
+import 'item_history_page.dart';
 
 enum ItemEditMode { create, edit }
+
+enum _ItemEditMenuAction { history }
 
 class ItemEditPage extends ConsumerStatefulWidget {
   const ItemEditPage({
@@ -122,6 +126,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       },
       child: ReminderEditorScaffold(
         title: _pageTitle,
+        actions: _isEdit ? [_buildHistoryMenuAction()] : null,
         bottomBar: ReminderEditorBottomBar(onSave: _save),
         body: Form(
           key: _formKey,
@@ -224,6 +229,33 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
   String get _resourceBindingSummary => _resourceBindingDrafts.isEmpty
       ? ReminderUiText.resourceBindingEmptySummary
       : '${_resourceBindingDrafts.length} ${ReminderUiText.resourceBindingCountSuffix}';
+
+  Widget _buildHistoryMenuAction() {
+    return PopupMenuButton<_ItemEditMenuAction>(
+      key: const Key('item-edit-overflow'),
+      tooltip: ReminderUiText.itemActionMenuTitle,
+      onSelected: (action) {
+        switch (action) {
+          case _ItemEditMenuAction.history:
+            final id = widget.id;
+            if (id == null) {
+              return;
+            }
+            context.pushNamed(
+              ItemHistoryPage.routeName,
+              pathParameters: {'id': id.toString()},
+            );
+        }
+      },
+      itemBuilder: (context) => const [
+        PopupMenuItem(
+          key: Key('item-edit-menu-history'),
+          value: _ItemEditMenuAction.history,
+          child: Text(ReminderUiText.itemHistoryMenuLabel),
+        ),
+      ],
+    );
+  }
 
   Widget _buildBasicSection(
     List<ItemPack> activePacks,

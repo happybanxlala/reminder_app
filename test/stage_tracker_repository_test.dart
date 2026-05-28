@@ -48,6 +48,38 @@ void main() {
     },
   );
 
+  test('createStageRule does not materialize StageRecord', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = StageTrackerRepository(
+      db.reminderDao,
+      clock: () => DateTime(2026, 5, 1),
+    );
+
+    final trackerId = await repository.createStageTracker(
+      StageTrackerInput(title: '寶寶成長', trackingStartDate: DateTime(2026, 5)),
+    );
+    await repository.createStageRule(
+      trackerId,
+      const StageRuleInput(
+        type: StageRuleType.everyNDays,
+        intervalValue: 30,
+        intervalUnit: StageIntervalUnit.days,
+      ),
+    );
+
+    final stageRecords = await db.select(db.stageRecords).get();
+    final detail = await repository.getStageTrackerDetailById(
+      trackerId,
+      now: DateTime(2026, 5, 1),
+    );
+
+    expect(stageRecords, isEmpty);
+    expect(detail!.stageRules, hasLength(1));
+    expect(detail.dashboardUpcomingStages, hasLength(1));
+    expect(detail.dashboardUpcomingStages.single.stageRecordId, isNull);
+  });
+
   test(
     'ignored is hidden everywhere but acknowledged remains in schedule',
     () async {
