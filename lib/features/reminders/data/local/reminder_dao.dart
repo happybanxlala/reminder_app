@@ -23,6 +23,13 @@ class ItemBundle {
   final ItemPack pack;
 }
 
+class CustomPackTemplateRows {
+  const CustomPackTemplateRows({required this.template, required this.items});
+
+  final PackTemplateRow template;
+  final List<PackTemplateItemRow> items;
+}
+
 class ResourceBundle {
   const ResourceBundle({required this.resource, required this.pack});
 
@@ -165,6 +172,8 @@ class StageRelatedItemEntry {
   tables: [
     ItemPacks,
     Items,
+    PackTemplates,
+    PackTemplateItems,
     Resources,
     ResourceConsumptionRules,
     ResourceActionRecords,
@@ -186,6 +195,29 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
 
   Future<int> insertItem(ItemsCompanion entry) {
     return into(items).insert(entry);
+  }
+
+  Future<int> insertPackTemplate(PackTemplatesCompanion entry) {
+    return into(packTemplates).insert(entry);
+  }
+
+  Future<int> insertPackTemplateItem(PackTemplateItemsCompanion entry) {
+    return into(packTemplateItems).insert(entry);
+  }
+
+  Stream<List<CustomPackTemplateRows>> watchCustomPackTemplateRows() {
+    final query =
+        select(packTemplates).join([
+          leftOuterJoin(
+            packTemplateItems,
+            packTemplateItems.templateId.equalsExp(packTemplates.id),
+          ),
+        ])..orderBy([
+          OrderingTerm.desc(packTemplates.createdAt),
+          OrderingTerm.asc(packTemplateItems.orderIndex),
+          OrderingTerm.asc(packTemplateItems.id),
+        ]);
+    return query.watch().map(_mapCustomPackTemplateRows);
   }
 
   Future<int> insertItemActionRecord(ItemActionRecordsCompanion entry) {
@@ -1491,6 +1523,31 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
       createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
     );
+  }
+
+  List<CustomPackTemplateRows> _mapCustomPackTemplateRows(
+    List<TypedResult> rows,
+  ) {
+    final templatesById = <int, PackTemplateRow>{};
+    final itemsByTemplateId = <int, List<PackTemplateItemRow>>{};
+    for (final row in rows) {
+      final template = row.readTable(packTemplates);
+      templatesById[template.id] = template;
+      final item = row.readTableOrNull(packTemplateItems);
+      if (item != null) {
+        itemsByTemplateId
+            .putIfAbsent(template.id, () => <PackTemplateItemRow>[])
+            .add(item);
+      }
+    }
+    return templatesById.values
+        .map(
+          (template) => CustomPackTemplateRows(
+            template: template,
+            items: itemsByTemplateId[template.id] ?? const [],
+          ),
+        )
+        .toList(growable: false);
   }
 
   Item _toItem(ItemRow row) {

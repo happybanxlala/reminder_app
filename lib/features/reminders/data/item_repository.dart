@@ -7,6 +7,7 @@ import '../domain/item_action_service.dart';
 import '../domain/item_pack.dart';
 import '../domain/item_snapshot_update_service.dart';
 import '../domain/item_status_service.dart';
+import '../domain/pack_template.dart';
 import '../domain/resource.dart';
 import '../domain/resource_refill_service.dart';
 import '../domain/stage_tracker.dart';
@@ -455,6 +456,56 @@ class ItemRepository {
         orderIndex: await _nextCustomPackOrderIndex(),
       ),
     );
+  }
+
+  Future<TemplateCreationResult> createPackFromTemplate(
+    PackTemplate template,
+  ) async {
+    final now = _clock();
+    final today = _normalizeDate(now);
+    final packName = template.packName;
+    return _dao.attachedDatabase.transaction(() async {
+      final packId = await _dao.insertItemPack(
+        _packCompanion(
+          ItemPackInput(
+            title: packName,
+            description: template.description,
+            iconEmoji: template.iconEmoji,
+          ),
+          now: now,
+          orderIndex: await _nextCustomPackOrderIndex(),
+        ),
+      );
+      final itemIds = <int>[];
+      for (final templateItem in template.items) {
+        itemIds.add(
+          await _createItemRecord(
+            ItemInput(
+              title: templateItem.title,
+              type: templateItem.type,
+              config: _materializeTemplateConfig(templateItem.config, today),
+              attentionPolicySource: templateItem.attentionPolicySource,
+              packId: packId,
+            ),
+            now: now,
+          ),
+        );
+      }
+      return TemplateCreationResult(
+        packId: packId,
+        packName: packName,
+        itemIds: itemIds,
+      );
+    });
+  }
+
+  Future<bool> activePackTitleExists(String title) async {
+    final normalized = title.trim();
+    if (normalized.isEmpty) {
+      return false;
+    }
+    final packs = await _dao.listItemPacks();
+    return packs.any((pack) => pack.title == normalized);
   }
 
   Future<bool> updatePack(int id, ItemPackInput input) async {
@@ -1179,6 +1230,64 @@ class ItemRepository {
       FixedItemConfig fixed => fixed.repeatRuleV2?.encode(),
       _ => null,
     };
+  }
+
+  ItemConfig _materializeTemplateConfig(ItemConfig config, DateTime today) {
+    return switch (config) {
+      FixedItemConfig fixed => FixedItemConfig(
+        scheduleType: fixed.scheduleType,
+        scheduleInterval: fixed.scheduleInterval < 1
+            ? 1
+            : fixed.scheduleInterval,
+        monthlyDay: fixed.scheduleType == FixedScheduleType.monthly
+            ? today.day
+            : fixed.monthlyDay,
+        repeatRuleV2: fixed.repeatRuleV2,
+        anchorDate: today,
+        dueDate: _templateDueDate(fixed, today),
+        timeOfDay: fixed.timeOfDay,
+        overduePolicy: fixed.overduePolicy,
+        infoBefore: fixed.infoBefore,
+        warningBefore: fixed.warningBefore,
+        dangerBefore: fixed.dangerBefore,
+      ),
+      StateBasedItemConfig state => StateBasedItemConfig(
+        anchorDate: today,
+        infoAfter: state.infoAfter,
+        warningAfter: state.warningAfter,
+        dangerAfter: state.dangerAfter,
+      ),
+      _ => config,
+    };
+  }
+
+  DateTime _templateDueDate(FixedItemConfig config, DateTime today) {
+    final interval = config.scheduleInterval < 1 ? 1 : config.scheduleInterval;
+    return switch (config.scheduleType) {
+      FixedScheduleType.daily => today.add(const Duration(days: 1)),
+      FixedScheduleType.weekly => today.add(const Duration(days: 7)),
+      FixedScheduleType.oneTime => today,
+      FixedScheduleType.everyXDays => today.add(Duration(days: interval)),
+      FixedScheduleType.everyXWeeks => today.add(Duration(days: interval * 7)),
+      FixedScheduleType.monthly => _addMonthsClamped(
+        today,
+        interval,
+        preferredDay: today.day,
+      ),
+    };
+  }
+
+  DateTime _addMonthsClamped(
+    DateTime value,
+    int months, {
+    required int preferredDay,
+  }) {
+    final monthIndex = value.month - 1 + months;
+    final targetYear = value.year + monthIndex ~/ 12;
+    final targetMonth = monthIndex % 12 + 1;
+    final lastDay = DateTime(targetYear, targetMonth + 1, 0).day;
+    final day = preferredDay.clamp(1, lastDay);
+    return DateTime(targetYear, targetMonth, day);
   }
 
   DateTime _normalizeDate(DateTime value) {

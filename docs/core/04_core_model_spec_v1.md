@@ -31,6 +31,7 @@ Reminder App 關注四種使用者容易忽略的狀態：
 | 概念 | 責任 |
 | --- | --- |
 | `ItemPack` | 使用者視角的生活場景 |
+| `PackTemplate` | 可快速建立生活場景與預設事項的範本 |
 | `Item` | 責任、行為、需要被完成的事 |
 | `Resource` | 可被消耗、可補充、可提醒的資源 |
 | `StageTracker` | 時間推進中的階段追蹤 |
@@ -45,6 +46,8 @@ Domain 必須保持分離。Home 可以在 presentation layer 聚合 `Item`、`R
 ### 1.3 已實作模型清單
 
 - `ItemPack`
+- `PackTemplate`
+- `PackTemplateItem`
 - `Item`
 - `ItemConfig`
 - `FixedItemConfig`
@@ -162,7 +165,68 @@ StageTracker: 小米成長
 - Pack 管理頁目前只顯示 active packs；archived packs 的管理入口未完成。
 - Item / Resource / StageTracker 建立後的跨 Pack 搬移入口未提供。
 
-### 2.2 Item Domain
+### 2.2 PackTemplate Domain
+
+#### 產品語意
+
+`PackTemplate` 是可重用的生活場景範本，用來快速建立一個 `ItemPack` 與一組預設 `Item`。
+
+Pack Template 分為兩種來源：
+
+- `defaultTemplate`：app 內建，例如「家務」、「個人護理」、「養貓」。
+- `custom`：使用者只能從既有 active Pack 儲存而成。
+
+#### 已實作資料模型
+
+```ts
+PackTemplate {
+  id: string
+  source: "defaultTemplate" | "custom"
+  templateName: string
+  iconEmoji: string
+  description?: string
+  items: PackTemplateItem[]
+}
+```
+
+```ts
+PackTemplateItem {
+  title: string
+  type: ItemType
+  config: ItemConfig
+  attentionPolicySource: "systemDefault" | "userCustomized"
+}
+```
+
+自訂 template 由 Drift `pack_templates` 與 `pack_template_items` 儲存。預設 template 由 Dart code 定義，不 seed 進資料庫。
+
+#### 已實作行為
+
+- Pack 管理頁提供「從模版建立生活場景」入口。
+- 新增 Pack dialog 提供「從模版建立」入口；Item / Resource / StageTracker inline 新增 Pack 流程仍只做空白建立。
+- Template Picker 分為「預設模版」與「自訂模版」，列表顯示 emoji、template name 與 item count。
+- 使用 template 前必須進入 preview detail；第一版不支援勾選、修改 item title 或修改 schedule。
+- 使用 template 建立 Pack 時，Pack title 固定為 `{templateName}(模版)`，不自動加數字或「副本」。
+- 若已存在同名 active Pack，preview 會提示，建立前可再次確認；仍允許建立同名 Pack。
+- 使用 template 建立 Pack + Items 會在 repository transaction 中完成。
+- template-created Items 不寫入 `ItemActionRecord(created)`，不建立 resource binding、resource action history、stage tracker 或 done records。
+- 自訂 template 只能從已有 Pack 儲存，且只保存 active Items。
+- 自訂 template 保存 Pack title / icon / description，以及 Item title / type / schedule config。
+- 自訂 template 不保存 resource binding、resource consumption、resources、action history、done records、stage trackers 或 archived item history。
+
+#### 範例
+
+```text
+Template: 養貓
+Created Pack: 養貓(模版)
+Created Items: 清貓砂、補貓糧、洗水碗、清潔貓窩、剪指甲、驅蟲
+```
+
+#### MVP 待完成
+
+- 建立後「查看」只導向 Item 管理頁；尚未支援自動定位或展開新建立 Pack。
+
+### 2.3 Item Domain
 
 #### 產品語意
 
@@ -269,7 +333,7 @@ dangerBefore: 1 day
 - `ItemNextCycleStrategy.shiftByDelay` 已存在於 domain API，但 UI 主要流程尚未完整暴露為使用者可選策略。
 - `deferred` action type 只保留相容性，不建立新的 deferred record。
 
-### 2.3 ItemActionRecord Domain
+### 2.4 ItemActionRecord Domain
 
 #### 產品語意
 
@@ -317,7 +381,7 @@ skipped: 使用者本輪不處理「整理冰箱」。
 
 - `deferred` 不在目前 MVP 建立流程中使用。
 
-### 2.4 Resource Domain
+### 2.5 Resource Domain
 
 #### 產品語意
 
@@ -408,7 +472,7 @@ warningBeforeDays: 3
 dangerBeforeDays: 1
 ```
 
-### 2.5 ResourceConsumptionRule Domain
+### 2.6 ResourceConsumptionRule Domain
 
 #### 產品語意
 
@@ -453,7 +517,7 @@ Rule: done 時 consume 1 個
 
 - UI 尚未提供完整的既有 rule 編輯、停用、重新啟用管理流程。
 
-### 2.6 ResourceActionRecord Domain
+### 2.7 ResourceActionRecord Domain
 
 #### 產品語意
 
@@ -510,7 +574,7 @@ adjusted: 使用者手動把濾水網庫存修正為 3 個
 
 - Resource history 已有頁面，但 `sourceItemActionRecordId` 目前主要透過格式化文字呈現，尚未提供跳回來源 Item action 的互動入口。
 
-### 2.7 StageTracker Domain
+### 2.8 StageTracker Domain
 
 #### 產品語意
 
@@ -582,7 +646,7 @@ UI 可顯示：
 
 - archived StageTracker 管理 UI 未完成。
 
-### 2.8 StageRule Domain
+### 2.9 StageRule Domain
 
 #### 產品語意
 
@@ -635,7 +699,7 @@ StageRule:
 
 - archived StageRule 的獨立瀏覽與還原入口未完成。
 
-### 2.9 StageOccurrence Domain
+### 2.10 StageOccurrence Domain
 
 #### 產品語意
 
@@ -689,7 +753,7 @@ StageOccurrence {
 
 - Home attention occurrence 已支援「知道了」；「忽略這次」的 UI 入口、確認流程與 undo 尚未完成。
 
-### 2.10 StageRecord Domain
+### 2.11 StageRecord Domain
 
 #### 產品語意
 
@@ -749,7 +813,7 @@ Manual StageRecord:
 
 - manual important stage 的 archived record 獨立瀏覽與還原入口未完成。
 
-### 2.11 StageRelatedItem Domain
+### 2.12 StageRelatedItem Domain
 
 #### 產品語意
 
@@ -807,7 +871,7 @@ Related Item: 準備副食品餐具
 
 - Item 詳情頁顯示「來自：{StageTracker.title} · {StageRecord.label}」的完整 UI 尚未收斂。
 
-### 2.12 AttentionPolicy 與 AppSettings
+### 2.13 AttentionPolicy 與 AppSettings
 
 #### 產品語意
 
@@ -1063,6 +1127,8 @@ Pack 管理 route：`/feature/item-packs-management`，route name：`item-packs-
 已實作 UI：
 
 - 新增自訂 Pack。
+- 從預設 / 自訂模版建立 Pack + Items。
+- 從既有 active Pack 儲存自訂模版。
 - 編輯自訂 Pack 名稱、description、emoji。
 - 系統依 Pack 名稱推薦 emoji，使用者可手動選擇。
 - 對自訂 Pack 使用「上」「下」調整排序。
@@ -1071,7 +1137,7 @@ Pack 管理 route：`/feature/item-packs-management`，route name：`item-packs-
 
 ## 5. Drift Schema
 
-目前 schema version：`4`。
+目前 schema version：`5`。
 
 ### 5.1 item_packs
 
@@ -1261,6 +1327,42 @@ createdAt
 updatedAt
 ```
 
+### 5.2 pack_templates
+
+```text
+id
+templateName
+iconEmoji
+description
+createdAt
+updatedAt
+```
+
+### 5.3 pack_template_items
+
+```text
+id
+templateId
+orderIndex
+title
+type
+attentionPolicySource
+fixedScheduleType
+fixedScheduleInterval
+fixedMonthlyDay
+fixedRepeatRuleV2
+fixedTimeOfDay
+fixedOverduePolicy
+fixedExpectedBeforeMinutes
+fixedWarningBeforeMinutes
+fixedDangerBeforeMinutes
+stateExpectedAfterMinutes
+stateWarningAfterMinutes
+stateDangerAfterMinutes
+createdAt
+updatedAt
+```
+
 ## 6. MVP 待完成
 
 本章只列產品已明確要收斂，但目前 repo 尚未完整實作的 MVP 項目。這些項目不可寫入「已實作行為」。
@@ -1279,7 +1381,7 @@ updatedAt
 - snooze。
 - deferred action 恢復。
 - time-based resource 由 Item action 自動消耗。
-- 生日、紀念日、生活場景模板。
+- 生日、紀念日。
 - archived StageTracker 的完整瀏覽與還原流程。
 - Resource history 跳回來源 Item action。
 - 多來源 related item。

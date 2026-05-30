@@ -1019,6 +1019,17 @@ flutter test
 - The system tracker `Reminder App / 系統` can be hidden from the list through detail overflow and restored from Settings. It does not expose edit or archive actions.
 - Settings general section includes `提醒時間`; `Preview date` remains only in the debug/developer section.
 
+### 19.19 Pack Templates 2026-05-29
+
+- Pack management includes a compact soft card entry `從模版建立生活場景`, placed above the existing Pack list and add action.
+- Standalone Pack create dialog includes a compact `從模版建立` entry; inline Pack creation from Item / Resource / Stage flows remains blank-create only.
+- Template Picker uses compact rows, not a large grid, and separates `預設模版` from `自訂模版`.
+- Template rows show emoji, template name, and item count. Empty custom templates show helper copy plus an entry to save from an existing Pack.
+- Template Preview Detail is mandatory before creation. It shows the generated Pack name `{templateName}(模版)` and a compact item list with schedule summaries.
+- Pack Template v1 does not support item selection, checkbox toggles, or editing template item titles / schedules before creation.
+- Duplicate generated Pack names are allowed, but preview and confirmation warn that this may be confusing.
+- After template creation, Pack management stays in place and shows snackbar `已建立「{packName}」` with `查看`; `查看` routes to Item management.
+
 ### 19.18 Item Config Editor Rows 2026-05-27
 
 - Item config internals now use editor rows and compact form fields so fixed rhythm, flexible rhythm, repeat rules, advanced attention timing, and resource binding read as one form language.

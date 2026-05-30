@@ -50,6 +50,47 @@ class Items extends Table {
   IntColumn get updatedAt => integer()();
 }
 
+@DataClassName('PackTemplateRow')
+class PackTemplates extends Table {
+  @override
+  String get tableName => 'pack_templates';
+
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get templateName => text()();
+  TextColumn get iconEmoji => text().withDefault(const Constant('🏷️'))();
+  TextColumn get description => text().nullable()();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+}
+
+@DataClassName('PackTemplateItemRow')
+class PackTemplateItems extends Table {
+  @override
+  String get tableName => 'pack_template_items';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get templateId => integer().references(PackTemplates, #id)();
+  IntColumn get orderIndex => integer().withDefault(const Constant(0))();
+  TextColumn get title => text()();
+  TextColumn get type => text()();
+  TextColumn get attentionPolicySource =>
+      text().withDefault(const Constant('systemDefault'))();
+  TextColumn get fixedScheduleType => text().nullable()();
+  IntColumn get fixedScheduleInterval => integer().nullable()();
+  IntColumn get fixedMonthlyDay => integer().nullable()();
+  TextColumn get fixedRepeatRuleV2 => text().nullable()();
+  TextColumn get fixedTimeOfDay => text().nullable()();
+  TextColumn get fixedOverduePolicy => text().nullable()();
+  IntColumn get fixedExpectedBeforeMinutes => integer().nullable()();
+  IntColumn get fixedWarningBeforeMinutes => integer().nullable()();
+  IntColumn get fixedDangerBeforeMinutes => integer().nullable()();
+  IntColumn get stateExpectedAfterMinutes => integer().nullable()();
+  IntColumn get stateWarningAfterMinutes => integer().nullable()();
+  IntColumn get stateDangerAfterMinutes => integer().nullable()();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+}
+
 @DataClassName('ResourceRow')
 class Resources extends Table {
   @override

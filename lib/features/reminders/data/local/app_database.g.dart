@@ -2083,6 +2083,1683 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
   }
 }
 
+class $PackTemplatesTable extends PackTemplates
+    with TableInfo<$PackTemplatesTable, PackTemplateRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PackTemplatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _templateNameMeta = const VerificationMeta(
+    'templateName',
+  );
+  @override
+  late final GeneratedColumn<String> templateName = GeneratedColumn<String>(
+    'template_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _iconEmojiMeta = const VerificationMeta(
+    'iconEmoji',
+  );
+  @override
+  late final GeneratedColumn<String> iconEmoji = GeneratedColumn<String>(
+    'icon_emoji',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('🏷️'),
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    templateName,
+    iconEmoji,
+    description,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'pack_templates';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PackTemplateRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('template_name')) {
+      context.handle(
+        _templateNameMeta,
+        templateName.isAcceptableOrUnknown(
+          data['template_name']!,
+          _templateNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_templateNameMeta);
+    }
+    if (data.containsKey('icon_emoji')) {
+      context.handle(
+        _iconEmojiMeta,
+        iconEmoji.isAcceptableOrUnknown(data['icon_emoji']!, _iconEmojiMeta),
+      );
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PackTemplateRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PackTemplateRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      templateName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}template_name'],
+      )!,
+      iconEmoji: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}icon_emoji'],
+      )!,
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $PackTemplatesTable createAlias(String alias) {
+    return $PackTemplatesTable(attachedDatabase, alias);
+  }
+}
+
+class PackTemplateRow extends DataClass implements Insertable<PackTemplateRow> {
+  final int id;
+  final String templateName;
+  final String iconEmoji;
+  final String? description;
+  final int createdAt;
+  final int updatedAt;
+  const PackTemplateRow({
+    required this.id,
+    required this.templateName,
+    required this.iconEmoji,
+    this.description,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['template_name'] = Variable<String>(templateName);
+    map['icon_emoji'] = Variable<String>(iconEmoji);
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  PackTemplatesCompanion toCompanion(bool nullToAbsent) {
+    return PackTemplatesCompanion(
+      id: Value(id),
+      templateName: Value(templateName),
+      iconEmoji: Value(iconEmoji),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory PackTemplateRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PackTemplateRow(
+      id: serializer.fromJson<int>(json['id']),
+      templateName: serializer.fromJson<String>(json['templateName']),
+      iconEmoji: serializer.fromJson<String>(json['iconEmoji']),
+      description: serializer.fromJson<String?>(json['description']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'templateName': serializer.toJson<String>(templateName),
+      'iconEmoji': serializer.toJson<String>(iconEmoji),
+      'description': serializer.toJson<String?>(description),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  PackTemplateRow copyWith({
+    int? id,
+    String? templateName,
+    String? iconEmoji,
+    Value<String?> description = const Value.absent(),
+    int? createdAt,
+    int? updatedAt,
+  }) => PackTemplateRow(
+    id: id ?? this.id,
+    templateName: templateName ?? this.templateName,
+    iconEmoji: iconEmoji ?? this.iconEmoji,
+    description: description.present ? description.value : this.description,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  PackTemplateRow copyWithCompanion(PackTemplatesCompanion data) {
+    return PackTemplateRow(
+      id: data.id.present ? data.id.value : this.id,
+      templateName: data.templateName.present
+          ? data.templateName.value
+          : this.templateName,
+      iconEmoji: data.iconEmoji.present ? data.iconEmoji.value : this.iconEmoji,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PackTemplateRow(')
+          ..write('id: $id, ')
+          ..write('templateName: $templateName, ')
+          ..write('iconEmoji: $iconEmoji, ')
+          ..write('description: $description, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    templateName,
+    iconEmoji,
+    description,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PackTemplateRow &&
+          other.id == this.id &&
+          other.templateName == this.templateName &&
+          other.iconEmoji == this.iconEmoji &&
+          other.description == this.description &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class PackTemplatesCompanion extends UpdateCompanion<PackTemplateRow> {
+  final Value<int> id;
+  final Value<String> templateName;
+  final Value<String> iconEmoji;
+  final Value<String?> description;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  const PackTemplatesCompanion({
+    this.id = const Value.absent(),
+    this.templateName = const Value.absent(),
+    this.iconEmoji = const Value.absent(),
+    this.description = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  PackTemplatesCompanion.insert({
+    this.id = const Value.absent(),
+    required String templateName,
+    this.iconEmoji = const Value.absent(),
+    this.description = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+  }) : templateName = Value(templateName),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<PackTemplateRow> custom({
+    Expression<int>? id,
+    Expression<String>? templateName,
+    Expression<String>? iconEmoji,
+    Expression<String>? description,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (templateName != null) 'template_name': templateName,
+      if (iconEmoji != null) 'icon_emoji': iconEmoji,
+      if (description != null) 'description': description,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  PackTemplatesCompanion copyWith({
+    Value<int>? id,
+    Value<String>? templateName,
+    Value<String>? iconEmoji,
+    Value<String?>? description,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+  }) {
+    return PackTemplatesCompanion(
+      id: id ?? this.id,
+      templateName: templateName ?? this.templateName,
+      iconEmoji: iconEmoji ?? this.iconEmoji,
+      description: description ?? this.description,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (templateName.present) {
+      map['template_name'] = Variable<String>(templateName.value);
+    }
+    if (iconEmoji.present) {
+      map['icon_emoji'] = Variable<String>(iconEmoji.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PackTemplatesCompanion(')
+          ..write('id: $id, ')
+          ..write('templateName: $templateName, ')
+          ..write('iconEmoji: $iconEmoji, ')
+          ..write('description: $description, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $PackTemplateItemsTable extends PackTemplateItems
+    with TableInfo<$PackTemplateItemsTable, PackTemplateItemRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PackTemplateItemsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _templateIdMeta = const VerificationMeta(
+    'templateId',
+  );
+  @override
+  late final GeneratedColumn<int> templateId = GeneratedColumn<int>(
+    'template_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES pack_templates (id)',
+    ),
+  );
+  static const VerificationMeta _orderIndexMeta = const VerificationMeta(
+    'orderIndex',
+  );
+  @override
+  late final GeneratedColumn<int> orderIndex = GeneratedColumn<int>(
+    'order_index',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _attentionPolicySourceMeta =
+      const VerificationMeta('attentionPolicySource');
+  @override
+  late final GeneratedColumn<String> attentionPolicySource =
+      GeneratedColumn<String>(
+        'attention_policy_source',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('systemDefault'),
+      );
+  static const VerificationMeta _fixedScheduleTypeMeta = const VerificationMeta(
+    'fixedScheduleType',
+  );
+  @override
+  late final GeneratedColumn<String> fixedScheduleType =
+      GeneratedColumn<String>(
+        'fixed_schedule_type',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _fixedScheduleIntervalMeta =
+      const VerificationMeta('fixedScheduleInterval');
+  @override
+  late final GeneratedColumn<int> fixedScheduleInterval = GeneratedColumn<int>(
+    'fixed_schedule_interval',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _fixedMonthlyDayMeta = const VerificationMeta(
+    'fixedMonthlyDay',
+  );
+  @override
+  late final GeneratedColumn<int> fixedMonthlyDay = GeneratedColumn<int>(
+    'fixed_monthly_day',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _fixedRepeatRuleV2Meta = const VerificationMeta(
+    'fixedRepeatRuleV2',
+  );
+  @override
+  late final GeneratedColumn<String> fixedRepeatRuleV2 =
+      GeneratedColumn<String>(
+        'fixed_repeat_rule_v2',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _fixedTimeOfDayMeta = const VerificationMeta(
+    'fixedTimeOfDay',
+  );
+  @override
+  late final GeneratedColumn<String> fixedTimeOfDay = GeneratedColumn<String>(
+    'fixed_time_of_day',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _fixedOverduePolicyMeta =
+      const VerificationMeta('fixedOverduePolicy');
+  @override
+  late final GeneratedColumn<String> fixedOverduePolicy =
+      GeneratedColumn<String>(
+        'fixed_overdue_policy',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _fixedExpectedBeforeMinutesMeta =
+      const VerificationMeta('fixedExpectedBeforeMinutes');
+  @override
+  late final GeneratedColumn<int> fixedExpectedBeforeMinutes =
+      GeneratedColumn<int>(
+        'fixed_expected_before_minutes',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _fixedWarningBeforeMinutesMeta =
+      const VerificationMeta('fixedWarningBeforeMinutes');
+  @override
+  late final GeneratedColumn<int> fixedWarningBeforeMinutes =
+      GeneratedColumn<int>(
+        'fixed_warning_before_minutes',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _fixedDangerBeforeMinutesMeta =
+      const VerificationMeta('fixedDangerBeforeMinutes');
+  @override
+  late final GeneratedColumn<int> fixedDangerBeforeMinutes =
+      GeneratedColumn<int>(
+        'fixed_danger_before_minutes',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _stateExpectedAfterMinutesMeta =
+      const VerificationMeta('stateExpectedAfterMinutes');
+  @override
+  late final GeneratedColumn<int> stateExpectedAfterMinutes =
+      GeneratedColumn<int>(
+        'state_expected_after_minutes',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _stateWarningAfterMinutesMeta =
+      const VerificationMeta('stateWarningAfterMinutes');
+  @override
+  late final GeneratedColumn<int> stateWarningAfterMinutes =
+      GeneratedColumn<int>(
+        'state_warning_after_minutes',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _stateDangerAfterMinutesMeta =
+      const VerificationMeta('stateDangerAfterMinutes');
+  @override
+  late final GeneratedColumn<int> stateDangerAfterMinutes =
+      GeneratedColumn<int>(
+        'state_danger_after_minutes',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    templateId,
+    orderIndex,
+    title,
+    type,
+    attentionPolicySource,
+    fixedScheduleType,
+    fixedScheduleInterval,
+    fixedMonthlyDay,
+    fixedRepeatRuleV2,
+    fixedTimeOfDay,
+    fixedOverduePolicy,
+    fixedExpectedBeforeMinutes,
+    fixedWarningBeforeMinutes,
+    fixedDangerBeforeMinutes,
+    stateExpectedAfterMinutes,
+    stateWarningAfterMinutes,
+    stateDangerAfterMinutes,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'pack_template_items';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PackTemplateItemRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('template_id')) {
+      context.handle(
+        _templateIdMeta,
+        templateId.isAcceptableOrUnknown(data['template_id']!, _templateIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_templateIdMeta);
+    }
+    if (data.containsKey('order_index')) {
+      context.handle(
+        _orderIndexMeta,
+        orderIndex.isAcceptableOrUnknown(data['order_index']!, _orderIndexMeta),
+      );
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('attention_policy_source')) {
+      context.handle(
+        _attentionPolicySourceMeta,
+        attentionPolicySource.isAcceptableOrUnknown(
+          data['attention_policy_source']!,
+          _attentionPolicySourceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('fixed_schedule_type')) {
+      context.handle(
+        _fixedScheduleTypeMeta,
+        fixedScheduleType.isAcceptableOrUnknown(
+          data['fixed_schedule_type']!,
+          _fixedScheduleTypeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('fixed_schedule_interval')) {
+      context.handle(
+        _fixedScheduleIntervalMeta,
+        fixedScheduleInterval.isAcceptableOrUnknown(
+          data['fixed_schedule_interval']!,
+          _fixedScheduleIntervalMeta,
+        ),
+      );
+    }
+    if (data.containsKey('fixed_monthly_day')) {
+      context.handle(
+        _fixedMonthlyDayMeta,
+        fixedMonthlyDay.isAcceptableOrUnknown(
+          data['fixed_monthly_day']!,
+          _fixedMonthlyDayMeta,
+        ),
+      );
+    }
+    if (data.containsKey('fixed_repeat_rule_v2')) {
+      context.handle(
+        _fixedRepeatRuleV2Meta,
+        fixedRepeatRuleV2.isAcceptableOrUnknown(
+          data['fixed_repeat_rule_v2']!,
+          _fixedRepeatRuleV2Meta,
+        ),
+      );
+    }
+    if (data.containsKey('fixed_time_of_day')) {
+      context.handle(
+        _fixedTimeOfDayMeta,
+        fixedTimeOfDay.isAcceptableOrUnknown(
+          data['fixed_time_of_day']!,
+          _fixedTimeOfDayMeta,
+        ),
+      );
+    }
+    if (data.containsKey('fixed_overdue_policy')) {
+      context.handle(
+        _fixedOverduePolicyMeta,
+        fixedOverduePolicy.isAcceptableOrUnknown(
+          data['fixed_overdue_policy']!,
+          _fixedOverduePolicyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('fixed_expected_before_minutes')) {
+      context.handle(
+        _fixedExpectedBeforeMinutesMeta,
+        fixedExpectedBeforeMinutes.isAcceptableOrUnknown(
+          data['fixed_expected_before_minutes']!,
+          _fixedExpectedBeforeMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('fixed_warning_before_minutes')) {
+      context.handle(
+        _fixedWarningBeforeMinutesMeta,
+        fixedWarningBeforeMinutes.isAcceptableOrUnknown(
+          data['fixed_warning_before_minutes']!,
+          _fixedWarningBeforeMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('fixed_danger_before_minutes')) {
+      context.handle(
+        _fixedDangerBeforeMinutesMeta,
+        fixedDangerBeforeMinutes.isAcceptableOrUnknown(
+          data['fixed_danger_before_minutes']!,
+          _fixedDangerBeforeMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('state_expected_after_minutes')) {
+      context.handle(
+        _stateExpectedAfterMinutesMeta,
+        stateExpectedAfterMinutes.isAcceptableOrUnknown(
+          data['state_expected_after_minutes']!,
+          _stateExpectedAfterMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('state_warning_after_minutes')) {
+      context.handle(
+        _stateWarningAfterMinutesMeta,
+        stateWarningAfterMinutes.isAcceptableOrUnknown(
+          data['state_warning_after_minutes']!,
+          _stateWarningAfterMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('state_danger_after_minutes')) {
+      context.handle(
+        _stateDangerAfterMinutesMeta,
+        stateDangerAfterMinutes.isAcceptableOrUnknown(
+          data['state_danger_after_minutes']!,
+          _stateDangerAfterMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PackTemplateItemRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PackTemplateItemRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      templateId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}template_id'],
+      )!,
+      orderIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}order_index'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      attentionPolicySource: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}attention_policy_source'],
+      )!,
+      fixedScheduleType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}fixed_schedule_type'],
+      ),
+      fixedScheduleInterval: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}fixed_schedule_interval'],
+      ),
+      fixedMonthlyDay: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}fixed_monthly_day'],
+      ),
+      fixedRepeatRuleV2: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}fixed_repeat_rule_v2'],
+      ),
+      fixedTimeOfDay: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}fixed_time_of_day'],
+      ),
+      fixedOverduePolicy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}fixed_overdue_policy'],
+      ),
+      fixedExpectedBeforeMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}fixed_expected_before_minutes'],
+      ),
+      fixedWarningBeforeMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}fixed_warning_before_minutes'],
+      ),
+      fixedDangerBeforeMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}fixed_danger_before_minutes'],
+      ),
+      stateExpectedAfterMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}state_expected_after_minutes'],
+      ),
+      stateWarningAfterMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}state_warning_after_minutes'],
+      ),
+      stateDangerAfterMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}state_danger_after_minutes'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $PackTemplateItemsTable createAlias(String alias) {
+    return $PackTemplateItemsTable(attachedDatabase, alias);
+  }
+}
+
+class PackTemplateItemRow extends DataClass
+    implements Insertable<PackTemplateItemRow> {
+  final int id;
+  final int templateId;
+  final int orderIndex;
+  final String title;
+  final String type;
+  final String attentionPolicySource;
+  final String? fixedScheduleType;
+  final int? fixedScheduleInterval;
+  final int? fixedMonthlyDay;
+  final String? fixedRepeatRuleV2;
+  final String? fixedTimeOfDay;
+  final String? fixedOverduePolicy;
+  final int? fixedExpectedBeforeMinutes;
+  final int? fixedWarningBeforeMinutes;
+  final int? fixedDangerBeforeMinutes;
+  final int? stateExpectedAfterMinutes;
+  final int? stateWarningAfterMinutes;
+  final int? stateDangerAfterMinutes;
+  final int createdAt;
+  final int updatedAt;
+  const PackTemplateItemRow({
+    required this.id,
+    required this.templateId,
+    required this.orderIndex,
+    required this.title,
+    required this.type,
+    required this.attentionPolicySource,
+    this.fixedScheduleType,
+    this.fixedScheduleInterval,
+    this.fixedMonthlyDay,
+    this.fixedRepeatRuleV2,
+    this.fixedTimeOfDay,
+    this.fixedOverduePolicy,
+    this.fixedExpectedBeforeMinutes,
+    this.fixedWarningBeforeMinutes,
+    this.fixedDangerBeforeMinutes,
+    this.stateExpectedAfterMinutes,
+    this.stateWarningAfterMinutes,
+    this.stateDangerAfterMinutes,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['template_id'] = Variable<int>(templateId);
+    map['order_index'] = Variable<int>(orderIndex);
+    map['title'] = Variable<String>(title);
+    map['type'] = Variable<String>(type);
+    map['attention_policy_source'] = Variable<String>(attentionPolicySource);
+    if (!nullToAbsent || fixedScheduleType != null) {
+      map['fixed_schedule_type'] = Variable<String>(fixedScheduleType);
+    }
+    if (!nullToAbsent || fixedScheduleInterval != null) {
+      map['fixed_schedule_interval'] = Variable<int>(fixedScheduleInterval);
+    }
+    if (!nullToAbsent || fixedMonthlyDay != null) {
+      map['fixed_monthly_day'] = Variable<int>(fixedMonthlyDay);
+    }
+    if (!nullToAbsent || fixedRepeatRuleV2 != null) {
+      map['fixed_repeat_rule_v2'] = Variable<String>(fixedRepeatRuleV2);
+    }
+    if (!nullToAbsent || fixedTimeOfDay != null) {
+      map['fixed_time_of_day'] = Variable<String>(fixedTimeOfDay);
+    }
+    if (!nullToAbsent || fixedOverduePolicy != null) {
+      map['fixed_overdue_policy'] = Variable<String>(fixedOverduePolicy);
+    }
+    if (!nullToAbsent || fixedExpectedBeforeMinutes != null) {
+      map['fixed_expected_before_minutes'] = Variable<int>(
+        fixedExpectedBeforeMinutes,
+      );
+    }
+    if (!nullToAbsent || fixedWarningBeforeMinutes != null) {
+      map['fixed_warning_before_minutes'] = Variable<int>(
+        fixedWarningBeforeMinutes,
+      );
+    }
+    if (!nullToAbsent || fixedDangerBeforeMinutes != null) {
+      map['fixed_danger_before_minutes'] = Variable<int>(
+        fixedDangerBeforeMinutes,
+      );
+    }
+    if (!nullToAbsent || stateExpectedAfterMinutes != null) {
+      map['state_expected_after_minutes'] = Variable<int>(
+        stateExpectedAfterMinutes,
+      );
+    }
+    if (!nullToAbsent || stateWarningAfterMinutes != null) {
+      map['state_warning_after_minutes'] = Variable<int>(
+        stateWarningAfterMinutes,
+      );
+    }
+    if (!nullToAbsent || stateDangerAfterMinutes != null) {
+      map['state_danger_after_minutes'] = Variable<int>(
+        stateDangerAfterMinutes,
+      );
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  PackTemplateItemsCompanion toCompanion(bool nullToAbsent) {
+    return PackTemplateItemsCompanion(
+      id: Value(id),
+      templateId: Value(templateId),
+      orderIndex: Value(orderIndex),
+      title: Value(title),
+      type: Value(type),
+      attentionPolicySource: Value(attentionPolicySource),
+      fixedScheduleType: fixedScheduleType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fixedScheduleType),
+      fixedScheduleInterval: fixedScheduleInterval == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fixedScheduleInterval),
+      fixedMonthlyDay: fixedMonthlyDay == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fixedMonthlyDay),
+      fixedRepeatRuleV2: fixedRepeatRuleV2 == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fixedRepeatRuleV2),
+      fixedTimeOfDay: fixedTimeOfDay == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fixedTimeOfDay),
+      fixedOverduePolicy: fixedOverduePolicy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fixedOverduePolicy),
+      fixedExpectedBeforeMinutes:
+          fixedExpectedBeforeMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fixedExpectedBeforeMinutes),
+      fixedWarningBeforeMinutes:
+          fixedWarningBeforeMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fixedWarningBeforeMinutes),
+      fixedDangerBeforeMinutes: fixedDangerBeforeMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fixedDangerBeforeMinutes),
+      stateExpectedAfterMinutes:
+          stateExpectedAfterMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stateExpectedAfterMinutes),
+      stateWarningAfterMinutes: stateWarningAfterMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stateWarningAfterMinutes),
+      stateDangerAfterMinutes: stateDangerAfterMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stateDangerAfterMinutes),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory PackTemplateItemRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PackTemplateItemRow(
+      id: serializer.fromJson<int>(json['id']),
+      templateId: serializer.fromJson<int>(json['templateId']),
+      orderIndex: serializer.fromJson<int>(json['orderIndex']),
+      title: serializer.fromJson<String>(json['title']),
+      type: serializer.fromJson<String>(json['type']),
+      attentionPolicySource: serializer.fromJson<String>(
+        json['attentionPolicySource'],
+      ),
+      fixedScheduleType: serializer.fromJson<String?>(
+        json['fixedScheduleType'],
+      ),
+      fixedScheduleInterval: serializer.fromJson<int?>(
+        json['fixedScheduleInterval'],
+      ),
+      fixedMonthlyDay: serializer.fromJson<int?>(json['fixedMonthlyDay']),
+      fixedRepeatRuleV2: serializer.fromJson<String?>(
+        json['fixedRepeatRuleV2'],
+      ),
+      fixedTimeOfDay: serializer.fromJson<String?>(json['fixedTimeOfDay']),
+      fixedOverduePolicy: serializer.fromJson<String?>(
+        json['fixedOverduePolicy'],
+      ),
+      fixedExpectedBeforeMinutes: serializer.fromJson<int?>(
+        json['fixedExpectedBeforeMinutes'],
+      ),
+      fixedWarningBeforeMinutes: serializer.fromJson<int?>(
+        json['fixedWarningBeforeMinutes'],
+      ),
+      fixedDangerBeforeMinutes: serializer.fromJson<int?>(
+        json['fixedDangerBeforeMinutes'],
+      ),
+      stateExpectedAfterMinutes: serializer.fromJson<int?>(
+        json['stateExpectedAfterMinutes'],
+      ),
+      stateWarningAfterMinutes: serializer.fromJson<int?>(
+        json['stateWarningAfterMinutes'],
+      ),
+      stateDangerAfterMinutes: serializer.fromJson<int?>(
+        json['stateDangerAfterMinutes'],
+      ),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'templateId': serializer.toJson<int>(templateId),
+      'orderIndex': serializer.toJson<int>(orderIndex),
+      'title': serializer.toJson<String>(title),
+      'type': serializer.toJson<String>(type),
+      'attentionPolicySource': serializer.toJson<String>(attentionPolicySource),
+      'fixedScheduleType': serializer.toJson<String?>(fixedScheduleType),
+      'fixedScheduleInterval': serializer.toJson<int?>(fixedScheduleInterval),
+      'fixedMonthlyDay': serializer.toJson<int?>(fixedMonthlyDay),
+      'fixedRepeatRuleV2': serializer.toJson<String?>(fixedRepeatRuleV2),
+      'fixedTimeOfDay': serializer.toJson<String?>(fixedTimeOfDay),
+      'fixedOverduePolicy': serializer.toJson<String?>(fixedOverduePolicy),
+      'fixedExpectedBeforeMinutes': serializer.toJson<int?>(
+        fixedExpectedBeforeMinutes,
+      ),
+      'fixedWarningBeforeMinutes': serializer.toJson<int?>(
+        fixedWarningBeforeMinutes,
+      ),
+      'fixedDangerBeforeMinutes': serializer.toJson<int?>(
+        fixedDangerBeforeMinutes,
+      ),
+      'stateExpectedAfterMinutes': serializer.toJson<int?>(
+        stateExpectedAfterMinutes,
+      ),
+      'stateWarningAfterMinutes': serializer.toJson<int?>(
+        stateWarningAfterMinutes,
+      ),
+      'stateDangerAfterMinutes': serializer.toJson<int?>(
+        stateDangerAfterMinutes,
+      ),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  PackTemplateItemRow copyWith({
+    int? id,
+    int? templateId,
+    int? orderIndex,
+    String? title,
+    String? type,
+    String? attentionPolicySource,
+    Value<String?> fixedScheduleType = const Value.absent(),
+    Value<int?> fixedScheduleInterval = const Value.absent(),
+    Value<int?> fixedMonthlyDay = const Value.absent(),
+    Value<String?> fixedRepeatRuleV2 = const Value.absent(),
+    Value<String?> fixedTimeOfDay = const Value.absent(),
+    Value<String?> fixedOverduePolicy = const Value.absent(),
+    Value<int?> fixedExpectedBeforeMinutes = const Value.absent(),
+    Value<int?> fixedWarningBeforeMinutes = const Value.absent(),
+    Value<int?> fixedDangerBeforeMinutes = const Value.absent(),
+    Value<int?> stateExpectedAfterMinutes = const Value.absent(),
+    Value<int?> stateWarningAfterMinutes = const Value.absent(),
+    Value<int?> stateDangerAfterMinutes = const Value.absent(),
+    int? createdAt,
+    int? updatedAt,
+  }) => PackTemplateItemRow(
+    id: id ?? this.id,
+    templateId: templateId ?? this.templateId,
+    orderIndex: orderIndex ?? this.orderIndex,
+    title: title ?? this.title,
+    type: type ?? this.type,
+    attentionPolicySource: attentionPolicySource ?? this.attentionPolicySource,
+    fixedScheduleType: fixedScheduleType.present
+        ? fixedScheduleType.value
+        : this.fixedScheduleType,
+    fixedScheduleInterval: fixedScheduleInterval.present
+        ? fixedScheduleInterval.value
+        : this.fixedScheduleInterval,
+    fixedMonthlyDay: fixedMonthlyDay.present
+        ? fixedMonthlyDay.value
+        : this.fixedMonthlyDay,
+    fixedRepeatRuleV2: fixedRepeatRuleV2.present
+        ? fixedRepeatRuleV2.value
+        : this.fixedRepeatRuleV2,
+    fixedTimeOfDay: fixedTimeOfDay.present
+        ? fixedTimeOfDay.value
+        : this.fixedTimeOfDay,
+    fixedOverduePolicy: fixedOverduePolicy.present
+        ? fixedOverduePolicy.value
+        : this.fixedOverduePolicy,
+    fixedExpectedBeforeMinutes: fixedExpectedBeforeMinutes.present
+        ? fixedExpectedBeforeMinutes.value
+        : this.fixedExpectedBeforeMinutes,
+    fixedWarningBeforeMinutes: fixedWarningBeforeMinutes.present
+        ? fixedWarningBeforeMinutes.value
+        : this.fixedWarningBeforeMinutes,
+    fixedDangerBeforeMinutes: fixedDangerBeforeMinutes.present
+        ? fixedDangerBeforeMinutes.value
+        : this.fixedDangerBeforeMinutes,
+    stateExpectedAfterMinutes: stateExpectedAfterMinutes.present
+        ? stateExpectedAfterMinutes.value
+        : this.stateExpectedAfterMinutes,
+    stateWarningAfterMinutes: stateWarningAfterMinutes.present
+        ? stateWarningAfterMinutes.value
+        : this.stateWarningAfterMinutes,
+    stateDangerAfterMinutes: stateDangerAfterMinutes.present
+        ? stateDangerAfterMinutes.value
+        : this.stateDangerAfterMinutes,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  PackTemplateItemRow copyWithCompanion(PackTemplateItemsCompanion data) {
+    return PackTemplateItemRow(
+      id: data.id.present ? data.id.value : this.id,
+      templateId: data.templateId.present
+          ? data.templateId.value
+          : this.templateId,
+      orderIndex: data.orderIndex.present
+          ? data.orderIndex.value
+          : this.orderIndex,
+      title: data.title.present ? data.title.value : this.title,
+      type: data.type.present ? data.type.value : this.type,
+      attentionPolicySource: data.attentionPolicySource.present
+          ? data.attentionPolicySource.value
+          : this.attentionPolicySource,
+      fixedScheduleType: data.fixedScheduleType.present
+          ? data.fixedScheduleType.value
+          : this.fixedScheduleType,
+      fixedScheduleInterval: data.fixedScheduleInterval.present
+          ? data.fixedScheduleInterval.value
+          : this.fixedScheduleInterval,
+      fixedMonthlyDay: data.fixedMonthlyDay.present
+          ? data.fixedMonthlyDay.value
+          : this.fixedMonthlyDay,
+      fixedRepeatRuleV2: data.fixedRepeatRuleV2.present
+          ? data.fixedRepeatRuleV2.value
+          : this.fixedRepeatRuleV2,
+      fixedTimeOfDay: data.fixedTimeOfDay.present
+          ? data.fixedTimeOfDay.value
+          : this.fixedTimeOfDay,
+      fixedOverduePolicy: data.fixedOverduePolicy.present
+          ? data.fixedOverduePolicy.value
+          : this.fixedOverduePolicy,
+      fixedExpectedBeforeMinutes: data.fixedExpectedBeforeMinutes.present
+          ? data.fixedExpectedBeforeMinutes.value
+          : this.fixedExpectedBeforeMinutes,
+      fixedWarningBeforeMinutes: data.fixedWarningBeforeMinutes.present
+          ? data.fixedWarningBeforeMinutes.value
+          : this.fixedWarningBeforeMinutes,
+      fixedDangerBeforeMinutes: data.fixedDangerBeforeMinutes.present
+          ? data.fixedDangerBeforeMinutes.value
+          : this.fixedDangerBeforeMinutes,
+      stateExpectedAfterMinutes: data.stateExpectedAfterMinutes.present
+          ? data.stateExpectedAfterMinutes.value
+          : this.stateExpectedAfterMinutes,
+      stateWarningAfterMinutes: data.stateWarningAfterMinutes.present
+          ? data.stateWarningAfterMinutes.value
+          : this.stateWarningAfterMinutes,
+      stateDangerAfterMinutes: data.stateDangerAfterMinutes.present
+          ? data.stateDangerAfterMinutes.value
+          : this.stateDangerAfterMinutes,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PackTemplateItemRow(')
+          ..write('id: $id, ')
+          ..write('templateId: $templateId, ')
+          ..write('orderIndex: $orderIndex, ')
+          ..write('title: $title, ')
+          ..write('type: $type, ')
+          ..write('attentionPolicySource: $attentionPolicySource, ')
+          ..write('fixedScheduleType: $fixedScheduleType, ')
+          ..write('fixedScheduleInterval: $fixedScheduleInterval, ')
+          ..write('fixedMonthlyDay: $fixedMonthlyDay, ')
+          ..write('fixedRepeatRuleV2: $fixedRepeatRuleV2, ')
+          ..write('fixedTimeOfDay: $fixedTimeOfDay, ')
+          ..write('fixedOverduePolicy: $fixedOverduePolicy, ')
+          ..write('fixedExpectedBeforeMinutes: $fixedExpectedBeforeMinutes, ')
+          ..write('fixedWarningBeforeMinutes: $fixedWarningBeforeMinutes, ')
+          ..write('fixedDangerBeforeMinutes: $fixedDangerBeforeMinutes, ')
+          ..write('stateExpectedAfterMinutes: $stateExpectedAfterMinutes, ')
+          ..write('stateWarningAfterMinutes: $stateWarningAfterMinutes, ')
+          ..write('stateDangerAfterMinutes: $stateDangerAfterMinutes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    templateId,
+    orderIndex,
+    title,
+    type,
+    attentionPolicySource,
+    fixedScheduleType,
+    fixedScheduleInterval,
+    fixedMonthlyDay,
+    fixedRepeatRuleV2,
+    fixedTimeOfDay,
+    fixedOverduePolicy,
+    fixedExpectedBeforeMinutes,
+    fixedWarningBeforeMinutes,
+    fixedDangerBeforeMinutes,
+    stateExpectedAfterMinutes,
+    stateWarningAfterMinutes,
+    stateDangerAfterMinutes,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PackTemplateItemRow &&
+          other.id == this.id &&
+          other.templateId == this.templateId &&
+          other.orderIndex == this.orderIndex &&
+          other.title == this.title &&
+          other.type == this.type &&
+          other.attentionPolicySource == this.attentionPolicySource &&
+          other.fixedScheduleType == this.fixedScheduleType &&
+          other.fixedScheduleInterval == this.fixedScheduleInterval &&
+          other.fixedMonthlyDay == this.fixedMonthlyDay &&
+          other.fixedRepeatRuleV2 == this.fixedRepeatRuleV2 &&
+          other.fixedTimeOfDay == this.fixedTimeOfDay &&
+          other.fixedOverduePolicy == this.fixedOverduePolicy &&
+          other.fixedExpectedBeforeMinutes == this.fixedExpectedBeforeMinutes &&
+          other.fixedWarningBeforeMinutes == this.fixedWarningBeforeMinutes &&
+          other.fixedDangerBeforeMinutes == this.fixedDangerBeforeMinutes &&
+          other.stateExpectedAfterMinutes == this.stateExpectedAfterMinutes &&
+          other.stateWarningAfterMinutes == this.stateWarningAfterMinutes &&
+          other.stateDangerAfterMinutes == this.stateDangerAfterMinutes &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class PackTemplateItemsCompanion extends UpdateCompanion<PackTemplateItemRow> {
+  final Value<int> id;
+  final Value<int> templateId;
+  final Value<int> orderIndex;
+  final Value<String> title;
+  final Value<String> type;
+  final Value<String> attentionPolicySource;
+  final Value<String?> fixedScheduleType;
+  final Value<int?> fixedScheduleInterval;
+  final Value<int?> fixedMonthlyDay;
+  final Value<String?> fixedRepeatRuleV2;
+  final Value<String?> fixedTimeOfDay;
+  final Value<String?> fixedOverduePolicy;
+  final Value<int?> fixedExpectedBeforeMinutes;
+  final Value<int?> fixedWarningBeforeMinutes;
+  final Value<int?> fixedDangerBeforeMinutes;
+  final Value<int?> stateExpectedAfterMinutes;
+  final Value<int?> stateWarningAfterMinutes;
+  final Value<int?> stateDangerAfterMinutes;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  const PackTemplateItemsCompanion({
+    this.id = const Value.absent(),
+    this.templateId = const Value.absent(),
+    this.orderIndex = const Value.absent(),
+    this.title = const Value.absent(),
+    this.type = const Value.absent(),
+    this.attentionPolicySource = const Value.absent(),
+    this.fixedScheduleType = const Value.absent(),
+    this.fixedScheduleInterval = const Value.absent(),
+    this.fixedMonthlyDay = const Value.absent(),
+    this.fixedRepeatRuleV2 = const Value.absent(),
+    this.fixedTimeOfDay = const Value.absent(),
+    this.fixedOverduePolicy = const Value.absent(),
+    this.fixedExpectedBeforeMinutes = const Value.absent(),
+    this.fixedWarningBeforeMinutes = const Value.absent(),
+    this.fixedDangerBeforeMinutes = const Value.absent(),
+    this.stateExpectedAfterMinutes = const Value.absent(),
+    this.stateWarningAfterMinutes = const Value.absent(),
+    this.stateDangerAfterMinutes = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  PackTemplateItemsCompanion.insert({
+    this.id = const Value.absent(),
+    required int templateId,
+    this.orderIndex = const Value.absent(),
+    required String title,
+    required String type,
+    this.attentionPolicySource = const Value.absent(),
+    this.fixedScheduleType = const Value.absent(),
+    this.fixedScheduleInterval = const Value.absent(),
+    this.fixedMonthlyDay = const Value.absent(),
+    this.fixedRepeatRuleV2 = const Value.absent(),
+    this.fixedTimeOfDay = const Value.absent(),
+    this.fixedOverduePolicy = const Value.absent(),
+    this.fixedExpectedBeforeMinutes = const Value.absent(),
+    this.fixedWarningBeforeMinutes = const Value.absent(),
+    this.fixedDangerBeforeMinutes = const Value.absent(),
+    this.stateExpectedAfterMinutes = const Value.absent(),
+    this.stateWarningAfterMinutes = const Value.absent(),
+    this.stateDangerAfterMinutes = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+  }) : templateId = Value(templateId),
+       title = Value(title),
+       type = Value(type),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<PackTemplateItemRow> custom({
+    Expression<int>? id,
+    Expression<int>? templateId,
+    Expression<int>? orderIndex,
+    Expression<String>? title,
+    Expression<String>? type,
+    Expression<String>? attentionPolicySource,
+    Expression<String>? fixedScheduleType,
+    Expression<int>? fixedScheduleInterval,
+    Expression<int>? fixedMonthlyDay,
+    Expression<String>? fixedRepeatRuleV2,
+    Expression<String>? fixedTimeOfDay,
+    Expression<String>? fixedOverduePolicy,
+    Expression<int>? fixedExpectedBeforeMinutes,
+    Expression<int>? fixedWarningBeforeMinutes,
+    Expression<int>? fixedDangerBeforeMinutes,
+    Expression<int>? stateExpectedAfterMinutes,
+    Expression<int>? stateWarningAfterMinutes,
+    Expression<int>? stateDangerAfterMinutes,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (templateId != null) 'template_id': templateId,
+      if (orderIndex != null) 'order_index': orderIndex,
+      if (title != null) 'title': title,
+      if (type != null) 'type': type,
+      if (attentionPolicySource != null)
+        'attention_policy_source': attentionPolicySource,
+      if (fixedScheduleType != null) 'fixed_schedule_type': fixedScheduleType,
+      if (fixedScheduleInterval != null)
+        'fixed_schedule_interval': fixedScheduleInterval,
+      if (fixedMonthlyDay != null) 'fixed_monthly_day': fixedMonthlyDay,
+      if (fixedRepeatRuleV2 != null) 'fixed_repeat_rule_v2': fixedRepeatRuleV2,
+      if (fixedTimeOfDay != null) 'fixed_time_of_day': fixedTimeOfDay,
+      if (fixedOverduePolicy != null)
+        'fixed_overdue_policy': fixedOverduePolicy,
+      if (fixedExpectedBeforeMinutes != null)
+        'fixed_expected_before_minutes': fixedExpectedBeforeMinutes,
+      if (fixedWarningBeforeMinutes != null)
+        'fixed_warning_before_minutes': fixedWarningBeforeMinutes,
+      if (fixedDangerBeforeMinutes != null)
+        'fixed_danger_before_minutes': fixedDangerBeforeMinutes,
+      if (stateExpectedAfterMinutes != null)
+        'state_expected_after_minutes': stateExpectedAfterMinutes,
+      if (stateWarningAfterMinutes != null)
+        'state_warning_after_minutes': stateWarningAfterMinutes,
+      if (stateDangerAfterMinutes != null)
+        'state_danger_after_minutes': stateDangerAfterMinutes,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  PackTemplateItemsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? templateId,
+    Value<int>? orderIndex,
+    Value<String>? title,
+    Value<String>? type,
+    Value<String>? attentionPolicySource,
+    Value<String?>? fixedScheduleType,
+    Value<int?>? fixedScheduleInterval,
+    Value<int?>? fixedMonthlyDay,
+    Value<String?>? fixedRepeatRuleV2,
+    Value<String?>? fixedTimeOfDay,
+    Value<String?>? fixedOverduePolicy,
+    Value<int?>? fixedExpectedBeforeMinutes,
+    Value<int?>? fixedWarningBeforeMinutes,
+    Value<int?>? fixedDangerBeforeMinutes,
+    Value<int?>? stateExpectedAfterMinutes,
+    Value<int?>? stateWarningAfterMinutes,
+    Value<int?>? stateDangerAfterMinutes,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+  }) {
+    return PackTemplateItemsCompanion(
+      id: id ?? this.id,
+      templateId: templateId ?? this.templateId,
+      orderIndex: orderIndex ?? this.orderIndex,
+      title: title ?? this.title,
+      type: type ?? this.type,
+      attentionPolicySource:
+          attentionPolicySource ?? this.attentionPolicySource,
+      fixedScheduleType: fixedScheduleType ?? this.fixedScheduleType,
+      fixedScheduleInterval:
+          fixedScheduleInterval ?? this.fixedScheduleInterval,
+      fixedMonthlyDay: fixedMonthlyDay ?? this.fixedMonthlyDay,
+      fixedRepeatRuleV2: fixedRepeatRuleV2 ?? this.fixedRepeatRuleV2,
+      fixedTimeOfDay: fixedTimeOfDay ?? this.fixedTimeOfDay,
+      fixedOverduePolicy: fixedOverduePolicy ?? this.fixedOverduePolicy,
+      fixedExpectedBeforeMinutes:
+          fixedExpectedBeforeMinutes ?? this.fixedExpectedBeforeMinutes,
+      fixedWarningBeforeMinutes:
+          fixedWarningBeforeMinutes ?? this.fixedWarningBeforeMinutes,
+      fixedDangerBeforeMinutes:
+          fixedDangerBeforeMinutes ?? this.fixedDangerBeforeMinutes,
+      stateExpectedAfterMinutes:
+          stateExpectedAfterMinutes ?? this.stateExpectedAfterMinutes,
+      stateWarningAfterMinutes:
+          stateWarningAfterMinutes ?? this.stateWarningAfterMinutes,
+      stateDangerAfterMinutes:
+          stateDangerAfterMinutes ?? this.stateDangerAfterMinutes,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (templateId.present) {
+      map['template_id'] = Variable<int>(templateId.value);
+    }
+    if (orderIndex.present) {
+      map['order_index'] = Variable<int>(orderIndex.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (attentionPolicySource.present) {
+      map['attention_policy_source'] = Variable<String>(
+        attentionPolicySource.value,
+      );
+    }
+    if (fixedScheduleType.present) {
+      map['fixed_schedule_type'] = Variable<String>(fixedScheduleType.value);
+    }
+    if (fixedScheduleInterval.present) {
+      map['fixed_schedule_interval'] = Variable<int>(
+        fixedScheduleInterval.value,
+      );
+    }
+    if (fixedMonthlyDay.present) {
+      map['fixed_monthly_day'] = Variable<int>(fixedMonthlyDay.value);
+    }
+    if (fixedRepeatRuleV2.present) {
+      map['fixed_repeat_rule_v2'] = Variable<String>(fixedRepeatRuleV2.value);
+    }
+    if (fixedTimeOfDay.present) {
+      map['fixed_time_of_day'] = Variable<String>(fixedTimeOfDay.value);
+    }
+    if (fixedOverduePolicy.present) {
+      map['fixed_overdue_policy'] = Variable<String>(fixedOverduePolicy.value);
+    }
+    if (fixedExpectedBeforeMinutes.present) {
+      map['fixed_expected_before_minutes'] = Variable<int>(
+        fixedExpectedBeforeMinutes.value,
+      );
+    }
+    if (fixedWarningBeforeMinutes.present) {
+      map['fixed_warning_before_minutes'] = Variable<int>(
+        fixedWarningBeforeMinutes.value,
+      );
+    }
+    if (fixedDangerBeforeMinutes.present) {
+      map['fixed_danger_before_minutes'] = Variable<int>(
+        fixedDangerBeforeMinutes.value,
+      );
+    }
+    if (stateExpectedAfterMinutes.present) {
+      map['state_expected_after_minutes'] = Variable<int>(
+        stateExpectedAfterMinutes.value,
+      );
+    }
+    if (stateWarningAfterMinutes.present) {
+      map['state_warning_after_minutes'] = Variable<int>(
+        stateWarningAfterMinutes.value,
+      );
+    }
+    if (stateDangerAfterMinutes.present) {
+      map['state_danger_after_minutes'] = Variable<int>(
+        stateDangerAfterMinutes.value,
+      );
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PackTemplateItemsCompanion(')
+          ..write('id: $id, ')
+          ..write('templateId: $templateId, ')
+          ..write('orderIndex: $orderIndex, ')
+          ..write('title: $title, ')
+          ..write('type: $type, ')
+          ..write('attentionPolicySource: $attentionPolicySource, ')
+          ..write('fixedScheduleType: $fixedScheduleType, ')
+          ..write('fixedScheduleInterval: $fixedScheduleInterval, ')
+          ..write('fixedMonthlyDay: $fixedMonthlyDay, ')
+          ..write('fixedRepeatRuleV2: $fixedRepeatRuleV2, ')
+          ..write('fixedTimeOfDay: $fixedTimeOfDay, ')
+          ..write('fixedOverduePolicy: $fixedOverduePolicy, ')
+          ..write('fixedExpectedBeforeMinutes: $fixedExpectedBeforeMinutes, ')
+          ..write('fixedWarningBeforeMinutes: $fixedWarningBeforeMinutes, ')
+          ..write('fixedDangerBeforeMinutes: $fixedDangerBeforeMinutes, ')
+          ..write('stateExpectedAfterMinutes: $stateExpectedAfterMinutes, ')
+          ..write('stateWarningAfterMinutes: $stateWarningAfterMinutes, ')
+          ..write('stateDangerAfterMinutes: $stateDangerAfterMinutes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $ResourcesTable extends Resources
     with TableInfo<$ResourcesTable, ResourceRow> {
   @override
@@ -8289,6 +9966,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $ItemPacksTable itemPacks = $ItemPacksTable(this);
   late final $ItemsTable items = $ItemsTable(this);
+  late final $PackTemplatesTable packTemplates = $PackTemplatesTable(this);
+  late final $PackTemplateItemsTable packTemplateItems =
+      $PackTemplateItemsTable(this);
   late final $ResourcesTable resources = $ResourcesTable(this);
   late final $ResourceConsumptionRulesTable resourceConsumptionRules =
       $ResourceConsumptionRulesTable(this);
@@ -8311,6 +9991,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     itemPacks,
     items,
+    packTemplates,
+    packTemplateItems,
     resources,
     resourceConsumptionRules,
     itemActionRecords,
@@ -9938,6 +11620,983 @@ typedef $$ItemsTableProcessedTableManager =
         bool itemActionRecordsRefs,
         bool stageRelatedItemsRefs,
       })
+    >;
+typedef $$PackTemplatesTableCreateCompanionBuilder =
+    PackTemplatesCompanion Function({
+      Value<int> id,
+      required String templateName,
+      Value<String> iconEmoji,
+      Value<String?> description,
+      required int createdAt,
+      required int updatedAt,
+    });
+typedef $$PackTemplatesTableUpdateCompanionBuilder =
+    PackTemplatesCompanion Function({
+      Value<int> id,
+      Value<String> templateName,
+      Value<String> iconEmoji,
+      Value<String?> description,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+    });
+
+final class $$PackTemplatesTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $PackTemplatesTable, PackTemplateRow> {
+  $$PackTemplatesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<$PackTemplateItemsTable, List<PackTemplateItemRow>>
+  _packTemplateItemsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.packTemplateItems,
+        aliasName: $_aliasNameGenerator(
+          db.packTemplates.id,
+          db.packTemplateItems.templateId,
+        ),
+      );
+
+  $$PackTemplateItemsTableProcessedTableManager get packTemplateItemsRefs {
+    final manager = $$PackTemplateItemsTableTableManager(
+      $_db,
+      $_db.packTemplateItems,
+    ).filter((f) => f.templateId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _packTemplateItemsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$PackTemplatesTableFilterComposer
+    extends Composer<_$AppDatabase, $PackTemplatesTable> {
+  $$PackTemplatesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get templateName => $composableBuilder(
+    column: $table.templateName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get iconEmoji => $composableBuilder(
+    column: $table.iconEmoji,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> packTemplateItemsRefs(
+    Expression<bool> Function($$PackTemplateItemsTableFilterComposer f) f,
+  ) {
+    final $$PackTemplateItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.packTemplateItems,
+      getReferencedColumn: (t) => t.templateId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PackTemplateItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.packTemplateItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$PackTemplatesTableOrderingComposer
+    extends Composer<_$AppDatabase, $PackTemplatesTable> {
+  $$PackTemplatesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get templateName => $composableBuilder(
+    column: $table.templateName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get iconEmoji => $composableBuilder(
+    column: $table.iconEmoji,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PackTemplatesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PackTemplatesTable> {
+  $$PackTemplatesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get templateName => $composableBuilder(
+    column: $table.templateName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get iconEmoji =>
+      $composableBuilder(column: $table.iconEmoji, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  Expression<T> packTemplateItemsRefs<T extends Object>(
+    Expression<T> Function($$PackTemplateItemsTableAnnotationComposer a) f,
+  ) {
+    final $$PackTemplateItemsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.packTemplateItems,
+          getReferencedColumn: (t) => t.templateId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PackTemplateItemsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.packTemplateItems,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$PackTemplatesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PackTemplatesTable,
+          PackTemplateRow,
+          $$PackTemplatesTableFilterComposer,
+          $$PackTemplatesTableOrderingComposer,
+          $$PackTemplatesTableAnnotationComposer,
+          $$PackTemplatesTableCreateCompanionBuilder,
+          $$PackTemplatesTableUpdateCompanionBuilder,
+          (PackTemplateRow, $$PackTemplatesTableReferences),
+          PackTemplateRow,
+          PrefetchHooks Function({bool packTemplateItemsRefs})
+        > {
+  $$PackTemplatesTableTableManager(_$AppDatabase db, $PackTemplatesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PackTemplatesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PackTemplatesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PackTemplatesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> templateName = const Value.absent(),
+                Value<String> iconEmoji = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+              }) => PackTemplatesCompanion(
+                id: id,
+                templateName: templateName,
+                iconEmoji: iconEmoji,
+                description: description,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String templateName,
+                Value<String> iconEmoji = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+              }) => PackTemplatesCompanion.insert(
+                id: id,
+                templateName: templateName,
+                iconEmoji: iconEmoji,
+                description: description,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$PackTemplatesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({packTemplateItemsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (packTemplateItemsRefs) db.packTemplateItems,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (packTemplateItemsRefs)
+                    await $_getPrefetchedData<
+                      PackTemplateRow,
+                      $PackTemplatesTable,
+                      PackTemplateItemRow
+                    >(
+                      currentTable: table,
+                      referencedTable: $$PackTemplatesTableReferences
+                          ._packTemplateItemsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$PackTemplatesTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).packTemplateItemsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.templateId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$PackTemplatesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PackTemplatesTable,
+      PackTemplateRow,
+      $$PackTemplatesTableFilterComposer,
+      $$PackTemplatesTableOrderingComposer,
+      $$PackTemplatesTableAnnotationComposer,
+      $$PackTemplatesTableCreateCompanionBuilder,
+      $$PackTemplatesTableUpdateCompanionBuilder,
+      (PackTemplateRow, $$PackTemplatesTableReferences),
+      PackTemplateRow,
+      PrefetchHooks Function({bool packTemplateItemsRefs})
+    >;
+typedef $$PackTemplateItemsTableCreateCompanionBuilder =
+    PackTemplateItemsCompanion Function({
+      Value<int> id,
+      required int templateId,
+      Value<int> orderIndex,
+      required String title,
+      required String type,
+      Value<String> attentionPolicySource,
+      Value<String?> fixedScheduleType,
+      Value<int?> fixedScheduleInterval,
+      Value<int?> fixedMonthlyDay,
+      Value<String?> fixedRepeatRuleV2,
+      Value<String?> fixedTimeOfDay,
+      Value<String?> fixedOverduePolicy,
+      Value<int?> fixedExpectedBeforeMinutes,
+      Value<int?> fixedWarningBeforeMinutes,
+      Value<int?> fixedDangerBeforeMinutes,
+      Value<int?> stateExpectedAfterMinutes,
+      Value<int?> stateWarningAfterMinutes,
+      Value<int?> stateDangerAfterMinutes,
+      required int createdAt,
+      required int updatedAt,
+    });
+typedef $$PackTemplateItemsTableUpdateCompanionBuilder =
+    PackTemplateItemsCompanion Function({
+      Value<int> id,
+      Value<int> templateId,
+      Value<int> orderIndex,
+      Value<String> title,
+      Value<String> type,
+      Value<String> attentionPolicySource,
+      Value<String?> fixedScheduleType,
+      Value<int?> fixedScheduleInterval,
+      Value<int?> fixedMonthlyDay,
+      Value<String?> fixedRepeatRuleV2,
+      Value<String?> fixedTimeOfDay,
+      Value<String?> fixedOverduePolicy,
+      Value<int?> fixedExpectedBeforeMinutes,
+      Value<int?> fixedWarningBeforeMinutes,
+      Value<int?> fixedDangerBeforeMinutes,
+      Value<int?> stateExpectedAfterMinutes,
+      Value<int?> stateWarningAfterMinutes,
+      Value<int?> stateDangerAfterMinutes,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+    });
+
+final class $$PackTemplateItemsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $PackTemplateItemsTable,
+          PackTemplateItemRow
+        > {
+  $$PackTemplateItemsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $PackTemplatesTable _templateIdTable(_$AppDatabase db) =>
+      db.packTemplates.createAlias(
+        $_aliasNameGenerator(
+          db.packTemplateItems.templateId,
+          db.packTemplates.id,
+        ),
+      );
+
+  $$PackTemplatesTableProcessedTableManager get templateId {
+    final $_column = $_itemColumn<int>('template_id')!;
+
+    final manager = $$PackTemplatesTableTableManager(
+      $_db,
+      $_db.packTemplates,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_templateIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$PackTemplateItemsTableFilterComposer
+    extends Composer<_$AppDatabase, $PackTemplateItemsTable> {
+  $$PackTemplateItemsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get orderIndex => $composableBuilder(
+    column: $table.orderIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get attentionPolicySource => $composableBuilder(
+    column: $table.attentionPolicySource,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fixedScheduleType => $composableBuilder(
+    column: $table.fixedScheduleType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get fixedScheduleInterval => $composableBuilder(
+    column: $table.fixedScheduleInterval,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get fixedMonthlyDay => $composableBuilder(
+    column: $table.fixedMonthlyDay,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fixedRepeatRuleV2 => $composableBuilder(
+    column: $table.fixedRepeatRuleV2,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fixedTimeOfDay => $composableBuilder(
+    column: $table.fixedTimeOfDay,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fixedOverduePolicy => $composableBuilder(
+    column: $table.fixedOverduePolicy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get fixedExpectedBeforeMinutes => $composableBuilder(
+    column: $table.fixedExpectedBeforeMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get fixedWarningBeforeMinutes => $composableBuilder(
+    column: $table.fixedWarningBeforeMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get fixedDangerBeforeMinutes => $composableBuilder(
+    column: $table.fixedDangerBeforeMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get stateExpectedAfterMinutes => $composableBuilder(
+    column: $table.stateExpectedAfterMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get stateWarningAfterMinutes => $composableBuilder(
+    column: $table.stateWarningAfterMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get stateDangerAfterMinutes => $composableBuilder(
+    column: $table.stateDangerAfterMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$PackTemplatesTableFilterComposer get templateId {
+    final $$PackTemplatesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.templateId,
+      referencedTable: $db.packTemplates,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PackTemplatesTableFilterComposer(
+            $db: $db,
+            $table: $db.packTemplates,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PackTemplateItemsTableOrderingComposer
+    extends Composer<_$AppDatabase, $PackTemplateItemsTable> {
+  $$PackTemplateItemsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get orderIndex => $composableBuilder(
+    column: $table.orderIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get attentionPolicySource => $composableBuilder(
+    column: $table.attentionPolicySource,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fixedScheduleType => $composableBuilder(
+    column: $table.fixedScheduleType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get fixedScheduleInterval => $composableBuilder(
+    column: $table.fixedScheduleInterval,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get fixedMonthlyDay => $composableBuilder(
+    column: $table.fixedMonthlyDay,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fixedRepeatRuleV2 => $composableBuilder(
+    column: $table.fixedRepeatRuleV2,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fixedTimeOfDay => $composableBuilder(
+    column: $table.fixedTimeOfDay,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fixedOverduePolicy => $composableBuilder(
+    column: $table.fixedOverduePolicy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get fixedExpectedBeforeMinutes => $composableBuilder(
+    column: $table.fixedExpectedBeforeMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get fixedWarningBeforeMinutes => $composableBuilder(
+    column: $table.fixedWarningBeforeMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get fixedDangerBeforeMinutes => $composableBuilder(
+    column: $table.fixedDangerBeforeMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get stateExpectedAfterMinutes => $composableBuilder(
+    column: $table.stateExpectedAfterMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get stateWarningAfterMinutes => $composableBuilder(
+    column: $table.stateWarningAfterMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get stateDangerAfterMinutes => $composableBuilder(
+    column: $table.stateDangerAfterMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$PackTemplatesTableOrderingComposer get templateId {
+    final $$PackTemplatesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.templateId,
+      referencedTable: $db.packTemplates,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PackTemplatesTableOrderingComposer(
+            $db: $db,
+            $table: $db.packTemplates,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PackTemplateItemsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PackTemplateItemsTable> {
+  $$PackTemplateItemsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get orderIndex => $composableBuilder(
+    column: $table.orderIndex,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get attentionPolicySource => $composableBuilder(
+    column: $table.attentionPolicySource,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get fixedScheduleType => $composableBuilder(
+    column: $table.fixedScheduleType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get fixedScheduleInterval => $composableBuilder(
+    column: $table.fixedScheduleInterval,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get fixedMonthlyDay => $composableBuilder(
+    column: $table.fixedMonthlyDay,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get fixedRepeatRuleV2 => $composableBuilder(
+    column: $table.fixedRepeatRuleV2,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get fixedTimeOfDay => $composableBuilder(
+    column: $table.fixedTimeOfDay,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get fixedOverduePolicy => $composableBuilder(
+    column: $table.fixedOverduePolicy,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get fixedExpectedBeforeMinutes => $composableBuilder(
+    column: $table.fixedExpectedBeforeMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get fixedWarningBeforeMinutes => $composableBuilder(
+    column: $table.fixedWarningBeforeMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get fixedDangerBeforeMinutes => $composableBuilder(
+    column: $table.fixedDangerBeforeMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get stateExpectedAfterMinutes => $composableBuilder(
+    column: $table.stateExpectedAfterMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get stateWarningAfterMinutes => $composableBuilder(
+    column: $table.stateWarningAfterMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get stateDangerAfterMinutes => $composableBuilder(
+    column: $table.stateDangerAfterMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$PackTemplatesTableAnnotationComposer get templateId {
+    final $$PackTemplatesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.templateId,
+      referencedTable: $db.packTemplates,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PackTemplatesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.packTemplates,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PackTemplateItemsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PackTemplateItemsTable,
+          PackTemplateItemRow,
+          $$PackTemplateItemsTableFilterComposer,
+          $$PackTemplateItemsTableOrderingComposer,
+          $$PackTemplateItemsTableAnnotationComposer,
+          $$PackTemplateItemsTableCreateCompanionBuilder,
+          $$PackTemplateItemsTableUpdateCompanionBuilder,
+          (PackTemplateItemRow, $$PackTemplateItemsTableReferences),
+          PackTemplateItemRow,
+          PrefetchHooks Function({bool templateId})
+        > {
+  $$PackTemplateItemsTableTableManager(
+    _$AppDatabase db,
+    $PackTemplateItemsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PackTemplateItemsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PackTemplateItemsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PackTemplateItemsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> templateId = const Value.absent(),
+                Value<int> orderIndex = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<String> attentionPolicySource = const Value.absent(),
+                Value<String?> fixedScheduleType = const Value.absent(),
+                Value<int?> fixedScheduleInterval = const Value.absent(),
+                Value<int?> fixedMonthlyDay = const Value.absent(),
+                Value<String?> fixedRepeatRuleV2 = const Value.absent(),
+                Value<String?> fixedTimeOfDay = const Value.absent(),
+                Value<String?> fixedOverduePolicy = const Value.absent(),
+                Value<int?> fixedExpectedBeforeMinutes = const Value.absent(),
+                Value<int?> fixedWarningBeforeMinutes = const Value.absent(),
+                Value<int?> fixedDangerBeforeMinutes = const Value.absent(),
+                Value<int?> stateExpectedAfterMinutes = const Value.absent(),
+                Value<int?> stateWarningAfterMinutes = const Value.absent(),
+                Value<int?> stateDangerAfterMinutes = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+              }) => PackTemplateItemsCompanion(
+                id: id,
+                templateId: templateId,
+                orderIndex: orderIndex,
+                title: title,
+                type: type,
+                attentionPolicySource: attentionPolicySource,
+                fixedScheduleType: fixedScheduleType,
+                fixedScheduleInterval: fixedScheduleInterval,
+                fixedMonthlyDay: fixedMonthlyDay,
+                fixedRepeatRuleV2: fixedRepeatRuleV2,
+                fixedTimeOfDay: fixedTimeOfDay,
+                fixedOverduePolicy: fixedOverduePolicy,
+                fixedExpectedBeforeMinutes: fixedExpectedBeforeMinutes,
+                fixedWarningBeforeMinutes: fixedWarningBeforeMinutes,
+                fixedDangerBeforeMinutes: fixedDangerBeforeMinutes,
+                stateExpectedAfterMinutes: stateExpectedAfterMinutes,
+                stateWarningAfterMinutes: stateWarningAfterMinutes,
+                stateDangerAfterMinutes: stateDangerAfterMinutes,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int templateId,
+                Value<int> orderIndex = const Value.absent(),
+                required String title,
+                required String type,
+                Value<String> attentionPolicySource = const Value.absent(),
+                Value<String?> fixedScheduleType = const Value.absent(),
+                Value<int?> fixedScheduleInterval = const Value.absent(),
+                Value<int?> fixedMonthlyDay = const Value.absent(),
+                Value<String?> fixedRepeatRuleV2 = const Value.absent(),
+                Value<String?> fixedTimeOfDay = const Value.absent(),
+                Value<String?> fixedOverduePolicy = const Value.absent(),
+                Value<int?> fixedExpectedBeforeMinutes = const Value.absent(),
+                Value<int?> fixedWarningBeforeMinutes = const Value.absent(),
+                Value<int?> fixedDangerBeforeMinutes = const Value.absent(),
+                Value<int?> stateExpectedAfterMinutes = const Value.absent(),
+                Value<int?> stateWarningAfterMinutes = const Value.absent(),
+                Value<int?> stateDangerAfterMinutes = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+              }) => PackTemplateItemsCompanion.insert(
+                id: id,
+                templateId: templateId,
+                orderIndex: orderIndex,
+                title: title,
+                type: type,
+                attentionPolicySource: attentionPolicySource,
+                fixedScheduleType: fixedScheduleType,
+                fixedScheduleInterval: fixedScheduleInterval,
+                fixedMonthlyDay: fixedMonthlyDay,
+                fixedRepeatRuleV2: fixedRepeatRuleV2,
+                fixedTimeOfDay: fixedTimeOfDay,
+                fixedOverduePolicy: fixedOverduePolicy,
+                fixedExpectedBeforeMinutes: fixedExpectedBeforeMinutes,
+                fixedWarningBeforeMinutes: fixedWarningBeforeMinutes,
+                fixedDangerBeforeMinutes: fixedDangerBeforeMinutes,
+                stateExpectedAfterMinutes: stateExpectedAfterMinutes,
+                stateWarningAfterMinutes: stateWarningAfterMinutes,
+                stateDangerAfterMinutes: stateDangerAfterMinutes,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$PackTemplateItemsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({templateId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (templateId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.templateId,
+                                referencedTable:
+                                    $$PackTemplateItemsTableReferences
+                                        ._templateIdTable(db),
+                                referencedColumn:
+                                    $$PackTemplateItemsTableReferences
+                                        ._templateIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$PackTemplateItemsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PackTemplateItemsTable,
+      PackTemplateItemRow,
+      $$PackTemplateItemsTableFilterComposer,
+      $$PackTemplateItemsTableOrderingComposer,
+      $$PackTemplateItemsTableAnnotationComposer,
+      $$PackTemplateItemsTableCreateCompanionBuilder,
+      $$PackTemplateItemsTableUpdateCompanionBuilder,
+      (PackTemplateItemRow, $$PackTemplateItemsTableReferences),
+      PackTemplateItemRow,
+      PrefetchHooks Function({bool templateId})
     >;
 typedef $$ResourcesTableCreateCompanionBuilder =
     ResourcesCompanion Function({
@@ -14972,6 +17631,10 @@ class $AppDatabaseManager {
       $$ItemPacksTableTableManager(_db, _db.itemPacks);
   $$ItemsTableTableManager get items =>
       $$ItemsTableTableManager(_db, _db.items);
+  $$PackTemplatesTableTableManager get packTemplates =>
+      $$PackTemplatesTableTableManager(_db, _db.packTemplates);
+  $$PackTemplateItemsTableTableManager get packTemplateItems =>
+      $$PackTemplateItemsTableTableManager(_db, _db.packTemplateItems);
   $$ResourcesTableTableManager get resources =>
       $$ResourcesTableTableManager(_db, _db.resources);
   $$ResourceConsumptionRulesTableTableManager get resourceConsumptionRules =>

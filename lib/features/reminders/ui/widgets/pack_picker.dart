@@ -27,9 +27,16 @@ String suggestPackEmoji(String title) {
 }
 
 class PackFormDialog extends StatefulWidget {
-  const PackFormDialog({super.key, this.pack});
+  const PackFormDialog({
+    super.key,
+    this.pack,
+    this.showTemplateEntry = false,
+    this.onCreateFromTemplate,
+  });
 
   final ItemPack? pack;
+  final bool showTemplateEntry;
+  final VoidCallback? onCreateFromTemplate;
 
   @override
   State<PackFormDialog> createState() => _PackFormDialogState();
@@ -130,6 +137,25 @@ class _PackFormDialogState extends State<PackFormDialog> {
                   labelText: ReminderUiText.packDescriptionFieldLabel,
                 ),
               ),
+              if (!isEdit && widget.showTemplateEntry) ...[
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    key: const Key('pack-dialog-template-entry'),
+                    onPressed: widget.onCreateFromTemplate == null
+                        ? null
+                        : () {
+                            Navigator.of(context).pop();
+                            widget.onCreateFromTemplate!();
+                          },
+                    icon: const Icon(Icons.auto_awesome_outlined),
+                    label: const Text(
+                      ReminderUiText.packTemplateCreateFromTemplateLabel,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

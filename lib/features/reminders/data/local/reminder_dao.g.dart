@@ -6,6 +6,9 @@ part of 'reminder_dao.dart';
 mixin _$ReminderDaoMixin on DatabaseAccessor<AppDatabase> {
   $ItemPacksTable get itemPacks => attachedDatabase.itemPacks;
   $ItemsTable get items => attachedDatabase.items;
+  $PackTemplatesTable get packTemplates => attachedDatabase.packTemplates;
+  $PackTemplateItemsTable get packTemplateItems =>
+      attachedDatabase.packTemplateItems;
   $ResourcesTable get resources => attachedDatabase.resources;
   $ResourceConsumptionRulesTable get resourceConsumptionRules =>
       attachedDatabase.resourceConsumptionRules;
@@ -30,6 +33,13 @@ class ReminderDaoManager {
       $$ItemPacksTableTableManager(_db.attachedDatabase, _db.itemPacks);
   $$ItemsTableTableManager get items =>
       $$ItemsTableTableManager(_db.attachedDatabase, _db.items);
+  $$PackTemplatesTableTableManager get packTemplates =>
+      $$PackTemplatesTableTableManager(_db.attachedDatabase, _db.packTemplates);
+  $$PackTemplateItemsTableTableManager get packTemplateItems =>
+      $$PackTemplateItemsTableTableManager(
+        _db.attachedDatabase,
+        _db.packTemplateItems,
+      );
   $$ResourcesTableTableManager get resources =>
       $$ResourcesTableTableManager(_db.attachedDatabase, _db.resources);
   $$ResourceConsumptionRulesTableTableManager get resourceConsumptionRules =>

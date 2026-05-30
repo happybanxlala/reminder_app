@@ -14,6 +14,8 @@ part 'app_database.g.dart';
   tables: [
     ItemPacks,
     Items,
+    PackTemplates,
+    PackTemplateItems,
     Resources,
     ResourceConsumptionRules,
     ResourceActionRecords,
@@ -39,7 +41,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -53,6 +55,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 4) {
         await _upgradeToV4(m);
+      }
+      if (from < 5) {
+        await _upgradeToV5(m);
       }
     },
     beforeOpen: (details) async {
@@ -151,6 +156,11 @@ class AppDatabase extends _$AppDatabase {
       ON stage_trackers(system_key)
       WHERE system_key IS NOT NULL
       ''');
+  }
+
+  Future<void> _upgradeToV5(Migrator m) async {
+    await m.createTable(packTemplates);
+    await m.createTable(packTemplateItems);
   }
 
   Future<void> _ensureSystemDefaultPack() async {

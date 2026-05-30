@@ -4,11 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 
 void main() {
-  test('database uses schema version 4 and core tables are writable', () async {
+  test('database uses schema version 5 and core tables are writable', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
 
-    expect(db.schemaVersion, 4);
+    expect(db.schemaVersion, 5);
 
     final packId = await db
         .into(db.itemPacks)
@@ -48,6 +48,34 @@ void main() {
             stateWarningAfterMinutes: const Value(2880),
             stateDangerAfterMinutes: const Value(5760),
             lastDoneAt: const Value.absent(),
+            createdAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+            updatedAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+          ),
+        );
+
+    final templateId = await db
+        .into(db.packTemplates)
+        .insert(
+          PackTemplatesCompanion.insert(
+            templateName: '家務',
+            iconEmoji: const Value('🏠'),
+            description: const Value('定期清潔'),
+            createdAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+            updatedAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+          ),
+        );
+    final templateItemId = await db
+        .into(db.packTemplateItems)
+        .insert(
+          PackTemplateItemsCompanion.insert(
+            templateId: templateId,
+            orderIndex: const Value(0),
+            title: '倒垃圾',
+            type: 'fixed',
+            fixedScheduleType: const Value('everyXDays'),
+            fixedScheduleInterval: const Value(2),
+            fixedWarningBeforeMinutes: const Value(1440),
+            fixedDangerBeforeMinutes: const Value(0),
             createdAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
             updatedAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
           ),
@@ -139,6 +167,8 @@ void main() {
 
     expect(packId, greaterThan(0));
     expect(itemId, greaterThan(0));
+    expect(templateId, greaterThan(0));
+    expect(templateItemId, greaterThan(0));
     expect(resourceId, greaterThan(0));
     expect(consumptionRuleId, greaterThan(0));
     expect(resourceActionId, greaterThan(0));
@@ -164,6 +194,8 @@ void main() {
     final items = await db.select(db.items).get();
     final stageTrackers = await db.select(db.stageTrackers).get();
     final settings = await db.select(db.appSettingsEntries).get();
+    final templates = await db.select(db.packTemplates).get();
+    final templateItems = await db.select(db.packTemplateItems).get();
     expect(defaultPacks, hasLength(1));
     expect(items.single.status, 'active');
     expect(items.single.attentionPolicySource, 'systemDefault');
@@ -179,5 +211,7 @@ void main() {
     );
     expect(settings.single.reminderTone, 'early');
     expect(settings.single.notificationReminderTime, '20:30');
+    expect(templates.single.templateName, '家務');
+    expect(templateItems.single.title, '倒垃圾');
   });
 }

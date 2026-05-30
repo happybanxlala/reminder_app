@@ -180,7 +180,7 @@ void main() {
 
       expect(find.text(ReminderUiText.debugInfoSectionTitle), findsOneWidget);
       expect(find.text(ReminderUiText.databaseVersionLabel), findsOneWidget);
-      expect(find.text('4'), findsOneWidget);
+      expect(find.text('5'), findsOneWidget);
       expect(find.text(ReminderUiText.seedDemoDataLabel), findsNothing);
       expect(find.text(ReminderUiText.resetDatabaseLabel), findsOneWidget);
       expect(
@@ -193,7 +193,10 @@ void main() {
       );
       expect(resetText.style?.color, ReminderTheme.light().colorScheme.error);
 
-      await tester.tap(find.byKey(const Key('settings-reset-database-row')));
+      await tester.tap(
+        find.byKey(const Key('settings-reset-database-row')),
+        warnIfMissed: false,
+      );
       await tester.pumpAndSettle();
 
       expect(find.byType(AlertDialog), findsNothing);
