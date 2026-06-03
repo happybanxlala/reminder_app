@@ -139,7 +139,6 @@ class _ResourceEditPageState extends ConsumerState<ResourceEditPage> {
     List<_ResourcePackOption> packOptions,
     List<ResourceBinding> bindings,
   ) {
-    final packLocked = bindings.isNotEmpty;
     return ReminderEditorSection(
       key: const Key('resource-editor-section-basic-info'),
       title: ReminderUiText.basicInfoSectionTitle,
@@ -156,18 +155,18 @@ class _ResourceEditPageState extends ConsumerState<ResourceEditPage> {
           fieldKey: const Key('resource-note-field'),
         ),
         ReminderEditorPickerRow(
-          key: packLocked
-              ? const Key('resource-pack-readonly-row')
-              : const Key('resource-pack-picker-row'),
+          key: const Key('resource-pack-picker-row'),
           label: ReminderUiText.packFieldLabel,
           value: _selectedPackLabel(activePacks, bundle.pack),
-          readOnly: packLocked,
-          showChevron: !packLocked,
-          onTap: packLocked ? null : () => _showPackPicker(packOptions),
+          onTap: () => _showPackPicker(
+            packOptions,
+            currentPackId: bundle.resource.packId,
+            hasBindings: bindings.any((binding) => binding.rule.isEnabled),
+          ),
         ),
-        if (packLocked)
+        if (bindings.any((binding) => binding.rule.isEnabled))
           const _EditorHelperText(
-            text: ReminderUiText.resourcePackLockedByBindingsHint,
+            text: ReminderUiText.moveResourceUnlinksItemsMessage,
           ),
       ],
     );
@@ -382,7 +381,11 @@ class _ResourceEditPageState extends ConsumerState<ResourceEditPage> {
     return options;
   }
 
-  Future<void> _showPackPicker(List<_ResourcePackOption> packOptions) async {
+  Future<void> _showPackPicker(
+    List<_ResourcePackOption> packOptions, {
+    required int currentPackId,
+    required bool hasBindings,
+  }) async {
     final selection = await showModalBottomSheet<_ResourcePackPickerSelection>(
       context: context,
       showDragHandle: true,
@@ -433,9 +436,49 @@ class _ResourceEditPageState extends ConsumerState<ResourceEditPage> {
       await _createPackInline();
       return;
     }
+    if (selection.id != currentPackId) {
+      final confirmed = await _confirmMoveResource(hasBindings: hasBindings);
+      if (confirmed != true || !mounted) {
+        return;
+      }
+    }
     setState(() {
       _selectedPackId = selection.id;
     });
+  }
+
+  Future<bool?> _confirmMoveResource({required bool hasBindings}) {
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text(ReminderUiText.moveResourceTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(ReminderUiText.moveResourceMessage),
+            if (hasBindings)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(ReminderUiText.moveResourceUnlinksItemsMessage),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(
+              MaterialLocalizations.of(dialogContext).cancelButtonLabel,
+            ),
+          ),
+          FilledButton(
+            key: const Key('move-resource-confirm-button'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text(ReminderUiText.confirmAction),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _createPackInline() async {

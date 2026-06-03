@@ -184,30 +184,65 @@ class ResourceRepository {
     final now = _clock();
     final packId = input.packId ?? existing.resource.packId;
     await _assertPackCanAcceptResources(packId, existing: existing.resource);
-    return _dao.updateResourceRecord(
-      ResourceRow(
-        id: existing.resource.id,
-        packId: packId,
-        title: input.title,
-        description: input.description,
-        status: existing.resource.status.name,
-        type: input.type.name,
-        timeAnchorDate: _timeAnchorDate(input.config),
-        timeDurationDays: _timeDurationDays(input.config),
-        timeExpectedBeforeDays: _timeInfoBeforeDays(input.config),
-        timeWarningBeforeDays: _timeWarningBeforeDays(input.config),
-        timeDangerBeforeDays: _timeDangerBeforeDays(input.config),
-        quantityCurrent: _quantityCurrent(input.config),
-        quantityUnitLabel: _quantityUnitLabel(input.config),
-        quantityExpectedThreshold: _quantityInfoThreshold(input.config),
-        quantityWarningThreshold: _quantityWarningThreshold(input.config),
-        quantityDangerThreshold: _quantityDangerThreshold(input.config),
-        lastRefilledAt:
-            existing.resource.lastRefilledAt?.millisecondsSinceEpoch,
-        createdAt: existing.resource.createdAt.millisecondsSinceEpoch,
-        updatedAt: now.millisecondsSinceEpoch,
-      ),
+    return _dao.attachedDatabase.transaction(() async {
+      final updated = await _dao.updateResourceRecord(
+        ResourceRow(
+          id: existing.resource.id,
+          packId: packId,
+          title: input.title,
+          description: input.description,
+          status: existing.resource.status.name,
+          type: input.type.name,
+          timeAnchorDate: _timeAnchorDate(input.config),
+          timeDurationDays: _timeDurationDays(input.config),
+          timeExpectedBeforeDays: _timeInfoBeforeDays(input.config),
+          timeWarningBeforeDays: _timeWarningBeforeDays(input.config),
+          timeDangerBeforeDays: _timeDangerBeforeDays(input.config),
+          quantityCurrent: _quantityCurrent(input.config),
+          quantityUnitLabel: _quantityUnitLabel(input.config),
+          quantityExpectedThreshold: _quantityInfoThreshold(input.config),
+          quantityWarningThreshold: _quantityWarningThreshold(input.config),
+          quantityDangerThreshold: _quantityDangerThreshold(input.config),
+          lastRefilledAt:
+              existing.resource.lastRefilledAt?.millisecondsSinceEpoch,
+          createdAt: existing.resource.createdAt.millisecondsSinceEpoch,
+          updatedAt: now.millisecondsSinceEpoch,
+        ),
+      );
+      if (!updated) {
+        return false;
+      }
+      if (packId != existing.resource.packId) {
+        await _dao.disableConsumptionRulesForResource(id);
+      }
+      return true;
+    });
+  }
+
+  Future<bool> moveResourceToPack(
+    int resourceId, {
+    required int targetPackId,
+  }) async {
+    final existing = await getResourceById(resourceId);
+    if (existing == null ||
+        existing.resource.status == ResourceLifecycleStatus.archived) {
+      return false;
+    }
+    await _assertPackCanAcceptResources(
+      targetPackId,
+      existing: existing.resource,
     );
+    if (targetPackId == existing.resource.packId) {
+      return true;
+    }
+    return _dao.attachedDatabase.transaction(() async {
+      final moved = await _dao.moveResourceToPackById(resourceId, targetPackId);
+      if (!moved) {
+        return false;
+      }
+      await _dao.disableConsumptionRulesForResource(resourceId);
+      return true;
+    });
   }
 
   Future<bool> archiveResource(int resourceId) {

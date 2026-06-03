@@ -494,6 +494,56 @@ void main() {
     expect(find.text(ReminderUiText.unassignedPackOption), findsNothing);
   });
 
+  testWidgets('edit dialog confirms stage tracker pack move', (tester) async {
+    final systemPack = _pack(
+      id: 1,
+      title: 'Default Item Pack',
+      iconEmoji: '📌',
+      isSystemDefault: true,
+    );
+    final catPack = _pack(id: 2, title: '養貓', iconEmoji: '🐱');
+    final tracker = _tracker(
+      id: 7,
+      packId: systemPack.id,
+      title: '一般追蹤',
+      start: DateTime(2026, 5, 1),
+    );
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    final repository = _RecordingStageTrackerRepository(db);
+
+    await _pumpStageTrackerDetail(
+      tester,
+      previewDate: DateTime(2026, 5, 20),
+      detail: _detail(tracker),
+      packs: [systemPack, catPack],
+      database: db,
+      repository: repository,
+    );
+
+    await tester.tap(find.byKey(const Key('stage-tracker-detail-overflow')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(ReminderUiText.editStageTracker));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('stage-tracker-pack-picker-row')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('🐱 養貓').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text(ReminderUiText.moveStageTrackerTitle), findsOneWidget);
+    expect(
+      find.byKey(const Key('move-stage-related-items-checkbox')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('move-stage-related-resources-checkbox')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('move-stage-tracker-confirm-button')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('dashed add card replaces empty state', (tester) async {
     await _pumpStageTrackerManagement(
       tester,
@@ -619,8 +669,10 @@ Future<void> _pumpStageTrackerDetail(
   required DateTime previewDate,
   required StageTrackerDetail detail,
   required List<ItemPack> packs,
+  AppDatabase? database,
+  StageTrackerRepository? repository,
 }) async {
-  final db = AppDatabase.forTesting(NativeDatabase.memory());
+  final db = database ?? AppDatabase.forTesting(NativeDatabase.memory());
   final router = GoRouter(
     initialLocation: '/stage-tracker/${detail.stageTracker.id}',
     routes: [
@@ -650,6 +702,8 @@ Future<void> _pumpStageTrackerDetail(
         effectivePreviewDateProvider.overrideWith((ref) => previewDate),
         activeItemPacksProvider.overrideWith((ref) => Stream.value(packs)),
         itemPacksProvider.overrideWith((ref) => Stream.value(packs)),
+        if (repository != null)
+          stageTrackerRepositoryProvider.overrideWith((ref) => repository),
         stageTrackerDetailProvider.overrideWith((ref, id) async => detail),
       ],
       child: MaterialApp.router(
@@ -666,11 +720,30 @@ class _RecordingStageTrackerRepository extends StageTrackerRepository {
     : super(db.reminderDao, itemRepository: ItemRepository(db.reminderDao));
 
   final createdTrackers = <StageTrackerInput>[];
+  final updatedTrackers = <StageTrackerInput>[];
 
   @override
   Future<int> createStageTracker(StageTrackerInput input) async {
     createdTrackers.add(input);
     return 99;
+  }
+
+  @override
+  Future<bool> updateStageTracker(
+    int id,
+    StageTrackerInput input, {
+    bool moveRelatedItemsOnPackChange = true,
+    bool moveRelatedResourcesOnPackChange = true,
+  }) async {
+    updatedTrackers.add(input);
+    return true;
+  }
+
+  @override
+  Future<({int itemCount, int resourceCount})> moveImpactForStageTracker(
+    int id,
+  ) async {
+    return (itemCount: 1, resourceCount: 1);
   }
 }
 

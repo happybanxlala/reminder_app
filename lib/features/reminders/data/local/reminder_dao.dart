@@ -513,6 +513,44 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     return rows.map(_toResourceConsumptionRule).toList(growable: false);
   }
 
+  Future<List<ResourceConsumptionRule>> listConsumptionRulesForResource(
+    int resourceId, {
+    bool enabledOnly = false,
+  }) async {
+    final query = select(resourceConsumptionRules)
+      ..where((t) => t.resourceId.equals(resourceId));
+    if (enabledOnly) {
+      query.where((t) => t.isEnabled.equals(true));
+    }
+    final rows = await query.get();
+    return rows.map(_toResourceConsumptionRule).toList(growable: false);
+  }
+
+  Future<int> disableConsumptionRulesForItem(int itemId) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    return (update(
+      resourceConsumptionRules,
+    )..where((t) => t.itemId.equals(itemId) & t.isEnabled.equals(true))).write(
+      ResourceConsumptionRulesCompanion(
+        isEnabled: const Value(false),
+        updatedAt: Value(now),
+      ),
+    );
+  }
+
+  Future<int> disableConsumptionRulesForResource(int resourceId) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    return (update(resourceConsumptionRules)..where(
+          (t) => t.resourceId.equals(resourceId) & t.isEnabled.equals(true),
+        ))
+        .write(
+          ResourceConsumptionRulesCompanion(
+            isEnabled: const Value(false),
+            updatedAt: Value(now),
+          ),
+        );
+  }
+
   Stream<List<ResourceConsumptionRule>> watchConsumptionRulesForItem(
     int itemId,
   ) {
@@ -876,6 +914,50 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  Future<bool> moveItemToPackById(int itemId, int destinationPackId) async {
+    final now = DateTime.now();
+    final updatedRows = await (update(items)..where((t) => t.id.equals(itemId)))
+        .write(
+          ItemsCompanion(
+            packId: Value(destinationPackId),
+            updatedAt: Value(now.millisecondsSinceEpoch),
+          ),
+        );
+    return updatedRows > 0;
+  }
+
+  Future<bool> moveResourceToPackById(
+    int resourceId,
+    int destinationPackId,
+  ) async {
+    final now = DateTime.now();
+    final updatedRows =
+        await (update(resources)..where((t) => t.id.equals(resourceId))).write(
+          ResourcesCompanion(
+            packId: Value(destinationPackId),
+            updatedAt: Value(now.millisecondsSinceEpoch),
+          ),
+        );
+    return updatedRows > 0;
+  }
+
+  Future<bool> moveStageTrackerToPackById(
+    int stageTrackerId,
+    int destinationPackId,
+  ) async {
+    final now = DateTime.now();
+    final updatedRows =
+        await (update(
+          stageTrackers,
+        )..where((t) => t.id.equals(stageTrackerId))).write(
+          StageTrackersCompanion(
+            packId: Value(destinationPackId),
+            updatedAt: Value(now.millisecondsSinceEpoch),
+          ),
+        );
+    return updatedRows > 0;
+  }
+
   Future<int> insertStageTracker(StageTrackersCompanion entry) {
     return into(stageTrackers).insert(entry);
   }
@@ -913,6 +995,50 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
 
   Future<int> insertStageRelatedItem(StageRelatedItemsCompanion entry) {
     return into(stageRelatedItems).insert(entry);
+  }
+
+  Future<List<StageRelatedItem>> listStageRelatedItemsForItem(
+    int itemId,
+  ) async {
+    final rows = await (select(
+      stageRelatedItems,
+    )..where((t) => t.itemId.equals(itemId))).get();
+    return rows.map(_toStageRelatedItem).toList(growable: false);
+  }
+
+  Future<List<int>> listRelatedItemIdsForStageTracker(
+    int stageTrackerId,
+  ) async {
+    final query = select(stageRelatedItems).join([
+      innerJoin(
+        stageRecords,
+        stageRecords.id.equalsExp(stageRelatedItems.stageRecordId),
+      ),
+    ])..where(stageRecords.stageTrackerId.equals(stageTrackerId));
+    final rows = await query.get();
+    return rows
+        .map((row) => row.readTable(stageRelatedItems).itemId)
+        .toSet()
+        .toList(growable: false);
+  }
+
+  Future<int> deleteStageRelatedItemsForItem(int itemId) {
+    return (delete(
+      stageRelatedItems,
+    )..where((t) => t.itemId.equals(itemId))).go();
+  }
+
+  Future<int> deleteStageRelatedItemsForStageTracker(int stageTrackerId) async {
+    final query = select(stageRecords)
+      ..where((t) => t.stageTrackerId.equals(stageTrackerId));
+    final records = await query.get();
+    final recordIds = records.map((row) => row.id).toList(growable: false);
+    if (recordIds.isEmpty) {
+      return 0;
+    }
+    return (delete(
+      stageRelatedItems,
+    )..where((t) => t.stageRecordId.isIn(recordIds))).go();
   }
 
   Stream<List<StageTracker>> watchStageTrackers({

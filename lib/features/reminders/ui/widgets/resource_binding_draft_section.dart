@@ -95,7 +95,12 @@ class ResourceBindingDraftSection extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         if (drafts.isEmpty)
-          const Text('建立後，完成這個事項時可以扣掉指定資源。')
+          Text(
+            quantityResources.isEmpty
+                ? ReminderUiText.noBindableResourcesMessage
+                : '建立後，完成這個事項時可以扣掉指定資源。',
+            key: const Key('resource-binding-empty-state'),
+          )
         else
           ...drafts.asMap().entries.map(
             (entry) => _ResourceBindingDraftRow(

@@ -228,7 +228,12 @@ class StageTrackerRepository {
     );
   }
 
-  Future<bool> updateStageTracker(int id, StageTrackerInput input) async {
+  Future<bool> updateStageTracker(
+    int id,
+    StageTrackerInput input, {
+    bool moveRelatedItemsOnPackChange = true,
+    bool moveRelatedResourcesOnPackChange = true,
+  }) async {
     final tracker = await getStageTrackerById(id);
     if (tracker == null ||
         tracker.status == StageTrackerStatus.archived ||
@@ -237,26 +242,132 @@ class StageTrackerRepository {
     }
     final now = _clock();
     final packId = await _resolvePackId(input.packId, now);
-    return _dao.updateStageTrackerRecord(
-      StageTrackerRow(
-        id: tracker.id,
-        packId: packId,
-        title: input.title,
-        subjectName: _nullableTrim(input.subjectName),
-        trackingStartDate: _normalizeDate(
-          input.trackingStartDate,
-        ).millisecondsSinceEpoch,
-        trackingEndDate: input.trackingEndDate == null
-            ? null
-            : _normalizeDate(input.trackingEndDate!).millisecondsSinceEpoch,
-        status: tracker.status.name,
-        isSystemDefault: tracker.isSystemDefault,
-        systemKey: tracker.systemKey,
-        isHidden: tracker.isHidden,
-        createdAt: tracker.createdAt.millisecondsSinceEpoch,
-        updatedAt: now.millisecondsSinceEpoch,
-      ),
+    return _dao.attachedDatabase.transaction(() async {
+      final updated = await _dao.updateStageTrackerRecord(
+        StageTrackerRow(
+          id: tracker.id,
+          packId: packId,
+          title: input.title,
+          subjectName: _nullableTrim(input.subjectName),
+          trackingStartDate: _normalizeDate(
+            input.trackingStartDate,
+          ).millisecondsSinceEpoch,
+          trackingEndDate: input.trackingEndDate == null
+              ? null
+              : _normalizeDate(input.trackingEndDate!).millisecondsSinceEpoch,
+          status: tracker.status.name,
+          isSystemDefault: tracker.isSystemDefault,
+          systemKey: tracker.systemKey,
+          isHidden: tracker.isHidden,
+          createdAt: tracker.createdAt.millisecondsSinceEpoch,
+          updatedAt: now.millisecondsSinceEpoch,
+        ),
+      );
+      if (!updated) {
+        return false;
+      }
+      if (packId != tracker.packId) {
+        await _cleanupStageTrackerMoveRelations(
+          id,
+          targetPackId: packId,
+          moveRelatedItems: moveRelatedItemsOnPackChange,
+          moveRelatedResources: moveRelatedResourcesOnPackChange,
+        );
+      }
+      return true;
+    });
+  }
+
+  Future<bool> moveStageTrackerToPack(
+    int id, {
+    required int targetPackId,
+    required bool moveRelatedItems,
+    required bool moveRelatedResources,
+  }) async {
+    final tracker = await getStageTrackerById(id);
+    if (tracker == null ||
+        tracker.status == StageTrackerStatus.archived ||
+        tracker.isSystemDefault) {
+      return false;
+    }
+    final now = _clock();
+    final packId = await _resolvePackId(targetPackId, now);
+    if (packId == tracker.packId) {
+      return true;
+    }
+    return _dao.attachedDatabase.transaction(() async {
+      final movedTracker = await _dao.moveStageTrackerToPackById(id, packId);
+      if (!movedTracker) {
+        return false;
+      }
+      await _cleanupStageTrackerMoveRelations(
+        id,
+        targetPackId: packId,
+        moveRelatedItems: moveRelatedItems,
+        moveRelatedResources: moveRelatedResources,
+      );
+      return true;
+    });
+  }
+
+  Future<({int itemCount, int resourceCount})> moveImpactForStageTracker(
+    int id,
+  ) async {
+    final relatedItemIds = await _dao.listRelatedItemIdsForStageTracker(id);
+    final relatedResourceIds = <int>{};
+    for (final itemId in relatedItemIds) {
+      final rules = await _dao.listConsumptionRulesForItem(
+        itemId,
+        enabledOnly: true,
+      );
+      relatedResourceIds.addAll(rules.map((rule) => rule.resourceId));
+    }
+    return (
+      itemCount: relatedItemIds.length,
+      resourceCount: relatedResourceIds.length,
     );
+  }
+
+  Future<void> _cleanupStageTrackerMoveRelations(
+    int id, {
+    required int targetPackId,
+    required bool moveRelatedItems,
+    required bool moveRelatedResources,
+  }) async {
+    final relatedItemIds = await _dao.listRelatedItemIdsForStageTracker(id);
+    final relatedResourceIds = <int>{};
+    for (final itemId in relatedItemIds) {
+      final rules = await _dao.listConsumptionRulesForItem(
+        itemId,
+        enabledOnly: true,
+      );
+      relatedResourceIds.addAll(rules.map((rule) => rule.resourceId));
+    }
+
+    if (moveRelatedItems) {
+      for (final itemId in relatedItemIds) {
+        await _dao.moveItemToPackById(itemId, targetPackId);
+      }
+    } else {
+      await _dao.deleteStageRelatedItemsForStageTracker(id);
+    }
+
+    if (moveRelatedResources) {
+      for (final resourceId in relatedResourceIds) {
+        await _dao.moveResourceToPackById(resourceId, targetPackId);
+      }
+    }
+
+    if (moveRelatedItems && !moveRelatedResources) {
+      for (final itemId in relatedItemIds) {
+        await _dao.disableConsumptionRulesForItem(itemId);
+      }
+    }
+    if (!moveRelatedItems && moveRelatedResources) {
+      for (final resourceId in relatedResourceIds) {
+        await _dao.disableConsumptionRulesForResource(resourceId);
+      }
+    }
   }
 
   Future<bool> updateStageRule(int id, StageRuleInput input) async {

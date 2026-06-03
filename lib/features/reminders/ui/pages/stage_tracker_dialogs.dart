@@ -10,16 +10,16 @@ Future<void> _showCreateStageTrackerDialog(
   if (!context.mounted) {
     return;
   }
-  final input = await showDialog<StageTrackerInput>(
+  final result = await showDialog<_StageTrackerFormResult>(
     context: context,
     builder: (dialogContext) => _StageTrackerFormDialog(packs: packs),
   );
-  if (input == null || !context.mounted) {
+  if (result == null || !context.mounted) {
     return;
   }
   final id = await ref
       .read(stageTrackerRepositoryProvider)
-      .createStageTracker(input);
+      .createStageTracker(result.input);
   ref.invalidate(stageTrackersProvider);
   ref.invalidate(stageTrackerOverviewSummaryProvider);
   ref.invalidate(stageTrackerAttentionOccurrencesProvider);
@@ -42,17 +42,22 @@ Future<void> _showEditStageTrackerDialog(
   if (!context.mounted) {
     return;
   }
-  final input = await showDialog<StageTrackerInput>(
+  final result = await showDialog<_StageTrackerFormResult>(
     context: context,
     builder: (dialogContext) =>
         _StageTrackerFormDialog(packs: packs, initialTracker: tracker),
   );
-  if (input == null || !context.mounted) {
+  if (result == null || !context.mounted) {
     return;
   }
   final updated = await ref
       .read(stageTrackerRepositoryProvider)
-      .updateStageTracker(tracker.id, input);
+      .updateStageTracker(
+        tracker.id,
+        result.input,
+        moveRelatedItemsOnPackChange: result.moveRelatedItems,
+        moveRelatedResourcesOnPackChange: result.moveRelatedResources,
+      );
   _invalidateStageTrackerActionProviders(ref, tracker.id);
   if (!context.mounted) {
     return;
@@ -181,6 +186,18 @@ class _StageTrackerFormDialog extends ConsumerStatefulWidget {
       _StageTrackerFormDialogState();
 }
 
+class _StageTrackerFormResult {
+  const _StageTrackerFormResult({
+    required this.input,
+    this.moveRelatedItems = true,
+    this.moveRelatedResources = true,
+  });
+
+  final StageTrackerInput input;
+  final bool moveRelatedItems;
+  final bool moveRelatedResources;
+}
+
 class _StageTrackerFormDialogState
     extends ConsumerState<_StageTrackerFormDialog> {
   final _formKey = GlobalKey<FormState>();
@@ -189,6 +206,8 @@ class _StageTrackerFormDialogState
   late DateTime _startDate = _normalizeStageDate(DateTime.now());
   DateTime? _endDate;
   int? _packId;
+  bool _moveRelatedItems = true;
+  bool _moveRelatedResources = true;
   final List<ItemPack> _createdPacks = [];
 
   bool get _isEdit => widget.initialTracker != null;
@@ -342,12 +361,16 @@ class _StageTrackerFormDialogState
       return;
     }
     Navigator.of(context).pop(
-      StageTrackerInput(
-        title: _titleController.text.trim(),
-        subjectName: _normalizeOptionalText(_subjectController.text),
-        trackingStartDate: _startDate,
-        trackingEndDate: _endDate,
-        packId: _packId,
+      _StageTrackerFormResult(
+        input: StageTrackerInput(
+          title: _titleController.text.trim(),
+          subjectName: _normalizeOptionalText(_subjectController.text),
+          trackingStartDate: _startDate,
+          trackingEndDate: _endDate,
+          packId: _packId,
+        ),
+        moveRelatedItems: _moveRelatedItems,
+        moveRelatedResources: _moveRelatedResources,
       ),
     );
   }
@@ -468,9 +491,87 @@ class _StageTrackerFormDialogState
       await _createPackInline();
       return;
     }
+    if (_isEdit && selection.id != widget.initialTracker?.packId) {
+      final confirmed = await _confirmMoveStageTracker();
+      if (confirmed != true || !mounted) {
+        return;
+      }
+    }
     setState(() {
       _packId = selection.id;
     });
+  }
+
+  Future<bool?> _confirmMoveStageTracker() async {
+    final trackerId = widget.initialTracker?.id;
+    final impact = trackerId == null
+        ? (itemCount: 0, resourceCount: 0)
+        : await ref
+              .read(stageTrackerRepositoryProvider)
+              .moveImpactForStageTracker(trackerId);
+    if (!mounted) {
+      return false;
+    }
+    var moveItems = _moveRelatedItems;
+    var moveResources = _moveRelatedResources;
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text(ReminderUiText.moveStageTrackerTitle),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(ReminderUiText.moveStageTrackerMessage),
+              const SizedBox(height: 8),
+              Text(ReminderUiText.moveAffectedCountsPrefix),
+              Text('- ${impact.itemCount} 個關聯事項'),
+              Text('- ${impact.resourceCount} 個關聯資源'),
+              CheckboxListTile(
+                key: const Key('move-stage-related-items-checkbox'),
+                contentPadding: EdgeInsets.zero,
+                value: moveItems,
+                title: const Text(ReminderUiText.moveRelatedItemsLabel),
+                onChanged: (value) {
+                  setDialogState(() {
+                    moveItems = value ?? true;
+                  });
+                },
+              ),
+              CheckboxListTile(
+                key: const Key('move-stage-related-resources-checkbox'),
+                contentPadding: EdgeInsets.zero,
+                value: moveResources,
+                title: const Text(ReminderUiText.moveRelatedResourcesLabel),
+                onChanged: (value) {
+                  setDialogState(() {
+                    moveResources = value ?? true;
+                  });
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(
+                MaterialLocalizations.of(dialogContext).cancelButtonLabel,
+              ),
+            ),
+            FilledButton(
+              key: const Key('move-stage-tracker-confirm-button'),
+              onPressed: () {
+                _moveRelatedItems = moveItems;
+                _moveRelatedResources = moveResources;
+                Navigator.of(dialogContext).pop(true);
+              },
+              child: const Text(ReminderUiText.confirmAction),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _createPackInline() async {

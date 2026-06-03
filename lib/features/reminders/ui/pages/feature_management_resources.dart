@@ -293,7 +293,7 @@ class _ManagedResourceCard extends ConsumerWidget {
               const PopupMenuDivider(),
               const PopupMenuItem(
                 value: _ManagedResourceMenuAction.archive,
-                child: Text('封存'),
+                child: Text(ReminderUiText.archiveAction),
               ),
             ],
           ),
@@ -336,9 +336,9 @@ class _ManagedResourceCard extends ConsumerWidget {
       case _ManagedResourceMenuAction.archive:
         final confirmed = await _showItemActionConfirmation(
           context,
-          title: '封存資源',
-          message: '封存後不會出現在資源管理，也不會被 item 完成時扣量；歷史紀錄與綁定會保留。',
-          confirmLabel: '封存',
+          title: '刪除資源',
+          message: '刪除後會從列表隱藏，既有歷史紀錄會保留。確定要刪除嗎？',
+          confirmLabel: ReminderUiText.archiveAction,
           isDestructive: true,
         );
         if (confirmed == true) {

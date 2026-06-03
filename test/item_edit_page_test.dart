@@ -13,6 +13,7 @@ import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/resource.dart';
 import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
+import 'package:reminder_app/features/reminders/providers/database_providers.dart';
 import 'package:reminder_app/features/reminders/providers/item_providers.dart';
 import 'package:reminder_app/features/reminders/providers/resource_providers.dart';
 import 'package:reminder_app/features/reminders/providers/settings_providers.dart';
@@ -347,6 +348,62 @@ void main() {
     expect(find.text('等待處理'), findsOneWidget);
   });
 
+  testWidgets(
+    'create item shows resource binding empty state without resources',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            ..._emptyResourceOverrides(),
+            reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
+            activeItemPacksProvider.overrideWith(
+              (ref) => Stream.value([
+                ItemPack(
+                  id: 1,
+                  title: 'Default Item Pack',
+                  status: ItemPackStatus.active,
+                  isSystemDefault: true,
+                  createdAt: DateTime(2026, 4, 1),
+                  updatedAt: DateTime(2026, 4, 1),
+                ),
+              ]),
+            ),
+          ],
+          child: const MaterialApp(
+            home: ItemEditPage(mode: ItemEditMode.create),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('editor-section-resource-binding')),
+        120,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const Key('editor-section-resource-binding')),
+        findsOneWidget,
+      );
+      await tester.tap(
+        find.byKey(const Key('editor-section-resource-binding')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const Key('resource-binding-empty-state')),
+        findsOneWidget,
+      );
+      expect(
+        find.text(ReminderUiText.noBindableResourcesMessage),
+        findsOneWidget,
+      );
+      expect(find.text(ReminderUiText.addResourceBindingLabel), findsOneWidget);
+    },
+  );
+
   testWidgets('overdue picker lists wait before auto advance', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -546,8 +603,8 @@ void main() {
       '14',
     );
     expect(find.byKey(const Key('danger-after-field')), findsNothing);
-    expect(find.byKey(const Key('pack-picker-row')), findsNothing);
-    expect(find.byKey(const Key('pack-readonly')), findsOneWidget);
+    expect(find.byKey(const Key('pack-picker-row')), findsOneWidget);
+    expect(find.byKey(const Key('pack-readonly')), findsNothing);
     expect(find.text('一般'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.byKey(const Key('editor-section-toggle-advanced-settings')),
@@ -559,6 +616,108 @@ void main() {
       find.byKey(const Key('editor-section-toggle-advanced-settings')),
       findsOneWidget,
     );
+  });
+
+  testWidgets('edit item pack move shows linked resource confirmation', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final sourcePack = ItemPack(
+      id: 1,
+      title: 'Default Item Pack',
+      status: ItemPackStatus.active,
+      isSystemDefault: true,
+      createdAt: DateTime(2026, 4, 1),
+      updatedAt: DateTime(2026, 4, 1),
+    );
+    final targetPack = ItemPack(
+      id: 2,
+      title: 'Target',
+      status: ItemPackStatus.active,
+      isSystemDefault: false,
+      createdAt: DateTime(2026, 4, 1),
+      updatedAt: DateTime(2026, 4, 1),
+    );
+    final resource = Resource(
+      id: 9,
+      packId: sourcePack.id,
+      title: 'Water filter',
+      type: ResourceType.quantityBased,
+      config: const QuantityBasedResourceConfig(
+        currentQuantity: 5,
+        unitLabel: '個',
+        warningThreshold: 2,
+        dangerThreshold: 1,
+      ),
+      createdAt: DateTime(2026, 4, 1),
+      updatedAt: DateTime(2026, 4, 1),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+          reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
+          activeItemPacksProvider.overrideWith(
+            (ref) => Stream.value([sourcePack, targetPack]),
+          ),
+          resourcesProvider.overrideWith(
+            (ref) => Stream.value([
+              ResourceBundle(resource: resource, pack: sourcePack),
+            ]),
+          ),
+          itemConsumptionRulesProvider.overrideWith(
+            (ref, itemId) => Stream.value([
+              ResourceConsumptionRule(
+                id: 3,
+                resourceId: resource.id,
+                itemId: 10,
+                consumeAmount: 2,
+                createdAt: DateTime(2026, 4, 1),
+                updatedAt: DateTime(2026, 4, 1),
+              ),
+            ]),
+          ),
+          itemProvider(10).overrideWith(
+            (ref) => Future.value(
+              ItemBundle(
+                item: Item(
+                  id: 10,
+                  packId: sourcePack.id,
+                  title: 'Daily item',
+                  type: ItemType.fixed,
+                  config: FixedItemConfig(
+                    scheduleType: FixedScheduleType.daily,
+                    anchorDate: DateTime(2026, 4, 1),
+                    dueDate: DateTime(2026, 4, 1),
+                  ),
+                  createdAt: DateTime(2026, 4, 1),
+                  updatedAt: DateTime(2026, 4, 1),
+                ),
+                pack: sourcePack,
+              ),
+            ),
+          ),
+        ],
+        child: const MaterialApp(
+          home: ItemEditPage(mode: ItemEditMode.edit, id: 10),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('pack-picker-row')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('pack-option-2')));
+    await tester.pumpAndSettle();
+
+    expect(find.text(ReminderUiText.moveItemTitle), findsOneWidget);
+    expect(
+      find.byKey(const Key('move-item-linked-resources-checkbox')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('move-item-confirm-button')), findsOneWidget);
   });
 
   testWidgets('edit page history overflow opens item history route', (

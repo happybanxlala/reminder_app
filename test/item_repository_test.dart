@@ -1235,6 +1235,244 @@ void main() {
   );
 
   test(
+    'updateItem creates pending resources and bindings in the edit transaction',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = ItemRepository(db.reminderDao);
+      final resourceRepository = ResourceRepository(db.reminderDao);
+      final packId = await repository.createPack(
+        const ItemPackInput(title: 'Housework'),
+      );
+      final itemId = await repository.createItem(
+        ItemInput(
+          title: 'Replace filter',
+          type: ItemType.stateBased,
+          config: const StateBasedItemConfig(
+            warningAfter: Duration(days: 12),
+            dangerAfter: Duration(days: 14),
+          ),
+          packId: packId,
+        ),
+      );
+
+      expect(
+        await repository.updateItem(
+          itemId,
+          ItemInput(
+            title: 'Replace filter soon',
+            type: ItemType.stateBased,
+            config: const StateBasedItemConfig(
+              warningAfter: Duration(days: 12),
+              dangerAfter: Duration(days: 14),
+            ),
+            packId: packId,
+          ),
+          resourceBindings: const [
+            ItemResourceBindingInput.newResource(
+              resource: ResourceInput(
+                title: 'Water filter',
+                type: ResourceType.quantityBased,
+                config: QuantityBasedResourceConfig(
+                  currentQuantity: 2,
+                  unitLabel: '個',
+                  warningThreshold: 1,
+                  dangerThreshold: 0,
+                ),
+              ),
+            ),
+          ],
+        ),
+        isTrue,
+      );
+
+      final resources = await resourceRepository.watchResources().first;
+      final resource = resources.singleWhere(
+        (bundle) => bundle.resource.title == 'Water filter',
+      );
+      final rules = await resourceRepository.listRulesForItem(itemId);
+      expect(resource.resource.packId, packId);
+      expect(rules, hasLength(1));
+      expect(rules.single.resourceId, resource.resource.id);
+      expect(rules.single.isEnabled, isTrue);
+    },
+  );
+
+  test('moveItemToPack moves linked resources when requested', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = ItemRepository(db.reminderDao);
+    final resourceRepository = ResourceRepository(db.reminderDao);
+    final sourcePackId = await repository.createPack(
+      const ItemPackInput(title: 'Source'),
+    );
+    final targetPackId = await repository.createPack(
+      const ItemPackInput(title: 'Target'),
+    );
+    final resourceId = await resourceRepository.createResource(
+      ResourceInput(
+        title: 'Filter',
+        type: ResourceType.quantityBased,
+        config: const QuantityBasedResourceConfig(
+          currentQuantity: 5,
+          unitLabel: '個',
+          warningThreshold: 2,
+          dangerThreshold: 1,
+        ),
+        packId: sourcePackId,
+      ),
+    );
+    final itemId = await repository.createItem(
+      ItemInput(
+        title: 'Replace filter',
+        type: ItemType.stateBased,
+        config: const StateBasedItemConfig(
+          warningAfter: Duration(days: 12),
+          dangerAfter: Duration(days: 14),
+        ),
+        packId: sourcePackId,
+      ),
+      resourceBindings: [
+        ItemResourceBindingInput.existing(resourceId: resourceId),
+      ],
+    );
+
+    expect(
+      await repository.moveItemToPack(
+        itemId,
+        targetPackId: targetPackId,
+        moveLinkedResources: true,
+      ),
+      isTrue,
+    );
+
+    final item = await repository.getItemById(itemId);
+    final resource = await resourceRepository.getResourceById(resourceId);
+    final rules = await resourceRepository.listRulesForItem(itemId);
+    expect(item!.item.packId, targetPackId);
+    expect(resource!.resource.packId, targetPackId);
+    expect(rules.single.isEnabled, isTrue);
+  });
+
+  test(
+    'moveItemToPack disables linked resources when they are not moved',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = ItemRepository(db.reminderDao);
+      final resourceRepository = ResourceRepository(db.reminderDao);
+      final sourcePackId = await repository.createPack(
+        const ItemPackInput(title: 'Source'),
+      );
+      final targetPackId = await repository.createPack(
+        const ItemPackInput(title: 'Target'),
+      );
+      final resourceId = await resourceRepository.createResource(
+        ResourceInput(
+          title: 'Filter',
+          type: ResourceType.quantityBased,
+          config: const QuantityBasedResourceConfig(
+            currentQuantity: 5,
+            unitLabel: '個',
+            warningThreshold: 2,
+            dangerThreshold: 1,
+          ),
+          packId: sourcePackId,
+        ),
+      );
+      final itemId = await repository.createItem(
+        ItemInput(
+          title: 'Replace filter',
+          type: ItemType.stateBased,
+          config: const StateBasedItemConfig(
+            warningAfter: Duration(days: 12),
+            dangerAfter: Duration(days: 14),
+          ),
+          packId: sourcePackId,
+        ),
+        resourceBindings: [
+          ItemResourceBindingInput.existing(resourceId: resourceId),
+        ],
+      );
+
+      expect(
+        await repository.moveItemToPack(
+          itemId,
+          targetPackId: targetPackId,
+          moveLinkedResources: false,
+        ),
+        isTrue,
+      );
+
+      final item = await repository.getItemById(itemId);
+      final resource = await resourceRepository.getResourceById(resourceId);
+      final rules = await resourceRepository.listRulesForItem(itemId);
+      expect(item!.item.packId, targetPackId);
+      expect(resource!.resource.packId, sourcePackId);
+      expect(rules.single.isEnabled, isFalse);
+    },
+  );
+
+  test('moveResourceToPack disables item consumption rules', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final itemRepository = ItemRepository(db.reminderDao);
+    final resourceRepository = ResourceRepository(db.reminderDao);
+    final sourcePackId = await itemRepository.createPack(
+      const ItemPackInput(title: 'Source'),
+    );
+    final targetPackId = await itemRepository.createPack(
+      const ItemPackInput(title: 'Target'),
+    );
+    final itemId = await itemRepository.createItem(
+      ItemInput(
+        title: 'Replace filter',
+        type: ItemType.stateBased,
+        config: const StateBasedItemConfig(
+          warningAfter: Duration(days: 12),
+          dangerAfter: Duration(days: 14),
+        ),
+        packId: sourcePackId,
+      ),
+    );
+    final resourceId = await resourceRepository.createResource(
+      ResourceInput(
+        title: 'Filter',
+        type: ResourceType.quantityBased,
+        config: const QuantityBasedResourceConfig(
+          currentQuantity: 5,
+          unitLabel: '個',
+          warningThreshold: 2,
+          dangerThreshold: 1,
+        ),
+        packId: sourcePackId,
+      ),
+    );
+    await resourceRepository.createConsumptionRule(
+      ResourceConsumptionRuleInput(
+        itemId: itemId,
+        resourceId: resourceId,
+        consumeAmount: 1,
+      ),
+    );
+
+    expect(
+      await resourceRepository.moveResourceToPack(
+        resourceId,
+        targetPackId: targetPackId,
+      ),
+      isTrue,
+    );
+
+    final item = await itemRepository.getItemById(itemId);
+    final resource = await resourceRepository.getResourceById(resourceId);
+    final rules = await resourceRepository.listRulesForItem(itemId);
+    expect(item!.item.packId, sourcePackId);
+    expect(resource!.resource.packId, targetPackId);
+    expect(rules.single.isEnabled, isFalse);
+  });
+
+  test(
     'createItem resource binding failure rolls back item creation',
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());

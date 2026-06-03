@@ -1794,7 +1794,12 @@ class _RecordingStageTrackerRepository extends StageTrackerRepository {
   }
 
   @override
-  Future<bool> updateStageTracker(int id, StageTrackerInput input) async {
+  Future<bool> updateStageTracker(
+    int id,
+    StageTrackerInput input, {
+    bool moveRelatedItemsOnPackChange = true,
+    bool moveRelatedResourcesOnPackChange = true,
+  }) async {
     updatedTrackers.add(input);
     final current = detail;
     if (current == null || current.stageTracker.id != id) {

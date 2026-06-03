@@ -2,8 +2,11 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/item_repository.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
+import 'package:reminder_app/features/reminders/data/resource_repository.dart';
 import 'package:reminder_app/features/reminders/data/stage_tracker_models.dart';
 import 'package:reminder_app/features/reminders/data/stage_tracker_repository.dart';
+import 'package:reminder_app/features/reminders/domain/item_pack.dart';
+import 'package:reminder_app/features/reminders/domain/resource.dart';
 import 'package:reminder_app/features/reminders/domain/stage_record.dart';
 import 'package:reminder_app/features/reminders/domain/stage_rule.dart';
 import 'package:reminder_app/features/reminders/domain/stage_tracker.dart';
@@ -240,6 +243,174 @@ void main() {
     expect(links.single.stageRecordId, stageRecords.single.id);
     expect(links.single.itemId, itemId);
   });
+
+  test(
+    'moveStageTrackerToPack moves related items and resources when requested',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final itemRepository = ItemRepository(db.reminderDao);
+      final resourceRepository = ResourceRepository(db.reminderDao);
+      final repository = StageTrackerRepository(
+        db.reminderDao,
+        itemRepository: itemRepository,
+        clock: () => DateTime(2026, 5, 1),
+      );
+      final sourcePackId = await itemRepository.createPack(
+        const ItemPackInput(title: 'Source'),
+      );
+      final targetPackId = await itemRepository.createPack(
+        const ItemPackInput(title: 'Target'),
+      );
+      final trackerId = await repository.createStageTracker(
+        StageTrackerInput(
+          title: '寶寶成長',
+          trackingStartDate: DateTime(2026, 5),
+          packId: sourcePackId,
+        ),
+      );
+      await repository.createStageRule(
+        trackerId,
+        const StageRuleInput(
+          type: StageRuleType.everyNMonths,
+          intervalValue: 1,
+          intervalUnit: StageIntervalUnit.months,
+        ),
+      );
+      final detail = await repository.getStageTrackerDetailById(
+        trackerId,
+        now: DateTime(2026, 5, 1),
+      );
+      final itemId = await repository.createRelatedItemFromOccurrence(
+        detail!.scheduleStages.first,
+        title: '準備副食品',
+        packId: sourcePackId,
+      );
+      final resourceId = await resourceRepository.createResource(
+        ResourceInput(
+          title: '副食品碗',
+          type: ResourceType.quantityBased,
+          config: const QuantityBasedResourceConfig(
+            currentQuantity: 2,
+            unitLabel: '個',
+            warningThreshold: 1,
+            dangerThreshold: 0,
+          ),
+          packId: sourcePackId,
+        ),
+      );
+      await resourceRepository.createConsumptionRule(
+        ResourceConsumptionRuleInput(
+          itemId: itemId,
+          resourceId: resourceId,
+          consumeAmount: 1,
+        ),
+      );
+
+      expect(
+        await repository.moveStageTrackerToPack(
+          trackerId,
+          targetPackId: targetPackId,
+          moveRelatedItems: true,
+          moveRelatedResources: true,
+        ),
+        isTrue,
+      );
+
+      final tracker = await repository.getStageTrackerById(trackerId);
+      final item = await itemRepository.getItemById(itemId);
+      final resource = await resourceRepository.getResourceById(resourceId);
+      final rules = await resourceRepository.listRulesForItem(itemId);
+      expect(tracker!.packId, targetPackId);
+      expect(item!.item.packId, targetPackId);
+      expect(resource!.resource.packId, targetPackId);
+      expect(rules.single.isEnabled, isTrue);
+      expect(await repository.getRelatedItemSourceForItem(itemId), isNotNull);
+    },
+  );
+
+  test(
+    'moveStageTrackerToPack can unlink related items without moving them',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final itemRepository = ItemRepository(db.reminderDao);
+      final resourceRepository = ResourceRepository(db.reminderDao);
+      final repository = StageTrackerRepository(
+        db.reminderDao,
+        itemRepository: itemRepository,
+        clock: () => DateTime(2026, 5, 1),
+      );
+      final sourcePackId = await itemRepository.createPack(
+        const ItemPackInput(title: 'Source'),
+      );
+      final targetPackId = await itemRepository.createPack(
+        const ItemPackInput(title: 'Target'),
+      );
+      final trackerId = await repository.createStageTracker(
+        StageTrackerInput(
+          title: '寶寶成長',
+          trackingStartDate: DateTime(2026, 5),
+          packId: sourcePackId,
+        ),
+      );
+      await repository.createStageRule(
+        trackerId,
+        const StageRuleInput(
+          type: StageRuleType.everyNMonths,
+          intervalValue: 1,
+          intervalUnit: StageIntervalUnit.months,
+        ),
+      );
+      final detail = await repository.getStageTrackerDetailById(
+        trackerId,
+        now: DateTime(2026, 5, 1),
+      );
+      final itemId = await repository.createRelatedItemFromOccurrence(
+        detail!.scheduleStages.first,
+        title: '準備副食品',
+        packId: sourcePackId,
+      );
+      final resourceId = await resourceRepository.createResource(
+        ResourceInput(
+          title: '副食品碗',
+          type: ResourceType.quantityBased,
+          config: const QuantityBasedResourceConfig(
+            currentQuantity: 2,
+            unitLabel: '個',
+            warningThreshold: 1,
+            dangerThreshold: 0,
+          ),
+          packId: sourcePackId,
+        ),
+      );
+      await resourceRepository.createConsumptionRule(
+        ResourceConsumptionRuleInput(
+          itemId: itemId,
+          resourceId: resourceId,
+          consumeAmount: 1,
+        ),
+      );
+
+      expect(
+        await repository.moveStageTrackerToPack(
+          trackerId,
+          targetPackId: targetPackId,
+          moveRelatedItems: false,
+          moveRelatedResources: false,
+        ),
+        isTrue,
+      );
+
+      final tracker = await repository.getStageTrackerById(trackerId);
+      final item = await itemRepository.getItemById(itemId);
+      final resource = await resourceRepository.getResourceById(resourceId);
+      expect(tracker!.packId, targetPackId);
+      expect(item!.item.packId, sourcePackId);
+      expect(resource!.resource.packId, sourcePackId);
+      expect(await repository.getRelatedItemSourceForItem(itemId), isNull);
+    },
+  );
 
   test(
     'related item entries exclude archived items and expose action flags',

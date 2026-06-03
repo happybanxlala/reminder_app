@@ -182,7 +182,7 @@ void main() {
     expect(find.text('編輯'), findsOneWidget);
     expect(find.text('詳細資訊'), findsOneWidget);
     expect(find.text('歷史紀錄'), findsOneWidget);
-    expect(find.text('封存'), findsOneWidget);
+    expect(find.text(ReminderUiText.archiveAction), findsOneWidget);
   });
 
   testWidgets('time-based resource overflow omits adjust action', (
@@ -201,7 +201,7 @@ void main() {
     expect(find.text('編輯'), findsOneWidget);
     expect(find.text('詳細資訊'), findsOneWidget);
     expect(find.text('歷史紀錄'), findsOneWidget);
-    expect(find.text('封存'), findsOneWidget);
+    expect(find.text(ReminderUiText.archiveAction), findsOneWidget);
   });
 
   testWidgets('quantity adjust dialog validates and submits adjustment', (

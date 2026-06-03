@@ -9,6 +9,7 @@ import 'package:reminder_app/features/reminders/data/resource_repository.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/resource.dart';
+import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
 import 'package:reminder_app/features/reminders/providers/developer_settings_providers.dart';
 import 'package:reminder_app/features/reminders/providers/item_providers.dart';
 import 'package:reminder_app/features/reminders/providers/resource_providers.dart';
@@ -60,7 +61,9 @@ void main() {
     expect(find.byKey(const Key('resource-danger-days-field')), findsOneWidget);
   });
 
-  testWidgets('resource with bindings locks pack row', (tester) async {
+  testWidgets('resource with bindings keeps pack movable with unlink hint', (
+    tester,
+  ) async {
     final pack = _pack(id: 1, title: '一般');
     await _pumpFakeResourceEditPage(
       tester,
@@ -68,9 +71,38 @@ void main() {
       bindings: [_binding(11)],
     );
 
-    expect(find.byKey(const Key('resource-pack-readonly-row')), findsOneWidget);
-    expect(find.byKey(const Key('resource-pack-picker-row')), findsNothing);
-    expect(find.text('已綁定 item 的資源不能更改生活場景。'), findsOneWidget);
+    expect(find.byKey(const Key('resource-pack-picker-row')), findsOneWidget);
+    expect(find.byKey(const Key('resource-pack-readonly-row')), findsNothing);
+    expect(
+      find.text(ReminderUiText.moveResourceUnlinksItemsMessage),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('resource pack move shows unlink confirmation', (tester) async {
+    final sourcePack = _pack(id: 1, title: '一般');
+    final targetPack = _pack(id: 2, title: '健康');
+    await _pumpFakeResourceEditPage(
+      tester,
+      bundle: _quantityBundle(id: 11, pack: sourcePack),
+      bindings: [_binding(11)],
+      activePacks: [sourcePack, targetPack],
+    );
+
+    await tester.tap(find.byKey(const Key('resource-pack-picker-row')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('resource-pack-option-2')));
+    await tester.pumpAndSettle();
+
+    expect(find.text(ReminderUiText.moveResourceTitle), findsOneWidget);
+    expect(
+      find.text(ReminderUiText.moveResourceUnlinksItemsMessage),
+      findsWidgets,
+    );
+    expect(
+      find.byKey(const Key('move-resource-confirm-button')),
+      findsOneWidget,
+    );
   });
 
   test('quantity update config preserves current quantity', () async {
@@ -166,6 +198,7 @@ Future<void> _pumpFakeResourceEditPage(
   WidgetTester tester, {
   required ResourceBundle bundle,
   List<ResourceBinding> bindings = const [],
+  List<ItemPack>? activePacks,
 }) async {
   tester.view.physicalSize = const Size(800, 1200);
   tester.view.devicePixelRatio = 1;
@@ -180,7 +213,7 @@ Future<void> _pumpFakeResourceEditPage(
           (ref) => DateTime(2026, 5, 10),
         ),
         activeItemPacksProvider.overrideWith(
-          (ref) => Stream.value([bundle.pack]),
+          (ref) => Stream.value(activePacks ?? [bundle.pack]),
         ),
         resourceProvider(
           bundle.resource.id,

@@ -14,6 +14,7 @@ import '../../presentation/text/reminder_ui_text.dart';
 import '../../providers/item_providers.dart';
 import '../../providers/resource_providers.dart';
 import '../../providers/settings_providers.dart';
+import '../../providers/stage_tracker_providers.dart';
 import '../widgets/editor_common_fields.dart';
 import '../widgets/editor_form_components.dart';
 import '../widgets/item_config_form_section.dart';
@@ -57,6 +58,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
   List<ResourceBindingDraft> _resourceBindingDrafts = const [];
   bool _initialized = false;
   bool _discardingChanges = false;
+  bool _moveLinkedResourcesOnPackChange = true;
   String? _cleanFingerprint;
 
   bool get _isEdit => widget.mode == ItemEditMode.edit;
@@ -92,12 +94,16 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
         : const AsyncData<ItemBundle?>(null);
     final activePacksAsync = ref.watch(activeItemPacksProvider);
     final resourcesAsync = ref.watch(resourcesProvider);
+    final consumptionRulesAsync = _isEdit && widget.id != null
+        ? ref.watch(itemConsumptionRulesProvider(widget.id!))
+        : const AsyncValue<List<ResourceConsumptionRule>>.data([]);
     final reminderTone = ref.watch(reminderToneProvider);
     _configController.reminderTone = reminderTone;
 
     if (itemAsync.isLoading ||
         activePacksAsync.isLoading ||
-        resourcesAsync.isLoading) {
+        resourcesAsync.isLoading ||
+        consumptionRulesAsync.isLoading) {
       return Scaffold(
         appBar: AppBar(title: Text(_pageTitle)),
         body: const Center(child: CircularProgressIndicator()),
@@ -107,14 +113,12 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     final bundle = itemAsync.valueOrNull;
     final activePacks = activePacksAsync.valueOrNull ?? const <ItemPack>[];
     final resources = resourcesAsync.valueOrNull ?? const <ResourceBundle>[];
+    final consumptionRules =
+        consumptionRulesAsync.valueOrNull ?? const <ResourceConsumptionRule>[];
     _initializeIfNeeded(bundle);
     final packOptions = _packOptions(activePacks, bundle?.pack);
     final draftPackId = _resolvedPackId(activePacks);
-    final showCreateResourceBinding =
-        !_isEdit &&
-        draftPackId != null &&
-        (_availableBindingResources(resources, draftPackId).isNotEmpty ||
-            _resourceBindingDrafts.isNotEmpty);
+    final showResourceBinding = draftPackId != null;
 
     return PopScope<Object?>(
       canPop: !_shouldConfirmDiscard,
@@ -138,7 +142,12 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
               96,
             ),
             children: [
-              _buildBasicSection(activePacks, bundle, packOptions),
+              _buildBasicSection(
+                activePacks,
+                bundle,
+                packOptions,
+                consumptionRules,
+              ),
               const SizedBox(height: 12),
               _buildReminderModeSection(),
               const SizedBox(height: 12),
@@ -153,7 +162,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
                   ),
                 ],
               ),
-              if (showCreateResourceBinding) ...[
+              if (showResourceBinding) ...[
                 const SizedBox(height: 12),
                 ReminderEditorSection(
                   key: const Key('editor-section-resource-binding'),
@@ -261,6 +270,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     List<ItemPack> activePacks,
     ItemBundle? bundle,
     List<_PackOption> packOptions,
+    List<ResourceConsumptionRule> consumptionRules,
   ) {
     return ReminderEditorSection(
       key: const Key('editor-section-basic-info'),
@@ -268,7 +278,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       children: [
         EditorTitleField(controller: _titleController),
         EditorNoteField(controller: _descriptionController),
-        _buildPackRow(activePacks, bundle, packOptions),
+        _buildPackRow(activePacks, bundle, packOptions, consumptionRules),
       ],
     );
   }
@@ -277,15 +287,12 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     List<ItemPack> activePacks,
     ItemBundle? bundle,
     List<_PackOption> packOptions,
+    List<ResourceConsumptionRule> consumptionRules,
   ) {
-    final readOnly = _isEdit || _isPackLocked;
+    final readOnly = _isPackLocked;
     final value = readOnly
-        ? _readOnlyPackLabel(
-            _isEdit
-                ? bundle?.pack
-                : _findPack(activePacks, widget.lockedPackId),
-          )
-        : _selectedPackLabel(activePacks);
+        ? _readOnlyPackLabel(_findPack(activePacks, widget.lockedPackId))
+        : _selectedPackLabel(activePacks, currentPack: bundle?.pack);
 
     return KeyedSubtree(
       key: readOnly ? const Key('pack-readonly') : const Key('pack-picker-row'),
@@ -294,7 +301,15 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
         value: value,
         readOnly: readOnly,
         showChevron: !readOnly,
-        onTap: readOnly ? null : () => _showPackPicker(packOptions),
+        onTap: readOnly
+            ? null
+            : () => _showPackPicker(
+                packOptions,
+                currentPackId: bundle?.item.packId,
+                hasLinkedResources: consumptionRules.any(
+                  (rule) => rule.isEnabled,
+                ),
+              ),
       ),
     );
   }
@@ -387,7 +402,14 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
 
     try {
       final saved = _isEdit
-          ? await repository.updateItem(widget.id!, input)
+          ? await repository.updateItem(
+              widget.id!,
+              input,
+              resourceBindings: _resourceBindingDrafts
+                  .map((draft) => draft.toInput())
+                  .toList(growable: false),
+              moveLinkedResourcesOnPackChange: _moveLinkedResourcesOnPackChange,
+            )
           : (
               await repository.createItem(
                 input,
@@ -420,9 +442,9 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     ItemPack? currentPack,
   ) {
     final options = <_PackOption>[
-      _PackOption(id: null, label: packCreateUndecidedLabel()),
+      if (!_isEdit) _PackOption(id: null, label: packCreateUndecidedLabel()),
       ...activePacks
-          .where((pack) => !pack.isSystemDefault)
+          .where((pack) => _isEdit || !pack.isSystemDefault)
           .map(
             (pack) => _PackOption(id: pack.id, label: packDisplayLabel(pack)),
           ),
@@ -444,7 +466,11 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     return options;
   }
 
-  Future<void> _showPackPicker(List<_PackOption> packOptions) async {
+  Future<void> _showPackPicker(
+    List<_PackOption> packOptions, {
+    int? currentPackId,
+    bool hasLinkedResources = false,
+  }) async {
     final selection = await showModalBottomSheet<_PackPickerSelection>(
       context: context,
       showDragHandle: true,
@@ -495,9 +521,81 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       await _createPackInline();
       return;
     }
+    if (_isEdit && selection.id != currentPackId) {
+      final confirmed = await _confirmMoveItem(
+        hasLinkedResources: hasLinkedResources,
+      );
+      if (confirmed != true || !mounted) {
+        return;
+      }
+    }
     setState(() {
       _selectedPackId = selection.id;
     });
+  }
+
+  Future<bool?> _confirmMoveItem({required bool hasLinkedResources}) async {
+    final itemId = widget.id;
+    final hasStageRelated = itemId == null
+        ? false
+        : await ref
+                  .read(stageTrackerRepositoryProvider)
+                  .getRelatedItemSourceForItem(itemId) !=
+              null;
+    if (!mounted) {
+      return false;
+    }
+    var moveResources = hasLinkedResources
+        ? _moveLinkedResourcesOnPackChange
+        : false;
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text(ReminderUiText.moveItemTitle),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(ReminderUiText.moveItemMessage),
+              if (hasLinkedResources)
+                CheckboxListTile(
+                  key: const Key('move-item-linked-resources-checkbox'),
+                  contentPadding: EdgeInsets.zero,
+                  value: moveResources,
+                  title: const Text(ReminderUiText.moveLinkedResourcesLabel),
+                  onChanged: (value) {
+                    setDialogState(() {
+                      moveResources = value ?? true;
+                    });
+                  },
+                ),
+              if (hasStageRelated)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Text(ReminderUiText.moveUnlinksStageTrackerMessage),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(
+                MaterialLocalizations.of(dialogContext).cancelButtonLabel,
+              ),
+            ),
+            FilledButton(
+              key: const Key('move-item-confirm-button'),
+              onPressed: () {
+                _moveLinkedResourcesOnPackChange = moveResources;
+                Navigator.of(dialogContext).pop(true);
+              },
+              child: const Text(ReminderUiText.confirmAction),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   String _readOnlyPackLabel(ItemPack? pack) {
@@ -516,12 +614,20 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     return packDisplayLabel(pack);
   }
 
-  String _selectedPackLabel(List<ItemPack> activePacks) {
+  String _selectedPackLabel(
+    List<ItemPack> activePacks, {
+    ItemPack? currentPack,
+  }) {
     final selectedPackId = _selectedPackId;
     if (selectedPackId == null) {
       return packCreateUndecidedLabel();
     }
-    final pack = _findPack(activePacks, selectedPackId);
+    final pack =
+        _findPack(activePacks, selectedPackId) ??
+        (currentPack?.id == selectedPackId ? currentPack : null);
+    if (pack != null && pack.status == ItemPackStatus.archived) {
+      return '${packDisplayLabel(pack)} (${ReminderUiText.archivedPackSuffix})';
+    }
     return pack == null
         ? ReminderUiText.selectPackPlaceholder
         : packDisplayLabel(pack);
@@ -537,26 +643,6 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       }
     }
     return null;
-  }
-
-  List<Resource> _availableBindingResources(
-    List<ResourceBundle> resources,
-    int packId,
-  ) {
-    final usedResourceIds = _resourceBindingDrafts
-        .map((draft) => draft.resourceId)
-        .whereType<int>()
-        .toSet();
-    return resources
-        .map((bundle) => bundle.resource)
-        .where(
-          (resource) =>
-              resource.packId == packId &&
-              resource.status == ResourceLifecycleStatus.active &&
-              resource.config is QuantityBasedResourceConfig &&
-              !usedResourceIds.contains(resource.id),
-        )
-        .toList(growable: false);
   }
 
   int? _resolvedPackId(List<ItemPack> activePacks) {
@@ -649,6 +735,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       _titleController.text,
       _descriptionController.text,
       _selectedPackId,
+      _moveLinkedResourcesOnPackChange,
       _configController.type.name,
       _configController.scheduleType.name,
       _configController.fixedRepeatRuleV2?.encode(),

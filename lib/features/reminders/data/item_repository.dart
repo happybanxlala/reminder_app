@@ -265,7 +265,12 @@ class ItemRepository {
     });
   }
 
-  Future<bool> updateItem(int id, ItemInput input) async {
+  Future<bool> updateItem(
+    int id,
+    ItemInput input, {
+    List<ItemResourceBindingInput> resourceBindings = const [],
+    bool moveLinkedResourcesOnPackChange = true,
+  }) async {
     final existing = await getItemById(id);
     if (existing == null) {
       return false;
@@ -277,47 +282,56 @@ class ItemRepository {
     final now = _clock();
     final packId = input.packId ?? existing.item.packId;
     await _assertPackCanAcceptItems(packId, existingItem: existing.item);
-    return _dao.updateItemRecord(
-      ItemRow(
-        id: existing.item.id,
+    return _dao.attachedDatabase.transaction(() async {
+      final updated = await _dao.updateItemRecord(
+        _itemRowForUpdate(existing.item, input, packId: packId, now: now),
+      );
+      if (!updated) {
+        return false;
+      }
+      if (packId != existing.item.packId) {
+        await _cleanupItemMoveRelations(
+          itemId: id,
+          targetPackId: packId,
+          moveLinkedResources: moveLinkedResourcesOnPackChange,
+        );
+      }
+      await _applyResourceBindingInputs(
+        itemId: id,
         packId: packId,
-        title: input.title,
-        description: input.description,
-        status: existing.item.status.name,
-        type: input.type.name,
-        attentionPolicySource: input.attentionPolicySource.name,
-        fixedScheduleType: _fixedScheduleType(input.config),
-        fixedScheduleInterval: _fixedScheduleInterval(input.config),
-        fixedMonthlyDay: _fixedMonthlyDay(input.config),
-        fixedRepeatRuleV2: _fixedRepeatRuleV2(input.config),
-        fixedAnchorDate: _fixedAnchorDate(input.config),
-        fixedDueDate: _fixedDueDate(input.config),
-        fixedTimeOfDay: _fixedTimeOfDay(input.config),
-        fixedOverduePolicy: _fixedOverduePolicy(input.config),
-        fixedExpectedBeforeMinutes: _durationMinutes(
-          _fixedInfoBefore(input.config),
-        ),
-        fixedWarningBeforeMinutes: _durationMinutes(
-          _fixedWarningBefore(input.config),
-        ),
-        fixedDangerBeforeMinutes: _durationMinutes(
-          _fixedDangerBefore(input.config),
-        ),
-        stateExpectedAfterMinutes: _durationMinutes(
-          _stateInfoAfter(input.config),
-        ),
-        stateAnchorDate: _stateAnchorDate(input.config),
-        stateWarningAfterMinutes: _durationMinutes(
-          _stateWarningAfter(input.config),
-        ),
-        stateDangerAfterMinutes: _durationMinutes(
-          _stateDangerAfter(input.config),
-        ),
-        lastDoneAt: existing.item.lastDoneAt?.millisecondsSinceEpoch,
-        createdAt: existing.item.createdAt.millisecondsSinceEpoch,
-        updatedAt: now.millisecondsSinceEpoch,
-      ),
-    );
+        bindings: resourceBindings,
+        now: now,
+      );
+      return true;
+    });
+  }
+
+  Future<bool> moveItemToPack(
+    int itemId, {
+    required int targetPackId,
+    required bool moveLinkedResources,
+  }) async {
+    final existing = await getItemById(itemId);
+    if (existing == null ||
+        existing.item.status == ItemLifecycleStatus.archived) {
+      return false;
+    }
+    await _assertPackCanAcceptItems(targetPackId, existingItem: existing.item);
+    if (targetPackId == existing.item.packId) {
+      return true;
+    }
+    return _dao.attachedDatabase.transaction(() async {
+      final moved = await _dao.moveItemToPackById(itemId, targetPackId);
+      if (!moved) {
+        return false;
+      }
+      await _cleanupItemMoveRelations(
+        itemId: itemId,
+        targetPackId: targetPackId,
+        moveLinkedResources: moveLinkedResources,
+      );
+      return true;
+    });
   }
 
   Future<bool> markDone(
@@ -963,6 +977,26 @@ class ItemRepository {
     }
   }
 
+  Future<void> _cleanupItemMoveRelations({
+    required int itemId,
+    required int targetPackId,
+    required bool moveLinkedResources,
+  }) async {
+    await _dao.deleteStageRelatedItemsForItem(itemId);
+    final rules = await _dao.listConsumptionRulesForItem(
+      itemId,
+      enabledOnly: true,
+    );
+    if (moveLinkedResources) {
+      final resourceIds = rules.map((rule) => rule.resourceId).toSet();
+      for (final resourceId in resourceIds) {
+        await _dao.moveResourceToPackById(resourceId, targetPackId);
+      }
+    } else {
+      await _dao.disableConsumptionRulesForItem(itemId);
+    }
+  }
+
   Future<int> _createResourceForItemBinding(
     ResourceInput? input, {
     required int packId,
@@ -1049,6 +1083,53 @@ class ItemRepository {
       ),
       lastDoneAt: Value(_snapshotLastDoneAtForCreate(input.config)),
       createdAt: now.millisecondsSinceEpoch,
+      updatedAt: now.millisecondsSinceEpoch,
+    );
+  }
+
+  ItemRow _itemRowForUpdate(
+    Item existing,
+    ItemInput input, {
+    required int packId,
+    required DateTime now,
+  }) {
+    return ItemRow(
+      id: existing.id,
+      packId: packId,
+      title: input.title,
+      description: input.description,
+      status: existing.status.name,
+      type: input.type.name,
+      attentionPolicySource: input.attentionPolicySource.name,
+      fixedScheduleType: _fixedScheduleType(input.config),
+      fixedScheduleInterval: _fixedScheduleInterval(input.config),
+      fixedMonthlyDay: _fixedMonthlyDay(input.config),
+      fixedRepeatRuleV2: _fixedRepeatRuleV2(input.config),
+      fixedAnchorDate: _fixedAnchorDate(input.config),
+      fixedDueDate: _fixedDueDate(input.config),
+      fixedTimeOfDay: _fixedTimeOfDay(input.config),
+      fixedOverduePolicy: _fixedOverduePolicy(input.config),
+      fixedExpectedBeforeMinutes: _durationMinutes(
+        _fixedInfoBefore(input.config),
+      ),
+      fixedWarningBeforeMinutes: _durationMinutes(
+        _fixedWarningBefore(input.config),
+      ),
+      fixedDangerBeforeMinutes: _durationMinutes(
+        _fixedDangerBefore(input.config),
+      ),
+      stateExpectedAfterMinutes: _durationMinutes(
+        _stateInfoAfter(input.config),
+      ),
+      stateAnchorDate: _stateAnchorDate(input.config),
+      stateWarningAfterMinutes: _durationMinutes(
+        _stateWarningAfter(input.config),
+      ),
+      stateDangerAfterMinutes: _durationMinutes(
+        _stateDangerAfter(input.config),
+      ),
+      lastDoneAt: existing.lastDoneAt?.millisecondsSinceEpoch,
+      createdAt: existing.createdAt.millisecondsSinceEpoch,
       updatedAt: now.millisecondsSinceEpoch,
     );
   }

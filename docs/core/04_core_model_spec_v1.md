@@ -298,6 +298,8 @@ StateBasedItemConfig {
 - `ItemRepository.createItem` 會建立 `Item`，並寫入 `ItemActionRecord(created)`。
 - `createItemWithOptionalNewPack` 支援在建立 Item 時同步建立新 Pack。
 - `updateItem` 不允許改變既有 Item 的 `type`。
+- `updateItem` 支援 edit form 的 pending resource binding：在同一個 transaction 更新 Item、建立尚未落庫的新 Resource、寫入 consumption rules；pending Resource 預設跟隨 Item 最終 `packId`。
+- `moveItemToPack(itemId, targetPackId, moveLinkedResources)` 在 transaction 內更新 Item `packId`，刪除該 Item 的 `stage_related_items` links；若 `moveLinkedResources == true`，enabled consumption rules 指向的 linked Resources 會一起搬到 target Pack，否則保留 Resource Pack 並將該 Item 的 consumption rules 設為 disabled。
 - `markDone` 透過 `ItemActionService` 和 `ItemSnapshotUpdateService` 產生 action 並更新 snapshot。
 - `skip` 會寫入 skipped action，並依 `ItemNextCycleStrategy` 處理 fixed cycle。
 - `defer` API 存在，但目前固定回傳 `false`，不寫入歷史。
@@ -451,11 +453,12 @@ QuantityBasedResourceConfig {
 - time-based resource 使用 `anchorDate + durationDays - 1` 推導 depletion date。
 - quantity-based resource 使用 `currentQuantity` 與 warning / danger thresholds 推導狀態。
 - Resource edit 可調整名稱、備註、Pack、單位與提醒 thresholds，但不應直接修改目前數量或剩餘可用天數；資源數量 / 可用天數變動應透過 `refillResource` 或 `adjustResourceQuantity` 寫入 `ResourceActionRecord`。
+- `moveResourceToPack(resourceId, targetPackId)` 在 transaction 內更新 Resource `packId`，並將使用該 Resource 的 Item consumption rules 設為 disabled；不搬移 Item。
 - `ResourceStatusService` 對異常或不足資料回傳 `unknown`。
 - `watchResources` 只回傳 active resources；`watchManagedResources` 回傳 active / paused resources。
 - Home danger / warning attention sections 會依 `ResourceStatus` 混合顯示 active Resource 與 Item，並可套用 Pack filter。
 - Resource 已納入 `AttentionSummaryRepository` 與 `HomeAttentionSource` 的統一 attention summary 計數。
-- Resource 管理頁支援新增、編輯、補充、quantity 調整、詳細資訊、歷史紀錄、封存。
+- Resource 管理頁支援新增、編輯、補充、quantity 調整、詳細資訊、歷史紀錄、刪除；底層仍是 soft archive，不硬刪資料。
 - Resource history route 已實作：`/resource/:id/history`，route name 是 `resource-history`。
 
 #### 範例
@@ -610,6 +613,7 @@ StageTracker {
 - `trackingStartDate` 在 UI 顯示為「從哪一天開始追蹤」。
 - `trackingEndDate == null` 代表持續追蹤。
 - 一般 StageTracker 可編輯 title、subjectName、pack、trackingStartDate、trackingEndDate。
+- `moveStageTrackerToPack(trackerId, targetPackId, moveRelatedItems, moveRelatedResources)` 在 transaction 內更新 StageTracker `packId`。相關 Item 來自 `stage_related_items`；選擇搬移時會同步更新 Item `packId`，不搬移時會刪除該 tracker 底下的 `stage_related_items` links。相關 Resource 來自 related Items 的 enabled consumption rules；選擇搬移時會同步更新 Resource `packId`，跨 Pack 關聯未一起搬移時會將對應 consumption rules 設為 disabled。
 - trackingStartDate / trackingEndDate 屬於進階設定；修改後會影響累積天數與階段推算，但不會重寫既有 StageRecord。
 - 到達 `trackingEndDate` 後不自動 archive，而是由 presentation 分到「已完成追蹤」。
 - 一般 StageTracker 可封存；封存後不出現在一般管理列表，既有 StageRule、StageRecord 與 related item links 保留。
@@ -787,7 +791,7 @@ StageRecord {
   - 未來 manual stage 會刪除。
   - 已過去 manual stage 會改為 archived。
 - manual important stage 可編輯 label、occurrenceDate、note、reminderOffsetDays。
-- manual important stage UI 使用「封存」文案，不使用「刪除」；repository 現行語意仍是未來 stage 可硬刪、過去 stage 改為 archived。
+- manual important stage UI 使用「刪除」文案；repository 現行語意仍是未來 stage 可硬刪、過去 stage 改為 archived。
 - recurring generated occurrence 不可透過 manual important stage 編輯流程修改。
 - note 不作為 status。
 

@@ -66,9 +66,9 @@ class ReminderUiText {
   static const itemHistoryTitle = '事項紀錄';
   static const editItemPack = '編輯生活場景';
   static const editStageTracker = '編輯階段追蹤';
-  static const archiveStageTracker = '封存追蹤器';
-  static const archiveStageTrackerTitle = '封存追蹤器？';
-  static const archiveStageTrackerMessage = '封存後，這個追蹤器不會再出現在階段追蹤列表，但既有歷史資料會保留。';
+  static const archiveStageTracker = '刪除追蹤器';
+  static const archiveStageTrackerTitle = '刪除追蹤器？';
+  static const archiveStageTrackerMessage = '刪除後會從列表隱藏，既有歷史資料會保留。確定要刪除嗎？';
   static const systemStageTrackerTitle = 'Reminder App';
   static const systemStageTrackerSubject = '系統';
   static const hideSystemStageTrackerLabel = '從列表隱藏';
@@ -170,7 +170,7 @@ class ReminderUiText {
   static const editAction = '編輯';
   static const pauseAction = '暫停';
   static const resumeAction = '恢復';
-  static const archiveAction = '封存';
+  static const archiveAction = '刪除';
   static const viewAllAction = '查看全部';
   static const todayCompletedTitle = '今天已完成';
   static String todayCompletedSummary(int count) => '今天已完成 $count 項';
@@ -318,6 +318,19 @@ class ReminderUiText {
   static const warningTimingLabel = '提醒開始';
   static const dangerTimingLabel = '危險提醒';
   static const addResourceBindingLabel = '加入資源連動';
+  static const noBindableResourcesMessage = '目前沒有可綁定的資源';
+  static const moveItemTitle = '移動事項';
+  static const moveItemMessage = '這個事項將移動到新的生活場景。';
+  static const moveLinkedResourcesLabel = '同時搬移關聯資源';
+  static const moveUnlinksStageTrackerMessage = '移動後會解除與階段追蹤器的關聯。';
+  static const moveResourceTitle = '移動資源';
+  static const moveResourceMessage = '這個資源將移動到新的生活場景。';
+  static const moveResourceUnlinksItemsMessage = '移動後會解除與事項的連動。';
+  static const moveStageTrackerTitle = '移動階段追蹤';
+  static const moveStageTrackerMessage = '這個階段追蹤將移動到新的生活場景。';
+  static const moveRelatedItemsLabel = '同時搬移關聯事項';
+  static const moveRelatedResourcesLabel = '同時搬移關聯資源';
+  static const moveAffectedCountsPrefix = '這次移動會影響：';
   static const resourceBindingEmptySummary = '未設定';
   static const resourceBindingCountSuffix = '項資源';
   static const resourceBindingConsumePrefix = '完成時消耗';
@@ -393,9 +406,9 @@ class ReminderUiText {
   static const editStageRule = '編輯';
   static const pauseStageRule = '暫停';
   static const resumeStageRule = '恢復';
-  static const archiveStageRule = '封存';
-  static const archiveStageRuleTitle = '封存重複階段？';
-  static const archiveStageRuleMessage = '封存後，這條重複階段規則不會再產生新的階段提醒，既有紀錄會保留。';
+  static const archiveStageRule = '刪除';
+  static const archiveStageRuleTitle = '刪除重複階段？';
+  static const archiveStageRuleMessage = '刪除後會從列表隱藏，既有紀錄會保留。確定要刪除嗎？';
   static const stageRuleActiveLabel = '啟用中';
   static const stageRuleEmptyHint = '尚未設定重複階段。';
   static const stageRuleExplanation = '階段追蹤會用重複階段推導後續階段。';
@@ -409,9 +422,9 @@ class ReminderUiText {
   static const completedTrackingRangeGroup = '已完成追蹤';
   static const importantStageTitle = '重要階段';
   static const editImportantStage = '編輯';
-  static const archiveImportantStage = '封存';
-  static const archiveImportantStageTitle = '封存重要階段？';
-  static const archiveImportantStageMessage = '封存後，這個重要階段不會再出現在時間線中，既有關聯資料會保留。';
+  static const archiveImportantStage = '刪除';
+  static const archiveImportantStageTitle = '刪除重要階段？';
+  static const archiveImportantStageMessage = '刪除後會從列表隱藏，既有關聯資料會保留。確定要刪除嗎？';
   static const addRelatedReminder = '建立相關提醒';
   static const relatedItemsTitle = '相關提醒';
   static const noRelatedReminders = '尚未建立相關提醒';
@@ -471,6 +484,6 @@ class ReminderUiText {
   static const stateCompleteConfirmMessage = '這項事項目前不在要留意或需要處理期間，仍要標記為完成嗎？';
   static const pauseItemConfirmTitle = '暫停要照顧的事';
   static const pauseItemConfirmMessage = '確定要暫停這項提醒嗎？';
-  static const archiveItemConfirmTitle = '封存要照顧的事';
-  static const archiveItemConfirmMessage = '封存後，這項要照顧的事將不再顯示於管理列表。';
+  static const archiveItemConfirmTitle = '刪除要照顧的事';
+  static const archiveItemConfirmMessage = '刪除後會從列表隱藏，既有歷史資料會保留。確定要刪除嗎？';
 }
