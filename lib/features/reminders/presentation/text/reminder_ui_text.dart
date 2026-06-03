@@ -189,7 +189,7 @@ class ReminderUiText {
   static const closeAction = '關閉';
   static const systemDefaultPackLabel = '一般';
   static const unassignedPackTitle = '一般';
-  static const unassignedPackOption = '之後再說';
+  static const unassignedPackOption = '之後決定';
   static const archivedPackSuffix = '已封存';
   static const emptyPackHint = '此生活場景目前沒有要照顧的事。';
   static const packTitleFieldLabel = '生活場景名稱';
@@ -301,7 +301,15 @@ class ReminderUiText {
   static const repeatRuleLabel = '重複規則';
   static const noRepeatLabel = '不重複';
   static const fixedAnchorDateLabel = '開始日期';
-  static const fixedDueDateLabel = '到期日期';
+  static const fixedDueDateLabel = '到期日';
+  static const fixedCompletionModeLabel = '完成方式';
+  static const fixedCompletionDueOnlyLabel = '到期當日完成';
+  static const fixedCompletionLeadWindowLabel = '可提前一段時間完成';
+  static const fixedLeadWindowLabel = '可處理期';
+  static const fixedLeadWindowSuffix = '天開始';
+  static const fixedLeadWindowHelp = '系統會根據可處理期自動安排提醒強度。';
+  static const fixedScheduleOverlapError = '可處理時間太長，會和下一次提醒重疊。請縮短可處理期，或調整重複規則。';
+  static const fixedScheduleInvalidWindowError = '可處理期設定不正確，請調整到期日或完成方式。';
   static const overduePolicyLabel = '逾期處理';
   static const stateAnchorDateLabel = '開始計算日';
   static const expectedIntervalLabel = '預期處理間隔';

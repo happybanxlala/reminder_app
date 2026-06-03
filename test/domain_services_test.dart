@@ -151,6 +151,24 @@ void main() {
     expect(cycle.dueDate, DateTime(2026, 2, 28));
   });
 
+  test('fixed monthly lead window advances from next due date', () {
+    const service = ItemStatusService();
+    final cycle = service.resolveFixedCycle(
+      FixedItemConfig(
+        scheduleType: FixedScheduleType.monthly,
+        monthlyDay: 31,
+        anchorDate: DateTime(2026, 1, 29),
+        dueDate: DateTime(2026, 1, 31),
+        overduePolicy: ItemOverduePolicy.autoAdvance,
+      ),
+      now: DateTime(2026, 2, 15),
+    );
+
+    expect(cycle, isNotNull);
+    expect(cycle!.anchorDate, DateTime(2026, 2, 26));
+    expect(cycle.dueDate, DateTime(2026, 2, 28));
+  });
+
   test('fixed waitForAction does not auto-advance every X weeks', () {
     const service = ItemStatusService();
     final item = Item(

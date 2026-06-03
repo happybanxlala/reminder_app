@@ -1033,9 +1033,17 @@ flutter test
 ### 19.18 Item Config Editor Rows 2026-05-27
 
 - Item config internals now use editor rows and compact form fields so fixed rhythm, flexible rhythm, repeat rules, advanced attention timing, and resource binding read as one form language.
-- Fixed item create/edit uses a single `重複規則` picker row with readable summaries, plus `開始日期`, `到期日期`, and `逾期處理` rows.
+- Fixed item create/edit uses a single `重複規則` picker row with readable summaries, plus `到期日`, `完成方式`, conditional `可處理期`, and `逾期處理` rows; it does not expose `anchorDate` / start-date wording or warning / danger raw timing as primary fixed-item inputs.
 - Flexible item create/edit uses `開始計算日` and a compact `預期處理間隔` number field; warning / danger timing stays out of create.
 - Warning / danger raw timing fields are available only in edit advanced after enabling `自訂提醒時機`; system default copy explains automatic timing.
 - Repeat rule editing enters from the picker row and keeps readable summaries such as `每天`, `每 2 天`, `每週五`, and `不重複`.
 - Resource binding and resource consumption use compact rows showing resource title and `完成時消耗 N 單位`; create binding summary shows `未設定` or the number of linked resources.
 - The form keeps comfortable compact density and preserves existing domain, repository, routing, and persistence semantics.
+
+### 19.19 UAT Round 1 Low-Risk UX Fixes 2026-05-30
+
+- Create-context pack pickers for Item, Resource, and StageTracker show a single default choice labeled `之後決定`; edit / read-only contexts show the same system default pack as `一般`. Custom packs keep emoji + title.
+- New Item forms default to `固定節奏`; edit forms continue loading the saved item type.
+- Fixed item overdue handling defaults to `等待處理`, and the overdue picker orders `等待處理` before `自動進下一輪`.
+- Major list pages use pull-to-refresh with always-scrollable empty / loading / error states where needed: Home, Item management, Resource management, Pack management, StageTracker management/detail/timeline/schedule/history, Item activity, Item history, and Resource history.
+- Normal Settings UI no longer shows `顯示系統追蹤器`; developer/storage behavior for system tracker visibility remains internal.

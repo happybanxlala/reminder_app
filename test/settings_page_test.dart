@@ -71,7 +71,7 @@ void main() {
     );
   });
 
-  testWidgets('general section shows reminder tone time and system tracker', (
+  testWidgets('general section shows reminder tone and time only', (
     tester,
   ) async {
     await _pumpSettings(tester, developerVisible: false);
@@ -87,7 +87,11 @@ void main() {
     );
     expect(
       find.text(ReminderUiText.showSystemStageTrackerSetting),
-      findsOneWidget,
+      findsNothing,
+    );
+    expect(
+      find.byKey(const Key('settings-show-system-tracker-row')),
+      findsNothing,
     );
     expect(
       find.text(ReminderFormatters.reminderTone(ReminderTone.standard)),

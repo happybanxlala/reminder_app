@@ -59,60 +59,74 @@ class StageTrackerManagementContent extends ConsumerWidget {
         ref.watch(stageTrackerAttentionOccurrencesProvider).valueOrNull ??
         const <StageOccurrence>[];
 
-    return ListView(
-      padding: const EdgeInsets.all(_StageTrackerManagementDensity.pagePadding),
-      children: [
-        _StageTrackerManagementHeader(
-          onAddTracker: () => _showCreateStageTrackerDialog(context, ref),
+    return ReminderRefreshable(
+      onRefresh: () async {
+        ref.invalidate(stageTrackersProvider);
+        ref.invalidate(stageRulesProvider);
+        ref.invalidate(stageRecordsProvider);
+        ref.invalidate(itemPacksProvider);
+        ref.invalidate(stageTrackerOverviewSummaryProvider);
+        ref.invalidate(stageTrackerAttentionOccurrencesProvider);
+        await Future<void>.delayed(Duration.zero);
+      },
+      child: ListView(
+        physics: reminderRefreshPhysics,
+        padding: const EdgeInsets.all(
+          _StageTrackerManagementDensity.pagePadding,
         ),
-        const SizedBox(height: _StageTrackerManagementDensity.sectionGap),
-        _StageTrackerSummaryCard(summaryAsync: summaryAsync),
-        const SizedBox(height: _StageTrackerManagementDensity.sectionGap),
-        trackersAsync.when(
-          data: (trackers) {
-            final showAddCard = trackers
-                .where((tracker) => !tracker.isSystemDefault)
-                .isEmpty;
-            final packs = packsAsync.valueOrNull ?? const <ItemPack>[];
-            final rules = rulesAsync.valueOrNull ?? const <StageRule>[];
-            final records = recordsAsync.valueOrNull ?? const <StageRecord>[];
-            return GridView.builder(
-              key: const Key('stage-tracker-grid'),
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: trackers.length + (showAddCard ? 1 : 0),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: _StageTrackerManagementDensity.gridGap,
-                mainAxisSpacing: _StageTrackerManagementDensity.gridGap,
-                childAspectRatio: 0.88,
-              ),
-              itemBuilder: (context, index) {
-                if (showAddCard && index == trackers.length) {
-                  return _StageTrackerDashedAddCard(
-                    onTap: () => _showCreateStageTrackerDialog(context, ref),
+        children: [
+          _StageTrackerManagementHeader(
+            onAddTracker: () => _showCreateStageTrackerDialog(context, ref),
+          ),
+          const SizedBox(height: _StageTrackerManagementDensity.sectionGap),
+          _StageTrackerSummaryCard(summaryAsync: summaryAsync),
+          const SizedBox(height: _StageTrackerManagementDensity.sectionGap),
+          trackersAsync.when(
+            data: (trackers) {
+              final showAddCard = trackers
+                  .where((tracker) => !tracker.isSystemDefault)
+                  .isEmpty;
+              final packs = packsAsync.valueOrNull ?? const <ItemPack>[];
+              final rules = rulesAsync.valueOrNull ?? const <StageRule>[];
+              final records = recordsAsync.valueOrNull ?? const <StageRecord>[];
+              return GridView.builder(
+                key: const Key('stage-tracker-grid'),
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: trackers.length + (showAddCard ? 1 : 0),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  crossAxisSpacing: _StageTrackerManagementDensity.gridGap,
+                  mainAxisSpacing: _StageTrackerManagementDensity.gridGap,
+                  childAspectRatio: 0.88,
+                ),
+                itemBuilder: (context, index) {
+                  if (showAddCard && index == trackers.length) {
+                    return _StageTrackerDashedAddCard(
+                      onTap: () => _showCreateStageTrackerDialog(context, ref),
+                    );
+                  }
+                  final tracker = trackers[index];
+                  return _StageTrackerAchievementCard(
+                    tracker: tracker,
+                    pack: _packFor(tracker.packId, packs),
+                    now: previewDate,
+                    nearestOccurrence: _nearestOccurrenceFor(
+                      tracker,
+                      attentionOccurrences,
+                      rules,
+                      records,
+                      previewDate,
+                    ),
                   );
-                }
-                final tracker = trackers[index];
-                return _StageTrackerAchievementCard(
-                  tracker: tracker,
-                  pack: _packFor(tracker.packId, packs),
-                  now: previewDate,
-                  nearestOccurrence: _nearestOccurrenceFor(
-                    tracker,
-                    attentionOccurrences,
-                    rules,
-                    records,
-                    previewDate,
-                  ),
-                );
-              },
-            );
-          },
-          error: (error, stack) => Text('讀取失敗: $error'),
-          loading: () => const Center(child: CircularProgressIndicator()),
-        ),
-      ],
+                },
+              );
+            },
+            error: (error, stack) => Text('讀取失敗: $error'),
+            loading: () => const Center(child: CircularProgressIndicator()),
+          ),
+        ],
+      ),
     );
   }
 
@@ -563,8 +577,9 @@ class _StageTrackerDetailPageState
       body: detailAsync.when(
         data: (detail) {
           if (detail == null) {
-            return const Center(
-              child: Text(ReminderUiText.stageTrackerMissingMessage),
+            return ReminderRefreshablePlaceholder(
+              onRefresh: _refresh,
+              child: const Text(ReminderUiText.stageTrackerMissingMessage),
             );
           }
           final tracker = detail.stageTracker;
@@ -573,70 +588,83 @@ class _StageTrackerDetailPageState
             detail,
             previewDate,
           );
-          return ListView(
-            padding: const EdgeInsets.all(
-              _StageTrackerDetailDensity.pagePadding,
-            ),
-            children: [
-              _StageHeroCard(
-                tracker: tracker,
-                now: previewDate,
-                recentState: _heroRecentState(detail.historyStages),
-                nextStage: detail.nextStage,
+          return ReminderRefreshable(
+            onRefresh: _refresh,
+            child: ListView(
+              physics: reminderRefreshPhysics,
+              padding: const EdgeInsets.all(
+                _StageTrackerDetailDensity.pagePadding,
               ),
-              if (!tracker.isSystemDefault) ...[
-                const SizedBox(height: _StageTrackerDetailDensity.cardGap),
-                _CompactAddStageAction(
-                  onPressed: () =>
-                      _showStageEntryDialog(context, ref, tracker.id),
+              children: [
+                _StageHeroCard(
+                  tracker: tracker,
+                  now: previewDate,
+                  recentState: _heroRecentState(detail.historyStages),
+                  nextStage: detail.nextStage,
+                ),
+                if (!tracker.isSystemDefault) ...[
+                  const SizedBox(height: _StageTrackerDetailDensity.cardGap),
+                  _CompactAddStageAction(
+                    onPressed: () =>
+                        _showStageEntryDialog(context, ref, tracker.id),
+                  ),
+                ],
+                const SizedBox(height: _StageTrackerDetailDensity.sectionGap),
+                _CompactSection(
+                  title: '即將到來',
+                  child: upcomingStages.isEmpty
+                      ? _CompactUpcomingEmptyState(
+                          onAddStage: () =>
+                              _showStageEntryDialog(context, ref, tracker.id),
+                        )
+                      : Column(
+                          children: [
+                            for (final occurrence in upcomingStages)
+                              _CompactStageTimelineRow(
+                                occurrence: occurrence,
+                                now: previewDate,
+                                keyPrefix: 'detail',
+                                enableExpansion: true,
+                                isExpanded: _expandedOccurrenceKeys.contains(
+                                  _stageOccurrenceKey(occurrence),
+                                ),
+                                onToggleExpanded: () =>
+                                    _toggleOccurrence(occurrence),
+                              ),
+                          ],
+                        ),
+                ),
+                const SizedBox(height: _StageTrackerDetailDensity.sectionGap),
+                _StageRuleList(
+                  rules: detail.stageRules,
+                  nextOccurrencesByRule: nextOccurrencesByRule,
+                  now: previewDate,
+                  canManage: !tracker.isSystemDefault,
+                  onAddRule: () => _showStageEntryDialog(
+                    context,
+                    ref,
+                    tracker.id,
+                    initialTab: _StageEntryTab.recurring,
+                  ),
                 ),
               ],
-              const SizedBox(height: _StageTrackerDetailDensity.sectionGap),
-              _CompactSection(
-                title: '即將到來',
-                child: upcomingStages.isEmpty
-                    ? _CompactUpcomingEmptyState(
-                        onAddStage: () =>
-                            _showStageEntryDialog(context, ref, tracker.id),
-                      )
-                    : Column(
-                        children: [
-                          for (final occurrence in upcomingStages)
-                            _CompactStageTimelineRow(
-                              occurrence: occurrence,
-                              now: previewDate,
-                              keyPrefix: 'detail',
-                              enableExpansion: true,
-                              isExpanded: _expandedOccurrenceKeys.contains(
-                                _stageOccurrenceKey(occurrence),
-                              ),
-                              onToggleExpanded: () =>
-                                  _toggleOccurrence(occurrence),
-                            ),
-                        ],
-                      ),
-              ),
-              const SizedBox(height: _StageTrackerDetailDensity.sectionGap),
-              _StageRuleList(
-                rules: detail.stageRules,
-                nextOccurrencesByRule: nextOccurrencesByRule,
-                now: previewDate,
-                canManage: !tracker.isSystemDefault,
-                onAddRule: () => _showStageEntryDialog(
-                  context,
-                  ref,
-                  tracker.id,
-                  initialTab: _StageEntryTab.recurring,
-                ),
-              ),
-            ],
+            ),
           );
         },
-        error: (error, stack) => Center(child: Text('讀取失敗: $error')),
-        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stack) => ReminderRefreshablePlaceholder(
+          onRefresh: _refresh,
+          child: Text('讀取失敗: $error'),
+        ),
+        loading: () => ReminderRefreshablePlaceholder(
+          onRefresh: _refresh,
+          child: const CircularProgressIndicator(),
+        ),
       ),
     );
   }
+
+  Future<void> _refresh() =>
+      _refreshStageTrackerDetail(ref, widget.stageTrackerId);
 
   void _toggleOccurrence(StageOccurrence occurrence) {
     final key = _stageOccurrenceKey(occurrence);
@@ -1021,6 +1049,14 @@ DateTime _normalizeDate(DateTime value) {
   return DateTime(value.year, value.month, value.day);
 }
 
+Future<void> _refreshStageTrackerDetail(
+  WidgetRef ref,
+  int stageTrackerId,
+) async {
+  ref.invalidate(stageTrackerDetailProvider(stageTrackerId));
+  await Future<void>.delayed(Duration.zero);
+}
+
 enum _StageTimelineFilter { all, upcoming, history }
 
 class StageTrackerTimelinePage extends ConsumerStatefulWidget {
@@ -1053,47 +1089,61 @@ class _StageTrackerTimelinePageState
       body: detailAsync.when(
         data: (detail) {
           if (detail == null) {
-            return const Center(
-              child: Text(ReminderUiText.stageTrackerMissingMessage),
+            return ReminderRefreshablePlaceholder(
+              onRefresh: _refresh,
+              child: const Text(ReminderUiText.stageTrackerMissingMessage),
             );
           }
           final allEntries = _buildStageTimelineEntries(detail, previewDate);
           final entries = _filterStageTimelineEntries(allEntries, _filter);
-          return ListView(
-            key: const Key('stage-tracker-timeline-page'),
-            padding: const EdgeInsets.all(
-              _StageTrackerDetailDensity.pagePadding,
+          return ReminderRefreshable(
+            onRefresh: _refresh,
+            child: ListView(
+              key: const Key('stage-tracker-timeline-page'),
+              physics: reminderRefreshPhysics,
+              padding: const EdgeInsets.all(
+                _StageTrackerDetailDensity.pagePadding,
+              ),
+              children: [
+                _StageTimelineSummaryCard(
+                  detail: detail,
+                  previewDate: previewDate,
+                ),
+                const SizedBox(height: _StageTrackerDetailDensity.cardGap),
+                _StageTimelineFilterChips(
+                  selectedFilter: _filter,
+                  onChanged: (filter) => setState(() {
+                    _filter = filter;
+                  }),
+                ),
+                const SizedBox(height: _StageTrackerDetailDensity.sectionGap),
+                if (entries.isEmpty)
+                  _CompactTimelineEmptyState(filter: _filter)
+                else
+                  for (final entry in entries)
+                    _StageCompleteTimelineRow(
+                      entry: entry,
+                      previewDate: previewDate,
+                      canManage: !detail.stageTracker.isSystemDefault,
+                    ),
+              ],
             ),
-            children: [
-              _StageTimelineSummaryCard(
-                detail: detail,
-                previewDate: previewDate,
-              ),
-              const SizedBox(height: _StageTrackerDetailDensity.cardGap),
-              _StageTimelineFilterChips(
-                selectedFilter: _filter,
-                onChanged: (filter) => setState(() {
-                  _filter = filter;
-                }),
-              ),
-              const SizedBox(height: _StageTrackerDetailDensity.sectionGap),
-              if (entries.isEmpty)
-                _CompactTimelineEmptyState(filter: _filter)
-              else
-                for (final entry in entries)
-                  _StageCompleteTimelineRow(
-                    entry: entry,
-                    previewDate: previewDate,
-                    canManage: !detail.stageTracker.isSystemDefault,
-                  ),
-            ],
           );
         },
-        error: (error, stack) => Center(child: Text('讀取失敗: $error')),
-        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stack) => ReminderRefreshablePlaceholder(
+          onRefresh: _refresh,
+          child: Text('讀取失敗: $error'),
+        ),
+        loading: () => ReminderRefreshablePlaceholder(
+          onRefresh: _refresh,
+          child: const CircularProgressIndicator(),
+        ),
       ),
     );
   }
+
+  Future<void> _refresh() =>
+      _refreshStageTrackerDetail(ref, widget.stageTrackerId);
 }
 
 List<_StageTimelineEntry> _filterStageTimelineEntries(
@@ -1600,18 +1650,34 @@ class StageTrackerSchedulePage extends ConsumerWidget {
         data: (detail) {
           final stages = detail?.scheduleStages ?? const <StageOccurrence>[];
           if (stages.isEmpty) {
-            return const Center(child: Text(ReminderUiText.noStageUpcoming));
+            return ReminderRefreshablePlaceholder(
+              onRefresh: () => _refreshStageTrackerDetail(ref, stageTrackerId),
+              child: const Text(ReminderUiText.noStageUpcoming),
+            );
           }
-          return ListView(
-            padding: const EdgeInsets.all(ReminderSpacing.page),
-            children: [
-              for (final occurrence in stages)
-                _StageOccurrenceTile(occurrence: occurrence, now: previewDate),
-            ],
+          return ReminderRefreshable(
+            onRefresh: () => _refreshStageTrackerDetail(ref, stageTrackerId),
+            child: ListView(
+              physics: reminderRefreshPhysics,
+              padding: const EdgeInsets.all(ReminderSpacing.page),
+              children: [
+                for (final occurrence in stages)
+                  _StageOccurrenceTile(
+                    occurrence: occurrence,
+                    now: previewDate,
+                  ),
+              ],
+            ),
           );
         },
-        error: (error, stack) => Center(child: Text('讀取失敗: $error')),
-        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stack) => ReminderRefreshablePlaceholder(
+          onRefresh: () => _refreshStageTrackerDetail(ref, stageTrackerId),
+          child: Text('讀取失敗: $error'),
+        ),
+        loading: () => ReminderRefreshablePlaceholder(
+          onRefresh: () => _refreshStageTrackerDetail(ref, stageTrackerId),
+          child: const CircularProgressIndicator(),
+        ),
       ),
     );
   }
@@ -1637,24 +1703,35 @@ class StageTrackerHistoryPage extends ConsumerWidget {
         data: (detail) {
           final stages = detail?.historyStages ?? const <StageOccurrence>[];
           if (stages.isEmpty) {
-            return const Center(
-              child: Text(ReminderUiText.noStageTrackerHistory),
+            return ReminderRefreshablePlaceholder(
+              onRefresh: () => _refreshStageTrackerDetail(ref, stageTrackerId),
+              child: const Text(ReminderUiText.noStageTrackerHistory),
             );
           }
-          return ListView(
-            padding: const EdgeInsets.all(ReminderSpacing.page),
-            children: [
-              for (final occurrence in stages)
-                _StageOccurrenceTile(
-                  occurrence: occurrence,
-                  now: previewDate,
-                  showSource: true,
-                ),
-            ],
+          return ReminderRefreshable(
+            onRefresh: () => _refreshStageTrackerDetail(ref, stageTrackerId),
+            child: ListView(
+              physics: reminderRefreshPhysics,
+              padding: const EdgeInsets.all(ReminderSpacing.page),
+              children: [
+                for (final occurrence in stages)
+                  _StageOccurrenceTile(
+                    occurrence: occurrence,
+                    now: previewDate,
+                    showSource: true,
+                  ),
+              ],
+            ),
           );
         },
-        error: (error, stack) => Center(child: Text('讀取失敗: $error')),
-        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stack) => ReminderRefreshablePlaceholder(
+          onRefresh: () => _refreshStageTrackerDetail(ref, stageTrackerId),
+          child: Text('讀取失敗: $error'),
+        ),
+        loading: () => ReminderRefreshablePlaceholder(
+          onRefresh: () => _refreshStageTrackerDetail(ref, stageTrackerId),
+          child: const CircularProgressIndicator(),
+        ),
       ),
     );
   }

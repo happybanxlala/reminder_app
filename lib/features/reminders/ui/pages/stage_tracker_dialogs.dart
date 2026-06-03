@@ -378,7 +378,9 @@ class _StageTrackerFormDialogState
   String get _selectedPackLabel {
     final selectedPackId = _packId;
     if (selectedPackId == null) {
-      return ReminderUiText.selectPackPlaceholder;
+      return _isEdit
+          ? ReminderUiText.selectPackPlaceholder
+          : packCreateUndecidedLabel();
     }
     final selectedPack = _selectedPack;
     if (selectedPack != null) {
@@ -393,20 +395,22 @@ class _StageTrackerFormDialogState
         selectedPackId == null ||
         _availablePacks.any((pack) => pack.id == selectedPackId);
     return [
-      const _StageTrackerPackOption(
-        id: null,
-        label: ReminderUiText.unassignedPackTitle,
-      ),
+      if (!_isEdit)
+        _StageTrackerPackOption(id: null, label: packCreateUndecidedLabel()),
       if (!selectedPackIsVisible)
         _StageTrackerPackOption(
           id: selectedPackId,
           label: ReminderUiText.currentPackOption,
           enabled: false,
         ),
-      ..._availablePacks.map(
-        (pack) =>
-            _StageTrackerPackOption(id: pack.id, label: packDisplayLabel(pack)),
-      ),
+      ..._availablePacks
+          .where((pack) => _isEdit || !pack.isSystemDefault)
+          .map(
+            (pack) => _StageTrackerPackOption(
+              id: pack.id,
+              label: packDisplayLabel(pack),
+            ),
+          ),
     ];
   }
 

@@ -52,6 +52,7 @@ void main() {
       find.byKey(const Key('resource-history-summary-card')),
       findsOneWidget,
     );
+    expect(find.byType(RefreshIndicator), findsOneWidget);
     expect(find.text('濾芯'), findsOneWidget);
     expect(find.text('目前：2 個'), findsOneWidget);
     expect(find.text('狀態：快不足'), findsOneWidget);

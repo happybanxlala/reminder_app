@@ -166,6 +166,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.byType(ItemsManagementContent), findsOneWidget);
+    expect(find.byType(RefreshIndicator), findsOneWidget);
   });
 }
 

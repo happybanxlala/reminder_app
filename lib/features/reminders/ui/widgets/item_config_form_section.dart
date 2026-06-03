@@ -10,6 +10,8 @@ import 'editor_form_components.dart';
 
 part 'repeat_rule_sheet.dart';
 
+enum FixedCompletionMode { dueOnly, leadWindow }
+
 class ItemConfigFormController {
   ItemConfigFormController({
     AttentionPolicyResolver? attentionPolicyResolver,
@@ -18,6 +20,7 @@ class ItemConfigFormController {
            attentionPolicyResolver ?? const AttentionPolicyResolver() {
     fixedAnchorDateController = TextEditingController();
     fixedDueDateController = TextEditingController();
+    fixedLeadDaysController = TextEditingController(text: '1');
     fixedScheduleIntervalController = TextEditingController(text: '1');
     fixedMonthlyDayController = TextEditingController(text: '1');
     fixedWarningBeforeController = TextEditingController(text: '1');
@@ -31,6 +34,7 @@ class ItemConfigFormController {
 
   late final TextEditingController fixedAnchorDateController;
   late final TextEditingController fixedDueDateController;
+  late final TextEditingController fixedLeadDaysController;
   late final TextEditingController fixedScheduleIntervalController;
   late final TextEditingController fixedMonthlyDayController;
   late final TextEditingController fixedWarningBeforeController;
@@ -42,11 +46,13 @@ class ItemConfigFormController {
 
   final AttentionPolicyResolver _attentionPolicyResolver;
   ReminderTone reminderTone;
-  ItemType type = ItemType.stateBased;
+  ItemType type = ItemType.fixed;
   FixedScheduleType scheduleType = FixedScheduleType.daily;
   RepeatRuleV2? fixedRepeatRuleV2;
-  ItemOverduePolicy overduePolicy = ItemOverduePolicy.autoAdvance;
+  FixedCompletionMode fixedCompletionMode = FixedCompletionMode.dueOnly;
+  ItemOverduePolicy overduePolicy = ItemOverduePolicy.waitForAction;
   bool customizeAttentionPolicy = false;
+  bool fixedDateWindowNeedsRepair = false;
   DateTime selectedFixedAnchorDate = DateTime.now();
   DateTime selectedFixedDueDate = DateTime.now();
   DateTime selectedStateAnchorDate = DateTime.now();
@@ -56,6 +62,7 @@ class ItemConfigFormController {
   void dispose() {
     fixedAnchorDateController.dispose();
     fixedDueDateController.dispose();
+    fixedLeadDaysController.dispose();
     fixedScheduleIntervalController.dispose();
     fixedMonthlyDayController.dispose();
     fixedWarningBeforeController.dispose();
@@ -76,8 +83,8 @@ class ItemConfigFormController {
         fixedMonthlyDayController.text =
             '${fixed.monthlyDay ?? fixed.dueDate?.day ?? 1}';
         overduePolicy = fixed.overduePolicy;
-        selectedFixedAnchorDate = fixed.anchorDate ?? selectedFixedAnchorDate;
         selectedFixedDueDate = fixed.dueDate ?? selectedFixedDueDate;
+        _loadFixedCompletionWindow(fixed);
         fixedInfoBefore = fixed.infoBefore;
         fixedWarningBeforeController.text = '${fixed.warningBefore.inDays}';
         fixedDangerBeforeController.text = '${fixed.dangerBefore.inDays}';
@@ -92,6 +99,7 @@ class ItemConfigFormController {
   }
 
   void syncDateControllers() {
+    selectedFixedAnchorDate = derivedFixedAnchorDate;
     fixedAnchorDateController.text = ReminderFormatters.date(
       selectedFixedAnchorDate,
     );
@@ -99,6 +107,31 @@ class ItemConfigFormController {
     stateAnchorDateController.text = ReminderFormatters.date(
       selectedStateAnchorDate,
     );
+  }
+
+  DateTime get derivedFixedAnchorDate {
+    return switch (fixedCompletionMode) {
+      FixedCompletionMode.dueOnly => selectedFixedDueDate,
+      FixedCompletionMode.leadWindow => selectedFixedDueDate.subtract(
+        Duration(days: parsePositiveDays(fixedLeadDaysController)),
+      ),
+    };
+  }
+
+  String? get fixedDateWindowErrorText => fixedDateWindowNeedsRepair
+      ? ReminderUiText.fixedScheduleInvalidWindowError
+      : null;
+
+  void setFixedCompletionMode(FixedCompletionMode value) {
+    fixedCompletionMode = value;
+    fixedDateWindowNeedsRepair = false;
+    syncDateControllers();
+  }
+
+  void setFixedDueDate(DateTime value) {
+    selectedFixedDueDate = value;
+    fixedDateWindowNeedsRepair = false;
+    syncDateControllers();
   }
 
   ItemConfig buildConfig() {
@@ -124,6 +157,9 @@ class ItemConfigFormController {
   }
 
   ItemConfig buildConfigForCurrentPolicySource() {
+    if (type == ItemType.fixed) {
+      return buildConfigForCreate();
+    }
     return customizeAttentionPolicy
         ? buildConfigForEdit()
         : buildConfigForCreate();
@@ -148,9 +184,10 @@ class ItemConfigFormController {
   }
 
   FixedItemConfig _buildFixedConfig({required bool deriveAttentionPolicy}) {
+    final anchorDate = derivedFixedAnchorDate;
     final policy = deriveAttentionPolicy
         ? _attentionPolicyResolver.resolveFixed(
-            anchorDate: selectedFixedAnchorDate,
+            anchorDate: anchorDate,
             dueDate: selectedFixedDueDate,
             tone: reminderTone,
           )
@@ -164,7 +201,7 @@ class ItemConfigFormController {
           ? parseMonthlyDay(fixedMonthlyDayController)
           : null,
       repeatRuleV2: fixedRepeatRuleV2,
-      anchorDate: selectedFixedAnchorDate,
+      anchorDate: anchorDate,
       dueDate: selectedFixedDueDate,
       overduePolicy: overduePolicy,
       infoBefore: fixedInfoBefore,
@@ -178,6 +215,27 @@ class ItemConfigFormController {
             policy?.dangerBeforeDays ?? parseDays(fixedDangerBeforeController),
       ),
     );
+  }
+
+  void _loadFixedCompletionWindow(FixedItemConfig fixed) {
+    final dueDate = fixed.dueDate ?? selectedFixedDueDate;
+    final anchorDate = fixed.anchorDate ?? dueDate;
+    selectedFixedAnchorDate = anchorDate;
+    if (anchorDate.isAfter(dueDate)) {
+      fixedCompletionMode = FixedCompletionMode.dueOnly;
+      fixedLeadDaysController.text = '1';
+      fixedDateWindowNeedsRepair = true;
+      return;
+    }
+    fixedDateWindowNeedsRepair = false;
+    final leadDays = dueDate.difference(anchorDate).inDays;
+    if (leadDays <= 0) {
+      fixedCompletionMode = FixedCompletionMode.dueOnly;
+      fixedLeadDaysController.text = '1';
+      return;
+    }
+    fixedCompletionMode = FixedCompletionMode.leadWindow;
+    fixedLeadDaysController.text = '$leadDays';
   }
 
   StateBasedItemConfig _buildStateBasedConfig({
@@ -287,6 +345,25 @@ class AttentionPolicyAdvancedSection extends StatelessWidget {
     final previewStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
       color: Theme.of(context).colorScheme.onSurfaceVariant,
     );
+    if (controller.type == ItemType.fixed) {
+      final preview = Text(
+        ReminderFormatters.attentionPolicySummary(_previewConfig),
+        key: const Key('attention-policy-fixed-preview'),
+        style: previewStyle,
+      );
+      if (embedded) {
+        return preview;
+      }
+      return ExpansionTile(
+        key: const Key('attention-policy-advanced-section'),
+        tilePadding: EdgeInsets.zero,
+        title: const Text(ReminderUiText.attentionPolicyAdvancedTitle),
+        subtitle: Text(
+          ReminderFormatters.attentionPolicySummary(_previewConfig),
+        ),
+        children: [preview],
+      );
+    }
     final content = [
       Text(
         ReminderFormatters.attentionPolicySummary(_previewConfig),
@@ -397,21 +474,6 @@ class ItemConfigFormSection extends StatelessWidget {
       ),
       const SizedBox(height: 12),
       ReminderEditorDateRow(
-        key: const Key('fixed-anchor-date-row'),
-        label: ReminderUiText.fixedAnchorDateLabel,
-        date: controller.selectedFixedAnchorDate,
-        onTap: () => _pickDate(
-          context,
-          initialDate: controller.selectedFixedAnchorDate,
-          onSelected: (value) {
-            controller.selectedFixedAnchorDate = value;
-            controller.syncDateControllers();
-            onChanged();
-          },
-        ),
-      ),
-      const SizedBox(height: 12),
-      ReminderEditorDateRow(
         key: const Key('fixed-due-date-row'),
         label: ReminderUiText.fixedDueDateLabel,
         date: controller.selectedFixedDueDate,
@@ -419,12 +481,37 @@ class ItemConfigFormSection extends StatelessWidget {
           context,
           initialDate: controller.selectedFixedDueDate,
           onSelected: (value) {
-            controller.selectedFixedDueDate = value;
-            controller.syncDateControllers();
+            controller.setFixedDueDate(value);
             onChanged();
           },
         ),
       ),
+      const SizedBox(height: 12),
+      _FixedCompletionModeField(
+        mode: controller.fixedCompletionMode,
+        errorText: controller.fixedDateWindowErrorText,
+        onChanged: (value) {
+          controller.setFixedCompletionMode(value);
+          onChanged();
+        },
+      ),
+      if (controller.fixedCompletionMode == FixedCompletionMode.leadWindow) ...[
+        const SizedBox(height: 12),
+        ReminderEditorNumberField(
+          fieldKey: const Key('fixed-lead-days-field'),
+          controller: controller.fixedLeadDaysController,
+          label: ReminderUiText.fixedLeadWindowLabel,
+          prefixText: '到期前 ',
+          suffixText: ReminderUiText.fixedLeadWindowSuffix,
+          helperText: ReminderUiText.fixedLeadWindowHelp,
+          minimum: 1,
+          onChanged: () {
+            controller.fixedDateWindowNeedsRepair = false;
+            controller.syncDateControllers();
+            onChanged();
+          },
+        ),
+      ],
       const SizedBox(height: 12),
       ReminderEditorPickerRow(
         key: const Key('fixed-overdue-policy-row'),
@@ -468,7 +555,7 @@ class ItemConfigFormSection extends StatelessWidget {
               style: Theme.of(sheetContext).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
-            for (final value in ItemOverduePolicy.values)
+            for (final value in _overduePolicyDisplayOrder)
               ListTile(
                 key: Key('overdue-policy-${value.name}'),
                 title: Text(ReminderFormatters.itemOverduePolicy(value)),
@@ -507,6 +594,11 @@ class ItemConfigFormSection extends StatelessWidget {
       onChanged();
     }
   }
+
+  static const _overduePolicyDisplayOrder = [
+    ItemOverduePolicy.waitForAction,
+    ItemOverduePolicy.autoAdvance,
+  ];
 
   List<Widget> _buildStateBasedFields(BuildContext context) {
     return [
@@ -612,6 +704,80 @@ class _RepeatRuleRow extends StatelessWidget {
           ? ReminderUiText.noRepeatLabel
           : ReminderFormatters.repeatRuleV2Summary(rule),
       onTap: onTap,
+    );
+  }
+}
+
+class _FixedCompletionModeField extends StatelessWidget {
+  const _FixedCompletionModeField({
+    required this.mode,
+    required this.onChanged,
+    this.errorText,
+  });
+
+  final FixedCompletionMode mode;
+  final ValueChanged<FixedCompletionMode> onChanged;
+  final String? errorText;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final error = errorText;
+    return FormField<FixedCompletionMode>(
+      initialValue: mode,
+      validator: (_) => error,
+      builder: (field) {
+        return Column(
+          key: const Key('fixed-completion-mode-field'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              ReminderUiText.fixedCompletionModeLabel,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            RadioGroup<FixedCompletionMode>(
+              groupValue: mode,
+              onChanged: (value) {
+                if (value != null) {
+                  field.didChange(value);
+                  onChanged(value);
+                }
+              },
+              child: const Column(
+                children: [
+                  RadioListTile<FixedCompletionMode>(
+                    key: Key('fixed-completion-due-only-option'),
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    title: Text(ReminderUiText.fixedCompletionDueOnlyLabel),
+                    value: FixedCompletionMode.dueOnly,
+                  ),
+                  RadioListTile<FixedCompletionMode>(
+                    key: Key('fixed-completion-lead-window-option'),
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    title: Text(ReminderUiText.fixedCompletionLeadWindowLabel),
+                    value: FixedCompletionMode.leadWindow,
+                  ),
+                ],
+              ),
+            ),
+            if (error != null || field.hasError)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  error ?? field.errorText!,
+                  key: const Key('fixed-completion-mode-error'),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }

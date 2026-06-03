@@ -38,6 +38,7 @@ void main() {
     expect(find.byKey(const Key('resource-card-12')), findsOneWidget);
     expect(find.text('彈性處理'), findsNothing);
     expect(find.text('庫存'), findsNothing);
+    expect(find.byType(RefreshIndicator), findsOneWidget);
     expect(find.byType(ReminderIconBubble), findsNothing);
     expect(
       find.byKey(Key('home-pack-chip-${fixture.catPack.id}')),

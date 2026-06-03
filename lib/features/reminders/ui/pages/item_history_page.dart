@@ -42,8 +42,9 @@ class _ItemHistoryPageState extends ConsumerState<ItemHistoryPage> {
       body: itemAsync.when(
         data: (bundle) {
           if (bundle == null) {
-            return const Center(
-              child: Text(ReminderUiText.itemSaveFailedMessage),
+            return ReminderRefreshablePlaceholder(
+              onRefresh: _refresh,
+              child: const Text(ReminderUiText.itemSaveFailedMessage),
             );
           }
           return historyAsync.when(
@@ -55,21 +56,36 @@ class _ItemHistoryPageState extends ConsumerState<ItemHistoryPage> {
               onFilterChanged: (filter) => setState(() {
                 _filter = filter;
               }),
+              onRefresh: _refresh,
             ),
-            error: (error, stack) => Padding(
+            error: (error, stack) => ReminderRefreshablePlaceholder(
+              onRefresh: _refresh,
               padding: const EdgeInsets.all(ReminderSpacing.page),
               child: Text('讀取失敗: $error'),
             ),
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => ReminderRefreshablePlaceholder(
+              onRefresh: _refresh,
+              child: const CircularProgressIndicator(),
+            ),
           );
         },
-        error: (error, stack) => Padding(
+        error: (error, stack) => ReminderRefreshablePlaceholder(
+          onRefresh: _refresh,
           padding: const EdgeInsets.all(ReminderSpacing.page),
           child: Text('讀取失敗: $error'),
         ),
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => ReminderRefreshablePlaceholder(
+          onRefresh: _refresh,
+          child: const CircularProgressIndicator(),
+        ),
       ),
     );
+  }
+
+  Future<void> _refresh() async {
+    ref.invalidate(itemProvider(widget.itemId));
+    ref.invalidate(itemHistoryEntriesProvider(widget.itemId));
+    await Future<void>.delayed(Duration.zero);
   }
 
   List<ItemHistoryEntry> _filteredEntries(List<ItemHistoryEntry> entries) {
@@ -94,6 +110,7 @@ class _ItemHistoryTimeline extends StatelessWidget {
     required this.selectedFilter,
     required this.previewDate,
     required this.onFilterChanged,
+    required this.onRefresh,
   });
 
   final ItemBundle bundle;
@@ -101,29 +118,34 @@ class _ItemHistoryTimeline extends StatelessWidget {
   final _ItemHistoryFilter selectedFilter;
   final DateTime previewDate;
   final ValueChanged<_ItemHistoryFilter> onFilterChanged;
+  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
     final groups = _groupByDate(entries);
-    return ListView(
-      key: const Key('item-history-page'),
-      padding: const EdgeInsets.all(12),
-      children: [
-        _ItemHistorySummaryCard(bundle: bundle, previewDate: previewDate),
-        const SizedBox(height: 10),
-        _ItemHistoryFilters(
-          selectedFilter: selectedFilter,
-          onFilterChanged: onFilterChanged,
-        ),
-        const SizedBox(height: 12),
-        if (entries.isEmpty)
-          const _ItemHistoryEmptyState()
-        else
-          for (final group in groups) ...[
-            _ItemHistoryDateHeader(label: group.label),
-            for (final entry in group.entries) _ItemTimelineRow(entry: entry),
-          ],
-      ],
+    return ReminderRefreshable(
+      onRefresh: onRefresh,
+      child: ListView(
+        key: const Key('item-history-page'),
+        physics: reminderRefreshPhysics,
+        padding: const EdgeInsets.all(12),
+        children: [
+          _ItemHistorySummaryCard(bundle: bundle, previewDate: previewDate),
+          const SizedBox(height: 10),
+          _ItemHistoryFilters(
+            selectedFilter: selectedFilter,
+            onFilterChanged: onFilterChanged,
+          ),
+          const SizedBox(height: 12),
+          if (entries.isEmpty)
+            const _ItemHistoryEmptyState()
+          else
+            for (final group in groups) ...[
+              _ItemHistoryDateHeader(label: group.label),
+              for (final entry in group.entries) _ItemTimelineRow(entry: entry),
+            ],
+        ],
+      ),
     );
   }
 

@@ -97,30 +97,22 @@ class ItemStatusService {
       );
     }
 
-    final cycleLength = dueDate.difference(anchorDate).inDays;
     var resolvedAnchor = anchorDate;
     var resolvedDue = dueDate;
     var advanced = false;
     while (current.isAfter(resolvedDue)) {
-      if (repeatRule != null) {
-        final next = _repeatCalculator.nextOccurrence(
-          rule: repeatRule,
-          fromDate: resolvedDue,
-          anchorDate: anchorDate,
-        );
-        if (next == null) {
-          break;
-        }
-        resolvedAnchor = next;
-        resolvedDue = next;
-      } else {
-        resolvedAnchor = _advanceDate(resolvedAnchor, config);
-        resolvedDue = _advanceDate(
-          resolvedDue,
-          config,
-          fallbackDays: cycleLength,
-        );
+      final cycle = FixedCycleWindow(
+        anchorDate: resolvedAnchor,
+        dueDate: resolvedDue,
+        isVirtualAdvance: advanced,
+      );
+      final nextDue = nextFixedCycleDueDate(cycle, config);
+      final nextAnchor = nextFixedCycleAnchorDate(cycle, config);
+      if (nextDue == null || nextAnchor == null) {
+        break;
       }
+      resolvedAnchor = nextAnchor;
+      resolvedDue = nextDue;
       advanced = true;
     }
     return FixedCycleWindow(
@@ -197,27 +189,39 @@ class ItemStatusService {
     FixedCycleWindow cycle,
     FixedItemConfig config,
   ) {
-    final repeatRule = config.repeatRuleV2;
-    if (repeatRule != null) {
-      return _repeatCalculator.nextOccurrence(
-            rule: repeatRule,
-            fromDate: cycle.dueDate,
-            anchorDate: config.anchorDate ?? cycle.anchorDate,
-          ) ??
-          cycle.anchorDate;
-    }
-    return _advanceDate(cycle.anchorDate, config);
+    return nextFixedCycleAnchorDate(cycle, config) ?? cycle.anchorDate;
   }
 
   DateTime nextFixedCycleDue(FixedCycleWindow cycle, FixedItemConfig config) {
+    return nextFixedCycleDueDate(cycle, config) ?? cycle.dueDate;
+  }
+
+  DateTime? nextFixedCycleAnchorDate(
+    FixedCycleWindow cycle,
+    FixedItemConfig config,
+  ) {
+    final nextDue = nextFixedCycleDueDate(cycle, config);
+    if (nextDue == null) {
+      return null;
+    }
+    final leadDays = _fixedLeadDays(cycle);
+    return nextDue.subtract(Duration(days: leadDays));
+  }
+
+  DateTime? nextFixedCycleDueDate(
+    FixedCycleWindow cycle,
+    FixedItemConfig config,
+  ) {
     final repeatRule = config.repeatRuleV2;
     if (repeatRule != null) {
       return _repeatCalculator.nextOccurrence(
-            rule: repeatRule,
-            fromDate: cycle.dueDate,
-            anchorDate: config.anchorDate ?? cycle.anchorDate,
-          ) ??
-          cycle.dueDate;
+        rule: repeatRule,
+        fromDate: cycle.dueDate,
+        anchorDate: config.dueDate ?? cycle.dueDate,
+      );
+    }
+    if (config.scheduleType == FixedScheduleType.oneTime) {
+      return null;
     }
     final fallbackDays = cycle.dueDate.difference(cycle.anchorDate).inDays;
     return _advanceDate(cycle.dueDate, config, fallbackDays: fallbackDays);
@@ -225,6 +229,11 @@ class ItemStatusService {
 
   DateTime shiftDateByDelay(DateTime value, int delayDays) {
     return _normalizeDate(value.add(Duration(days: delayDays)));
+  }
+
+  int _fixedLeadDays(FixedCycleWindow cycle) {
+    final leadDays = cycle.dueDate.difference(cycle.anchorDate).inDays;
+    return leadDays < 0 ? 0 : leadDays;
   }
 
   bool _isCompletedWithinCycle(DateTime? completedAt, FixedCycleWindow cycle) {

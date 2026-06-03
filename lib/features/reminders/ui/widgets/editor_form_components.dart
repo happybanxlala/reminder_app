@@ -291,7 +291,9 @@ class ReminderEditorNumberField extends StatelessWidget {
     this.fieldKey,
     required this.controller,
     required this.label,
+    this.prefixText,
     this.suffixText,
+    this.helperText,
     this.minimum = 0,
     this.onChanged,
   });
@@ -299,7 +301,9 @@ class ReminderEditorNumberField extends StatelessWidget {
   final Key? fieldKey;
   final TextEditingController controller;
   final String label;
+  final String? prefixText;
   final String? suffixText;
+  final String? helperText;
   final int minimum;
   final VoidCallback? onChanged;
 
@@ -309,7 +313,12 @@ class ReminderEditorNumberField extends StatelessWidget {
       key: fieldKey,
       controller: controller,
       keyboardType: TextInputType.number,
-      decoration: InputDecoration(labelText: label, suffixText: suffixText),
+      decoration: InputDecoration(
+        labelText: label,
+        prefixText: prefixText,
+        suffixText: suffixText,
+        helperText: helperText,
+      ),
       onChanged: (_) => onChanged?.call(),
       validator: (value) {
         final parsed = int.tryParse((value ?? '').trim());

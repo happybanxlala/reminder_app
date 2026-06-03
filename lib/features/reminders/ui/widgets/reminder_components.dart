@@ -321,3 +321,53 @@ class _TimelineDot extends StatelessWidget {
     );
   }
 }
+
+const reminderRefreshPhysics = AlwaysScrollableScrollPhysics();
+
+class ReminderRefreshable extends StatelessWidget {
+  const ReminderRefreshable({
+    super.key,
+    required this.onRefresh,
+    required this.child,
+  });
+
+  final Future<void> Function() onRefresh;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(onRefresh: onRefresh, child: child);
+  }
+}
+
+class ReminderRefreshablePlaceholder extends StatelessWidget {
+  const ReminderRefreshablePlaceholder({
+    super.key,
+    required this.onRefresh,
+    required this.child,
+    this.padding = EdgeInsets.zero,
+  });
+
+  final Future<void> Function() onRefresh;
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            physics: reminderRefreshPhysics,
+            padding: padding,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Center(child: child),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}

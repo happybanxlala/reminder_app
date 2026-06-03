@@ -259,17 +259,11 @@ class ReminderFormatters {
   }) {
     final scheduleLabel = fixedScheduleSummary(config);
     final resolvedCycle = statusService.resolveFixedCycle(config, now: now);
-    final anchorLabel = resolvedCycle == null
-        ? (config.anchorDate == null ? null : date(config.anchorDate!))
-        : date(resolvedCycle.anchorDate);
     final dueLabel = resolvedCycle == null
         ? (config.dueDate == null ? null : date(config.dueDate!))
         : date(resolvedCycle.dueDate);
     final overdueLabel = itemOverduePolicy(config.overduePolicy);
     final parts = <String>[scheduleLabel];
-    if (anchorLabel != null) {
-      parts.add('起點 $anchorLabel');
-    }
     if (dueLabel != null) {
       parts.add('到期 $dueLabel');
     }
@@ -539,8 +533,8 @@ class ReminderFormatters {
 
   static String itemOverduePolicy(ItemOverduePolicy value) {
     return switch (value) {
-      ItemOverduePolicy.autoAdvance => '逾期自動進下一輪',
-      ItemOverduePolicy.waitForAction => '逾期等待處理',
+      ItemOverduePolicy.autoAdvance => '自動進下一輪',
+      ItemOverduePolicy.waitForAction => '等待處理',
     };
   }
 

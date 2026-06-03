@@ -16,7 +16,6 @@ import '../../providers/item_providers.dart';
 import '../../providers/pack_template_providers.dart';
 import '../../providers/settings_providers.dart';
 import '../../providers/attention_service_providers.dart';
-import '../../providers/stage_tracker_providers.dart';
 import 'feature_management_sections.dart';
 import 'stage_tracker_pages.dart';
 import '../widgets/editor_form_components.dart';
@@ -344,80 +343,88 @@ class _ItemActivityContentState extends ConsumerState<ItemActivityContent> {
       );
     }
 
-    return ListView(
-      key: const Key('item-activity-page'),
-      padding: const EdgeInsets.all(ReminderSpacing.page),
-      children: [
-        TextField(
-          key: const Key('item-activity-search-field'),
-          controller: _searchController,
-          onChanged: (value) {
-            ref
-                .read(itemActivityFeedControllerProvider.notifier)
-                .setQuery(value);
-          },
-          decoration: InputDecoration(
-            hintText: ReminderUiText.itemActivitySearchHint,
-            prefixIcon: const Icon(Icons.search_outlined),
-            suffixIcon: state.query.trim().isEmpty
-                ? null
-                : IconButton(
-                    key: const Key('item-activity-search-clear'),
-                    onPressed: () {
-                      ref
-                          .read(itemActivityFeedControllerProvider.notifier)
-                          .setQuery('');
-                    },
-                    icon: const Icon(Icons.clear),
-                  ),
-          ),
-        ),
-        const SizedBox(height: ReminderSpacing.listGap),
-        if (state.isLoading)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: CircularProgressIndicator()),
-          )
-        else if (state.errorMessage != null && state.items.isEmpty)
-          Text(state.errorMessage!)
-        else if (state.items.isEmpty)
-          Text(
-            state.isSearching
-                ? ReminderUiText.noActivitySearchResults
-                : ReminderUiText.noRecentActivity,
-          )
-        else ...[
-          ...state.items.map(
-            (entry) => Padding(
-              padding: const EdgeInsets.only(bottom: ReminderSpacing.listGap),
-              child: _ActivityEntryCard(entry: entry, previewDate: previewDate),
-            ),
-          ),
-          if (state.errorMessage != null) ...[
-            const SizedBox(height: 8),
-            Text(state.errorMessage!),
-          ],
-          if (state.canLoadMoreAttempt) ...[
-            const SizedBox(height: 4),
-            Center(
-              child: state.isLoadingMore
-                  ? const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: CircularProgressIndicator(),
-                    )
-                  : OutlinedButton(
-                      key: const Key('item-activity-load-more'),
+    return ReminderRefreshable(
+      onRefresh: () =>
+          ref.read(itemActivityFeedControllerProvider.notifier).refresh(),
+      child: ListView(
+        key: const Key('item-activity-page'),
+        physics: reminderRefreshPhysics,
+        padding: const EdgeInsets.all(ReminderSpacing.page),
+        children: [
+          TextField(
+            key: const Key('item-activity-search-field'),
+            controller: _searchController,
+            onChanged: (value) {
+              ref
+                  .read(itemActivityFeedControllerProvider.notifier)
+                  .setQuery(value);
+            },
+            decoration: InputDecoration(
+              hintText: ReminderUiText.itemActivitySearchHint,
+              prefixIcon: const Icon(Icons.search_outlined),
+              suffixIcon: state.query.trim().isEmpty
+                  ? null
+                  : IconButton(
+                      key: const Key('item-activity-search-clear'),
                       onPressed: () {
                         ref
                             .read(itemActivityFeedControllerProvider.notifier)
-                            .loadMore();
+                            .setQuery('');
                       },
-                      child: const Text(ReminderUiText.loadMoreAction),
+                      icon: const Icon(Icons.clear),
                     ),
             ),
+          ),
+          const SizedBox(height: ReminderSpacing.listGap),
+          if (state.isLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (state.errorMessage != null && state.items.isEmpty)
+            Text(state.errorMessage!)
+          else if (state.items.isEmpty)
+            Text(
+              state.isSearching
+                  ? ReminderUiText.noActivitySearchResults
+                  : ReminderUiText.noRecentActivity,
+            )
+          else ...[
+            ...state.items.map(
+              (entry) => Padding(
+                padding: const EdgeInsets.only(bottom: ReminderSpacing.listGap),
+                child: _ActivityEntryCard(
+                  entry: entry,
+                  previewDate: previewDate,
+                ),
+              ),
+            ),
+            if (state.errorMessage != null) ...[
+              const SizedBox(height: 8),
+              Text(state.errorMessage!),
+            ],
+            if (state.canLoadMoreAttempt) ...[
+              const SizedBox(height: 4),
+              Center(
+                child: state.isLoadingMore
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: CircularProgressIndicator(),
+                      )
+                    : OutlinedButton(
+                        key: const Key('item-activity-load-more'),
+                        onPressed: () {
+                          ref
+                              .read(itemActivityFeedControllerProvider.notifier)
+                              .loadMore();
+                        },
+                        child: const Text(ReminderUiText.loadMoreAction),
+                      ),
+              ),
+            ],
           ],
         ],
-      ],
+      ),
     );
   }
 }
@@ -511,7 +518,6 @@ class SettingsPage extends ConsumerWidget {
     final settingsAsync = ref.watch(appSettingsProvider);
     final currentTone = ref.watch(reminderToneProvider);
     final reminderTime = ref.watch(notificationReminderTimeProvider);
-    final systemTrackerAsync = ref.watch(systemStageTrackerProvider);
     final showDeveloperSettings = ref.watch(developerSettingsVisibleProvider);
     final overrideDate = ref.watch(developerDateOverrideProvider);
     final effectiveDate = ref.watch(effectivePreviewDateProvider);
@@ -560,17 +566,6 @@ class SettingsPage extends ConsumerWidget {
                 onTap: settingsAsync.isLoading
                     ? null
                     : () => _pickReminderTime(context, ref, reminderTime),
-              ),
-              _SettingsSwitchRow(
-                key: const Key('settings-show-system-tracker-row'),
-                label: ReminderUiText.showSystemStageTrackerSetting,
-                value: systemTrackerAsync.maybeWhen(
-                  data: (tracker) => !tracker.isHidden,
-                  orElse: () => true,
-                ),
-                enabled: !systemTrackerAsync.isLoading,
-                icon: Icons.auto_graph_outlined,
-                onChanged: (value) => _setSystemStageTrackerVisible(ref, value),
               ),
             ],
           ),
@@ -708,20 +703,6 @@ class SettingsPage extends ConsumerWidget {
     await ref.read(attentionSyncServiceProvider).refresh();
   }
 
-  Future<void> _setSystemStageTrackerVisible(
-    WidgetRef ref,
-    bool visible,
-  ) async {
-    final repository = ref.read(stageTrackerRepositoryProvider);
-    if (visible) {
-      await repository.showSystemStageTracker();
-    } else {
-      await repository.hideSystemStageTracker();
-    }
-    ref.invalidate(systemStageTrackerProvider);
-    ref.invalidate(stageTrackersProvider);
-  }
-
   Future<void> _pickPreviewDate(
     BuildContext context,
     WidgetRef ref,
@@ -829,51 +810,6 @@ class _SettingsReadOnlyRow extends StatelessWidget {
   }
 }
 
-class _SettingsSwitchRow extends StatelessWidget {
-  const _SettingsSwitchRow({
-    super.key,
-    required this.label,
-    required this.value,
-    required this.enabled,
-    required this.icon,
-    required this.onChanged,
-  });
-
-  final String label;
-  final bool value;
-  final bool enabled;
-  final IconData icon;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.reminderPalette;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: palette.primaryWarm),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: palette.textSecondary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          Switch(
-            key: const Key('settings-show-system-tracker-switch'),
-            value: value,
-            onChanged: enabled ? onChanged : null,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _SettingsActionRow extends StatelessWidget {
   const _SettingsActionRow({
     super.key,
@@ -950,48 +886,55 @@ class PackManagementContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final packsAsync = ref.watch(activeItemPacksProvider);
-    return ListView(
-      padding: const EdgeInsets.all(ReminderSpacing.page),
-      children: [
-        _PackTemplateEntryCard(
-          onTap: () => _showPackTemplatePicker(context, ref),
-        ),
-        const SizedBox(height: 12),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: FilledButton.icon(
-            key: const Key('pack-management-add'),
-            onPressed: () => _showPackDialog(context, ref),
-            icon: const Icon(Icons.add),
-            label: const Text(ReminderUiText.addItemPack),
+    return ReminderRefreshable(
+      onRefresh: () async {
+        ref.invalidate(activeItemPacksProvider);
+        await Future<void>.delayed(Duration.zero);
+      },
+      child: ListView(
+        physics: reminderRefreshPhysics,
+        padding: const EdgeInsets.all(ReminderSpacing.page),
+        children: [
+          _PackTemplateEntryCard(
+            onTap: () => _showPackTemplatePicker(context, ref),
           ),
-        ),
-        const SizedBox(height: ReminderSpacing.section),
-        packsAsync.when(
-          data: (packs) {
-            if (packs.isEmpty) {
-              return const Text(ReminderUiText.noItemPacks);
-            }
-            final customPacks = packs
-                .where((pack) => !pack.isSystemDefault)
-                .toList(growable: false);
-            return Column(
-              children: [
-                for (final pack in packs)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: _PackManagementTile(
-                      pack: pack,
-                      customPacks: customPacks,
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.icon(
+              key: const Key('pack-management-add'),
+              onPressed: () => _showPackDialog(context, ref),
+              icon: const Icon(Icons.add),
+              label: const Text(ReminderUiText.addItemPack),
+            ),
+          ),
+          const SizedBox(height: ReminderSpacing.section),
+          packsAsync.when(
+            data: (packs) {
+              if (packs.isEmpty) {
+                return const Text(ReminderUiText.noItemPacks);
+              }
+              final customPacks = packs
+                  .where((pack) => !pack.isSystemDefault)
+                  .toList(growable: false);
+              return Column(
+                children: [
+                  for (final pack in packs)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _PackManagementTile(
+                        pack: pack,
+                        customPacks: customPacks,
+                      ),
                     ),
-                  ),
-              ],
-            );
-          },
-          error: (error, stack) => Text('讀取失敗: $error'),
-          loading: () => const Center(child: CircularProgressIndicator()),
-        ),
-      ],
+                ],
+              );
+            },
+            error: (error, stack) => Text('讀取失敗: $error'),
+            loading: () => const Center(child: CircularProgressIndicator()),
+          ),
+        ],
+      ),
     );
   }
 

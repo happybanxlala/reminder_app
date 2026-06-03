@@ -9,6 +9,7 @@ import 'package:reminder_app/features/reminders/data/local/reminder_dao.dart';
 import 'package:reminder_app/features/reminders/data/resource_repository.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/resource.dart';
+import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
 import 'package:reminder_app/features/reminders/providers/database_providers.dart';
 import 'package:reminder_app/features/reminders/providers/developer_settings_providers.dart';
 import 'package:reminder_app/features/reminders/providers/item_providers.dart';
@@ -268,6 +269,7 @@ void main() {
     );
 
     expect(addButton.tooltip, '新增資源');
+    expect(find.byType(RefreshIndicator), findsOneWidget);
   });
 
   testWidgets('add resource opens editor-style create dialog', (tester) async {
@@ -301,6 +303,13 @@ void main() {
       find.byKey(const Key('resource-warning-quantity-field')),
       findsNothing,
     );
+
+    await tester.tap(find.byKey(const Key('resource-pack-picker-row')));
+    await tester.pumpAndSettle();
+    expect(find.text(ReminderUiText.unassignedPackOption), findsWidgets);
+    expect(find.text(ReminderUiText.systemDefaultPackLabel), findsNothing);
+    await tester.tap(find.text(ReminderUiText.unassignedPackOption).last);
+    await tester.pumpAndSettle();
 
     await tester.ensureVisible(
       find.byKey(const Key('resource-type-time-card')),

@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../domain/attention_policy.dart';
+import '../domain/fixed_schedule_validator.dart';
 import '../domain/item.dart';
 import '../domain/item_action_record.dart';
 import '../domain/item_action_service.dart';
@@ -130,6 +131,8 @@ class ItemRepository {
   final ItemStatusService _statusService;
   final ItemActionService _actionService;
   final ItemSnapshotUpdateService _snapshotUpdateService;
+  final FixedScheduleValidator _fixedScheduleValidator =
+      const FixedScheduleValidator();
   final DateTime Function() _clock;
 
   Stream<List<ItemPack>> watchPacks({bool includeArchived = false}) =>
@@ -270,6 +273,7 @@ class ItemRepository {
     if (input.type != existing.item.type) {
       return false;
     }
+    _validateItemInput(input);
     final now = _clock();
     final packId = input.packId ?? existing.item.packId;
     await _assertPackCanAcceptItems(packId, existingItem: existing.item);
@@ -892,6 +896,7 @@ class ItemRepository {
     ItemInput input, {
     required DateTime now,
   }) async {
+    _validateItemInput(input);
     final packId = input.packId ?? await _ensureDefaultPackId(now);
     await _assertPackCanAcceptItems(packId);
     return _dao.insertItem(_itemCompanion(input, packId: packId, now: now));
@@ -912,6 +917,16 @@ class ItemRepository {
       attentionPolicySource: input.attentionPolicySource,
       packId: packId,
     );
+  }
+
+  void _validateItemInput(ItemInput input) {
+    if (input.type != input.config.type) {
+      throw StateError('Item type and config type do not match.');
+    }
+    final config = input.config;
+    if (config is FixedItemConfig) {
+      _fixedScheduleValidator.validateForSave(config);
+    }
   }
 
   Future<void> _applyResourceBindingInputs({
@@ -1234,23 +1249,26 @@ class ItemRepository {
 
   ItemConfig _materializeTemplateConfig(ItemConfig config, DateTime today) {
     return switch (config) {
-      FixedItemConfig fixed => FixedItemConfig(
-        scheduleType: fixed.scheduleType,
-        scheduleInterval: fixed.scheduleInterval < 1
-            ? 1
-            : fixed.scheduleInterval,
-        monthlyDay: fixed.scheduleType == FixedScheduleType.monthly
-            ? today.day
-            : fixed.monthlyDay,
-        repeatRuleV2: fixed.repeatRuleV2,
-        anchorDate: today,
-        dueDate: _templateDueDate(fixed, today),
-        timeOfDay: fixed.timeOfDay,
-        overduePolicy: fixed.overduePolicy,
-        infoBefore: fixed.infoBefore,
-        warningBefore: fixed.warningBefore,
-        dangerBefore: fixed.dangerBefore,
-      ),
+      FixedItemConfig fixed => () {
+        final dueDate = _templateDueDate(fixed, today);
+        return FixedItemConfig(
+          scheduleType: fixed.scheduleType,
+          scheduleInterval: fixed.scheduleInterval < 1
+              ? 1
+              : fixed.scheduleInterval,
+          monthlyDay: fixed.scheduleType == FixedScheduleType.monthly
+              ? dueDate.day
+              : fixed.monthlyDay,
+          repeatRuleV2: fixed.repeatRuleV2,
+          anchorDate: dueDate,
+          dueDate: dueDate,
+          timeOfDay: fixed.timeOfDay,
+          overduePolicy: fixed.overduePolicy,
+          infoBefore: fixed.infoBefore,
+          warningBefore: fixed.warningBefore,
+          dangerBefore: fixed.dangerBefore,
+        );
+      }(),
       StateBasedItemConfig state => StateBasedItemConfig(
         anchorDate: today,
         infoAfter: state.infoAfter,

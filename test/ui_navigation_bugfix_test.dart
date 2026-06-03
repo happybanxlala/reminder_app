@@ -102,6 +102,13 @@ void main() {
       expect(find.byKey(const Key('more-settings-entry')), findsOneWidget);
       expect(find.byType(FloatingActionButton), findsNothing);
 
+      await tester.tap(find.text(ReminderUiText.bottomNavActivity));
+      await _pumpRoute(tester);
+      expect(find.byKey(const Key('item-activity-page')), findsOneWidget);
+      expect(find.byType(RefreshIndicator), findsOneWidget);
+
+      await tester.tap(find.text(ReminderUiText.bottomNavMore));
+      await _pumpRoute(tester);
       await tester.tap(find.byKey(const Key('more-stage-trackers-entry')));
       await _pumpRoute(tester);
       expect(find.byKey(const Key('stage-tracker-grid')), findsOneWidget);

@@ -140,10 +140,14 @@ void main() {
     await tester.tap(find.byKey(const Key('pack-picker-row')));
     await tester.pumpAndSettle();
     expect(find.text('Default Item Pack'), findsNothing);
+    expect(find.text(ReminderUiText.unassignedPackOption), findsWidgets);
+    expect(find.text(ReminderUiText.systemDefaultPackLabel), findsNothing);
     expect(find.text('🏷️ Cat Care').last, findsOneWidget);
     await tester.tap(find.text('🏷️ Cat Care').last);
     await tester.pumpAndSettle();
 
+    await tester.tap(find.byKey(const Key('item-type-state-based-card')));
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.byKey(const Key('expected-interval-field')),
       120,
@@ -169,8 +173,17 @@ void main() {
     expect(find.text('庫存'), findsNothing);
     expect(find.byKey(const Key('resource-danger-before-field')), findsNothing);
     expect(find.text(ReminderUiText.repeatRuleLabel), findsOneWidget);
-    expect(find.byKey(const Key('fixed-anchor-date-row')), findsOneWidget);
+    expect(find.byKey(const Key('fixed-anchor-date-row')), findsNothing);
     expect(find.byKey(const Key('fixed-due-date-row')), findsOneWidget);
+    expect(
+      find.byKey(const Key('fixed-completion-mode-field')),
+      findsOneWidget,
+    );
+    expect(
+      find.text(ReminderUiText.fixedCompletionDueOnlyLabel),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('fixed-lead-days-field')), findsNothing);
     expect(find.byKey(const Key('fixed-overdue-policy-row')), findsOneWidget);
     expect(find.byKey(const Key('fixed-warning-before-field')), findsNothing);
     expect(find.byKey(const Key('fixed-danger-before-field')), findsNothing);
@@ -220,7 +233,7 @@ void main() {
     expect(find.text(ReminderUiText.repeatRuleLabel), findsOneWidget);
     expect(find.text('每天'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('fixed-anchor-date-row')));
+    await tester.tap(find.byKey(const Key('fixed-due-date-row')));
     await tester.pumpAndSettle();
     expect(find.byType(DatePickerDialog), findsOneWidget);
     await tester.tap(find.text('Cancel'));
@@ -242,6 +255,224 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('每 3 天'), findsOneWidget);
+  });
+
+  testWidgets('fixed create defaults to due-only completion mode', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = _RecordingCreateItemRepository(db.reminderDao);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          ..._emptyResourceOverrides(),
+          itemRepositoryProvider.overrideWith((ref) => repository),
+          reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
+          activeItemPacksProvider.overrideWith(
+            (ref) => Stream.value([
+              ItemPack(
+                id: 1,
+                title: 'Default Item Pack',
+                status: ItemPackStatus.active,
+                isSystemDefault: true,
+                createdAt: DateTime(2026, 4, 1),
+                updatedAt: DateTime(2026, 4, 1),
+              ),
+            ]),
+          ),
+        ],
+        child: const MaterialApp(home: ItemEditPage(mode: ItemEditMode.create)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byKey(const Key('title-field')), 'Pay rent');
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('fixed-completion-mode-field')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(ReminderUiText.fixedCompletionDueOnlyLabel),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('fixed-lead-days-field')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('save-button')));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final config = repository.recordedInput!.config as FixedItemConfig;
+    expect(config.anchorDate, config.dueDate);
+  });
+
+  testWidgets('create item defaults to fixed rhythm and wait overdue policy', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          ..._emptyResourceOverrides(),
+          reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
+          activeItemPacksProvider.overrideWith(
+            (ref) => Stream.value([
+              ItemPack(
+                id: 1,
+                title: 'Default Item Pack',
+                status: ItemPackStatus.active,
+                isSystemDefault: true,
+                createdAt: DateTime(2026, 4, 1),
+                updatedAt: DateTime(2026, 4, 1),
+              ),
+            ]),
+          ),
+        ],
+        child: const MaterialApp(home: ItemEditPage(mode: ItemEditMode.create)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('fixed-overdue-policy-row')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('fixed-repeat-row')), findsOneWidget);
+    expect(find.byKey(const Key('state-anchor-date-row')), findsNothing);
+    expect(find.text('等待處理'), findsOneWidget);
+  });
+
+  testWidgets('overdue picker lists wait before auto advance', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          ..._emptyResourceOverrides(),
+          reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
+          activeItemPacksProvider.overrideWith(
+            (ref) => Stream.value([
+              ItemPack(
+                id: 1,
+                title: 'Default Item Pack',
+                status: ItemPackStatus.active,
+                isSystemDefault: true,
+                createdAt: DateTime(2026, 4, 1),
+                updatedAt: DateTime(2026, 4, 1),
+              ),
+            ]),
+          ),
+        ],
+        child: const MaterialApp(home: ItemEditPage(mode: ItemEditMode.create)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('fixed-overdue-policy-row')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('fixed-overdue-policy-row')));
+    await tester.pumpAndSettle();
+
+    final waitTop = tester.getTopLeft(
+      find.byKey(const Key('overdue-policy-waitForAction')),
+    );
+    final autoTop = tester.getTopLeft(
+      find.byKey(const Key('overdue-policy-autoAdvance')),
+    );
+    expect(waitTop.dy, lessThan(autoTop.dy));
+  });
+
+  testWidgets('edit item preserves stored overdue policy', (tester) async {
+    await _pumpFixedEditPage(
+      tester,
+      FixedItemConfig(
+        scheduleType: FixedScheduleType.daily,
+        anchorDate: DateTime(2026, 4, 1),
+        dueDate: DateTime(2026, 4, 1),
+        overduePolicy: ItemOverduePolicy.autoAdvance,
+      ),
+    );
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('fixed-overdue-policy-row')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('自動進下一輪'), findsOneWidget);
+  });
+
+  testWidgets('fixed lead-window mode reveals positive lead days input', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = _RecordingCreateItemRepository(db.reminderDao);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          ..._emptyResourceOverrides(),
+          itemRepositoryProvider.overrideWith((ref) => repository),
+          reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
+          activeItemPacksProvider.overrideWith(
+            (ref) => Stream.value([
+              ItemPack(
+                id: 1,
+                title: 'Default Item Pack',
+                status: ItemPackStatus.active,
+                isSystemDefault: true,
+                createdAt: DateTime(2026, 4, 1),
+                updatedAt: DateTime(2026, 4, 1),
+              ),
+            ]),
+          ),
+        ],
+        child: const MaterialApp(home: ItemEditPage(mode: ItemEditMode.create)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('title-field')),
+      'Prepare bill',
+    );
+    await tester.tap(find.byKey(const Key('item-type-fixed-card')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('fixed-completion-lead-window-option')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const Key('fixed-completion-lead-window-option')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('fixed-lead-days-field')), findsOneWidget);
+    await tester.enterText(find.byKey(const Key('fixed-lead-days-field')), '0');
+    await tester.tap(find.byKey(const Key('save-button')));
+    await tester.pump();
+    expect(find.text('請輸入 1 或以上整數'), findsOneWidget);
+
+    await tester.enterText(find.byKey(const Key('fixed-lead-days-field')), '3');
+    await tester.tap(find.byKey(const Key('save-button')));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final config = repository.recordedInput!.config as FixedItemConfig;
+    expect(
+      config.anchorDate,
+      config.dueDate!.subtract(const Duration(days: 3)),
+    );
   });
 
   testWidgets('editor loads existing state-based item', (tester) async {
@@ -317,7 +548,7 @@ void main() {
     expect(find.byKey(const Key('danger-after-field')), findsNothing);
     expect(find.byKey(const Key('pack-picker-row')), findsNothing);
     expect(find.byKey(const Key('pack-readonly')), findsOneWidget);
-    expect(find.text('📌 一般'), findsOneWidget);
+    expect(find.text('一般'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.byKey(const Key('editor-section-toggle-advanced-settings')),
       120,
@@ -527,6 +758,8 @@ void main() {
     expect(find.byKey(const Key('pack-picker-row')), findsNothing);
 
     await tester.enterText(find.byType(TextFormField).first, 'Locked item');
+    await tester.tap(find.byKey(const Key('item-type-state-based-card')));
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.byKey(const Key('expected-interval-field')),
       120,
@@ -599,6 +832,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     await tester.enterText(find.byType(TextFormField).first, 'Urgent item');
+    await tester.tap(find.byKey(const Key('item-type-state-based-card')));
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.byKey(const Key('expected-interval-field')),
       120,
@@ -913,8 +1148,76 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('2026/04/01'), findsNWidgets(2));
+    expect(find.text('2026/04/01'), findsOneWidget);
     expect(find.text('2026/04/03'), findsNothing);
+  });
+
+  testWidgets('fixed edit derives due-only completion mode from stored dates', (
+    tester,
+  ) async {
+    await _pumpFixedEditPage(
+      tester,
+      FixedItemConfig(
+        scheduleType: FixedScheduleType.weekly,
+        anchorDate: DateTime(2026, 4, 8),
+        dueDate: DateTime(2026, 4, 8),
+      ),
+    );
+
+    expect(
+      find.byKey(const Key('fixed-completion-due-only-option')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('fixed-lead-days-field')), findsNothing);
+  });
+
+  testWidgets(
+    'fixed edit derives lead-window completion mode from stored dates',
+    (tester) async {
+      await _pumpFixedEditPage(
+        tester,
+        FixedItemConfig(
+          scheduleType: FixedScheduleType.weekly,
+          anchorDate: DateTime(2026, 4, 5),
+          dueDate: DateTime(2026, 4, 8),
+        ),
+      );
+
+      expect(find.byKey(const Key('fixed-lead-days-field')), findsOneWidget);
+      expect(
+        tester
+            .widget<TextFormField>(
+              find.byKey(const Key('fixed-lead-days-field')),
+            )
+            .controller!
+            .text,
+        '3',
+      );
+    },
+  );
+
+  testWidgets('fixed edit shows validation error for invalid stored window', (
+    tester,
+  ) async {
+    await _pumpFixedEditPage(
+      tester,
+      FixedItemConfig(
+        scheduleType: FixedScheduleType.weekly,
+        anchorDate: DateTime(2026, 4, 10),
+        dueDate: DateTime(2026, 4, 8),
+      ),
+    );
+
+    expect(
+      find.text(ReminderUiText.fixedScheduleInvalidWindowError),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('save-button')));
+    await tester.pump();
+    expect(
+      find.text(ReminderUiText.fixedScheduleInvalidWindowError),
+      findsOneWidget,
+    );
   });
 
   testWidgets('edit resource consumption renders compact editor rows', (
@@ -994,9 +1297,13 @@ void main() {
 
     await tester.scrollUntilVisible(
       find.byKey(const Key('editor-section-toggle-resource-consumption')),
-      120,
+      240,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.ensureVisible(
+      find.byKey(const Key('editor-section-toggle-resource-consumption')),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(
       find.byKey(const Key('editor-section-toggle-resource-consumption')),
     );
@@ -1071,7 +1378,7 @@ void main() {
     expect(find.byKey(const Key('pack-picker-row')), findsNothing);
     expect(find.byKey(const Key('pack-readonly')), findsOneWidget);
     expect(find.byKey(const Key('item-type-readonly')), findsOneWidget);
-    expect(find.text('2026/04/01'), findsNWidgets(2));
+    expect(find.text('2026/04/01'), findsOneWidget);
     expect(find.text('2026/04/03'), findsNothing);
   });
 
@@ -1370,5 +1677,54 @@ Future<void> _pumpEditableItemRoute(WidgetTester tester) async {
   );
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(const Key('open-editor')));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _pumpFixedEditPage(
+  WidgetTester tester,
+  FixedItemConfig config,
+) async {
+  final pack = ItemPack(
+    id: 1,
+    title: 'Default Item Pack',
+    status: ItemPackStatus.active,
+    isSystemDefault: true,
+    createdAt: DateTime(2026, 4, 1),
+    updatedAt: DateTime(2026, 4, 2),
+  );
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        ..._emptyResourceOverrides(),
+        reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
+        activeItemPacksProvider.overrideWith((ref) => Stream.value([pack])),
+        itemProvider(99).overrideWith(
+          (ref) => Future.value(
+            ItemBundle(
+              item: Item(
+                id: 99,
+                packId: 1,
+                title: 'Fixed item',
+                type: ItemType.fixed,
+                config: config,
+                createdAt: DateTime(2026, 4, 1),
+                updatedAt: DateTime(2026, 4, 2),
+              ),
+              pack: pack,
+            ),
+          ),
+        ),
+      ],
+      child: const MaterialApp(
+        home: ItemEditPage(mode: ItemEditMode.edit, id: 99),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+  await tester.scrollUntilVisible(
+    find.byKey(const Key('fixed-completion-mode-field')),
+    120,
+    scrollable: find.byType(Scrollable).first,
+  );
   await tester.pumpAndSettle();
 }

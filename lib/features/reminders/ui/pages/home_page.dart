@@ -100,110 +100,127 @@ class _HomeContentState extends ConsumerState<HomeContent> {
     final packs = packsAsync.valueOrNull ?? const <ItemPack>[];
     final trackers = trackersAsync.valueOrNull ?? const <StageTracker>[];
 
-    return ListView(
-      padding: const EdgeInsets.all(_HomeDensity.pagePadding),
-      children: [
-        summaryAsync.when(
-          data: (summary) =>
-              _AttentionSummaryCard(summary: summary, previewDate: previewDate),
-          error: (error, stack) => Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+    return ReminderRefreshable(
+      onRefresh: _refresh,
+      child: ListView(
+        physics: reminderRefreshPhysics,
+        padding: const EdgeInsets.all(_HomeDensity.pagePadding),
+        children: [
+          summaryAsync.when(
+            data: (summary) => _AttentionSummaryCard(
+              summary: summary,
+              previewDate: previewDate,
+            ),
+            error: (error, stack) => Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text('讀取失敗: $error'),
+              ),
+            ),
+            loading: () => const Card(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            ),
+          ),
+          const SizedBox(height: _HomeDensity.sectionGap),
+          _HomePackFilter(
+            packs: packs,
+            selectedPackId: _selectedPackId,
+            onChanged: (packId) {
+              setState(() {
+                _selectedPackId = packId;
+                _expandedEntryKey = null;
+                _isTodayCompletedExpanded = false;
+              });
+            },
+          ),
+          const SizedBox(height: _HomeDensity.sectionGap),
+          _HomeSection(
+            title: ReminderUiText.dangerTab,
+            icon: Icons.error_outline,
+            child: dangerAsync.when(
+              data: (items) => _AttentionEntryList(
+                entries: _filterAttentionEntries(items),
+                emptyMessage: ReminderUiText.noDangerItems,
+                expandedEntryKey: _expandedEntryKey,
+                onToggleEntry: _toggleEntry,
+              ),
+              error: (error, stack) => Text('讀取失敗: $error'),
+              loading: () => const Center(child: CircularProgressIndicator()),
+            ),
+          ),
+          const SizedBox(height: _HomeDensity.sectionGap),
+          _HomeSection(
+            title: ReminderUiText.warningTab,
+            icon: Icons.visibility_outlined,
+            child: warningAsync.when(
+              data: (items) => _AttentionEntryList(
+                entries: _filterAttentionEntries(items),
+                emptyMessage: ReminderUiText.noWarningItems,
+                expandedEntryKey: _expandedEntryKey,
+                onToggleEntry: _toggleEntry,
+              ),
+              error: (error, stack) => Text('讀取失敗: $error'),
+              loading: () => const Center(child: CircularProgressIndicator()),
+            ),
+          ),
+          const SizedBox(height: _HomeDensity.sectionGap),
+          _HomeSection(
+            title: ReminderUiText.upcomingSectionTitle,
+            icon: Icons.event_available_outlined,
+            child: stagesAsync.when(
+              data: (items) => _StageList(
+                items: _filterStages(items, trackers),
+                packs: packs,
+                trackers: trackers,
+                emptyMessage: ReminderUiText.noUpcomingStages,
+              ),
+              error: (error, stack) => Text('讀取失敗: $error'),
+              loading: () => const Center(child: CircularProgressIndicator()),
+            ),
+          ),
+          completedAsync.when(
+            data: (items) {
+              final filtered = _filterCompletedEntries(items);
+              if (filtered.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                padding: const EdgeInsets.only(top: _HomeDensity.sectionGap),
+                child: _TodayCompletedSection(
+                  entries: filtered,
+                  isExpanded: _isTodayCompletedExpanded,
+                  onToggle: () {
+                    setState(() {
+                      _isTodayCompletedExpanded = !_isTodayCompletedExpanded;
+                    });
+                  },
+                ),
+              );
+            },
+            error: (error, stack) => Padding(
+              padding: const EdgeInsets.only(top: _HomeDensity.sectionGap),
               child: Text('讀取失敗: $error'),
             ),
+            loading: () => const SizedBox.shrink(),
           ),
-          loading: () => const Card(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator()),
-            ),
-          ),
-        ),
-        const SizedBox(height: _HomeDensity.sectionGap),
-        _HomePackFilter(
-          packs: packs,
-          selectedPackId: _selectedPackId,
-          onChanged: (packId) {
-            setState(() {
-              _selectedPackId = packId;
-              _expandedEntryKey = null;
-              _isTodayCompletedExpanded = false;
-            });
-          },
-        ),
-        const SizedBox(height: _HomeDensity.sectionGap),
-        _HomeSection(
-          title: ReminderUiText.dangerTab,
-          icon: Icons.error_outline,
-          child: dangerAsync.when(
-            data: (items) => _AttentionEntryList(
-              entries: _filterAttentionEntries(items),
-              emptyMessage: ReminderUiText.noDangerItems,
-              expandedEntryKey: _expandedEntryKey,
-              onToggleEntry: _toggleEntry,
-            ),
-            error: (error, stack) => Text('讀取失敗: $error'),
-            loading: () => const Center(child: CircularProgressIndicator()),
-          ),
-        ),
-        const SizedBox(height: _HomeDensity.sectionGap),
-        _HomeSection(
-          title: ReminderUiText.warningTab,
-          icon: Icons.visibility_outlined,
-          child: warningAsync.when(
-            data: (items) => _AttentionEntryList(
-              entries: _filterAttentionEntries(items),
-              emptyMessage: ReminderUiText.noWarningItems,
-              expandedEntryKey: _expandedEntryKey,
-              onToggleEntry: _toggleEntry,
-            ),
-            error: (error, stack) => Text('讀取失敗: $error'),
-            loading: () => const Center(child: CircularProgressIndicator()),
-          ),
-        ),
-        const SizedBox(height: _HomeDensity.sectionGap),
-        _HomeSection(
-          title: ReminderUiText.upcomingSectionTitle,
-          icon: Icons.event_available_outlined,
-          child: stagesAsync.when(
-            data: (items) => _StageList(
-              items: _filterStages(items, trackers),
-              packs: packs,
-              trackers: trackers,
-              emptyMessage: ReminderUiText.noUpcomingStages,
-            ),
-            error: (error, stack) => Text('讀取失敗: $error'),
-            loading: () => const Center(child: CircularProgressIndicator()),
-          ),
-        ),
-        completedAsync.when(
-          data: (items) {
-            final filtered = _filterCompletedEntries(items);
-            if (filtered.isEmpty) {
-              return const SizedBox.shrink();
-            }
-            return Padding(
-              padding: const EdgeInsets.only(top: _HomeDensity.sectionGap),
-              child: _TodayCompletedSection(
-                entries: filtered,
-                isExpanded: _isTodayCompletedExpanded,
-                onToggle: () {
-                  setState(() {
-                    _isTodayCompletedExpanded = !_isTodayCompletedExpanded;
-                  });
-                },
-              ),
-            );
-          },
-          error: (error, stack) => Padding(
-            padding: const EdgeInsets.only(top: _HomeDensity.sectionGap),
-            child: Text('讀取失敗: $error'),
-          ),
-          loading: () => const SizedBox.shrink(),
-        ),
-        const ReminderFooterMark(),
-      ],
+          const ReminderFooterMark(),
+        ],
+      ),
     );
+  }
+
+  Future<void> _refresh() async {
+    ref.invalidate(attentionSummaryProvider);
+    ref.invalidate(dangerHomeAttentionEntriesProvider);
+    ref.invalidate(warningHomeAttentionEntriesProvider);
+    ref.invalidate(upcomingStagesProvider);
+    ref.invalidate(todayCompletedEntriesProvider);
+    ref.invalidate(activeItemPacksProvider);
+    ref.invalidate(stageTrackersProvider);
+    await Future<void>.delayed(Duration.zero);
   }
 
   void _toggleEntry(String key) {

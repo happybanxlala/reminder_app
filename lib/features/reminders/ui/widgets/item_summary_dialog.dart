@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/local/reminder_dao.dart';
+import '../../domain/item.dart';
 import '../../presentation/text/reminder_ui_text.dart';
 import '../../presentation/view_models/management_item_card_view_model.dart';
 import '../../providers/stage_tracker_providers.dart';
@@ -25,7 +26,8 @@ Future<void> showItemSummaryDialog(
       label: ReminderUiText.packFieldLabel,
       value: viewModel.packTitle,
     ),
-    if (viewModel.anchorDateLabel != null)
+    if (viewModel.anchorDateLabel != null &&
+        bundle.item.config is! FixedItemConfig)
       _ItemDetailRow(
         label: ReminderUiText.itemStartDateLabel,
         value: viewModel.anchorDateLabel!,

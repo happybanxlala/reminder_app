@@ -302,6 +302,7 @@ void main() {
       find.byKey(const Key('stage-tracker-content-add-button')),
       findsOneWidget,
     );
+    expect(find.byType(RefreshIndicator), findsOneWidget);
     expect(
       find.byKey(const Key('stage-tracker-dashed-add-card')),
       findsOneWidget,
@@ -378,6 +379,8 @@ void main() {
 
     await tester.tap(find.byKey(const Key('stage-tracker-pack-picker-row')));
     await tester.pumpAndSettle();
+    expect(find.text(ReminderUiText.unassignedPackOption), findsWidgets);
+    expect(find.text(ReminderUiText.systemDefaultPackLabel), findsNothing);
     await tester.tap(find.text('🐱 養貓').last);
     await tester.pumpAndSettle();
 

@@ -37,6 +37,7 @@ void main() {
     expect(find.text('彈性節奏・目前穩定'), findsOneWidget);
     expect(find.text('🏠 家務'), findsOneWidget);
     expect(find.text('全部'), findsOneWidget);
+    expect(find.byType(RefreshIndicator), findsOneWidget);
     expect(find.text('完成'), findsWidgets);
     expect(find.text('已回復'), findsOneWidget);
     expect(find.text('資源影響'), findsOneWidget);

@@ -84,12 +84,14 @@ class _CreateItemDialogState extends ConsumerState<_CreateItemDialog> {
         value: _unassignedPackValue,
         child: Text(ReminderUiText.unassignedPackOption),
       ),
-      ...packs.map(
-        (pack) => DropdownMenuItem<String>(
-          value: _packValue(pack.id),
-          child: Text(packDisplayLabel(pack)),
-        ),
-      ),
+      ...packs
+          .where((pack) => !pack.isSystemDefault)
+          .map(
+            (pack) => DropdownMenuItem<String>(
+              value: _packValue(pack.id),
+              child: Text(packDisplayLabel(pack)),
+            ),
+          ),
     ];
 
     return [

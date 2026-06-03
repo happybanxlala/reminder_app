@@ -377,7 +377,9 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
           ? _configController.buildConfigForCurrentPolicySource()
           : _configController.buildConfigForCreate(),
       attentionPolicySource:
-          _isEdit && _configController.customizeAttentionPolicy
+          _configController.type != ItemType.fixed &&
+              _isEdit &&
+              _configController.customizeAttentionPolicy
           ? AttentionPolicySource.userCustomized
           : AttentionPolicySource.systemDefault,
       packId: widget.lockedPackId ?? _selectedPackId,
@@ -418,10 +420,12 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     ItemPack? currentPack,
   ) {
     final options = <_PackOption>[
-      const _PackOption(id: null, label: ReminderUiText.unassignedPackTitle),
-      ...activePacks.map(
-        (pack) => _PackOption(id: pack.id, label: packDisplayLabel(pack)),
-      ),
+      _PackOption(id: null, label: packCreateUndecidedLabel()),
+      ...activePacks
+          .where((pack) => !pack.isSystemDefault)
+          .map(
+            (pack) => _PackOption(id: pack.id, label: packDisplayLabel(pack)),
+          ),
     ];
 
     final pack = currentPack;
@@ -515,7 +519,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
   String _selectedPackLabel(List<ItemPack> activePacks) {
     final selectedPackId = _selectedPackId;
     if (selectedPackId == null) {
-      return ReminderUiText.selectPackPlaceholder;
+      return packCreateUndecidedLabel();
     }
     final pack = _findPack(activePacks, selectedPackId);
     return pack == null
@@ -615,6 +619,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       _descriptionController,
       _configController.fixedAnchorDateController,
       _configController.fixedDueDateController,
+      _configController.fixedLeadDaysController,
       _configController.fixedScheduleIntervalController,
       _configController.fixedMonthlyDayController,
       _configController.fixedWarningBeforeController,
@@ -648,10 +653,12 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       _configController.scheduleType.name,
       _configController.fixedRepeatRuleV2?.encode(),
       _configController.overduePolicy.name,
+      _configController.fixedCompletionMode.name,
       _configController.customizeAttentionPolicy,
       _configController.selectedFixedAnchorDate.toIso8601String(),
       _configController.selectedFixedDueDate.toIso8601String(),
       _configController.selectedStateAnchorDate.toIso8601String(),
+      _configController.fixedLeadDaysController.text,
       _configController.fixedScheduleIntervalController.text,
       _configController.fixedMonthlyDayController.text,
       _configController.fixedWarningBeforeController.text,

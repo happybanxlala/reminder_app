@@ -3,8 +3,22 @@ import 'package:flutter/material.dart';
 import '../../domain/item_pack.dart';
 import '../../presentation/text/reminder_ui_text.dart';
 
-String packDisplayLabel(ItemPack pack) =>
-    pack.isSystemDefault ? '📌 一般' : '${pack.iconEmoji} ${pack.title}';
+enum PackDisplayContext { create, edit }
+
+String packDisplayLabel(
+  ItemPack pack, {
+  PackDisplayContext context = PackDisplayContext.edit,
+}) {
+  if (pack.isSystemDefault) {
+    return switch (context) {
+      PackDisplayContext.create => packCreateUndecidedLabel(),
+      PackDisplayContext.edit => ReminderUiText.systemDefaultPackLabel,
+    };
+  }
+  return '${pack.iconEmoji} ${pack.title}';
+}
+
+String packCreateUndecidedLabel() => ReminderUiText.unassignedPackOption;
 
 String suggestPackEmoji(String title) {
   final value = title.trim();

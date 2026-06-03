@@ -53,7 +53,30 @@ class _ItemsManagementContentState
     return groupsAsync.when(
       data: (groups) {
         if (groups.isEmpty) {
-          return ListView(
+          return ReminderRefreshable(
+            onRefresh: _refresh,
+            child: ListView(
+              physics: reminderRefreshPhysics,
+              padding: const EdgeInsets.all(_ManagementDensity.pagePadding),
+              children: [
+                _ItemManagementHeader(
+                  onOpenResources: () =>
+                      context.pushNamed(ResourceManagementPage.routeName),
+                  onAddItem: () => _showCreateItemDialog(context, ref),
+                ),
+                const SizedBox(height: _ManagementDensity.groupGap),
+                const ReminderEmptyState(
+                  message: ReminderUiText.noDefaultItemPack,
+                ),
+              ],
+            ),
+          );
+        }
+
+        return ReminderRefreshable(
+          onRefresh: _refresh,
+          child: ListView(
+            physics: reminderRefreshPhysics,
             padding: const EdgeInsets.all(_ManagementDensity.pagePadding),
             children: [
               _ItemManagementHeader(
@@ -62,49 +85,46 @@ class _ItemsManagementContentState
                 onAddItem: () => _showCreateItemDialog(context, ref),
               ),
               const SizedBox(height: _ManagementDensity.groupGap),
-              const ReminderEmptyState(
-                message: ReminderUiText.noDefaultItemPack,
+              ...groups.map(
+                (group) => Padding(
+                  padding: const EdgeInsets.only(
+                    bottom: _ManagementDensity.groupGap,
+                  ),
+                  child: _ItemManagementGroupCard(
+                    group: group,
+                    previewDate: previewDate,
+                    expanded: !_collapsedPackIds.contains(group.pack.id),
+                    onToggle: () {
+                      setState(() {
+                        if (_collapsedPackIds.contains(group.pack.id)) {
+                          _collapsedPackIds.remove(group.pack.id);
+                        } else {
+                          _collapsedPackIds.add(group.pack.id);
+                        }
+                      });
+                    },
+                  ),
+                ),
               ),
             ],
-          );
-        }
-
-        return ListView(
-          padding: const EdgeInsets.all(_ManagementDensity.pagePadding),
-          children: [
-            _ItemManagementHeader(
-              onOpenResources: () =>
-                  context.pushNamed(ResourceManagementPage.routeName),
-              onAddItem: () => _showCreateItemDialog(context, ref),
-            ),
-            const SizedBox(height: _ManagementDensity.groupGap),
-            ...groups.map(
-              (group) => Padding(
-                padding: const EdgeInsets.only(
-                  bottom: _ManagementDensity.groupGap,
-                ),
-                child: _ItemManagementGroupCard(
-                  group: group,
-                  previewDate: previewDate,
-                  expanded: !_collapsedPackIds.contains(group.pack.id),
-                  onToggle: () {
-                    setState(() {
-                      if (_collapsedPackIds.contains(group.pack.id)) {
-                        _collapsedPackIds.remove(group.pack.id);
-                      } else {
-                        _collapsedPackIds.add(group.pack.id);
-                      }
-                    });
-                  },
-                ),
-              ),
-            ),
-          ],
+          ),
         );
       },
-      error: (error, stack) => Center(child: Text('讀取失敗: $error')),
-      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stack) => ReminderRefreshablePlaceholder(
+        onRefresh: _refresh,
+        child: Text('讀取失敗: $error'),
+      ),
+      loading: () => ReminderRefreshablePlaceholder(
+        onRefresh: _refresh,
+        child: const CircularProgressIndicator(),
+      ),
     );
+  }
+
+  Future<void> _refresh() async {
+    ref.invalidate(activeItemPacksProvider);
+    ref.invalidate(packManagementItemsProvider);
+    await Future<void>.delayed(Duration.zero);
   }
 }
 

@@ -36,8 +36,6 @@ class ItemSnapshotUpdateService {
     : _statusService = statusService ?? const ItemStatusService();
 
   final ItemStatusService _statusService;
-  final RepeatRuleOccurrenceCalculator _repeatCalculator =
-      const RepeatRuleOccurrenceCalculator();
 
   ItemSnapshotUpdate build(
     Item item, {
@@ -99,15 +97,19 @@ class ItemSnapshotUpdateService {
                 repeatRuleV2.completedCount + 1,
               )
             : repeatRuleV2;
-        final next = _repeatCalculator.nextOccurrence(
-          rule: updatedRule,
-          fromDate: action.actionDate,
-          anchorDate: config.anchorDate ?? cycle.anchorDate,
+        final nextConfig = _withRepeatRule(config, updatedRule);
+        final nextDueDate = _statusService.nextFixedCycleDueDate(
+          cycle,
+          nextConfig,
+        );
+        final nextAnchorDate = _statusService.nextFixedCycleAnchorDate(
+          cycle,
+          nextConfig,
         );
         repeatRuleV2 = updatedRule;
-        if (next != null) {
-          anchorDate = next;
-          dueDate = next;
+        if (nextDueDate != null && nextAnchorDate != null) {
+          anchorDate = nextAnchorDate;
+          dueDate = nextDueDate;
         } else {
           anchorDate = cycle.anchorDate;
           dueDate = cycle.dueDate;
@@ -136,6 +138,25 @@ class ItemSnapshotUpdateService {
       fixedRepeatRuleV2: SnapshotValue.value(repeatRuleV2?.encode()),
       lastDoneAt: SnapshotValue.value(lastDoneAt),
       updatedAt: updatedAt,
+    );
+  }
+
+  FixedItemConfig _withRepeatRule(
+    FixedItemConfig config,
+    RepeatRuleV2? repeatRuleV2,
+  ) {
+    return FixedItemConfig(
+      scheduleType: config.scheduleType,
+      scheduleInterval: config.scheduleInterval,
+      monthlyDay: config.monthlyDay,
+      repeatRuleV2: repeatRuleV2,
+      anchorDate: config.anchorDate,
+      dueDate: config.dueDate,
+      timeOfDay: config.timeOfDay,
+      overduePolicy: config.overduePolicy,
+      infoBefore: config.infoBefore,
+      warningBefore: config.warningBefore,
+      dangerBefore: config.dangerBefore,
     );
   }
 

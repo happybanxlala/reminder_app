@@ -4,9 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/item_repository.dart';
 import 'package:reminder_app/features/reminders/domain/attention_policy.dart';
+import 'package:reminder_app/features/reminders/domain/fixed_schedule_validator.dart';
 import 'package:reminder_app/features/reminders/domain/item_action_record.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
+import 'package:reminder_app/features/reminders/domain/repeat_rule.dart';
 import 'package:reminder_app/features/reminders/domain/repeat_rule_v2.dart';
 import 'package:reminder_app/features/reminders/domain/resource.dart';
 import 'package:reminder_app/features/reminders/data/resource_repository.dart';
@@ -808,6 +810,154 @@ void main() {
     expect(updatedConfig.monthlyDay, 31);
   });
 
+  test('fixed due-only item stores anchor date equal to due date', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = ItemRepository(db.reminderDao);
+
+    final itemId = await repository.createItem(
+      ItemInput(
+        title: 'Pay rent',
+        type: ItemType.fixed,
+        config: FixedItemConfig(
+          scheduleType: FixedScheduleType.weekly,
+          anchorDate: DateTime(2026, 4, 8),
+          dueDate: DateTime(2026, 4, 8),
+        ),
+      ),
+    );
+
+    final config =
+        (await repository.getItemById(itemId))!.item.config as FixedItemConfig;
+    expect(config.anchorDate, DateTime(2026, 4, 8));
+    expect(config.dueDate, DateTime(2026, 4, 8));
+  });
+
+  test('fixed lead-window item stores anchor date before due date', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = ItemRepository(db.reminderDao);
+
+    final itemId = await repository.createItem(
+      ItemInput(
+        title: 'Prepare payment',
+        type: ItemType.fixed,
+        config: FixedItemConfig(
+          scheduleType: FixedScheduleType.weekly,
+          anchorDate: DateTime(2026, 4, 5),
+          dueDate: DateTime(2026, 4, 8),
+        ),
+      ),
+    );
+
+    final config =
+        (await repository.getItemById(itemId))!.item.config as FixedItemConfig;
+    expect(config.anchorDate, DateTime(2026, 4, 5));
+    expect(config.dueDate, DateTime(2026, 4, 8));
+  });
+
+  test('fixed overlapping schedule is blocked on create and update', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = ItemRepository(db.reminderDao);
+
+    await expectLater(
+      repository.createItem(
+        ItemInput(
+          title: 'Too long window',
+          type: ItemType.fixed,
+          config: FixedItemConfig(
+            scheduleType: FixedScheduleType.weekly,
+            anchorDate: DateTime(2026, 4, 1),
+            dueDate: DateTime(2026, 4, 8),
+          ),
+        ),
+      ),
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          FixedScheduleValidator.overlapErrorMessage,
+        ),
+      ),
+    );
+
+    final itemId = await repository.createItem(
+      ItemInput(
+        title: 'Valid window',
+        type: ItemType.fixed,
+        config: FixedItemConfig(
+          scheduleType: FixedScheduleType.weekly,
+          anchorDate: DateTime(2026, 4, 5),
+          dueDate: DateTime(2026, 4, 8),
+        ),
+      ),
+    );
+
+    await expectLater(
+      repository.updateItem(
+        itemId,
+        ItemInput(
+          title: 'Invalid update',
+          type: ItemType.fixed,
+          config: FixedItemConfig(
+            scheduleType: FixedScheduleType.weekly,
+            anchorDate: DateTime(2026, 4, 1),
+            dueDate: DateTime(2026, 4, 8),
+          ),
+        ),
+      ),
+      throwsA(isA<StateError>()),
+    );
+  });
+
+  test(
+    'fixed monthly overlap uses next anchor date instead of 30-day count',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = ItemRepository(db.reminderDao);
+
+      await expectLater(
+        repository.createItem(
+          ItemInput(
+            title: 'Month end task',
+            type: ItemType.fixed,
+            config: FixedItemConfig(
+              scheduleType: FixedScheduleType.monthly,
+              scheduleInterval: 1,
+              monthlyDay: 31,
+              anchorDate: DateTime(2026, 1, 2),
+              dueDate: DateTime(2026, 1, 31),
+            ),
+          ),
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            FixedScheduleValidator.overlapErrorMessage,
+          ),
+        ),
+      );
+
+      final itemId = await repository.createItem(
+        ItemInput(
+          title: 'Month end valid task',
+          type: ItemType.fixed,
+          config: FixedItemConfig(
+            scheduleType: FixedScheduleType.monthly,
+            scheduleInterval: 1,
+            monthlyDay: 31,
+            anchorDate: DateTime(2026, 1, 4),
+            dueDate: DateTime(2026, 1, 31),
+          ),
+        ),
+      );
+      expect(await repository.getItemById(itemId), isNotNull);
+    },
+  );
+
   test(
     'fixed advanced repeat rule persists and advances after completion',
     () async {
@@ -849,6 +999,35 @@ void main() {
       expect(updatedConfig.repeatRuleV2!.completedCount, 1);
     },
   );
+
+  test('fixed repeat completion preserves lead window in next cycle', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = ItemRepository(db.reminderDao);
+
+    final itemId = await repository.createItem(
+      ItemInput(
+        title: 'Prepare medication',
+        type: ItemType.fixed,
+        config: FixedItemConfig(
+          scheduleType: FixedScheduleType.weekly,
+          repeatRuleV2: RepeatRuleV2.simple(unit: RepeatUnit.week, interval: 1),
+          anchorDate: DateTime(2026, 4, 6),
+          dueDate: DateTime(2026, 4, 8),
+        ),
+      ),
+    );
+
+    expect(
+      await repository.markDone(itemId, doneAt: DateTime(2026, 4, 8)),
+      isTrue,
+    );
+
+    final updated = await repository.getItemById(itemId);
+    final config = updated!.item.config as FixedItemConfig;
+    expect(config.dueDate, DateTime(2026, 4, 15));
+    expect(config.anchorDate, DateTime(2026, 4, 13));
+  });
 
   test(
     'create, update, and archive pack round-trip with visibility rules',

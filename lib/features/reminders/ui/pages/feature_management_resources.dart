@@ -32,14 +32,21 @@ class ResourceManagementPage extends StatelessWidget {
   }
 }
 
-class ResourceManagementContent extends StatelessWidget {
+class ResourceManagementContent extends ConsumerWidget {
   const ResourceManagementContent({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(_ResourceManagementDensity.pagePadding),
-      children: const [ResourceManagementSection()],
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ReminderRefreshable(
+      onRefresh: () async {
+        ref.invalidate(managedResourcesProvider);
+        await Future<void>.delayed(Duration.zero);
+      },
+      child: ListView(
+        physics: reminderRefreshPhysics,
+        padding: const EdgeInsets.all(_ResourceManagementDensity.pagePadding),
+        children: const [ResourceManagementSection()],
+      ),
     );
   }
 }
@@ -786,16 +793,15 @@ class _ResourceFormDialogState extends ConsumerState<_ResourceFormDialog> {
 
   List<_ResourceCreatePackOption> _packOptions(List<ItemPack> packs) {
     return [
-      const _ResourceCreatePackOption(
-        id: null,
-        label: ReminderUiText.unassignedPackTitle,
-      ),
-      ...packs.map(
-        (pack) => _ResourceCreatePackOption(
-          id: pack.id,
-          label: packDisplayLabel(pack),
-        ),
-      ),
+      _ResourceCreatePackOption(id: null, label: packCreateUndecidedLabel()),
+      ...packs
+          .where((pack) => !pack.isSystemDefault)
+          .map(
+            (pack) => _ResourceCreatePackOption(
+              id: pack.id,
+              label: packDisplayLabel(pack),
+            ),
+          ),
     ];
   }
 
@@ -890,7 +896,7 @@ class _ResourceFormDialogState extends ConsumerState<_ResourceFormDialog> {
   String _selectedPackLabel(List<ItemPack> packs) {
     final selectedPackId = _selectedPackId;
     if (selectedPackId == null) {
-      return ReminderUiText.selectPackPlaceholder;
+      return packCreateUndecidedLabel();
     }
     for (final pack in packs) {
       if (pack.id == selectedPackId) {

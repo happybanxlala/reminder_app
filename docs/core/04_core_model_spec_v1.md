@@ -141,6 +141,7 @@ system default pack 常數：
 - system default pack 必須維持 active、名稱「一般」、icon `📌`、`orderIndex = 0`。
 - system default pack 不可封存。
 - `Item`、`Resource`、`StageTracker` 建立時若沒有提供 `packId`，repository 會寫入 system default pack。
+- 建立流程的 pack picker 會把未指定 / system default 顯示為「之後決定」，避免同時出現「一般」與未決定選項；編輯 / 唯讀脈絡則把 system default pack 顯示為「一般」。這是 UI display mapping，不改變 `packId` 或 repository 預設歸屬。
 - 自訂 Pack 可新增、編輯名稱、編輯 emoji、調整排序、封存。
 - Pack 排序由 `orderIndex` 控制；DAO 排序會把 system default pack 固定在前，再依自訂 Pack 的 `orderIndex`、`createdAt` 穩定排序。
 - Pack 管理頁使用「生活場景管理」文案，支援「上」「下」排序，不支援 drag and drop。
@@ -162,7 +163,6 @@ StageTracker: 小米成長
 
 #### MVP 待完成
 
-- Pack 管理頁目前只顯示 active packs；archived packs 的管理入口未完成。
 - Item / Resource / StageTracker 建立後的跨 Pack 搬移入口未提供。
 
 ### 2.2 PackTemplate Domain
@@ -303,6 +303,12 @@ StateBasedItemConfig {
 - `defer` API 存在，但目前固定回傳 `false`，不寫入歷史。
 - `stateBased` 使用 `config.anchorDate` 作為主要狀態基準；完成時更新 `stateAnchorDate`，`lastDoneAt` 不作為 state-based 主要基準。
 - `fixed` 使用 `anchorDate / dueDate / repeatRuleV2 / overduePolicy` 推導本輪週期。
+- fixed item 的 create / edit UI 不直接顯示或輸入 `anchorDate`；使用者只選擇「完成方式」。
+- fixed 完成方式為「到期當日完成」時，系統儲存 `anchorDate = dueDate`。
+- fixed 完成方式為「可提前一段時間完成」時，使用者輸入「到期前 N 天開始」，且 N 必須為正整數；系統儲存 `anchorDate = dueDate - N days`。
+- fixed edit 由既有 `anchorDate / dueDate` 還原完成方式：相同日期為「到期當日完成」，`anchorDate < dueDate` 為「可提前一段時間完成」，`anchorDate > dueDate` 必須阻止儲存直到使用者修正。
+- fixed item 儲存前必須檢查檔期不重疊；規則為本輪 `currentDueDate < nextAnchorDate`，其中 `nextAnchorDate` 必須由現有重複規則推算出的下一輪 due date 再扣回本輪 lead days，不可用固定日數粗略判斷 monthly / yearly。
+- fixed 檔期重疊時阻止 create / update，錯誤文案為「可處理時間太長，會和下一次提醒重疊。請縮短可處理期，或調整重複規則。」
 - `ItemOverduePolicy.autoAdvance` 可在 read model 推導時虛擬前進到目前週期。
 - `ItemOverduePolicy.waitForAction` 過期後維持待處理，並回傳 danger。
 - active items 進入 Home warning / danger 查詢；paused / archived items 不進入 Home attention query。
@@ -513,10 +519,6 @@ Resource: 濾水網
 Rule: done 時 consume 1 個
 ```
 
-#### MVP 待完成
-
-- UI 尚未提供完整的既有 rule 編輯、停用、重新啟用管理流程。
-
 ### 2.7 ResourceActionRecord Domain
 
 #### 產品語意
@@ -642,10 +644,6 @@ UI 可顯示：
 下一個階段：10 天後滿 6 個月
 ```
 
-#### MVP 待完成
-
-- archived StageTracker 管理 UI 未完成。
-
 ### 2.9 StageRule Domain
 
 #### 產品語意
@@ -694,10 +692,6 @@ StageRule:
   labelTemplate: 小米滿 {value}{unit}
   reminderOffsetDays: 7
 ```
-
-#### MVP 待完成
-
-- archived StageRule 的獨立瀏覽與還原入口未完成。
 
 ### 2.10 StageOccurrence Domain
 
@@ -809,10 +803,6 @@ Manual StageRecord:
   reminderOffsetDays: 14
 ```
 
-#### MVP 待完成
-
-- manual important stage 的 archived record 獨立瀏覽與還原入口未完成。
-
 ### 2.12 StageRelatedItem Domain
 
 #### 產品語意
@@ -867,15 +857,7 @@ Related Item: 準備副食品餐具
 相關提醒：1 / 2 已完成，1 個已暫停，1 個已跳過
 ```
 
-#### MVP 待完成
-
-- Item 詳情頁顯示「來自：{StageTracker.title} · {StageRecord.label}」的完整 UI 尚未收斂。
-
 ### 2.13 AttentionPolicy 與 AppSettings
-
-#### 產品語意
-
-`AttentionPolicy` 代表系統或使用者設定的提醒門檻。`AppSettings` 保存目前使用者設定。
 
 #### 已實作資料模型
 
@@ -904,7 +886,7 @@ Drift table `app_settings` 另有固定 `id = 1`、`createdAt`、`updatedAt`。
 - `AttentionPolicyResolver` 可根據 `ReminderTone` 推導 fixed、flexible、stock 類型的提醒門檻。
 - `AppDatabase.beforeOpen` 會確保 `app_settings` 有 `id = 1` 的 row。
 - 設定頁 route 已實作：`/feature/settings`，route name 是 `settings`。
-- 設定頁一般設定暴露 `reminderTone`、notification reminder time，以及 system StageTracker 顯示開關。
+- 設定頁一般設定暴露 `reminderTone` 與 notification reminder time；system StageTracker 顯示開關仍保留底層設定 / repository 行為，但不出現在一般 UAT UI。
 - Notification reminder time 預設為 `09:00`，更新後會透過既有 daily attention notification sync 使用新時間。
 - `Preview date` 是 developer-only setting，用於測試不同日期下的提醒狀態，不出現在一般設定。
 
@@ -914,10 +896,6 @@ Drift table `app_settings` 另有固定 `id = 1`、`createdAt`、`updatedAt`。
 ReminderTone.standard: 使用較平衡的 warning / danger 門檻。
 ReminderTone.early: 較早提醒使用者。
 ```
-
-#### MVP 待完成
-
-- 使用者自訂單一 Item / Resource attention policy 的完整 UI 尚未收斂。
 
 ## 3. 跨 Domain 行為
 
@@ -1063,7 +1041,7 @@ Item edit routes：
 已實作 UI：
 
 - Item 建立 / 編輯只提供 `fixed` 與 `stateBased`。
-- 建立時可選生活場景；選「之後再說」時寫入 system default pack。
+- 建立時可選生活場景；選「之後決定」時寫入 system default pack。編輯 / 唯讀脈絡中的 system default pack 顯示為「一般」。
 - 編輯既有 Item 時 Pack 以唯讀顯示。
 - locked pack mode 會隱藏 pack field，並把 Item 建在指定 Pack。
 - Item 編輯頁有「消耗資源」區塊，可綁定 existing quantity-based resource。

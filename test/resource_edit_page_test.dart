@@ -35,6 +35,8 @@ void main() {
       findsNothing,
     );
     expect(find.byKey(const Key('resource-pack-picker-row')), findsOneWidget);
+    expect(find.text('一般'), findsOneWidget);
+    expect(find.text('之後決定'), findsNothing);
   });
 
   testWidgets('time edit page shows remaining days as read-only', (
