@@ -455,6 +455,45 @@ void main() {
     expect(repository.createdTrackers.single.packId, isNotNull);
   });
 
+  testWidgets('edit dialog shows system default pack as general', (
+    tester,
+  ) async {
+    final systemPack = _pack(
+      id: 1,
+      title: 'Default Item Pack',
+      iconEmoji: '📌',
+      isSystemDefault: true,
+    );
+    final catPack = _pack(id: 2, title: '養貓', iconEmoji: '🐱');
+    final tracker = _tracker(
+      id: 7,
+      packId: systemPack.id,
+      title: '一般追蹤',
+      start: DateTime(2026, 5, 1),
+    );
+
+    await _pumpStageTrackerDetail(
+      tester,
+      previewDate: DateTime(2026, 5, 20),
+      detail: _detail(tracker),
+      packs: [systemPack, catPack],
+    );
+
+    await tester.tap(find.byKey(const Key('stage-tracker-detail-overflow')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(ReminderUiText.editStageTracker));
+    await tester.pumpAndSettle();
+
+    expect(find.text(ReminderUiText.systemDefaultPackLabel), findsWidgets);
+    expect(find.text(ReminderUiText.unassignedPackOption), findsNothing);
+
+    await tester.tap(find.byKey(const Key('stage-tracker-pack-picker-row')));
+    await tester.pumpAndSettle();
+
+    expect(find.text(ReminderUiText.systemDefaultPackLabel), findsWidgets);
+    expect(find.text(ReminderUiText.unassignedPackOption), findsNothing);
+  });
+
   testWidgets('dashed add card replaces empty state', (tester) async {
     await _pumpStageTrackerManagement(
       tester,
@@ -575,6 +614,53 @@ Future<void> _pumpStageTrackerManagement(
   await tester.pumpAndSettle();
 }
 
+Future<void> _pumpStageTrackerDetail(
+  WidgetTester tester, {
+  required DateTime previewDate,
+  required StageTrackerDetail detail,
+  required List<ItemPack> packs,
+}) async {
+  final db = AppDatabase.forTesting(NativeDatabase.memory());
+  final router = GoRouter(
+    initialLocation: '/stage-tracker/${detail.stageTracker.id}',
+    routes: [
+      GoRoute(
+        path: StageTrackerManagementPage.routePath,
+        name: StageTrackerManagementPage.routeName,
+        builder: (context, state) => const StageTrackerManagementContent(),
+      ),
+      GoRoute(
+        path: StageTrackerDetailPage.routePath,
+        name: StageTrackerDetailPage.routeName,
+        builder: (context, state) => StageTrackerDetailPage(
+          stageTrackerId: int.parse(state.pathParameters['id']!),
+        ),
+      ),
+    ],
+  );
+  addTearDown(() async {
+    router.dispose();
+    await db.close();
+  });
+
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        appDatabaseProvider.overrideWithValue(db),
+        effectivePreviewDateProvider.overrideWith((ref) => previewDate),
+        activeItemPacksProvider.overrideWith((ref) => Stream.value(packs)),
+        itemPacksProvider.overrideWith((ref) => Stream.value(packs)),
+        stageTrackerDetailProvider.overrideWith((ref, id) async => detail),
+      ],
+      child: MaterialApp.router(
+        theme: ReminderTheme.light(),
+        routerConfig: router,
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
 class _RecordingStageTrackerRepository extends StageTrackerRepository {
   _RecordingStageTrackerRepository(AppDatabase db)
     : super(db.reminderDao, itemRepository: ItemRepository(db.reminderDao));
@@ -654,13 +740,14 @@ ItemPack _pack({
   required int id,
   required String title,
   required String iconEmoji,
+  bool isSystemDefault = false,
 }) {
   return ItemPack(
     id: id,
     title: title,
     iconEmoji: iconEmoji,
     status: ItemPackStatus.active,
-    isSystemDefault: false,
+    isSystemDefault: isSystemDefault,
     createdAt: DateTime(2026, 5),
     updatedAt: DateTime(2026, 5),
   );
