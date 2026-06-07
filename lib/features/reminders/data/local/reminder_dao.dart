@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../backup_models.dart';
 import '../../domain/app_settings.dart';
 import '../../domain/attention_policy.dart';
 import '../../domain/item.dart';
@@ -191,6 +192,252 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
 
   Future<int> insertItemPack(ItemPacksCompanion entry) {
     return into(itemPacks).insert(entry);
+  }
+
+  Future<BackupData> exportBackupData() async {
+    final defaultPack = await getSystemDefaultPack();
+    final defaultPackId = defaultPack?.id;
+    final systemTrackerRows =
+        await (select(stageTrackers)..where(
+              (t) => t.isSystemDefault.equals(true) | t.systemKey.isNotNull(),
+            ))
+            .get();
+    final systemTrackerIds = systemTrackerRows.map((row) => row.id).toSet();
+
+    final itemRows = await (select(
+      items,
+    )..orderBy([(t) => OrderingTerm.asc(t.id)])).get();
+    final resourceRows = await (select(
+      resources,
+    )..orderBy([(t) => OrderingTerm.asc(t.id)])).get();
+    final stageTrackerRows =
+        await (select(stageTrackers)
+              ..where(
+                (t) => t.isSystemDefault.equals(false) & t.systemKey.isNull(),
+              )
+              ..orderBy([(t) => OrderingTerm.asc(t.id)]))
+            .get();
+    final userStageTrackerIds = stageTrackerRows.map((row) => row.id).toSet();
+
+    final referencedPackIds = <int>{
+      ...itemRows.map((row) => row.packId),
+      ...resourceRows.map((row) => row.packId),
+      ...stageTrackerRows.map((row) => row.packId),
+    };
+    final packRows =
+        await (select(itemPacks)
+              ..where(
+                (t) =>
+                    t.isSystemDefault.equals(false) |
+                    (defaultPackId == null
+                        ? const Constant(false)
+                        : (t.id.equals(defaultPackId) &
+                              Variable(
+                                referencedPackIds.contains(defaultPackId),
+                              ))),
+              )
+              ..orderBy([(t) => OrderingTerm.asc(t.id)]))
+            .get();
+
+    final stageRuleRows =
+        await (select(stageRules)
+              ..where((t) => t.stageTrackerId.isIn(userStageTrackerIds))
+              ..orderBy([(t) => OrderingTerm.asc(t.id)]))
+            .get();
+    final stageRecordRows =
+        await (select(stageRecords)
+              ..where((t) => t.stageTrackerId.isIn(userStageTrackerIds))
+              ..orderBy([(t) => OrderingTerm.asc(t.id)]))
+            .get();
+    final stageRecordIds = stageRecordRows.map((row) => row.id).toSet();
+    final stageRelatedRows =
+        await (select(stageRelatedItems)
+              ..where((t) => t.stageRecordId.isIn(stageRecordIds))
+              ..orderBy([(t) => OrderingTerm.asc(t.id)]))
+            .get();
+    final consumptionRuleRows = await (select(
+      resourceConsumptionRules,
+    )..orderBy([(t) => OrderingTerm.asc(t.id)])).get();
+    final itemActionRows = await (select(
+      itemActionRecords,
+    )..orderBy([(t) => OrderingTerm.asc(t.id)])).get();
+    final resourceActionRows = await (select(
+      resourceActionRecords,
+    )..orderBy([(t) => OrderingTerm.asc(t.id)])).get();
+    final templateRows = await (select(
+      packTemplates,
+    )..orderBy([(t) => OrderingTerm.asc(t.id)])).get();
+    final templateItemRows =
+        await (select(packTemplateItems)..orderBy([
+              (t) => OrderingTerm.asc(t.templateId),
+              (t) => OrderingTerm.asc(t.orderIndex),
+              (t) => OrderingTerm.asc(t.id),
+            ]))
+            .get();
+    final templateItemsByTemplateId = <int, List<PackTemplateItemRow>>{};
+    for (final row in templateItemRows) {
+      templateItemsByTemplateId.putIfAbsent(row.templateId, () => []).add(row);
+    }
+
+    return BackupData(
+      packs: packRows.map(_itemPackBackupJson).toList(growable: false),
+      items: itemRows.map(_itemBackupJson).toList(growable: false),
+      resources: resourceRows.map(_resourceBackupJson).toList(growable: false),
+      stages: [
+        for (final row in stageRuleRows)
+          {'stageType': 'stageRule', ..._stageRuleBackupJson(row)},
+        for (final row in stageRecordRows)
+          {'stageType': 'stageRecord', ..._stageRecordBackupJson(row)},
+      ],
+      stageTrackers: stageTrackerRows
+          .where((row) => !systemTrackerIds.contains(row.id))
+          .map(_stageTrackerBackupJson)
+          .toList(growable: false),
+      customTemplates: [
+        for (final row in templateRows)
+          {
+            ..._packTemplateBackupJson(row),
+            'items': (templateItemsByTemplateId[row.id] ?? const [])
+                .map(_packTemplateItemBackupJson)
+                .toList(growable: false),
+          },
+      ],
+      relations: [
+        for (final row in consumptionRuleRows)
+          {
+            'relationType': 'resourceConsumptionRule',
+            ..._resourceConsumptionRuleBackupJson(row),
+          },
+        for (final row in stageRelatedRows)
+          {
+            'relationType': 'stageRelatedItem',
+            ..._stageRelatedItemBackupJson(row),
+          },
+      ],
+      activityLogs: [
+        for (final row in itemActionRows)
+          {'logType': 'itemAction', ..._itemActionBackupJson(row)},
+        for (final row in resourceActionRows)
+          {'logType': 'resourceAction', ..._resourceActionBackupJson(row)},
+      ],
+    );
+  }
+
+  Future<void> replaceUserDataFromBackup(BackupData data) {
+    return attachedDatabase.transaction(() async {
+      await _clearUserData();
+      await attachedDatabase.ensureSystemSeedData();
+      final defaultPack = await getSystemDefaultPack();
+      if (defaultPack == null) {
+        throw StateError('Missing system default pack');
+      }
+      final oldDefaultPackIds = data.packs
+          .where((row) => row['isSystemDefault'] == true)
+          .map((row) => _requiredInt(row, 'id'))
+          .toSet();
+
+      for (final row in data.packs) {
+        if (row['isSystemDefault'] == true) {
+          continue;
+        }
+        await _insertMap('item_packs', _itemPackColumns, row);
+      }
+
+      int remapPackId(int value) =>
+          oldDefaultPackIds.contains(value) ? defaultPack.id : value;
+
+      for (final row in data.items) {
+        await _insertMap(
+          'items',
+          _itemColumns,
+          _remapValues(row, {'pack_id': remapPackId}),
+        );
+      }
+      for (final row in data.resources) {
+        await _insertMap(
+          'resources',
+          _resourceColumns,
+          _remapValues(row, {'pack_id': remapPackId}),
+        );
+      }
+      for (final row in data.stageTrackers) {
+        if (row['isSystemDefault'] == true || row['systemKey'] != null) {
+          continue;
+        }
+        await _insertMap(
+          'stage_trackers',
+          _stageTrackerColumns,
+          _remapValues(row, {'pack_id': remapPackId}),
+        );
+      }
+
+      for (final template in data.customTemplates) {
+        await _insertMap('pack_templates', _packTemplateColumns, template);
+        final items = template['items'];
+        if (items is List) {
+          for (final item in items) {
+            if (item is! Map<String, Object?>) {
+              throw const InvalidBackupFormatException();
+            }
+            await _insertMap(
+              'pack_template_items',
+              _packTemplateItemColumns,
+              item,
+            );
+          }
+        }
+      }
+
+      for (final row in data.stages) {
+        final stageType = row['stageType'];
+        if (stageType == 'stageRule') {
+          await _insertMap('stage_rules', _stageRuleColumns, row);
+        }
+      }
+      for (final row in data.stages) {
+        final stageType = row['stageType'];
+        if (stageType == 'stageRecord') {
+          await _insertMap('stage_records', _stageRecordColumns, row);
+        }
+      }
+
+      for (final row in data.activityLogs) {
+        if (row['logType'] == 'itemAction') {
+          await _insertMap('item_action_records', _itemActionColumns, row);
+        }
+      }
+      for (final row in data.relations) {
+        if (row['relationType'] == 'resourceConsumptionRule') {
+          await _insertMap(
+            'resource_consumption_rules',
+            _resourceConsumptionRuleColumns,
+            row,
+          );
+        } else if (row['relationType'] == 'stageRelatedItem') {
+          await _insertMap(
+            'stage_related_items',
+            _stageRelatedItemColumns,
+            row,
+          );
+        }
+      }
+      for (final row in data.activityLogs) {
+        if (row['logType'] == 'resourceAction') {
+          await _insertMap(
+            'resource_action_records',
+            _resourceActionColumns,
+            row,
+          );
+        }
+      }
+    });
+  }
+
+  Future<void> resetUserData() {
+    return attachedDatabase.transaction(() async {
+      await _clearUserData();
+      await attachedDatabase.ensureSystemSeedData();
+    });
   }
 
   Future<int> insertItem(ItemsCompanion entry) {
@@ -1612,6 +1859,469 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
       stageTracker: _toStageTracker(row.readTable(stageTrackers)),
     );
   }
+
+  static const _itemPackColumns = [
+    'id',
+    'title',
+    'description',
+    'icon_emoji',
+    'order_index',
+    'status',
+    'is_system_default',
+    'created_at',
+    'updated_at',
+  ];
+  static const _itemColumns = [
+    'id',
+    'pack_id',
+    'title',
+    'description',
+    'status',
+    'type',
+    'attention_policy_source',
+    'fixed_schedule_type',
+    'fixed_schedule_interval',
+    'fixed_monthly_day',
+    'fixed_repeat_rule_v2',
+    'fixed_anchor_date',
+    'fixed_due_date',
+    'fixed_time_of_day',
+    'fixed_overdue_policy',
+    'fixed_expected_before_minutes',
+    'fixed_warning_before_minutes',
+    'fixed_danger_before_minutes',
+    'state_anchor_date',
+    'state_expected_after_minutes',
+    'state_warning_after_minutes',
+    'state_danger_after_minutes',
+    'last_done_at',
+    'created_at',
+    'updated_at',
+  ];
+  static const _resourceColumns = [
+    'id',
+    'pack_id',
+    'title',
+    'description',
+    'status',
+    'type',
+    'time_anchor_date',
+    'time_duration_days',
+    'time_expected_before_days',
+    'time_warning_before_days',
+    'time_danger_before_days',
+    'quantity_current',
+    'quantity_unit_label',
+    'quantity_expected_threshold',
+    'quantity_warning_threshold',
+    'quantity_danger_threshold',
+    'last_refilled_at',
+    'created_at',
+    'updated_at',
+  ];
+  static const _resourceConsumptionRuleColumns = [
+    'id',
+    'resource_id',
+    'item_id',
+    'trigger_action_type',
+    'consume_amount',
+    'is_enabled',
+    'created_at',
+    'updated_at',
+  ];
+  static const _resourceActionColumns = [
+    'id',
+    'resource_id',
+    'action_type',
+    'action_date',
+    'amount',
+    'resulting_quantity',
+    'added_days',
+    'resulting_duration_days',
+    'source_item_action_record_id',
+    'remark',
+    'is_reverted',
+    'reverted_at',
+    'reverted_by_action_record_id',
+    'created_at',
+    'updated_at',
+  ];
+  static const _itemActionColumns = [
+    'id',
+    'item_id',
+    'action_type',
+    'action_date',
+    'remark',
+    'payload',
+    'is_reverted',
+    'reverted_at',
+    'reverted_by_action_record_id',
+    'created_at',
+    'updated_at',
+  ];
+  static const _stageTrackerColumns = [
+    'id',
+    'pack_id',
+    'title',
+    'subject_name',
+    'tracking_start_date',
+    'tracking_end_date',
+    'status',
+    'is_system_default',
+    'system_key',
+    'is_hidden',
+    'created_at',
+    'updated_at',
+  ];
+  static const _stageRuleColumns = [
+    'id',
+    'stage_tracker_id',
+    'type',
+    'interval_value',
+    'interval_unit',
+    'label_template',
+    'reminder_offset_days',
+    'status',
+    'created_at',
+    'updated_at',
+  ];
+  static const _stageRecordColumns = [
+    'id',
+    'stage_tracker_id',
+    'stage_rule_id',
+    'source_type',
+    'occurrence_index',
+    'occurrence_date',
+    'relative_amount',
+    'relative_unit',
+    'status',
+    'label',
+    'note',
+    'reminder_offset_days',
+    'created_at',
+    'updated_at',
+  ];
+  static const _stageRelatedItemColumns = [
+    'id',
+    'stage_record_id',
+    'item_id',
+    'created_at',
+    'updated_at',
+  ];
+  static const _packTemplateColumns = [
+    'id',
+    'template_name',
+    'icon_emoji',
+    'description',
+    'created_at',
+    'updated_at',
+  ];
+  static const _packTemplateItemColumns = [
+    'id',
+    'template_id',
+    'order_index',
+    'title',
+    'type',
+    'attention_policy_source',
+    'fixed_schedule_type',
+    'fixed_schedule_interval',
+    'fixed_monthly_day',
+    'fixed_repeat_rule_v2',
+    'fixed_time_of_day',
+    'fixed_overdue_policy',
+    'fixed_expected_before_minutes',
+    'fixed_warning_before_minutes',
+    'fixed_danger_before_minutes',
+    'state_expected_after_minutes',
+    'state_warning_after_minutes',
+    'state_danger_after_minutes',
+    'created_at',
+    'updated_at',
+  ];
+
+  Future<void> _clearUserData() async {
+    await customStatement('''
+      DELETE FROM stage_related_items
+      WHERE stage_record_id IN (
+        SELECT sr.id FROM stage_records sr
+        JOIN stage_trackers st ON st.id = sr.stage_tracker_id
+        WHERE st.is_system_default = 0 AND st.system_key IS NULL
+      )
+      OR item_id IN (SELECT id FROM items)
+      ''');
+    await customStatement('DELETE FROM resource_action_records');
+    await customStatement('DELETE FROM resource_consumption_rules');
+    await customStatement('DELETE FROM item_action_records');
+    await customStatement('''
+      DELETE FROM stage_records
+      WHERE stage_tracker_id IN (
+        SELECT id FROM stage_trackers
+        WHERE is_system_default = 0 AND system_key IS NULL
+      )
+      ''');
+    await customStatement('''
+      DELETE FROM stage_rules
+      WHERE stage_tracker_id IN (
+        SELECT id FROM stage_trackers
+        WHERE is_system_default = 0 AND system_key IS NULL
+      )
+      ''');
+    await customStatement('DELETE FROM pack_template_items');
+    await customStatement('DELETE FROM pack_templates');
+    await customStatement('DELETE FROM resources');
+    await customStatement('DELETE FROM items');
+    await customStatement('''
+      DELETE FROM stage_trackers
+      WHERE is_system_default = 0 AND system_key IS NULL
+      ''');
+    await customStatement('DELETE FROM item_packs WHERE is_system_default = 0');
+  }
+
+  Future<void> _insertMap(
+    String tableName,
+    List<String> columns,
+    Map<String, Object?> source,
+  ) {
+    final placeholders = List.filled(columns.length, '?').join(', ');
+    final columnSql = columns.join(', ');
+    return customStatement(
+      'INSERT INTO $tableName ($columnSql) VALUES ($placeholders)',
+      columns
+          .map((column) => _sqlValue(source[column]))
+          .toList(growable: false),
+    );
+  }
+
+  Map<String, Object?> _remapValues(
+    Map<String, Object?> source,
+    Map<String, int Function(int)> remappers,
+  ) {
+    final copy = Map<String, Object?>.from(source);
+    for (final entry in remappers.entries) {
+      final value = copy[entry.key];
+      if (value is int) {
+        copy[entry.key] = entry.value(value);
+      }
+    }
+    return copy;
+  }
+
+  int _requiredInt(Map<String, Object?> source, String key) {
+    final value = source[key];
+    if (value is int) {
+      return value;
+    }
+    throw const InvalidBackupFormatException();
+  }
+
+  Object? _sqlValue(Object? value) {
+    if (value is String && RegExp(r'^\d{4}-\d{2}-\d{2}T').hasMatch(value)) {
+      return DateTime.parse(value).millisecondsSinceEpoch;
+    }
+    return value;
+  }
+
+  String? _dateJson(int? value) {
+    return value == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(value).toIso8601String();
+  }
+
+  Map<String, Object?> _itemPackBackupJson(ItemPackRow row) => {
+    'id': row.id,
+    'title': row.title,
+    'description': row.description,
+    'icon_emoji': row.iconEmoji,
+    'order_index': row.orderIndex,
+    'status': row.status,
+    'is_system_default': row.isSystemDefault,
+    'isSystemDefault': row.isSystemDefault,
+    'created_at': _dateJson(row.createdAt),
+    'updated_at': _dateJson(row.updatedAt),
+  };
+
+  Map<String, Object?> _itemBackupJson(ItemRow row) => {
+    'id': row.id,
+    'pack_id': row.packId,
+    'title': row.title,
+    'description': row.description,
+    'status': row.status,
+    'type': row.type,
+    'attention_policy_source': row.attentionPolicySource,
+    'fixed_schedule_type': row.fixedScheduleType,
+    'fixed_schedule_interval': row.fixedScheduleInterval,
+    'fixed_monthly_day': row.fixedMonthlyDay,
+    'fixed_repeat_rule_v2': row.fixedRepeatRuleV2,
+    'fixed_anchor_date': _dateJson(row.fixedAnchorDate),
+    'fixed_due_date': _dateJson(row.fixedDueDate),
+    'fixed_time_of_day': row.fixedTimeOfDay,
+    'fixed_overdue_policy': row.fixedOverduePolicy,
+    'fixed_expected_before_minutes': row.fixedExpectedBeforeMinutes,
+    'fixed_warning_before_minutes': row.fixedWarningBeforeMinutes,
+    'fixed_danger_before_minutes': row.fixedDangerBeforeMinutes,
+    'state_anchor_date': _dateJson(row.stateAnchorDate),
+    'state_expected_after_minutes': row.stateExpectedAfterMinutes,
+    'state_warning_after_minutes': row.stateWarningAfterMinutes,
+    'state_danger_after_minutes': row.stateDangerAfterMinutes,
+    'last_done_at': _dateJson(row.lastDoneAt),
+    'created_at': _dateJson(row.createdAt),
+    'updated_at': _dateJson(row.updatedAt),
+  };
+
+  Map<String, Object?> _resourceBackupJson(ResourceRow row) => {
+    'id': row.id,
+    'pack_id': row.packId,
+    'title': row.title,
+    'description': row.description,
+    'status': row.status,
+    'type': row.type,
+    'time_anchor_date': _dateJson(row.timeAnchorDate),
+    'time_duration_days': row.timeDurationDays,
+    'time_expected_before_days': row.timeExpectedBeforeDays,
+    'time_warning_before_days': row.timeWarningBeforeDays,
+    'time_danger_before_days': row.timeDangerBeforeDays,
+    'quantity_current': row.quantityCurrent,
+    'quantity_unit_label': row.quantityUnitLabel,
+    'quantity_expected_threshold': row.quantityExpectedThreshold,
+    'quantity_warning_threshold': row.quantityWarningThreshold,
+    'quantity_danger_threshold': row.quantityDangerThreshold,
+    'last_refilled_at': _dateJson(row.lastRefilledAt),
+    'created_at': _dateJson(row.createdAt),
+    'updated_at': _dateJson(row.updatedAt),
+  };
+
+  Map<String, Object?> _resourceConsumptionRuleBackupJson(
+    ResourceConsumptionRuleRow row,
+  ) => {
+    'id': row.id,
+    'resource_id': row.resourceId,
+    'item_id': row.itemId,
+    'trigger_action_type': row.triggerActionType,
+    'consume_amount': row.consumeAmount,
+    'is_enabled': row.isEnabled,
+    'created_at': _dateJson(row.createdAt),
+    'updated_at': _dateJson(row.updatedAt),
+  };
+
+  Map<String, Object?> _resourceActionBackupJson(ResourceActionRecordRow row) =>
+      {
+        'id': row.id,
+        'resource_id': row.resourceId,
+        'action_type': row.actionType,
+        'action_date': _dateJson(row.actionDate),
+        'amount': row.amount,
+        'resulting_quantity': row.resultingQuantity,
+        'added_days': row.addedDays,
+        'resulting_duration_days': row.resultingDurationDays,
+        'source_item_action_record_id': row.sourceItemActionRecordId,
+        'remark': row.remark,
+        'is_reverted': row.isReverted,
+        'reverted_at': _dateJson(row.revertedAt),
+        'reverted_by_action_record_id': row.revertedByActionRecordId,
+        'created_at': _dateJson(row.createdAt),
+        'updated_at': _dateJson(row.updatedAt),
+      };
+
+  Map<String, Object?> _itemActionBackupJson(ItemActionRecordRow row) => {
+    'id': row.id,
+    'item_id': row.itemId,
+    'action_type': row.actionType,
+    'action_date': _dateJson(row.actionDate),
+    'remark': row.remark,
+    'payload': row.payload,
+    'is_reverted': row.isReverted,
+    'reverted_at': _dateJson(row.revertedAt),
+    'reverted_by_action_record_id': row.revertedByActionRecordId,
+    'created_at': _dateJson(row.createdAt),
+    'updated_at': _dateJson(row.updatedAt),
+  };
+
+  Map<String, Object?> _stageTrackerBackupJson(StageTrackerRow row) => {
+    'id': row.id,
+    'pack_id': row.packId,
+    'title': row.title,
+    'subject_name': row.subjectName,
+    'tracking_start_date': _dateJson(row.trackingStartDate),
+    'tracking_end_date': _dateJson(row.trackingEndDate),
+    'status': row.status,
+    'is_system_default': false,
+    'isSystemDefault': false,
+    'system_key': null,
+    'systemKey': null,
+    'is_hidden': row.isHidden,
+    'created_at': _dateJson(row.createdAt),
+    'updated_at': _dateJson(row.updatedAt),
+  };
+
+  Map<String, Object?> _stageRuleBackupJson(StageRuleRow row) => {
+    'id': row.id,
+    'stage_tracker_id': row.stageTrackerId,
+    'type': row.type,
+    'interval_value': row.intervalValue,
+    'interval_unit': row.intervalUnit,
+    'label_template': row.labelTemplate,
+    'reminder_offset_days': row.reminderOffsetDays,
+    'status': row.status,
+    'created_at': _dateJson(row.createdAt),
+    'updated_at': _dateJson(row.updatedAt),
+  };
+
+  Map<String, Object?> _stageRecordBackupJson(StageRecordRow row) => {
+    'id': row.id,
+    'stage_tracker_id': row.stageTrackerId,
+    'stage_rule_id': row.stageRuleId,
+    'source_type': row.sourceType,
+    'occurrence_index': row.occurrenceIndex,
+    'occurrence_date': _dateJson(row.occurrenceDate),
+    'relative_amount': row.relativeAmount,
+    'relative_unit': row.relativeUnit,
+    'status': row.status,
+    'label': row.label,
+    'note': row.note,
+    'reminder_offset_days': row.reminderOffsetDays,
+    'created_at': _dateJson(row.createdAt),
+    'updated_at': _dateJson(row.updatedAt),
+  };
+
+  Map<String, Object?> _stageRelatedItemBackupJson(StageRelatedItemRow row) => {
+    'id': row.id,
+    'stage_record_id': row.stageRecordId,
+    'item_id': row.itemId,
+    'created_at': _dateJson(row.createdAt),
+    'updated_at': _dateJson(row.updatedAt),
+  };
+
+  Map<String, Object?> _packTemplateBackupJson(PackTemplateRow row) => {
+    'id': row.id,
+    'template_name': row.templateName,
+    'icon_emoji': row.iconEmoji,
+    'description': row.description,
+    'created_at': _dateJson(row.createdAt),
+    'updated_at': _dateJson(row.updatedAt),
+  };
+
+  Map<String, Object?> _packTemplateItemBackupJson(PackTemplateItemRow row) => {
+    'id': row.id,
+    'template_id': row.templateId,
+    'order_index': row.orderIndex,
+    'title': row.title,
+    'type': row.type,
+    'attention_policy_source': row.attentionPolicySource,
+    'fixed_schedule_type': row.fixedScheduleType,
+    'fixed_schedule_interval': row.fixedScheduleInterval,
+    'fixed_monthly_day': row.fixedMonthlyDay,
+    'fixed_repeat_rule_v2': row.fixedRepeatRuleV2,
+    'fixed_time_of_day': row.fixedTimeOfDay,
+    'fixed_overdue_policy': row.fixedOverduePolicy,
+    'fixed_expected_before_minutes': row.fixedExpectedBeforeMinutes,
+    'fixed_warning_before_minutes': row.fixedWarningBeforeMinutes,
+    'fixed_danger_before_minutes': row.fixedDangerBeforeMinutes,
+    'state_expected_after_minutes': row.stateExpectedAfterMinutes,
+    'state_warning_after_minutes': row.stateWarningAfterMinutes,
+    'state_danger_after_minutes': row.stateDangerAfterMinutes,
+    'created_at': _dateJson(row.createdAt),
+    'updated_at': _dateJson(row.updatedAt),
+  };
 
   List<String> _matchingActionTypeNames(String query) {
     final normalized = query.trim().toLowerCase();

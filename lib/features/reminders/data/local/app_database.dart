@@ -67,6 +67,12 @@ class AppDatabase extends _$AppDatabase {
     },
   );
 
+  Future<void> ensureSystemSeedData() async {
+    await _ensureSystemDefaultPack();
+    await _ensureAppSettings();
+    await _ensureSystemDefaultStageTracker();
+  }
+
   Future<void> _upgradeToV2(Migrator m) async {
     await customStatement('PRAGMA foreign_keys = OFF');
     await m.addColumn(itemPacks, itemPacks.iconEmoji);

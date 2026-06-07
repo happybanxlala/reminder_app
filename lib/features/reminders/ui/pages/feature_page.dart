@@ -3,19 +3,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/reminder_theme.dart';
+import '../../data/backup_models.dart';
 import '../../data/local/reminder_dao.dart';
 import '../../domain/attention_policy.dart';
 import '../../domain/item.dart';
 import '../../domain/item_pack.dart';
 import '../../domain/pack_template.dart';
+import '../../presentation/activity_icon_mapper.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
+import '../../providers/attention_summary_providers.dart';
+import '../../providers/backup_providers.dart';
 import '../../providers/database_providers.dart';
 import '../../providers/developer_settings_providers.dart';
+import '../../providers/home_providers.dart';
 import '../../providers/item_providers.dart';
 import '../../providers/pack_template_providers.dart';
+import '../../providers/resource_providers.dart';
 import '../../providers/settings_providers.dart';
 import '../../providers/attention_service_providers.dart';
+import '../../providers/stage_tracker_providers.dart';
 import 'feature_management_sections.dart';
 import 'stage_tracker_pages.dart';
 import '../widgets/editor_form_components.dart';
@@ -452,7 +459,7 @@ class _ActivityEntryCard extends StatelessWidget {
           entry.bundle,
           previewDate: previewDate,
         ),
-        leading: const Icon(Icons.history_outlined),
+        leading: Icon(itemActivityActionIcon(entry.record.actionType)),
         title: Text(entry.itemTitle),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -566,6 +573,35 @@ class SettingsPage extends ConsumerWidget {
                 onTap: settingsAsync.isLoading
                     ? null
                     : () => _pickReminderTime(context, ref, reminderTime),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ReminderEditorSection(
+            key: const Key('settings-data-section'),
+            title: ReminderUiText.settingsDataSectionTitle,
+            children: [
+              _SettingsActionRow(
+                key: const Key('settings-backup-data-row'),
+                label: ReminderUiText.backupDataLabel,
+                value: ReminderUiText.backupDataDescription,
+                icon: Icons.ios_share_outlined,
+                onTap: () => _backupData(context, ref),
+              ),
+              _SettingsActionRow(
+                key: const Key('settings-import-data-row'),
+                label: ReminderUiText.importDataLabel,
+                value: ReminderUiText.importDataDescription,
+                icon: Icons.file_upload_outlined,
+                onTap: () => _importData(context, ref),
+              ),
+              _SettingsActionRow(
+                key: const Key('settings-reset-user-data-row'),
+                label: ReminderUiText.resetUserDataLabel,
+                value: ReminderUiText.resetUserDataDescription,
+                icon: Icons.delete_forever_outlined,
+                destructive: true,
+                onTap: () => _resetUserData(context, ref),
               ),
             ],
           ),
@@ -715,6 +751,207 @@ class SettingsPage extends ConsumerWidget {
     }
     ref.read(developerDateOverrideProvider.notifier).state =
         normalizePreviewDate(selected);
+  }
+
+  Future<void> _backupData(BuildContext context, WidgetRef ref) async {
+    try {
+      await ref.read(reminderBackupServiceProvider).backupAndShare();
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(ReminderUiText.backupSuccessMessage)),
+      );
+    } catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${ReminderUiText.backupFailureMessage}: $error'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _importData(BuildContext context, WidgetRef ref) async {
+    final confirmed = await _showConfirmDialog(
+      context,
+      title: ReminderUiText.importConfirmTitle,
+      message: ReminderUiText.importConfirmMessage,
+      confirmLabel: ReminderUiText.importDataLabel,
+      destructive: true,
+    );
+    if (!confirmed) {
+      return;
+    }
+    try {
+      final imported = await ref
+          .read(reminderBackupServiceProvider)
+          .pickAndImport();
+      if (!context.mounted) {
+        return;
+      }
+      if (!imported) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(ReminderUiText.importCancelledMessage)),
+        );
+        return;
+      }
+      _invalidateReminderData(ref);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(ReminderUiText.importSuccessMessage)),
+      );
+    } on BackupException catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${ReminderUiText.importFailureMessage}: $error'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _resetUserData(BuildContext context, WidgetRef ref) async {
+    final confirmed = await _showResetDialog(context);
+    if (!confirmed) {
+      return;
+    }
+    try {
+      await ref.read(reminderBackupServiceProvider).resetDatabase();
+      _invalidateReminderData(ref);
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(ReminderUiText.resetSuccessMessage)),
+      );
+    } catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${ReminderUiText.resetFailureMessage}: $error'),
+        ),
+      );
+    }
+  }
+
+  Future<bool> _showConfirmDialog(
+    BuildContext context, {
+    required String title,
+    required String message,
+    required String confirmLabel,
+    bool destructive = false,
+  }) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: Text(title),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: Text(
+                  MaterialLocalizations.of(dialogContext).cancelButtonLabel,
+                ),
+              ),
+              FilledButton(
+                style: destructive
+                    ? FilledButton.styleFrom(
+                        backgroundColor: Theme.of(
+                          dialogContext,
+                        ).colorScheme.error,
+                      )
+                    : null,
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: Text(confirmLabel),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  Future<bool> _showResetDialog(BuildContext context) async {
+    var input = '';
+    return await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => StatefulBuilder(
+            builder: (dialogContext, setState) => AlertDialog(
+              title: const Text(ReminderUiText.resetConfirmTitle),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(ReminderUiText.resetConfirmMessage),
+                  const SizedBox(height: 12),
+                  TextField(
+                    key: const Key('settings-reset-confirm-field'),
+                    decoration: const InputDecoration(
+                      labelText: ReminderUiText.resetConfirmInputLabel,
+                    ),
+                    onChanged: (value) => setState(() => input = value),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: Text(
+                    MaterialLocalizations.of(dialogContext).cancelButtonLabel,
+                  ),
+                ),
+                FilledButton(
+                  key: const Key('settings-reset-confirm-button'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Theme.of(dialogContext).colorScheme.error,
+                  ),
+                  onPressed: input == ReminderUiText.resetDatabaseConfirmWord
+                      ? () => Navigator.of(dialogContext).pop(true)
+                      : null,
+                  child: const Text(ReminderUiText.resetUserDataLabel),
+                ),
+              ],
+            ),
+          ),
+        ) ??
+        false;
+  }
+
+  void _invalidateReminderData(WidgetRef ref) {
+    ref.invalidate(appSettingsProvider);
+    ref.invalidate(itemPacksProvider);
+    ref.invalidate(activeItemPacksProvider);
+    ref.invalidate(itemsProvider);
+    ref.invalidate(packManagementItemsProvider);
+    ref.invalidate(itemActivityFeedControllerProvider);
+    ref.invalidate(resourcesProvider);
+    ref.invalidate(managedResourcesProvider);
+    ref.invalidate(stageTrackersProvider);
+    ref.invalidate(stageRulesProvider);
+    ref.invalidate(stageRecordsProvider);
+    ref.invalidate(systemStageTrackerProvider);
+    ref.invalidate(customPackTemplatesProvider);
+    ref.invalidate(packTemplatesProvider);
+    ref.invalidate(dangerHomeAttentionEntriesProvider);
+    ref.invalidate(warningHomeAttentionEntriesProvider);
+    ref.invalidate(dangerHomeEntriesProvider);
+    ref.invalidate(warningHomeEntriesProvider);
+    ref.invalidate(upcomingStagesProvider);
+    ref.invalidate(todayCompletedEntriesProvider);
+    ref.invalidate(attentionSummaryProvider);
+    ref.invalidate(liveAttentionSummaryProvider);
   }
 }
 

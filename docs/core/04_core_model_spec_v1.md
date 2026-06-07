@@ -891,6 +891,10 @@ Drift table `app_settings` 另有固定 `id = 1`、`createdAt`、`updatedAt`。
 - `AppDatabase.beforeOpen` 會確保 `app_settings` 有 `id = 1` 的 row。
 - 設定頁 route 已實作：`/feature/settings`，route name 是 `settings`。
 - 設定頁一般設定暴露 `reminderTone` 與 notification reminder time；system StageTracker 顯示開關仍保留底層設定 / repository 行為，但不出現在一般 UAT UI。
+- 設定頁資料管理提供 JSON backup / import / reset。Backup payload 使用 `app = reminder_app`、`schemaVersion = 1`、`exportedAt` ISO-8601 與 `data` keys：`packs/items/resources/stages/stageTrackers/customTemplates/relations/activityLogs`。
+- Backup 包含 user-created Pack、Item、Resource、user-created StageTracker、StageRule、StageRecord、StageRelatedItem、ResourceConsumptionRule、自訂 PackTemplate、ItemActionRecord 與 ResourceActionRecord；不包含 system StageTracker、debug-only setting、temporary UI state 或 app settings。
+- Import 採 replace all user data，不做 merge；匯入前檢查 `app` 與 `schemaVersion`，失敗時不改動現有資料。匯入時 system default Pack 會以目前資料庫 seed 重建 / 保留，backup 中指向舊 system default Pack 的 `packId` 會 remap 到目前 system default Pack。
+- Reset database 會清空 user data，並保留或重建 system default Pack、`app_settings` 與 system default StageTracker。
 - Notification reminder time 預設為 `09:00`，更新後會透過既有 daily attention notification sync 使用新時間。
 - `Preview date` 是 developer-only setting，用於測試不同日期下的提醒狀態，不出現在一般設定。
 

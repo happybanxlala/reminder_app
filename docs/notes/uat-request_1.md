@@ -58,13 +58,14 @@ stage trackers page，可切換顯示方式
 
 - `deferred` action type 只保留相容性，不建立新的 deferred record。
 - `deferred` 不在目前 MVP 建立流程中使用。
+入口怪異
 
 語言
 手機widget
 共用
 日期推算
 
-- 隱藏眼仔
+- 隱藏眼仔(starget)
 
 暫不做
 - Resource history 已有頁面，但 `sourceItemActionRecordId` 目前主要透過格式化文字呈現，尚未提供跳回來源 Item action 的互動入口。
