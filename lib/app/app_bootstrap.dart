@@ -7,6 +7,8 @@ import '../features/reminders/domain/attention_summary.dart';
 import '../features/reminders/providers/attention_service_providers.dart';
 import '../features/reminders/providers/attention_summary_providers.dart';
 import '../features/reminders/ui/pages/home_page.dart';
+import '../features/home_widget/application/home_widget_pending_action_service.dart';
+import '../features/home_widget/providers/home_widget_providers.dart';
 import 'router.dart';
 
 class AppBootstrap extends ConsumerStatefulWidget {
@@ -26,6 +28,9 @@ class _AppBootstrapState extends ConsumerState<AppBootstrap>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    ref
+        .read(homeWidgetPendingActionServiceProvider)
+        .startListeningForNativeActions();
     unawaited(_initialize());
   }
 
@@ -46,18 +51,41 @@ class _AppBootstrapState extends ConsumerState<AppBootstrap>
       onOpenHome: () => router.go(HomePage.routePath),
     );
     await syncService.refresh();
+    await _refreshHomeWidgetSnapshot(consumePendingActionFirst: true);
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       unawaited(ref.read(attentionSyncServiceProvider).refresh());
+      unawaited(_refreshHomeWidgetSnapshot(consumePendingActionFirst: true));
+    }
+  }
+
+  Future<void> _refreshHomeWidgetSnapshot({
+    bool consumePendingActionFirst = false,
+  }) async {
+    try {
+      if (consumePendingActionFirst) {
+        final result = await ref
+            .read(homeWidgetPendingActionServiceProvider)
+            .consumePendingAction();
+        if (result != HomeWidgetPendingActionConsumeResult.none) {
+          return;
+        }
+      }
+      await ref.read(homeWidgetActionServiceProvider).refreshSnapshot();
+    } catch (_) {
+      // Widget snapshots are best-effort; app startup must not depend on them.
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    ref
+        .read(homeWidgetPendingActionServiceProvider)
+        .stopListeningForNativeActions();
     _summarySubscription?.close();
     super.dispose();
   }
