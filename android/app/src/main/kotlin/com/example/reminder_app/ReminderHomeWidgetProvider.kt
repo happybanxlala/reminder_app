@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.view.View
 import android.widget.RemoteViews
 
@@ -19,9 +20,15 @@ class ReminderHomeWidgetProvider : AppWidgetProvider() {
     }
 
     companion object {
-        private const val maxRows = 5
+        private const val maxRows = 3
         private const val prefsName = "reminder_home_widget"
         private const val selectedTabKey = "selected_tab"
+        private const val colorTextSecondary = "#6F6256"
+        private const val colorDanger = "#D96B5F"
+        private const val colorWarning = "#E09620"
+        private const val colorCompleted = "#6F9A55"
+        private const val colorResource = "#B98542"
+        private const val colorStage = "#7FA77B"
 
         fun updateAll(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
@@ -104,7 +111,7 @@ class ReminderHomeWidgetProvider : AppWidgetProvider() {
             }
 
             selectedTab.entries.take(maxRows).forEach { entry ->
-                views.addView(R.id.widget_rows, rowView(context, entry))
+                views.addView(R.id.widget_rows, rowView(context, entry, selected))
             }
         }
 
@@ -118,6 +125,9 @@ class ReminderHomeWidgetProvider : AppWidgetProvider() {
                 context,
                 views,
                 R.id.widget_tab_needs_handling,
+                R.id.widget_tab_needs_handling_icon,
+                R.id.widget_tab_needs_handling_label,
+                R.id.widget_tab_needs_handling_count,
                 snapshot,
                 ReminderHomeWidgetTabs.needsHandling,
                 selected,
@@ -126,6 +136,9 @@ class ReminderHomeWidgetProvider : AppWidgetProvider() {
                 context,
                 views,
                 R.id.widget_tab_attention,
+                R.id.widget_tab_attention_icon,
+                R.id.widget_tab_attention_label,
+                R.id.widget_tab_attention_count,
                 snapshot,
                 ReminderHomeWidgetTabs.attention,
                 selected,
@@ -134,6 +147,9 @@ class ReminderHomeWidgetProvider : AppWidgetProvider() {
                 context,
                 views,
                 R.id.widget_tab_today_completed,
+                R.id.widget_tab_today_completed_icon,
+                R.id.widget_tab_today_completed_label,
+                R.id.widget_tab_today_completed_count,
                 snapshot,
                 ReminderHomeWidgetTabs.todayCompleted,
                 selected,
@@ -144,6 +160,9 @@ class ReminderHomeWidgetProvider : AppWidgetProvider() {
             context: Context,
             views: RemoteViews,
             viewId: Int,
+            iconViewId: Int,
+            labelViewId: Int,
+            countViewId: Int,
             snapshot: ReminderHomeWidgetSnapshot,
             tabId: String,
             selected: String,
@@ -151,12 +170,19 @@ class ReminderHomeWidgetProvider : AppWidgetProvider() {
             val tab = snapshot.tab(tabId)
             val label = tab?.label ?: ReminderHomeWidgetTabs.labelFor(tabId)
             val count = tab?.count ?: 0
-            views.setTextViewText(viewId, "$label $count")
+            val isSelected = tabId == selected
+            val accent = tabAccentColor(tabId)
+            views.setTextViewText(labelViewId, label)
+            views.setTextViewText(countViewId, count.toString())
+            views.setTextColor(labelViewId, Color.parseColor(if (isSelected) accent else colorTextSecondary))
+            views.setTextColor(countViewId, Color.parseColor(if (isSelected) accent else colorTextSecondary))
+            views.setImageViewResource(iconViewId, tabIcon(tabId))
+            views.setInt(iconViewId, "setColorFilter", Color.parseColor(if (isSelected) accent else colorTextSecondary))
             views.setInt(
                 viewId,
                 "setBackgroundResource",
-                if (tabId == selected) {
-                    R.drawable.reminder_home_widget_tab_selected
+                if (isSelected) {
+                    selectedTabBackground(tabId)
                 } else {
                     R.drawable.reminder_home_widget_tab
                 },
@@ -167,25 +193,71 @@ class ReminderHomeWidgetProvider : AppWidgetProvider() {
             )
         }
 
-        private fun rowView(context: Context, entry: ReminderHomeWidgetEntry): RemoteViews {
+        private fun rowView(
+            context: Context,
+            entry: ReminderHomeWidgetEntry,
+            selectedTab: String,
+        ): RemoteViews {
             val row = RemoteViews(context.packageName, R.layout.reminder_home_widget_row)
             row.setTextViewText(R.id.widget_row_title, entry.title)
             row.setTextViewText(R.id.widget_row_status, entry.statusText)
-            if (entry.canAct && !entry.buttonText.isNullOrBlank() && !entry.action.isNullOrBlank()) {
-                row.setViewVisibility(R.id.widget_row_action, View.VISIBLE)
-                row.setTextViewText(R.id.widget_row_action, entry.buttonText)
-                row.setOnClickPendingIntent(
-                    R.id.widget_row_action,
-                    ReminderHomeWidgetActionReceiver.entryActionPendingIntent(
-                        context,
-                        entry.entryId,
-                        entry.action,
-                    ),
+            row.setInt(
+                R.id.widget_row_accent,
+                "setBackgroundResource",
+                rowAccentBackground(selectedTab, entry.type),
+            )
+            configureRowIcon(row, entry)
+            configureRowAction(context, row, entry)
+            return row
+        }
+
+        private fun configureRowIcon(row: RemoteViews, entry: ReminderHomeWidgetEntry) {
+            val displayIcon = entry.displayIcon
+            if (!displayIcon.isNullOrBlank()) {
+                row.setViewVisibility(R.id.widget_row_display_icon, View.VISIBLE)
+                row.setViewVisibility(R.id.widget_row_fallback_icon, View.GONE)
+                row.setTextViewText(R.id.widget_row_display_icon, displayIcon)
+            } else {
+                row.setViewVisibility(R.id.widget_row_display_icon, View.GONE)
+                row.setViewVisibility(R.id.widget_row_fallback_icon, View.VISIBLE)
+                row.setImageViewResource(R.id.widget_row_fallback_icon, rowFallbackIcon(entry.type))
+                row.setInt(
+                    R.id.widget_row_fallback_icon,
+                    "setColorFilter",
+                    Color.parseColor(rowFallbackColor(entry.type)),
                 )
+            }
+        }
+
+        private fun configureRowAction(
+            context: Context,
+            row: RemoteViews,
+            entry: ReminderHomeWidgetEntry,
+        ) {
+            val action = entry.action
+            if (entry.canAct && !action.isNullOrBlank()) {
+                row.setViewVisibility(R.id.widget_row_action, View.VISIBLE)
+                row.setImageViewResource(R.id.widget_row_action, actionIcon(action))
+                row.setInt(R.id.widget_row_action, "setBackgroundResource", actionBackground(action))
+                row.setInt(R.id.widget_row_action, "setColorFilter", Color.parseColor(actionColor(action)))
+                if (action == "complete" || action == "undo") {
+                    row.setOnClickPendingIntent(
+                        R.id.widget_row_action,
+                        ReminderHomeWidgetActionReceiver.entryActionPendingIntent(
+                            context,
+                            entry.entryId,
+                            action,
+                        ),
+                    )
+                } else {
+                    row.setOnClickPendingIntent(
+                        R.id.widget_row_action,
+                        openAppPendingIntent(context),
+                    )
+                }
             } else {
                 row.setViewVisibility(R.id.widget_row_action, View.GONE)
             }
-            return row
         }
 
         private fun renderFallback(
@@ -198,14 +270,130 @@ class ReminderHomeWidgetProvider : AppWidgetProvider() {
             views.setTextViewText(R.id.widget_fallback_title, fallbackTitle(reason))
             views.setTextViewText(R.id.widget_fallback_body, "打開 app 以更新主畫面 widget。")
             views.setOnClickPendingIntent(R.id.widget_fallback_button, openAppPendingIntent(context))
-            configureFallbackTab(views, R.id.widget_tab_needs_handling, "需要處理")
-            configureFallbackTab(views, R.id.widget_tab_attention, "要留意")
-            configureFallbackTab(views, R.id.widget_tab_today_completed, "今天已完成")
+            configureFallbackTab(
+                views,
+                R.id.widget_tab_needs_handling,
+                R.id.widget_tab_needs_handling_icon,
+                R.id.widget_tab_needs_handling_label,
+                R.id.widget_tab_needs_handling_count,
+                ReminderHomeWidgetTabs.needsHandling,
+            )
+            configureFallbackTab(
+                views,
+                R.id.widget_tab_attention,
+                R.id.widget_tab_attention_icon,
+                R.id.widget_tab_attention_label,
+                R.id.widget_tab_attention_count,
+                ReminderHomeWidgetTabs.attention,
+            )
+            configureFallbackTab(
+                views,
+                R.id.widget_tab_today_completed,
+                R.id.widget_tab_today_completed_icon,
+                R.id.widget_tab_today_completed_label,
+                R.id.widget_tab_today_completed_count,
+                ReminderHomeWidgetTabs.todayCompleted,
+            )
         }
 
-        private fun configureFallbackTab(views: RemoteViews, viewId: Int, label: String) {
-            views.setTextViewText(viewId, label)
+        private fun configureFallbackTab(
+            views: RemoteViews,
+            viewId: Int,
+            iconViewId: Int,
+            labelViewId: Int,
+            countViewId: Int,
+            tabId: String,
+        ) {
+            views.setTextViewText(labelViewId, ReminderHomeWidgetTabs.labelFor(tabId))
+            views.setTextViewText(countViewId, "0")
+            views.setTextColor(labelViewId, Color.parseColor(colorTextSecondary))
+            views.setTextColor(countViewId, Color.parseColor(colorTextSecondary))
+            views.setImageViewResource(iconViewId, tabIcon(tabId))
+            views.setInt(iconViewId, "setColorFilter", Color.parseColor(colorTextSecondary))
             views.setInt(viewId, "setBackgroundResource", R.drawable.reminder_home_widget_tab)
+        }
+
+        private fun selectedTabBackground(tabId: String): Int {
+            return when (tabId) {
+                ReminderHomeWidgetTabs.needsHandling -> R.drawable.reminder_home_widget_tab_danger
+                ReminderHomeWidgetTabs.attention -> R.drawable.reminder_home_widget_tab_warning
+                ReminderHomeWidgetTabs.todayCompleted -> R.drawable.reminder_home_widget_tab_completed
+                else -> R.drawable.reminder_home_widget_tab_selected
+            }
+        }
+
+        private fun tabIcon(tabId: String): Int {
+            return when (tabId) {
+                ReminderHomeWidgetTabs.needsHandling -> R.drawable.reminder_home_widget_ic_warning
+                ReminderHomeWidgetTabs.attention -> R.drawable.reminder_home_widget_ic_eye
+                ReminderHomeWidgetTabs.todayCompleted -> R.drawable.reminder_home_widget_ic_check_circle
+                else -> R.drawable.reminder_home_widget_ic_check_circle
+            }
+        }
+
+        private fun tabAccentColor(tabId: String): String {
+            return when (tabId) {
+                ReminderHomeWidgetTabs.needsHandling -> colorDanger
+                ReminderHomeWidgetTabs.attention -> colorWarning
+                ReminderHomeWidgetTabs.todayCompleted -> colorCompleted
+                else -> colorTextSecondary
+            }
+        }
+
+        private fun rowAccentBackground(selectedTab: String, type: String): Int {
+            if (selectedTab == ReminderHomeWidgetTabs.needsHandling) {
+                return R.drawable.reminder_home_widget_accent_danger
+            }
+            if (selectedTab == ReminderHomeWidgetTabs.attention) {
+                return R.drawable.reminder_home_widget_accent_warning
+            }
+            return when (type) {
+                "completedResource" -> R.drawable.reminder_home_widget_accent_resource
+                "completedStage" -> R.drawable.reminder_home_widget_accent_stage
+                else -> R.drawable.reminder_home_widget_accent_completed
+            }
+        }
+
+        private fun rowFallbackIcon(type: String): Int {
+            return when (type) {
+                "resourceAttention", "completedResource" -> R.drawable.reminder_home_widget_ic_resource
+                "completedStage" -> R.drawable.reminder_home_widget_ic_stage
+                "completedItem" -> R.drawable.reminder_home_widget_ic_check_circle
+                else -> R.drawable.reminder_home_widget_ic_checklist
+            }
+        }
+
+        private fun rowFallbackColor(type: String): String {
+            return when (type) {
+                "resourceAttention", "completedResource" -> colorResource
+                "completedStage" -> colorStage
+                "completedItem" -> colorCompleted
+                else -> "#D9852B"
+            }
+        }
+
+        private fun actionIcon(action: String): Int {
+            return when (action) {
+                "undo" -> R.drawable.reminder_home_widget_ic_undo
+                "add" -> R.drawable.reminder_home_widget_ic_plus
+                else -> R.drawable.reminder_home_widget_ic_check
+            }
+        }
+
+        private fun actionBackground(action: String): Int {
+            return when (action) {
+                "undo" -> R.drawable.reminder_home_widget_action_undo
+                "add" -> R.drawable.reminder_home_widget_action_add
+                else -> R.drawable.reminder_home_widget_action_check
+            }
+        }
+
+        private fun actionColor(action: String): String {
+            return when (action) {
+                "undo" -> "#B86712"
+                "add" -> colorResource
+                else -> colorCompleted
+            }
         }
 
         private fun fallbackTitle(reason: ReminderHomeWidgetSnapshotProblem): String {

@@ -1,11 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
-<TextView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/widget_empty_text"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_empty"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/reminder_home_widget_row_background"
+    android:background="@drawable/reminder_home_widget_empty_background"
     android:gravity="center"
-    android:padding="12dp"
-    android:textColor="#6C5E52"
-    android:textSize="13sp"
-    android:textStyle="bold" />
+    android:orientation="horizontal"
+    android:padding="12dp">
+
+    <ImageView
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:src="@drawable/reminder_home_widget_ic_check_circle"
+        android:tint="#6F9A55" />
+
+    <TextView
+        android:id="@+id/widget_empty_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:ellipsize="end"
+        android:maxLines="2"
+        android:textColor="#6F6256"
+        android:textSize="13sp"
+        android:textStyle="bold" />
+</LinearLayout>

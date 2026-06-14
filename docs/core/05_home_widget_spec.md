@@ -93,9 +93,11 @@ Each row displays:
 
 - title
 - status text
+- optional display icon such as a Pack emoji
 - action area
 
 The row must use Flutter-generated display strings. Native code must not show raw enum values such as `danger`, `warning`, `itemDone`, `resourceRefilled`, or `stageAcknowledged`.
+`displayIcon` is presentation-only metadata. Native code may render it when present, but must not infer domain status or action eligibility from it.
 
 ### 4.1 Title
 
@@ -199,6 +201,7 @@ HomeWidgetRowSnapshot {
   actionRecordId: int?
   title: String
   statusText: String
+  displayIcon?: String
   actionKind: String?
   actionLabel: String?
   canAct: bool

@@ -21,6 +21,7 @@ void main() {
               targetId: 7,
               title: 'Clean bowl',
               statusText: '已持續2日',
+              displayIcon: '🐱',
               buttonText: '完成',
               action: HomeWidgetEntryAction.complete,
               canAct: true,
@@ -37,6 +38,7 @@ void main() {
     expect(decoded.selectedTab, HomeWidgetTabId.attention);
     expect(decoded.tabs.single.count, 1);
     expect(decoded.tabs.single.entries.single.entryId, 'item-7');
+    expect(decoded.tabs.single.entries.single.displayIcon, '🐱');
     expect(
       decoded.tabs.single.entries.single.action,
       HomeWidgetEntryAction.complete,

@@ -908,6 +908,7 @@ flutter test
 ### 19.11 Resource Management Compact Density 2026-05-19
 
 - Resource management uses page-local compact-management density and keeps a single list; it does not add Pack grouping.
+
 - Managed Resource rows now use compact rail rows: status rail, pack emoji chip, title, remaining summary, refill icon, and overflow action.
 - Unexpanded managed Resource rows no longer show the large inventory icon bubble, resource type badge, status badge, or large refill button.
 - Quantity resources show compact remaining quantity. Time-based resources show remaining days and estimated depletion date, or today / overdue depletion copy.
@@ -1047,3 +1048,15 @@ flutter test
 - Fixed item overdue handling defaults to `等待處理`, and the overdue picker orders `等待處理` before `自動進下一輪`.
 - Major list pages use pull-to-refresh with always-scrollable empty / loading / error states where needed: Home, Item management, Resource management, Pack management, StageTracker management/detail/timeline/schedule/history, Item activity, Item history, and Resource history.
 - Normal Settings UI no longer shows `顯示系統追蹤器`; developer/storage behavior for system tracker visibility remains internal.
+
+### 19.20 iOS Home Widget Visual Alignment 2026-06-14
+
+- iOS large Home Widget mirrors Home compact density in native SwiftUI: warm cream background, paper-card rows, subtle beige borders, left status rail, compact pack emoji chip, and icon-only action buttons.
+- Widget colors duplicate `ReminderPalette.light` as local SwiftUI tokens because WidgetKit render code cannot depend on Flutter runtime resources.
+- Widget action transport remains unchanged: native UI opens the existing pending-action bridge; Swift still does not read Drift or calculate Home status.
+
+### 19.21 Android Home Widget Visual Alignment 2026-06-14
+
+- Android large Home Widget mirrors the same compact Home pattern through RemoteViews: warm cream shell, rounded tab chips, paper-card rows, left status rails, pack emoji chip, and icon-only action buttons.
+- Android widget drawable colors intentionally duplicate `ReminderPalette.light` because AppWidget rendering cannot depend on Flutter runtime resources.
+- Widget action transport remains unchanged: native UI reads the Flutter snapshot and sends existing pending actions; Android still does not read Drift or calculate Home status.

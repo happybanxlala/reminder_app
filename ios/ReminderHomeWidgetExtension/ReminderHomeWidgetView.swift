@@ -8,10 +8,58 @@ struct ReminderHomeWidgetView: View {
   var body: some View {
     switch entry.state {
     case .ready(let snapshot):
-      SnapshotContentView(snapshot: snapshot)
+      WidgetShell {
+        SnapshotContentView(snapshot: snapshot)
+      }
     case .unavailable(let problem):
-      FallbackView(problem: problem)
+      WidgetShell {
+        WidgetFallbackView(problem: problem)
+      }
     }
+  }
+}
+
+private enum HomeWidgetDesignTokens {
+  static let appBackground = Color(hex: 0xFAF5EA)
+  static let surfaceCard = Color(hex: 0xFFFDF8)
+  static let surfaceWarm = Color(hex: 0xFFF7E8)
+  static let surfaceMuted = Color(hex: 0xF7EDE0)
+  static let primaryWarm = Color(hex: 0xD9852B)
+  static let primaryWarmDark = Color(hex: 0xB86712)
+  static let primaryWarmContainer = Color(hex: 0xFFE8BC)
+  static let statusNormal = Color(hex: 0x6F9A55)
+  static let statusNormalContainer = Color(hex: 0xEAF4DF)
+  static let statusWarning = Color(hex: 0xE09620)
+  static let statusWarningContainer = Color(hex: 0xFFF0CF)
+  static let statusDanger = Color(hex: 0xD96B5F)
+  static let statusDangerContainer = Color(hex: 0xFFE6E1)
+  static let domainResource = Color(hex: 0xB98542)
+  static let domainStage = Color(hex: 0x7FA77B)
+  static let borderSubtle = Color(hex: 0xE9DDC8)
+  static let textPrimary = Color(hex: 0x2F241D)
+  static let textSecondary = Color(hex: 0x6F6256)
+  static let textMuted = Color(hex: 0xA09589)
+
+  static let shellRadius: CGFloat = 24
+  static let cardRadius: CGFloat = 16
+  static let chipRadius: CGFloat = 14
+  static let iconRadius: CGFloat = 10
+  static let railWidth: CGFloat = 6
+  static let borderWidth: CGFloat = 1
+  static let packIconSize: CGFloat = 27
+  static let actionSize: CGFloat = 32
+}
+
+private struct WidgetShell<Content: View>: View {
+  @ViewBuilder let content: Content
+
+  var body: some View {
+    ZStack {
+      HomeWidgetDesignTokens.appBackground
+      content
+        .padding(14)
+    }
+    .containerBackground(HomeWidgetDesignTokens.appBackground, for: .widget)
   }
 }
 
@@ -32,22 +80,21 @@ private struct SnapshotContentView: View {
 
       if let selectedTab {
         if selectedTab.entries.isEmpty {
-          EmptyStateView(text: ReminderHomeWidgetShared.emptyText(for: selectedTab.id))
+          WidgetEmptyState(text: ReminderHomeWidgetShared.emptyText(for: selectedTab.id))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
           VStack(spacing: 7) {
-            ForEach(selectedTab.entries.prefix(5)) { row in
-              RowView(entry: row)
+            ForEach(Array(selectedTab.entries.prefix(3))) { row in
+              WidgetEntryCard(entry: row, selectedTabId: selectedTab.id)
             }
           }
+          .frame(maxHeight: .infinity, alignment: .top)
         }
       } else {
-        EmptyStateView(text: "尚未有 widget 資料")
+        WidgetEmptyState(text: "尚未有 widget 資料")
           .frame(maxWidth: .infinity, maxHeight: .infinity)
       }
     }
-    .padding(14)
-    .containerBackground(Color(red: 0.98, green: 0.97, blue: 0.94), for: .widget)
   }
 }
 
@@ -70,138 +117,382 @@ private struct TabBarView: View {
   var body: some View {
     HStack(spacing: 6) {
       ForEach(visibleTabs) { tab in
-        Button(intent: SwitchHomeWidgetTabIntent(tab: tab.id)) {
-          VStack(spacing: 2) {
-            Text(tab.label)
-              .font(.caption2.weight(.semibold))
-              .lineLimit(1)
-              .minimumScaleFactor(0.8)
-            Text("\(tab.count)")
-              .font(.caption2)
-              .monospacedDigit()
-          }
-          .frame(maxWidth: .infinity, minHeight: 34)
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(tab.id == selectedTabId ? Color(red: 0.14, green: 0.20, blue: 0.18) : Color(red: 0.42, green: 0.43, blue: 0.39))
-        .background(
-          RoundedRectangle(cornerRadius: 8)
-            .fill(tab.id == selectedTabId ? Color(red: 0.86, green: 0.91, blue: 0.86) : Color(red: 0.94, green: 0.93, blue: 0.89))
-        )
+        TabChip(tab: tab, isSelected: tab.id == selectedTabId)
       }
     }
   }
 }
 
-private struct RowView: View {
-  let entry: ReminderHomeWidgetEntry
+private struct TabChip: View {
+  let tab: ReminderHomeWidgetTab
+  let isSelected: Bool
 
   var body: some View {
-    HStack(alignment: .center, spacing: 8) {
-      VStack(alignment: .leading, spacing: 3) {
-        Text(entry.title)
-          .font(.subheadline.weight(.semibold))
-          .foregroundStyle(Color(red: 0.14, green: 0.15, blue: 0.13))
-          .lineLimit(1)
-        Text(entry.statusText)
-          .font(.caption)
-          .foregroundStyle(Color(red: 0.43, green: 0.44, blue: 0.40))
-          .lineLimit(1)
+    Button(intent: SwitchHomeWidgetTabIntent(tab: tab.id)) {
+      VStack(alignment: .leading, spacing: 4) {
+        HStack(spacing: 4) {
+          Image(systemName: iconName)
+            .font(.caption2.weight(.bold))
+            .imageScale(.small)
+          Text(tab.label)
+            .font(.system(size: 10.5, weight: .bold))
+            .lineLimit(1)
+            .minimumScaleFactor(0.72)
+        }
+        Text("\(tab.count)")
+          .font(.system(size: 15, weight: .heavy, design: .rounded))
+          .monospacedDigit()
       }
-      .frame(maxWidth: .infinity, alignment: .leading)
-
-      actionButton
+      .frame(maxWidth: .infinity, minHeight: 42, alignment: .leading)
+      .padding(.horizontal, 8)
+      .padding(.vertical, 6)
+      .background(
+        RoundedRectangle(cornerRadius: HomeWidgetDesignTokens.chipRadius, style: .continuous)
+          .fill(backgroundColor)
+      )
+      .overlay(
+        RoundedRectangle(cornerRadius: HomeWidgetDesignTokens.chipRadius, style: .continuous)
+          .stroke(borderColor, lineWidth: HomeWidgetDesignTokens.borderWidth)
+      )
     }
-    .padding(.horizontal, 10)
-    .padding(.vertical, 8)
-    .background(
-      RoundedRectangle(cornerRadius: 8)
-        .fill(Color(red: 1.0, green: 0.995, blue: 0.97))
-        .stroke(Color(red: 0.88, green: 0.86, blue: 0.80), lineWidth: 0.7)
+    .buttonStyle(.plain)
+    .foregroundStyle(foregroundColor)
+  }
+
+  private var iconName: String {
+    switch tab.id {
+    case ReminderHomeWidgetShared.needsHandling:
+      return isSelected ? "exclamationmark.circle.fill" : "exclamationmark.circle"
+    case ReminderHomeWidgetShared.attention:
+      return isSelected ? "eye.fill" : "eye"
+    case ReminderHomeWidgetShared.todayCompleted:
+      return isSelected ? "checkmark.circle.fill" : "checkmark.circle"
+    default:
+      return "circle"
+    }
+  }
+
+  private var foregroundColor: Color {
+    isSelected ? accentColor : HomeWidgetDesignTokens.textSecondary
+  }
+
+  private var backgroundColor: Color {
+    if isSelected {
+      return selectedBackgroundColor
+    }
+    return HomeWidgetDesignTokens.surfaceWarm
+  }
+
+  private var borderColor: Color {
+    isSelected ? accentColor.opacity(0.28) : HomeWidgetDesignTokens.borderSubtle
+  }
+
+  private var selectedBackgroundColor: Color {
+    switch tab.id {
+    case ReminderHomeWidgetShared.needsHandling:
+      return HomeWidgetDesignTokens.statusDangerContainer
+    case ReminderHomeWidgetShared.attention:
+      return HomeWidgetDesignTokens.statusWarningContainer
+    case ReminderHomeWidgetShared.todayCompleted:
+      return HomeWidgetDesignTokens.statusNormalContainer
+    default:
+      return HomeWidgetDesignTokens.primaryWarmContainer
+    }
+  }
+
+  private var accentColor: Color {
+    switch tab.id {
+    case ReminderHomeWidgetShared.needsHandling:
+      return HomeWidgetDesignTokens.statusDanger
+    case ReminderHomeWidgetShared.attention:
+      return HomeWidgetDesignTokens.statusWarning
+    case ReminderHomeWidgetShared.todayCompleted:
+      return HomeWidgetDesignTokens.statusNormal
+    default:
+      return HomeWidgetDesignTokens.primaryWarm
+    }
+  }
+}
+
+private struct WidgetEntryCard: View {
+  let entry: ReminderHomeWidgetEntry
+  let selectedTabId: String
+
+  var body: some View {
+    HStack(spacing: 0) {
+      Rectangle()
+        .fill(railColor)
+        .frame(width: HomeWidgetDesignTokens.railWidth)
+
+      HStack(alignment: .center, spacing: 8) {
+        PackIconChip(entry: entry, accentColor: railColor)
+
+        VStack(alignment: .leading, spacing: 3) {
+          Text(entry.title)
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(HomeWidgetDesignTokens.textPrimary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.82)
+          Text(entry.statusText)
+            .font(.system(size: 11.5, weight: .medium))
+            .foregroundStyle(HomeWidgetDesignTokens.textSecondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.78)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+
+        actionButton
+      }
+      .padding(.leading, 8)
+      .padding(.trailing, 9)
+      .padding(.vertical, 9)
+    }
+    .background(HomeWidgetDesignTokens.surfaceCard)
+    .clipShape(RoundedRectangle(cornerRadius: HomeWidgetDesignTokens.cardRadius, style: .continuous))
+    .overlay(
+      RoundedRectangle(cornerRadius: HomeWidgetDesignTokens.cardRadius, style: .continuous)
+        .stroke(HomeWidgetDesignTokens.borderSubtle, lineWidth: HomeWidgetDesignTokens.borderWidth)
     )
+    .shadow(color: Color.black.opacity(0.045), radius: 9, x: 0, y: 4)
   }
 
   @ViewBuilder
   private var actionButton: some View {
-    if entry.canAct, let buttonText = entry.buttonText, let action = entry.action {
+    if entry.canAct, let action = entry.action {
       switch action {
-      case "complete":
+      case "complete", "undo", "add":
         Link(
           destination: ReminderHomeWidgetShared.actionURL(
             action: action,
             entryId: entry.entryId
           )
         ) {
-          ActionLabel(text: buttonText)
-        }
-      case "undo":
-        Link(
-          destination: ReminderHomeWidgetShared.actionURL(
-            action: action,
-            entryId: entry.entryId
-          )
-        ) {
-          ActionLabel(text: buttonText)
+          WidgetIconActionButton(action: action)
         }
       default:
         EmptyView()
       }
     }
   }
-}
 
-private struct ActionLabel: View {
-  let text: String
+  private var railColor: Color {
+    switch selectedTabId {
+    case ReminderHomeWidgetShared.needsHandling:
+      return HomeWidgetDesignTokens.statusDanger
+    case ReminderHomeWidgetShared.attention:
+      return HomeWidgetDesignTokens.statusWarning
+    case ReminderHomeWidgetShared.todayCompleted:
+      return completedColor
+    default:
+      return fallbackTypeColor
+    }
+  }
 
-  var body: some View {
-    Text(text)
-      .font(.caption.weight(.semibold))
-      .foregroundStyle(Color(red: 0.13, green: 0.24, blue: 0.20))
-      .lineLimit(1)
-      .padding(.horizontal, 10)
-      .frame(height: 28)
-      .background(
-        RoundedRectangle(cornerRadius: 7)
-          .fill(Color(red: 0.86, green: 0.91, blue: 0.86))
-      )
+  private var completedColor: Color {
+    switch entry.type {
+    case "completedResource":
+      return HomeWidgetDesignTokens.domainResource
+    case "completedStage":
+      return HomeWidgetDesignTokens.domainStage
+    default:
+      return HomeWidgetDesignTokens.statusNormal
+    }
+  }
+
+  private var fallbackTypeColor: Color {
+    switch entry.type {
+    case "resourceAttention", "completedResource":
+      return HomeWidgetDesignTokens.domainResource
+    case "completedStage":
+      return HomeWidgetDesignTokens.domainStage
+    default:
+      return HomeWidgetDesignTokens.primaryWarm
+    }
   }
 }
 
-private struct EmptyStateView: View {
-  let text: String
+private struct PackIconChip: View {
+  let entry: ReminderHomeWidgetEntry
+  let accentColor: Color
 
   var body: some View {
-    Text(text)
-      .font(.subheadline.weight(.medium))
-      .foregroundStyle(Color(red: 0.47, green: 0.47, blue: 0.42))
-      .multilineTextAlignment(.center)
+    ZStack {
+      RoundedRectangle(cornerRadius: 8, style: .continuous)
+        .fill(HomeWidgetDesignTokens.surfaceWarm)
+        .overlay(
+          RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .stroke(HomeWidgetDesignTokens.borderSubtle, lineWidth: HomeWidgetDesignTokens.borderWidth)
+        )
+
+      if let displayIcon = entry.displayIcon, !displayIcon.isEmpty {
+        Text(displayIcon)
+          .font(.system(size: 15))
+          .lineLimit(1)
+          .minimumScaleFactor(0.7)
+      } else {
+        Image(systemName: fallbackIconName)
+          .font(.system(size: 13, weight: .bold))
+          .foregroundStyle(accentColor)
+      }
+    }
+    .frame(width: HomeWidgetDesignTokens.packIconSize, height: HomeWidgetDesignTokens.packIconSize)
+  }
+
+  private var fallbackIconName: String {
+    switch entry.type {
+    case "resourceAttention", "completedResource":
+      return "plus.circle"
+    case "completedStage":
+      return "calendar.badge.checkmark"
+    case "completedItem":
+      return "checkmark.circle"
+    default:
+      return "checklist"
+    }
   }
 }
 
-private struct FallbackView: View {
+private struct WidgetIconActionButton: View {
+  let action: String
+
+  var body: some View {
+    ZStack {
+      RoundedRectangle(cornerRadius: HomeWidgetDesignTokens.iconRadius, style: .continuous)
+        .fill(backgroundColor)
+        .overlay(
+          RoundedRectangle(cornerRadius: HomeWidgetDesignTokens.iconRadius, style: .continuous)
+            .stroke(borderColor, lineWidth: HomeWidgetDesignTokens.borderWidth)
+        )
+      Image(systemName: iconName)
+        .font(.system(size: 13, weight: .heavy))
+        .foregroundStyle(iconColor)
+    }
+    .frame(width: HomeWidgetDesignTokens.actionSize, height: HomeWidgetDesignTokens.actionSize)
+  }
+
+  private var iconName: String {
+    switch action {
+    case "undo":
+      return "arrow.uturn.backward"
+    case "add":
+      return "plus"
+    default:
+      return "checkmark"
+    }
+  }
+
+  private var iconColor: Color {
+    switch action {
+    case "undo":
+      return HomeWidgetDesignTokens.primaryWarmDark
+    case "add":
+      return HomeWidgetDesignTokens.domainResource
+    default:
+      return HomeWidgetDesignTokens.statusNormal
+    }
+  }
+
+  private var backgroundColor: Color {
+    switch action {
+    case "undo":
+      return HomeWidgetDesignTokens.primaryWarmContainer.opacity(0.72)
+    case "add":
+      return HomeWidgetDesignTokens.surfaceMuted
+    default:
+      return HomeWidgetDesignTokens.statusNormalContainer
+    }
+  }
+
+  private var borderColor: Color {
+    iconColor.opacity(0.22)
+  }
+}
+
+private struct WidgetEmptyState: View {
+  let text: String
+
+  var body: some View {
+    HStack(spacing: 8) {
+      Image(systemName: "checkmark.circle")
+        .font(.system(size: 16, weight: .semibold))
+        .foregroundStyle(HomeWidgetDesignTokens.statusNormal)
+      Text(text)
+        .font(.system(size: 13, weight: .semibold))
+        .foregroundStyle(HomeWidgetDesignTokens.textSecondary)
+        .lineLimit(2)
+        .multilineTextAlignment(.leading)
+    }
+    .padding(.horizontal, 12)
+    .padding(.vertical, 10)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .background(
+      RoundedRectangle(cornerRadius: HomeWidgetDesignTokens.cardRadius, style: .continuous)
+        .fill(HomeWidgetDesignTokens.surfaceWarm)
+    )
+    .overlay(
+      RoundedRectangle(cornerRadius: HomeWidgetDesignTokens.cardRadius, style: .continuous)
+        .stroke(HomeWidgetDesignTokens.borderSubtle, lineWidth: HomeWidgetDesignTokens.borderWidth)
+    )
+  }
+}
+
+private struct WidgetFallbackView: View {
   let problem: ReminderHomeWidgetSnapshotProblem
 
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
-      Text(problem.title)
-        .font(.headline)
-        .foregroundStyle(Color(red: 0.15, green: 0.16, blue: 0.14))
+      HStack(spacing: 8) {
+        Image(systemName: "exclamationmark.circle")
+          .foregroundStyle(HomeWidgetDesignTokens.primaryWarm)
+        Text(problem.title)
+          .font(.system(size: 16, weight: .bold))
+          .foregroundStyle(HomeWidgetDesignTokens.textPrimary)
+      }
+
       Text("打開 app 以更新主畫面 widget。")
-        .font(.subheadline)
-        .foregroundStyle(Color(red: 0.43, green: 0.44, blue: 0.40))
+        .font(.system(size: 13, weight: .medium))
+        .foregroundStyle(HomeWidgetDesignTokens.textSecondary)
+        .lineLimit(2)
+
       Spacer()
+
       Link(destination: ReminderHomeWidgetShared.openAppURL) {
-        Text("打開 app")
-          .font(.subheadline.weight(.semibold))
-          .foregroundStyle(Color(red: 0.13, green: 0.24, blue: 0.20))
-          .frame(maxWidth: .infinity, minHeight: 36)
-          .background(
-            RoundedRectangle(cornerRadius: 8)
-              .fill(Color(red: 0.86, green: 0.91, blue: 0.86))
-          )
+        HStack {
+          Image(systemName: "arrow.up.forward.app")
+            .font(.system(size: 13, weight: .bold))
+          Text("打開 app")
+            .font(.system(size: 14, weight: .bold))
+        }
+        .foregroundStyle(HomeWidgetDesignTokens.primaryWarmDark)
+        .frame(maxWidth: .infinity, minHeight: 38)
+        .background(
+          RoundedRectangle(cornerRadius: HomeWidgetDesignTokens.chipRadius, style: .continuous)
+            .fill(HomeWidgetDesignTokens.primaryWarmContainer)
+        )
+        .overlay(
+          RoundedRectangle(cornerRadius: HomeWidgetDesignTokens.chipRadius, style: .continuous)
+            .stroke(HomeWidgetDesignTokens.primaryWarm.opacity(0.22), lineWidth: HomeWidgetDesignTokens.borderWidth)
+        )
       }
     }
-    .padding(16)
-    .containerBackground(Color(red: 0.98, green: 0.97, blue: 0.94), for: .widget)
+    .padding(14)
+    .background(
+      RoundedRectangle(cornerRadius: HomeWidgetDesignTokens.shellRadius, style: .continuous)
+        .fill(HomeWidgetDesignTokens.surfaceCard)
+    )
+    .overlay(
+      RoundedRectangle(cornerRadius: HomeWidgetDesignTokens.shellRadius, style: .continuous)
+        .stroke(HomeWidgetDesignTokens.borderSubtle, lineWidth: HomeWidgetDesignTokens.borderWidth)
+    )
+  }
+}
+
+private extension Color {
+  init(hex: UInt32) {
+    self.init(
+      red: Double((hex >> 16) & 0xFF) / 255.0,
+      green: Double((hex >> 8) & 0xFF) / 255.0,
+      blue: Double(hex & 0xFF) / 255.0
+    )
   }
 }

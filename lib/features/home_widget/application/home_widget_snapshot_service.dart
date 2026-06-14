@@ -84,6 +84,7 @@ class HomeWidgetSnapshotService {
       statusText:
           viewModel.trailingLabel ??
           ReminderFormatters.itemStatus(itemEntry.status),
+      displayIcon: itemEntry.bundle.pack.iconEmoji,
       buttonText: ReminderUiText.completeAction,
       action: HomeWidgetEntryAction.complete,
       canAct: viewModel.canComplete,
@@ -99,6 +100,7 @@ class HomeWidgetSnapshotService {
       targetId: resource.id,
       title: resource.title,
       statusText: _resourceStatusText(resource),
+      displayIcon: bundle.pack.iconEmoji,
       canAct: false,
     );
   }

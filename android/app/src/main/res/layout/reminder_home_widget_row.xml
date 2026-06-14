@@ -2,17 +2,48 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_row"
     android:layout_width="match_parent"
-    android:layout_height="46dp"
-    android:layout_marginBottom="6dp"
+    android:layout_height="58dp"
+    android:layout_marginBottom="7dp"
     android:background="@drawable/reminder_home_widget_row_background"
     android:gravity="center_vertical"
-    android:orientation="horizontal"
-    android:paddingLeft="10dp"
-    android:paddingRight="10dp">
+    android:orientation="horizontal">
+
+    <TextView
+        android:id="@+id/widget_row_accent"
+        android:layout_width="6dp"
+        android:layout_height="match_parent"
+        android:background="@drawable/reminder_home_widget_accent_warning" />
+
+    <FrameLayout
+        android:id="@+id/widget_row_icon_chip"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/reminder_home_widget_pack_chip">
+
+        <TextView
+            android:id="@+id/widget_row_display_icon"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:maxLines="1"
+            android:textColor="#2F241D"
+            android:textSize="15sp" />
+
+        <ImageView
+            android:id="@+id/widget_row_fallback_icon"
+            android:layout_width="15dp"
+            android:layout_height="15dp"
+            android:layout_gravity="center"
+            android:src="@drawable/reminder_home_widget_ic_checklist"
+            android:tint="#D9852B"
+            android:visibility="gone" />
+    </FrameLayout>
 
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
+        android:layout_marginStart="8dp"
         android:layout_weight="1"
         android:gravity="center_vertical"
         android:orientation="vertical">
@@ -23,8 +54,8 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
-            android:textColor="#3E3328"
-            android:textSize="13sp"
+            android:textColor="#2F241D"
+            android:textSize="14sp"
             android:textStyle="bold" />
 
         <TextView
@@ -34,18 +65,18 @@
             android:layout_marginTop="2dp"
             android:ellipsize="end"
             android:maxLines="1"
-            android:textColor="#7A6A5D"
+            android:textColor="#6F6256"
             android:textSize="11sp" />
     </LinearLayout>
 
-    <TextView
+    <ImageView
         android:id="@+id/widget_row_action"
-        android:layout_width="52dp"
-        android:layout_height="30dp"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
         android:layout_marginStart="8dp"
-        android:background="@drawable/reminder_home_widget_action_background"
-        android:gravity="center"
-        android:textColor="#FFFFFF"
-        android:textSize="12sp"
-        android:textStyle="bold" />
+        android:layout_marginEnd="9dp"
+        android:background="@drawable/reminder_home_widget_action_check"
+        android:padding="9dp"
+        android:src="@drawable/reminder_home_widget_ic_check"
+        android:tint="#6F9A55" />
 </LinearLayout>

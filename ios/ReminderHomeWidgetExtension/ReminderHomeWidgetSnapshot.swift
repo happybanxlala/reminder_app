@@ -43,6 +43,7 @@ struct ReminderHomeWidgetEntry: Decodable, Identifiable {
   let actionRecordId: Int?
   let title: String
   let statusText: String
+  let displayIcon: String?
   let buttonText: String?
   let action: String?
   let canAct: Bool

@@ -141,8 +141,10 @@ void main() {
     ]);
     expect(needsHandling.entries.first.buttonText, '完成');
     expect(needsHandling.entries.first.action, HomeWidgetEntryAction.complete);
+    expect(needsHandling.entries.first.displayIcon, '🧴');
     expect(needsHandling.entries.last.buttonText, isNull);
     expect(needsHandling.entries.last.canAct, isFalse);
+    expect(needsHandling.entries.last.displayIcon, '🧴');
 
     final attention = _tab(snapshot.tabs, HomeWidgetTabId.attention);
     expect(attention.label, '要留意');
@@ -150,6 +152,7 @@ void main() {
       'Brush cat',
       'Cat snacks',
     ]);
+    expect(attention.entries.map((entry) => entry.displayIcon), ['🧴', '🧴']);
 
     final completed = _tab(snapshot.tabs, HomeWidgetTabId.todayCompleted);
     expect(completed.label, '今天已完成');

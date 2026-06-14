@@ -45,6 +45,7 @@ class HomeWidgetEntry {
     this.actionRecordId,
     required this.title,
     required this.statusText,
+    this.displayIcon,
     this.buttonText,
     this.action,
     required this.canAct,
@@ -60,6 +61,7 @@ class HomeWidgetEntry {
       actionRecordId: json['actionRecordId'] as int?,
       title: json['title'] as String? ?? '',
       statusText: json['statusText'] as String? ?? '',
+      displayIcon: json['displayIcon'] as String?,
       buttonText: json['buttonText'] as String?,
       action: HomeWidgetEntryAction.tryParse(json['action'] as String?),
       canAct: json['canAct'] as bool? ?? false,
@@ -72,6 +74,7 @@ class HomeWidgetEntry {
   final int? actionRecordId;
   final String title;
   final String statusText;
+  final String? displayIcon;
   final String? buttonText;
   final HomeWidgetEntryAction? action;
   final bool canAct;
@@ -84,6 +87,7 @@ class HomeWidgetEntry {
       'actionRecordId': actionRecordId,
       'title': title,
       'statusText': statusText,
+      'displayIcon': displayIcon,
       'buttonText': buttonText,
       'action': action?.wireName,
       'canAct': canAct,
