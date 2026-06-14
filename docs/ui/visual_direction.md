@@ -1031,7 +1031,7 @@ flutter test
 - Duplicate generated Pack names are allowed, but preview and confirmation warn that this may be confusing.
 - After template creation, Pack management stays in place and shows snackbar `已建立「{packName}」` with `查看`; `查看` routes to Item management.
 
-### 19.18 Item Config Editor Rows 2026-05-27
+### 19.20 Item Config Editor Rows 2026-05-27
 
 - Item config internals now use editor rows and compact form fields so fixed rhythm, flexible rhythm, repeat rules, advanced attention timing, and resource binding read as one form language.
 - Fixed item create/edit uses a single `重複規則` picker row with readable summaries, plus `到期日`, `完成方式`, conditional `可處理期`, and `逾期處理` rows; it does not expose `anchorDate` / start-date wording or warning / danger raw timing as primary fixed-item inputs.
@@ -1041,7 +1041,7 @@ flutter test
 - Resource binding and resource consumption use compact rows showing resource title and `完成時消耗 N 單位`; create binding summary shows `未設定` or the number of linked resources.
 - The form keeps comfortable compact density and preserves existing domain, repository, routing, and persistence semantics.
 
-### 19.19 UAT Round 1 Low-Risk UX Fixes 2026-05-30
+### 19.21 UAT Round 1 Low-Risk UX Fixes 2026-05-30
 
 - Create-context pack pickers for Item, Resource, and StageTracker show a single default choice labeled `之後決定`; edit / read-only contexts show the same system default pack as `一般`. Custom packs keep emoji + title.
 - New Item forms default to `固定節奏`; edit forms continue loading the saved item type.
@@ -1049,13 +1049,13 @@ flutter test
 - Major list pages use pull-to-refresh with always-scrollable empty / loading / error states where needed: Home, Item management, Resource management, Pack management, StageTracker management/detail/timeline/schedule/history, Item activity, Item history, and Resource history.
 - Normal Settings UI no longer shows `顯示系統追蹤器`; developer/storage behavior for system tracker visibility remains internal.
 
-### 19.20 iOS Home Widget Visual Alignment 2026-06-14
+### 19.22 iOS Home Widget Visual Alignment 2026-06-14
 
 - iOS large Home Widget mirrors Home compact density in native SwiftUI: warm cream background, paper-card rows, subtle beige borders, left status rail, compact pack emoji chip, and icon-only action buttons.
 - Widget colors duplicate `ReminderPalette.light` as local SwiftUI tokens because WidgetKit render code cannot depend on Flutter runtime resources.
 - Widget action transport remains unchanged: native UI opens the existing pending-action bridge; Swift still does not read Drift or calculate Home status.
 
-### 19.21 Android Home Widget Visual Alignment 2026-06-14
+### 19.23 Android Home Widget Visual Alignment 2026-06-14
 
 - Android large Home Widget mirrors the same compact Home pattern through RemoteViews: warm cream shell, rounded tab chips, paper-card rows, left status rails, pack emoji chip, and icon-only action buttons.
 - Android widget drawable colors intentionally duplicate `ReminderPalette.light` because AppWidget rendering cannot depend on Flutter runtime resources.

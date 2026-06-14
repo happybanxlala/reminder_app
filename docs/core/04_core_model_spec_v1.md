@@ -1,6 +1,6 @@
 ---
 This is the single source of truth for reminders core model, MVP scope, naming, and behavior.
-Last aligned with repository contents on 2026-05-15.
+Last aligned with repository contents on 2026-06-14.
 ---
 
 # Reminder App Unified Core Spec
@@ -339,7 +339,7 @@ dangerBefore: 1 day
 #### MVP 待完成
 
 - `ItemNextCycleStrategy.shiftByDelay` 已存在於 domain API，但 UI 主要流程尚未完整暴露為使用者可選策略。
-- `deferred` action type 只保留相容性，不建立新的 deferred record。
+- `deferred` action type 只保留相容性，不建立新的 deferred record。Status: Compatibility-only.
 
 ### 2.4 ItemActionRecord Domain
 
@@ -387,7 +387,7 @@ skipped: 使用者本輪不處理「整理冰箱」。
 
 #### MVP 待完成
 
-- `deferred` 不在目前 MVP 建立流程中使用。
+- `deferred` 不在目前 MVP 建立流程中使用。Status: Compatibility-only.
 
 ### 2.5 Resource Domain
 
@@ -1178,6 +1178,9 @@ actionType
 actionDate
 remark
 payload
+isReverted
+revertedAt
+revertedByActionRecordId
 createdAt
 updatedAt
 ```
@@ -1232,6 +1235,9 @@ addedDays
 resultingDurationDays
 sourceItemActionRecordId
 remark
+isReverted
+revertedAt
+revertedByActionRecordId
 createdAt
 updatedAt
 ```
@@ -1313,7 +1319,7 @@ createdAt
 updatedAt
 ```
 
-### 5.2 pack_templates
+### 5.12 pack_templates
 
 ```text
 id
@@ -1324,7 +1330,6 @@ createdAt
 updatedAt
 ```
 
-### 5.3 pack_template_items
 
 ```text
 id

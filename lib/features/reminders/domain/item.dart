@@ -20,9 +20,6 @@ enum ItemOverduePolicy { autoAdvance, waitForAction }
 
 enum ItemNextCycleStrategy { keepSchedule, shiftByDelay }
 
-typedef FixedTimeScheduleType = FixedScheduleType;
-typedef FixedTimeItemConfig = FixedItemConfig;
-
 abstract class ItemConfig {
   const ItemConfig();
 
