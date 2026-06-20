@@ -9,6 +9,12 @@ Last aligned with repository contents on 2026-06-14.
 
 主要語言使用繁體中文；程式模型、enum、table、route、repository API 保留英文技術命名。
 
+## Supabase Remote Model
+
+Supabase remote data model, RLS policy draft, and Phase 3A POC boundary are documented in:
+
+- `docs/core/06_supabase_remote_model_spec.md`
+
 ## 1. 總覽
 
 ### 1.1 產品北極星
