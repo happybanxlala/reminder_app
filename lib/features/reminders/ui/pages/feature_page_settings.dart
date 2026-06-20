@@ -18,6 +18,7 @@ class SettingsPage extends ConsumerWidget {
     final isOverridden = overrideDate != null;
     final databaseVersion = ref.watch(appDatabaseProvider).schemaVersion;
     final currentUserAsync = ref.watch(currentAppUserProvider);
+    final supabaseRuntimeStatus = ref.watch(supabaseRuntimeStatusProvider);
 
     return ReminderEditorScaffold(
       title: ReminderUiText.settingsTitle,
@@ -182,6 +183,40 @@ class SettingsPage extends ConsumerWidget {
                   ),
                 ),
                 _SettingsReadOnlyRow(
+                  key: const Key('settings-debug-remote-provider'),
+                  label: ReminderUiText.remoteProviderLabel,
+                  value: currentUserAsync.maybeWhen(
+                    data: (user) => user.remoteProvider == null
+                        ? '-'
+                        : _remoteProviderLabel(user.remoteProvider!),
+                    orElse: () => '-',
+                  ),
+                ),
+                _SettingsReadOnlyRow(
+                  key: const Key('settings-debug-remote-user-id'),
+                  label: ReminderUiText.remoteUserIdLabel,
+                  value: currentUserAsync.maybeWhen(
+                    data: (user) => user.remoteUserId == null
+                        ? '-'
+                        : _shortUserId(user.remoteUserId!),
+                    orElse: () => '-',
+                  ),
+                ),
+                _SettingsReadOnlyRow(
+                  key: const Key('settings-debug-supabase-config-status'),
+                  label: ReminderUiText.supabaseConfigStatusLabel,
+                  value: _supabaseRuntimeStatusLabel(supabaseRuntimeStatus),
+                ),
+                _SettingsActionRow(
+                  key: const Key(
+                    'settings-create-anonymous-remote-identity-row',
+                  ),
+                  label: ReminderUiText.createAnonymousRemoteIdentityLabel,
+                  value: ReminderUiText.identityKindAnonymousRemote,
+                  icon: Icons.cloud_outlined,
+                  onTap: () => _ensureAnonymousRemoteIdentity(context, ref),
+                ),
+                _SettingsReadOnlyRow(
                   key: const Key('settings-debug-date-source'),
                   label: ReminderUiText.dateSourceLabel,
                   value: isOverridden
@@ -218,6 +253,27 @@ class SettingsPage extends ConsumerWidget {
       LocalUserIdentityKind.placeholder =>
         ReminderUiText.identityKindPlaceholder,
       LocalUserIdentityKind.removed => ReminderUiText.identityKindRemoved,
+    };
+  }
+
+  String _remoteProviderLabel(AuthProviderType provider) {
+    return switch (provider) {
+      AuthProviderType.supabaseAnonymous =>
+        ReminderUiText.remoteProviderSupabaseAnonymous,
+      AuthProviderType.apple => ReminderUiText.remoteProviderApple,
+      AuthProviderType.google => ReminderUiText.remoteProviderGoogle,
+      AuthProviderType.email => ReminderUiText.remoteProviderEmail,
+    };
+  }
+
+  String _supabaseRuntimeStatusLabel(SupabaseRuntimeStatus status) {
+    return switch (status) {
+      SupabaseRuntimeStatus.configured =>
+        ReminderUiText.supabaseConfigConfigured,
+      SupabaseRuntimeStatus.missingConfig =>
+        ReminderUiText.supabaseConfigMissing,
+      SupabaseRuntimeStatus.initializationFailed =>
+        ReminderUiText.supabaseConfigInitializationFailed,
     };
   }
 
@@ -383,6 +439,34 @@ class SettingsPage extends ConsumerWidget {
         ),
       );
     }
+  }
+
+  Future<void> _ensureAnonymousRemoteIdentity(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final result = await ref
+        .read(anonymousRemoteIdentityServiceProvider)
+        .ensureAnonymousRemoteIdentity();
+    ref.invalidate(currentAppUserProvider);
+    ref.invalidate(currentAppUserIdProvider);
+    if (!context.mounted) {
+      return;
+    }
+
+    final message = switch (result.status) {
+      AnonymousRemoteIdentityStatus.success =>
+        ReminderUiText.anonymousRemoteIdentityCreatedMessage,
+      AnonymousRemoteIdentityStatus.alreadyLinked =>
+        ReminderUiText.anonymousRemoteIdentityAlreadyLinkedMessage,
+      AnonymousRemoteIdentityStatus.configMissing =>
+        ReminderUiText.supabaseConfigMissingMessage,
+      AnonymousRemoteIdentityStatus.remoteAuthFailed =>
+        ReminderUiText.anonymousRemoteIdentityFailureMessage,
+    };
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<bool> _showConfirmDialog(

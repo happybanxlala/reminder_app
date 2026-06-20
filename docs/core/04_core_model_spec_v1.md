@@ -1135,6 +1135,35 @@ Phase 2 暫不建立 `auth_identity_links` table；目前 single remote link 存
 - 未來 remote shared pack 若遇到本機未認識 user，可建立 `identityKind = placeholder`，之後補 display name / avatar / remote user id。
 - 刪除帳號後 shared pack history 不應被破壞；activity event 可保留 actor display name snapshot，UI 可顯示「已移除成員」或匿名化名稱。
 
+### 2.16 Phase 3B：Supabase Anonymous Auth Identity POC
+
+Phase 3B adds Supabase anonymous remote identity link. It does not implement remote shared pack sync.
+
+#### 已實作行為
+
+- App 使用 `SUPABASE_URL` 與 `SUPABASE_ANON_KEY` dart-define 讀取 Supabase config，不 hardcode project URL 或 anon key。
+- 若 Supabase config 缺少或初始化失敗，app 仍可正常啟動；Personal Pack、本機提醒、widget、backup 不依賴 Supabase。
+- `SupabaseAuthRepository` 只使用 Supabase Auth anonymous sign-in，不建立 remote profile、remote pack、remote item，不呼叫 Supabase database CRUD。
+- `ensureAnonymousRemoteIdentity()` 會先確保 local identity，再建立 / 取得 Supabase anonymous user，並透過 `IdentityRepository.linkRemoteIdentity` 寫入 `remoteUserId`、`remoteProvider = supabase_anonymous`、`identityKind = anonymous_remote`、`linkedAt`。
+- 若 local user 已是 `supabase_anonymous + anonymous_remote`，重複呼叫會回傳 already linked，不重複建立 remote identity。
+- Link remote identity 不改 local user id，不改 `pack_members.userId`、`activity_events.actorUserId`、`item_completions.completedByUserId` 或任何 local history actor id。
+- Settings developer debug 區提供 Supabase config status、remote provider、remote user id 與「建立匿名遠端身份」測試入口；這不是正式 login / onboarding UI。
+- `signOut` 不刪 local user、不刪 personal pack、不清除 local history。Anonymous users 若未綁定 Apple / Google / Email，sign out 後可能無法找回同一 remote identity。
+
+#### Backup / Restore
+
+- Backup 可保留 remote identity reference：`remoteUserId`、`remoteProvider`、`identityKind`、`linkedAt`。
+- Backup 不包含 access token、refresh token、OAuth credential、Supabase session JSON、service role key 或 secret key。
+- Restore 後 `remoteUserId` 只是 reference，不代表目前裝置已恢復 Supabase authenticated session；online access 需要之後重新驗證 / 綁定。
+
+#### 非目標
+
+- 不建立 remote pack。
+- 不 push / pull pack snapshot。
+- 不實作 sync、realtime、invite、RLS remote tests。
+- 不實作 Apple / Google / Email binding、magic link、OTP 或 email login。
+- 不 apply `docs/core/sql/phase3a_supabase_schema_draft.sql`。
+
 ## 3. 跨 Domain 行為
 
 ### 3.1 完成 Item 並消耗 Resource

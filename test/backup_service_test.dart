@@ -25,6 +25,10 @@ void main() {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
     await _seedUserData(db);
+    await IdentityRepository(db.reminderDao).linkRemoteIdentity(
+      remoteUserId: 'supabase-user-backup',
+      provider: AuthProviderType.supabaseAnonymous,
+    );
     final service = ReminderBackupService(db.reminderDao);
 
     final source = await service.exportJsonString(
@@ -85,6 +89,11 @@ void main() {
     expect(source, isNot(contains('refresh_token')));
     expect(source, isNot(contains('oauth')));
     expect(source, isNot(contains('credential')));
+    expect(source, isNot(contains('session')));
+    expect(source, isNot(contains('service_role')));
+    expect(source, isNot(contains('secret')));
+    expect(source, contains('supabase-user-backup'));
+    expect(source, contains('supabase_anonymous'));
   });
 
   test('export excludes system stage tracker and related records', () async {
@@ -178,6 +187,10 @@ void main() {
   test('import replaces user data and keeps system seed data', () async {
     final sourceDb = AppDatabase.forTesting(NativeDatabase.memory());
     await _seedUserData(sourceDb);
+    await IdentityRepository(sourceDb.reminderDao).linkRemoteIdentity(
+      remoteUserId: 'supabase-user-restore-reference',
+      provider: AuthProviderType.supabaseAnonymous,
+    );
     final backup = await ReminderBackupService(
       sourceDb.reminderDao,
     ).exportJsonString();
@@ -244,7 +257,9 @@ void main() {
     ).getCurrentAppUser();
     final installations = await targetDb.reminderDao.listAppInstallations();
     expect(identity.id, isNotEmpty);
-    expect(identity.identityKind, LocalUserIdentityKind.local);
+    expect(identity.identityKind, LocalUserIdentityKind.anonymousRemote);
+    expect(identity.remoteUserId, 'supabase-user-restore-reference');
+    expect(identity.remoteProvider, AuthProviderType.supabaseAnonymous);
     expect(installations, isNotEmpty);
   });
 

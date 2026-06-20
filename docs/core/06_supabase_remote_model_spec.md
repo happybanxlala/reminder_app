@@ -4,6 +4,8 @@
 
 Phase 3A 是設計階段，不是 Supabase integration 實作階段。
 
+Phase 3B implementation note：Phase 3B implements anonymous Supabase Auth identity linking only. Remote shared pack schema / RLS remains Phase 3C+.
+
 ## 1. Purpose
 
 Phase 3A 的目標是先定義 Reminder App 未來 Shared Pack remote model 的安全資料基礎，讓 Phase 3B / 3C 可以在清楚的 Supabase schema 與 RLS 邊界上實作。
@@ -72,14 +74,17 @@ They must be linked, not merged.
 
 ## 4. Anonymous Remote Identity
 
-Phase 3B 可使用 Supabase anonymous auth 建立 remote identity，讓使用者在不綁 Apple / Google / Email 的情況下建立 Shared Pack remote data。
+Phase 3B 使用 Supabase anonymous auth 建立 remote identity，讓使用者在不綁 Apple / Google / Email 的情況下取得 server-recognized user id。
 
 規則：
 
 - Anonymous remote user 可成為 Shared Pack host / member。
 - 使用者仍不需要立即綁 Apple / Google / Email。
+- Anonymous remote identity 不等同 Apple / Google / Email 綁定保護；換機、sign out 或 reinstall 後可能遺失同一 remote identity。
+- UI 應將 Apple / Google / Email 稱為「保護資料」而不是強制登入。
 - Apple / Google / Email binding 是後續資料保護能力，不是建立 Shared Pack 的前置條件。
-- Phase 3A 只預留 schema / RLS / mapping 設計，不實作 auth flow。
+- Local GUID 不是 server credential；Supabase Auth uid 才是 server-trusted identity。
+- Phase 3B 不建立 remote profile、remote pack、remote member 或 remote item。
 
 ## 5. Remote Entity Scope
 
@@ -629,3 +634,34 @@ acknowledge_stage(stage_id)
 8. Activity event 是否用 trigger 自動產生？
 9. Resource adjust 的 `base_version` 採 integer version 還是 `updated_at`？
 10. 是否用 Supabase local development CLI 驗證 SQL / RLS？
+
+## 13. Phase 3B Manual Test
+
+Phase 3B 只測試 anonymous auth identity bridge，不測 remote pack / sync。
+
+Run with anon key only：
+
+```bash
+flutter run \
+  --dart-define=SUPABASE_URL=... \
+  --dart-define=SUPABASE_ANON_KEY=...
+```
+
+Manual flow：
+
+1. 打開 app。
+2. 進入 Settings developer debug 區。
+3. 查看「此裝置資料」。
+4. 按「建立匿名遠端身份」。
+5. 確認 `identity_kind` 變成 `anonymous_remote`。
+6. 確認 `remote_provider = supabase_anonymous`。
+7. 確認 local user id 不變。
+8. 關閉重開 app 後，確認 local identity 仍存在。
+9. 確認沒有任何 pack 被自動上傳。
+
+Security reminder：
+
+```text
+請勿把 service role key 放入 Flutter app。
+只可使用 anon key。
+```

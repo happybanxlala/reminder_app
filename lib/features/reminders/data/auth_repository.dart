@@ -2,11 +2,33 @@ import 'dart:math';
 
 import '../domain/shared_pack.dart';
 
+enum RemoteAuthFailureReason {
+  configMissing,
+  unavailable,
+  remoteAuthFailed,
+  unsupported,
+}
+
+class RemoteAuthException implements Exception {
+  const RemoteAuthException(this.reason, [this.cause]);
+
+  final RemoteAuthFailureReason reason;
+  final Object? cause;
+
+  @override
+  String toString() => 'RemoteAuthException($reason)';
+}
+
 class RemoteIdentity {
-  const RemoteIdentity({required this.remoteUserId, required this.provider});
+  const RemoteIdentity({
+    required this.remoteUserId,
+    required this.provider,
+    this.isAnonymous = false,
+  });
 
   final String remoteUserId;
   final AuthProviderType provider;
+  final bool isAnonymous;
 }
 
 abstract class AuthRepository {
@@ -56,6 +78,7 @@ class FakeAuthRepository implements AuthRepository {
     final identity = RemoteIdentity(
       remoteUserId: '${prefix}_${_generateGuid()}',
       provider: provider,
+      isAnonymous: provider == AuthProviderType.supabaseAnonymous,
     );
     _current = identity;
     return identity;
@@ -75,5 +98,40 @@ class FakeAuthRepository implements AuthRepository {
       buffer.write(hex(bytes[i]));
     }
     return buffer.toString();
+  }
+}
+
+class DisabledAuthRepository implements AuthRepository {
+  const DisabledAuthRepository(this.reason);
+
+  final RemoteAuthFailureReason reason;
+
+  @override
+  Future<RemoteIdentity?> getCurrentRemoteIdentity() async => null;
+
+  @override
+  Future<RemoteIdentity> signInAnonymously() {
+    throw RemoteAuthException(reason);
+  }
+
+  @override
+  Future<RemoteIdentity> linkWithApple() {
+    throw const RemoteAuthException(RemoteAuthFailureReason.unsupported);
+  }
+
+  @override
+  Future<RemoteIdentity> linkWithGoogle() {
+    throw const RemoteAuthException(RemoteAuthFailureReason.unsupported);
+  }
+
+  @override
+  Future<RemoteIdentity> linkWithEmail() {
+    throw const RemoteAuthException(RemoteAuthFailureReason.unsupported);
+  }
+
+  @override
+  Future<void> signOut() async {
+    // Anonymous remote users may not be recoverable after sign-out unless they
+    // are later protected with Apple / Google / Email binding.
   }
 }

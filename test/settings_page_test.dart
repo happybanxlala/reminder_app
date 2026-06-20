@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:reminder_app/app/theme/reminder_theme.dart';
+import 'package:reminder_app/features/reminders/data/auth_repository.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/reminder_backup_service.dart';
 import 'package:reminder_app/features/reminders/domain/app_settings.dart';
@@ -15,6 +16,7 @@ import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_te
 import 'package:reminder_app/features/reminders/providers/backup_providers.dart';
 import 'package:reminder_app/features/reminders/providers/database_providers.dart';
 import 'package:reminder_app/features/reminders/providers/developer_settings_providers.dart';
+import 'package:reminder_app/features/reminders/providers/identity_providers.dart';
 import 'package:reminder_app/features/reminders/providers/settings_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/feature_page.dart';
 
@@ -284,6 +286,19 @@ void main() {
         find.byKey(const Key('settings-debug-identity-kind')),
         findsOneWidget,
       );
+      expect(
+        find.byKey(const Key('settings-debug-remote-provider')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('settings-debug-remote-user-id')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('settings-debug-supabase-config-status')),
+        findsOneWidget,
+      );
+      expect(find.text(ReminderUiText.supabaseConfigMissing), findsOneWidget);
       expect(find.text(ReminderUiText.seedDemoDataLabel), findsNothing);
       expect(
         find.byKey(const Key('settings-reset-database-row')),
@@ -310,6 +325,64 @@ void main() {
 
       expect(find.byType(AlertDialog), findsNothing);
       expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('developer anonymous identity button handles missing config', (
+    tester,
+  ) async {
+    await _pumpSettings(tester, developerVisible: true);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('settings-create-anonymous-remote-identity-row')),
+      120,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const Key('settings-create-anonymous-remote-identity-row')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(ReminderUiText.supabaseConfigMissingMessage),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'developer anonymous identity button links fake remote identity',
+    (tester) async {
+      await _pumpSettings(
+        tester,
+        developerVisible: true,
+        extraOverrides: [
+          authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+        ],
+      );
+
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('settings-create-anonymous-remote-identity-row')),
+        120,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const Key('settings-create-anonymous-remote-identity-row')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(ReminderUiText.anonymousRemoteIdentityCreatedMessage),
+        findsOneWidget,
+      );
+      expect(
+        find.text(ReminderUiText.identityKindAnonymousRemote),
+        findsWidgets,
+      );
+      expect(
+        find.text(ReminderUiText.remoteProviderSupabaseAnonymous),
+        findsOneWidget,
+      );
     },
   );
 
@@ -364,6 +437,7 @@ Future<AppDatabase> _pumpSettings(
   PreviewDatePicker? pickDate,
   ReminderBackupService? backupService,
   AppDatabase? database,
+  List<Override> extraOverrides = const [],
 }) async {
   final db = database ?? AppDatabase.forTesting(NativeDatabase.memory());
   if (database == null) {
@@ -383,6 +457,7 @@ Future<AppDatabase> _pumpSettings(
         systemPreviewDateProvider.overrideWith(
           (ref) => Stream.value(DateTime(2026, 5, 28)),
         ),
+        ...extraOverrides,
       ],
       child: MaterialApp(
         theme: ReminderTheme.light(),
