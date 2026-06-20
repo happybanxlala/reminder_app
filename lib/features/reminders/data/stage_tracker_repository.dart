@@ -20,14 +20,19 @@ class StageTrackerRepository {
     ItemRepository? itemRepository,
     StageOccurrenceService? occurrenceService,
     DateTime Function()? clock,
-  }) : _itemRepository = itemRepository ?? ItemRepository(_dao),
+    Future<String> Function()? currentActorId,
+  }) : _itemRepository =
+           itemRepository ??
+           ItemRepository(_dao, currentActorId: currentActorId),
        _occurrenceService = occurrenceService ?? const StageOccurrenceService(),
-       _clock = clock ?? DateTime.now;
+       _clock = clock ?? DateTime.now,
+       _currentActorId = currentActorId;
 
   final ReminderDao _dao;
   final ItemRepository _itemRepository;
   final StageOccurrenceService _occurrenceService;
   final DateTime Function() _clock;
+  final Future<String> Function()? _currentActorId;
 
   static const systemDefaultKey = AppDatabase.systemDefaultStageTrackerKey;
 
@@ -485,7 +490,7 @@ class StageTrackerRepository {
     StageOccurrence occurrence, {
     String? actorUserId,
   }) async {
-    final actor = actorUserId ?? AppDatabase.defaultHostUserId;
+    final actor = await _resolveActorId(actorUserId);
     final tracker = await getStageTrackerById(occurrence.stageTrackerId);
     if (tracker == null || !await _canActOnPack(tracker.packId, actor)) {
       return;
@@ -891,6 +896,17 @@ class StageTrackerRepository {
 
   DateTime _normalizeDate(DateTime value) {
     return DateTime(value.year, value.month, value.day);
+  }
+
+  Future<String> _resolveActorId(String? actorUserId) async {
+    if (actorUserId != null) {
+      return actorUserId;
+    }
+    final resolver = _currentActorId;
+    if (resolver == null) {
+      return AppDatabase.defaultHostUserId;
+    }
+    return resolver();
   }
 
   Future<bool> _canActOnPack(int packId, String actorUserId) async {

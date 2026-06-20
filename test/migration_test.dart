@@ -4,11 +4,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 
 void main() {
-  test('database uses schema version 6 and core tables are writable', () async {
+  test('database uses schema version 7 and core tables are writable', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
 
-    expect(db.schemaVersion, 6);
+    expect(db.schemaVersion, 7);
+
+    final appInstallationId = await db
+        .into(db.appInstallations)
+        .insert(
+          AppInstallationsCompanion.insert(
+            installationGuid: '11111111-1111-4111-8111-111111111111',
+            createdAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+            lastSeenAt: DateTime(2026, 4, 2).millisecondsSinceEpoch,
+          ),
+        );
 
     final packId = await db
         .into(db.itemPacks)
@@ -224,6 +234,7 @@ void main() {
         );
 
     expect(packId, greaterThan(0));
+    expect(appInstallationId, greaterThan(0));
     expect(itemId, greaterThan(0));
     expect(templateId, greaterThan(0));
     expect(templateItemId, greaterThan(0));
@@ -255,11 +266,16 @@ void main() {
     )..where((t) => t.isSystemDefault.equals(true))).get();
     final items = await db.select(db.items).get();
     final packs = await db.select(db.itemPacks).get();
+    final localUsers = await db.select(db.localUsers).get();
+    final appInstallations = await db.select(db.appInstallations).get();
     final stageTrackers = await db.select(db.stageTrackers).get();
     final settings = await db.select(db.appSettingsEntries).get();
     final templates = await db.select(db.packTemplates).get();
     final templateItems = await db.select(db.packTemplateItems).get();
     expect(defaultPacks, hasLength(1));
+    expect(localUsers.first.identityKind, 'local');
+    expect(localUsers.first.remoteUserId, null);
+    expect(appInstallations, isNotEmpty);
     expect(packs.firstWhere((pack) => pack.id == packId).packType, 'personal');
     expect(packs.firstWhere((pack) => pack.id == packId).hostUserId, null);
     expect(items.single.status, 'active');

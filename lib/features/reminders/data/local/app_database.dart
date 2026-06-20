@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
@@ -13,6 +14,7 @@ part 'app_database.g.dart';
 @DriftDatabase(
   tables: [
     LocalUsers,
+    AppInstallations,
     ItemPacks,
     PackMembers,
     Items,
@@ -51,7 +53,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -72,9 +74,13 @@ class AppDatabase extends _$AppDatabase {
       if (from < 6) {
         await _upgradeToV6(m);
       }
+      if (from < 7) {
+        await _upgradeToV7(m);
+      }
     },
     beforeOpen: (details) async {
       await _ensureLocalUsers();
+      await _ensureAppInstallation();
       await _ensureSystemDefaultPack();
       await _ensureAppSettings();
       await _ensureSystemDefaultStageTracker();
@@ -83,6 +89,7 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> ensureSystemSeedData() async {
     await _ensureLocalUsers();
+    await _ensureAppInstallation();
     await _ensureSystemDefaultPack();
     await _ensureAppSettings();
     await _ensureSystemDefaultStageTracker();
@@ -196,6 +203,32 @@ class AppDatabase extends _$AppDatabase {
     await m.createTable(activityEvents);
   }
 
+  Future<void> _upgradeToV7(Migrator m) async {
+    await m.addColumn(localUsers, localUsers.avatarUrl);
+    await m.addColumn(localUsers, localUsers.identityKind);
+    await m.addColumn(localUsers, localUsers.remoteUserId);
+    await m.addColumn(localUsers, localUsers.remoteProvider);
+    await m.addColumn(localUsers, localUsers.isPrimary);
+    await m.addColumn(localUsers, localUsers.updatedAt);
+    await m.addColumn(localUsers, localUsers.linkedAt);
+    await m.addColumn(localUsers, localUsers.lastSeenAt);
+    await m.addColumn(localUsers, localUsers.deletedAt);
+    await m.createTable(appInstallations);
+    await customStatement('''
+      UPDATE local_users
+      SET identity_kind = COALESCE(identity_kind, 'local'),
+          updated_at = CASE
+            WHEN updated_at IS NULL OR updated_at = 0 THEN created_at
+            ELSE updated_at
+          END,
+          is_primary = CASE
+            WHEN id = '$defaultHostUserId' THEN 1
+            ELSE COALESCE(is_primary, 0)
+          END
+      ''');
+    await _ensureAppInstallation();
+  }
+
   Future<void> _ensureLocalUsers() async {
     final now = DateTime.now().millisecondsSinceEpoch;
     await into(localUsers).insertOnConflictUpdate(
@@ -203,6 +236,7 @@ class AppDatabase extends _$AppDatabase {
         id: defaultHostUserId,
         displayName: defaultHostDisplayName,
         createdAt: now,
+        updatedAt: Value(now),
       ),
     );
     await into(localUsers).insertOnConflictUpdate(
@@ -210,6 +244,47 @@ class AppDatabase extends _$AppDatabase {
         id: defaultMemberUserId,
         displayName: defaultMemberDisplayName,
         createdAt: now,
+        updatedAt: Value(now),
+      ),
+    );
+  }
+
+  Future<void> ensureLegacyPrimaryLocalUser() async {
+    final existingPrimary = await customSelect('''
+      SELECT id
+      FROM local_users
+      WHERE is_primary = 1 AND deleted_at IS NULL
+      LIMIT 1
+      ''').getSingleOrNull();
+    if (existingPrimary != null) {
+      return;
+    }
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await customStatement('''
+      UPDATE local_users
+      SET is_primary = CASE WHEN id = '$defaultHostUserId' THEN 1 ELSE 0 END,
+          identity_kind = COALESCE(identity_kind, 'local'),
+          updated_at = CASE WHEN updated_at = 0 THEN $now ELSE updated_at END
+      ''');
+  }
+
+  Future<int> ensureAppInstallation() => _ensureAppInstallation();
+
+  Future<int> _ensureAppInstallation() async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final existing = await (select(
+      appInstallations,
+    )..limit(1)).getSingleOrNull();
+    if (existing != null) {
+      await (update(appInstallations)..where((t) => t.id.equals(existing.id)))
+          .write(AppInstallationsCompanion(lastSeenAt: Value(now)));
+      return existing.id;
+    }
+    return into(appInstallations).insert(
+      AppInstallationsCompanion.insert(
+        installationGuid: _generateGuid(),
+        createdAt: now,
+        lastSeenAt: now,
       ),
     );
   }
@@ -340,6 +415,23 @@ class AppDatabase extends _$AppDatabase {
         updatedAt: now.millisecondsSinceEpoch,
       ),
     );
+  }
+
+  static String _generateGuid() {
+    final random = Random.secure();
+    int nextByte() => random.nextInt(256);
+    final bytes = List<int>.generate(16, (_) => nextByte());
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    String hex(int value) => value.toRadixString(16).padLeft(2, '0');
+    final buffer = StringBuffer();
+    for (var i = 0; i < bytes.length; i++) {
+      if (i == 4 || i == 6 || i == 8 || i == 10) {
+        buffer.write('-');
+      }
+      buffer.write(hex(bytes[i]));
+    }
+    return buffer.toString();
   }
 }
 

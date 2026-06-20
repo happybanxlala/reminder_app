@@ -17,6 +17,7 @@ class SettingsPage extends ConsumerWidget {
     final effectiveDate = ref.watch(effectivePreviewDateProvider);
     final isOverridden = overrideDate != null;
     final databaseVersion = ref.watch(appDatabaseProvider).schemaVersion;
+    final currentUserAsync = ref.watch(currentAppUserProvider);
 
     return ReminderEditorScaffold(
       title: ReminderUiText.settingsTitle,
@@ -147,6 +148,40 @@ class SettingsPage extends ConsumerWidget {
                   value: '$databaseVersion',
                 ),
                 _SettingsReadOnlyRow(
+                  key: const Key('settings-debug-device-data-label'),
+                  label: ReminderUiText.deviceDataLabel,
+                  value: currentUserAsync.maybeWhen(
+                    data: (user) => user.displayName,
+                    orElse: () => ReminderUiText.loadingLabel,
+                  ),
+                ),
+                _SettingsReadOnlyRow(
+                  key: const Key('settings-debug-local-user-id'),
+                  label: ReminderUiText.localUserIdLabel,
+                  value: currentUserAsync.maybeWhen(
+                    data: (user) => _shortUserId(user.id),
+                    orElse: () => '-',
+                  ),
+                ),
+                _SettingsReadOnlyRow(
+                  key: const Key('settings-debug-identity-kind'),
+                  label: ReminderUiText.identityKindLabel,
+                  value: currentUserAsync.maybeWhen(
+                    data: (user) => _identityKindLabel(user.identityKind),
+                    orElse: () => '-',
+                  ),
+                ),
+                _SettingsReadOnlyRow(
+                  key: const Key('settings-debug-binding-status'),
+                  label: ReminderUiText.identityBindingStatusLabel,
+                  value: currentUserAsync.maybeWhen(
+                    data: (user) => user.remoteUserId == null
+                        ? ReminderUiText.identityNotBoundLabel
+                        : ReminderUiText.identityBoundLabel,
+                    orElse: () => '-',
+                  ),
+                ),
+                _SettingsReadOnlyRow(
                   key: const Key('settings-debug-date-source'),
                   label: ReminderUiText.dateSourceLabel,
                   value: isOverridden
@@ -168,6 +203,22 @@ class SettingsPage extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  String _shortUserId(String value) {
+    return value.length <= 12 ? value : '${value.substring(0, 8)}...';
+  }
+
+  String _identityKindLabel(LocalUserIdentityKind kind) {
+    return switch (kind) {
+      LocalUserIdentityKind.local => ReminderUiText.identityKindLocal,
+      LocalUserIdentityKind.anonymousRemote =>
+        ReminderUiText.identityKindAnonymousRemote,
+      LocalUserIdentityKind.linked => ReminderUiText.identityKindLinked,
+      LocalUserIdentityKind.placeholder =>
+        ReminderUiText.identityKindPlaceholder,
+      LocalUserIdentityKind.removed => ReminderUiText.identityKindRemoved,
+    };
   }
 
   Future<void> _showReminderTonePicker(
@@ -431,6 +482,8 @@ class SettingsPage extends ConsumerWidget {
     ref.invalidate(systemStageTrackerProvider);
     ref.invalidate(customPackTemplatesProvider);
     ref.invalidate(packTemplatesProvider);
+    ref.invalidate(currentAppUserProvider);
+    ref.invalidate(currentAppUserIdProvider);
     ref.invalidate(dangerHomeAttentionEntriesProvider);
     ref.invalidate(warningHomeAttentionEntriesProvider);
     ref.invalidate(dangerHomeEntriesProvider);

@@ -6,16 +6,101 @@ enum PackMemberStatus { active, removed }
 
 enum ResourceEventChangeType { adjust, increment, decrement }
 
+enum LocalUserIdentityKind {
+  local,
+  anonymousRemote,
+  linked,
+  placeholder,
+  removed,
+}
+
+enum AuthProviderType { supabaseAnonymous, apple, google, email }
+
+extension LocalUserIdentityKindStorage on LocalUserIdentityKind {
+  String get storageValue {
+    return switch (this) {
+      LocalUserIdentityKind.local => 'local',
+      LocalUserIdentityKind.anonymousRemote => 'anonymous_remote',
+      LocalUserIdentityKind.linked => 'linked',
+      LocalUserIdentityKind.placeholder => 'placeholder',
+      LocalUserIdentityKind.removed => 'removed',
+    };
+  }
+
+  static LocalUserIdentityKind parse(String value) {
+    return switch (value) {
+      'anonymous_remote' => LocalUserIdentityKind.anonymousRemote,
+      'linked' => LocalUserIdentityKind.linked,
+      'placeholder' => LocalUserIdentityKind.placeholder,
+      'removed' => LocalUserIdentityKind.removed,
+      _ => LocalUserIdentityKind.local,
+    };
+  }
+}
+
+extension AuthProviderTypeStorage on AuthProviderType {
+  String get storageValue {
+    return switch (this) {
+      AuthProviderType.supabaseAnonymous => 'supabase_anonymous',
+      AuthProviderType.apple => 'apple',
+      AuthProviderType.google => 'google',
+      AuthProviderType.email => 'email',
+    };
+  }
+
+  static AuthProviderType parse(String value) {
+    return switch (value) {
+      'supabase_anonymous' => AuthProviderType.supabaseAnonymous,
+      'apple' => AuthProviderType.apple,
+      'google' => AuthProviderType.google,
+      'email' => AuthProviderType.email,
+      _ => AuthProviderType.supabaseAnonymous,
+    };
+  }
+}
+
 class LocalUser {
   const LocalUser({
     required this.id,
     required this.displayName,
+    this.avatarUrl,
+    this.identityKind = LocalUserIdentityKind.local,
+    this.remoteUserId,
+    this.remoteProvider,
+    this.isPrimary = false,
     required this.createdAt,
+    required this.updatedAt,
+    this.linkedAt,
+    this.lastSeenAt,
+    this.deletedAt,
   });
 
   final String id;
   final String displayName;
+  final String? avatarUrl;
+  final LocalUserIdentityKind identityKind;
+  final String? remoteUserId;
+  final AuthProviderType? remoteProvider;
+  final bool isPrimary;
   final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? linkedAt;
+  final DateTime? lastSeenAt;
+  final DateTime? deletedAt;
+}
+
+class AppInstallation {
+  const AppInstallation({
+    required this.id,
+    required this.installationGuid,
+    required this.createdAt,
+    required this.lastSeenAt,
+  });
+
+  final int id;
+  final String installationGuid;
+  final DateTime createdAt;
+  final DateTime lastSeenAt;
 }
 
 class PackMember {

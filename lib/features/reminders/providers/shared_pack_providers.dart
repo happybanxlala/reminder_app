@@ -1,16 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../data/local/app_database.dart';
 import '../data/shared_pack_repository.dart';
 import '../domain/shared_pack.dart';
 import 'database_providers.dart';
+import 'identity_providers.dart';
 
 final sharedPackRepositoryProvider = Provider<SharedPackRepository>((ref) {
-  return SharedPackRepository(ref.watch(appDatabaseProvider).reminderDao);
+  return SharedPackRepository(
+    ref.watch(appDatabaseProvider).reminderDao,
+    currentActorId: () => currentActorId(ref),
+  );
 });
 
-final currentLocalUserIdProvider = StateProvider<String>((ref) {
-  return AppDatabase.defaultHostUserId;
+final currentLocalUserIdProvider = FutureProvider<String>((ref) {
+  return ref.watch(currentAppUserIdProvider.future);
 });
 
 final localUsersProvider = FutureProvider<List<LocalUser>>((ref) {

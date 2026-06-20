@@ -275,7 +275,15 @@ void main() {
 
       expect(find.text(ReminderUiText.debugInfoSectionTitle), findsOneWidget);
       expect(find.text(ReminderUiText.databaseVersionLabel), findsOneWidget);
-      expect(find.text('6'), findsOneWidget);
+      expect(find.text('7'), findsOneWidget);
+      expect(
+        find.byKey(const Key('settings-debug-device-data-label')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('settings-debug-identity-kind')),
+        findsOneWidget,
+      );
       expect(find.text(ReminderUiText.seedDemoDataLabel), findsNothing);
       expect(
         find.byKey(const Key('settings-reset-database-row')),

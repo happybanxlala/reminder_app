@@ -5,6 +5,8 @@ part of 'reminder_dao.dart';
 // ignore_for_file: type=lint
 mixin _$ReminderDaoMixin on DatabaseAccessor<AppDatabase> {
   $LocalUsersTable get localUsers => attachedDatabase.localUsers;
+  $AppInstallationsTable get appInstallations =>
+      attachedDatabase.appInstallations;
   $ItemPacksTable get itemPacks => attachedDatabase.itemPacks;
   $PackMembersTable get packMembers => attachedDatabase.packMembers;
   $ItemsTable get items => attachedDatabase.items;
@@ -38,6 +40,11 @@ class ReminderDaoManager {
   ReminderDaoManager(this._db);
   $$LocalUsersTableTableManager get localUsers =>
       $$LocalUsersTableTableManager(_db.attachedDatabase, _db.localUsers);
+  $$AppInstallationsTableTableManager get appInstallations =>
+      $$AppInstallationsTableTableManager(
+        _db.attachedDatabase,
+        _db.appInstallations,
+      );
   $$ItemPacksTableTableManager get itemPacks =>
       $$ItemPacksTableTableManager(_db.attachedDatabase, _db.itemPacks);
   $$PackMembersTableTableManager get packMembers =>

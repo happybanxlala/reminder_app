@@ -11,12 +11,14 @@ import '../domain/stage_tracker.dart';
 import '../presentation/formatters/reminder_formatters.dart';
 import 'database_providers.dart';
 import 'developer_settings_providers.dart';
+import 'identity_providers.dart';
 import 'item_providers.dart';
 
 final stageTrackerRepositoryProvider = Provider<StageTrackerRepository>((ref) {
   return StageTrackerRepository(
     ref.watch(appDatabaseProvider).reminderDao,
     itemRepository: ref.watch(itemRepositoryProvider),
+    currentActorId: () => currentActorId(ref),
   );
 });
 

@@ -7,10 +7,30 @@ class LocalUsers extends Table {
 
   TextColumn get id => text()();
   TextColumn get displayName => text()();
+  TextColumn get avatarUrl => text().nullable()();
+  TextColumn get identityKind => text().withDefault(const Constant('local'))();
+  TextColumn get remoteUserId => text().nullable()();
+  TextColumn get remoteProvider => text().nullable()();
+  BoolColumn get isPrimary => boolean().withDefault(const Constant(false))();
   IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer().withDefault(const Constant(0))();
+  IntColumn get linkedAt => integer().nullable()();
+  IntColumn get lastSeenAt => integer().nullable()();
+  IntColumn get deletedAt => integer().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('AppInstallationRow')
+class AppInstallations extends Table {
+  @override
+  String get tableName => 'app_installations';
+
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get installationGuid => text()();
+  IntColumn get createdAt => integer()();
+  IntColumn get lastSeenAt => integer()();
 }
 
 @DataClassName('ItemPackRow')

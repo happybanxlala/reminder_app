@@ -1,6 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:reminder_app/features/reminders/data/identity_repository.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/item_repository.dart';
 import 'package:reminder_app/features/reminders/domain/attention_policy.dart';
@@ -11,9 +12,58 @@ import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/repeat_rule.dart';
 import 'package:reminder_app/features/reminders/domain/repeat_rule_v2.dart';
 import 'package:reminder_app/features/reminders/domain/resource.dart';
+import 'package:reminder_app/features/reminders/domain/shared_pack.dart';
 import 'package:reminder_app/features/reminders/data/resource_repository.dart';
 
 void main() {
+  test(
+    'personal pack completion uses current local user without membership',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final identityRepository = IdentityRepository(db.reminderDao);
+      final localUser = await identityRepository.ensureLocalIdentity();
+      Future<String> currentActor() async =>
+          (await identityRepository.getCurrentAppUser()).id;
+      final repository = ItemRepository(
+        db.reminderDao,
+        currentActorId: currentActor,
+      );
+
+      final itemId = await repository.createItem(
+        const ItemInput(
+          title: 'Personal task',
+          type: ItemType.stateBased,
+          config: StateBasedItemConfig(
+            warningAfter: Duration(days: 1),
+            dangerAfter: Duration(days: 2),
+          ),
+        ),
+      );
+
+      expect(
+        await repository.markDone(itemId, doneAt: DateTime(2026, 6, 20)),
+        isTrue,
+      );
+      var completions = await db.reminderDao.listItemCompletions(itemId);
+      expect(completions.single.completedByUserId, localUser.id);
+
+      final doneRecord = (await repository.listActionHistory(
+        itemId,
+      )).firstWhere((record) => record.actionType == ItemActionType.done);
+      expect(
+        await repository.undoDone(
+          doneRecord.id,
+          revertedAt: DateTime(2026, 6, 21),
+        ),
+        isTrue,
+      );
+      completions = await db.reminderDao.listItemCompletions(itemId);
+      expect(completions.single.undoneByUserId, localUser.id);
+      expect(localUser.identityKind, LocalUserIdentityKind.local);
+    },
+  );
+
   test(
     'creating an item provisions the default pack and round-trips mapping',
     () async {

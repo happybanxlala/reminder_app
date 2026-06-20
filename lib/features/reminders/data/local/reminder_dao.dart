@@ -173,6 +173,7 @@ class StageRelatedItemEntry {
 @DriftAccessor(
   tables: [
     LocalUsers,
+    AppInstallations,
     ItemPacks,
     PackMembers,
     Items,
@@ -207,11 +208,63 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     return rows.map(_toLocalUser).toList(growable: false);
   }
 
+  Stream<LocalUser?> watchPrimaryLocalUser() {
+    return (select(localUsers)
+          ..where((t) => t.isPrimary.equals(true) & t.deletedAt.isNull())
+          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)])
+          ..limit(1))
+        .watchSingleOrNull()
+        .map((row) => row == null ? null : _toLocalUser(row));
+  }
+
+  Future<LocalUser?> getPrimaryLocalUser() async {
+    final row =
+        await (select(localUsers)
+              ..where((t) => t.isPrimary.equals(true) & t.deletedAt.isNull())
+              ..orderBy([(t) => OrderingTerm.asc(t.createdAt)])
+              ..limit(1))
+            .getSingleOrNull();
+    return row == null ? null : _toLocalUser(row);
+  }
+
   Future<LocalUser?> getLocalUserById(String id) async {
     final row = await (select(
       localUsers,
     )..where((t) => t.id.equals(id))).getSingleOrNull();
     return row == null ? null : _toLocalUser(row);
+  }
+
+  Future<void> insertLocalUser(LocalUsersCompanion entry) {
+    return into(localUsers).insert(entry);
+  }
+
+  Future<bool> updateLocalUserFields(
+    String id,
+    LocalUsersCompanion entry,
+  ) async {
+    return (await (update(
+          localUsers,
+        )..where((t) => t.id.equals(id))).write(entry)) >
+        0;
+  }
+
+  Future<int> countPrimaryLocalUsers() async {
+    final rows = await (select(
+      localUsers,
+    )..where((t) => t.isPrimary.equals(true) & t.deletedAt.isNull())).get();
+    return rows.length;
+  }
+
+  Future<AppInstallation?> getAppInstallation() async {
+    final row = await (select(appInstallations)..limit(1)).getSingleOrNull();
+    return row == null ? null : _toAppInstallation(row);
+  }
+
+  Future<List<AppInstallation>> listAppInstallations() async {
+    final rows = await (select(
+      appInstallations,
+    )..orderBy([(t) => OrderingTerm.asc(t.createdAt)])).get();
+    return rows.map(_toAppInstallation).toList(growable: false);
   }
 
   Future<int> insertItemPack(ItemPacksCompanion entry) {
@@ -349,6 +402,9 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     final localUserRows = await (select(
       localUsers,
     )..orderBy([(t) => OrderingTerm.asc(t.id)])).get();
+    final appInstallationRows = await (select(
+      appInstallations,
+    )..orderBy([(t) => OrderingTerm.asc(t.id)])).get();
     final packMemberRows = await (select(
       packMembers,
     )..orderBy([(t) => OrderingTerm.asc(t.packId)])).get();
@@ -402,6 +458,11 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
       relations: [
         for (final row in localUserRows)
           {'relationType': 'localUser', ..._localUserBackupJson(row)},
+        for (final row in appInstallationRows)
+          {
+            'relationType': 'appInstallation',
+            ..._appInstallationBackupJson(row),
+          },
         for (final row in packMemberRows)
           {'relationType': 'packMember', ..._packMemberBackupJson(row)},
         for (final row in consumptionRuleRows)
@@ -451,6 +512,12 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
       for (final row in data.relations) {
         if (row['relationType'] == 'localUser') {
           await _insertOrReplaceMap('local_users', _localUserColumns, row);
+        } else if (row['relationType'] == 'appInstallation') {
+          await _insertOrReplaceMap(
+            'app_installations',
+            _appInstallationColumns,
+            row,
+          );
         }
       }
 
@@ -568,6 +635,8 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
           await _insertMap('activity_events', _activityEventColumns, row);
         }
       }
+      await attachedDatabase.ensureLegacyPrimaryLocalUser();
+      await attachedDatabase.ensureAppInstallation();
     });
   }
 
@@ -2135,7 +2204,26 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
-  static const _localUserColumns = ['id', 'display_name', 'created_at'];
+  static const _localUserColumns = [
+    'id',
+    'display_name',
+    'avatar_url',
+    'identity_kind',
+    'remote_user_id',
+    'remote_provider',
+    'is_primary',
+    'created_at',
+    'updated_at',
+    'linked_at',
+    'last_seen_at',
+    'deleted_at',
+  ];
+  static const _appInstallationColumns = [
+    'id',
+    'installation_guid',
+    'created_at',
+    'last_seen_at',
+  ];
   static const _itemPackColumns = [
     'id',
     'title',
@@ -2410,6 +2498,7 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
       ''');
     await customStatement('DELETE FROM pack_members');
     await customStatement('DELETE FROM item_packs WHERE is_system_default = 0');
+    await customStatement('DELETE FROM app_installations');
     await customStatement('''
       DELETE FROM local_users
       WHERE id NOT IN (
@@ -2457,6 +2546,23 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
   ) {
     final copy = Map<String, Object?>.from(source);
     switch (tableName) {
+      case 'local_users':
+        final createdAt = copy['created_at'] ?? copy['createdAt'];
+        copy['display_name'] ??= copy['displayName'] ?? '此裝置';
+        copy['avatar_url'] ??= copy['avatarUrl'];
+        copy['identity_kind'] ??= copy['identityKind'] ?? 'local';
+        copy['remote_user_id'] ??= copy['remoteUserId'];
+        copy['remote_provider'] ??= copy['remoteProvider'];
+        copy['is_primary'] ??= copy['isPrimary'] ?? false;
+        copy['updated_at'] ??= copy['updatedAt'] ?? createdAt;
+        copy['linked_at'] ??= copy['linkedAt'];
+        copy['last_seen_at'] ??= copy['lastSeenAt'];
+        copy['deleted_at'] ??= copy['deletedAt'];
+        break;
+      case 'app_installations':
+        copy['installation_guid'] ??= copy['installationGuid'];
+        copy['last_seen_at'] ??= copy['lastSeenAt'] ?? copy['created_at'];
+        break;
       case 'item_packs':
         copy['is_system_default'] ??= copy['isSystemDefault'] ?? false;
         copy['pack_type'] ??= ItemPackType.personal.name;
@@ -2511,7 +2617,23 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
   Map<String, Object?> _localUserBackupJson(LocalUserRow row) => {
     'id': row.id,
     'display_name': row.displayName,
+    'avatar_url': row.avatarUrl,
+    'identity_kind': row.identityKind,
+    'remote_user_id': row.remoteUserId,
+    'remote_provider': row.remoteProvider,
+    'is_primary': row.isPrimary,
     'created_at': _dateJson(row.createdAt),
+    'updated_at': _dateJson(row.updatedAt),
+    'linked_at': _dateJson(row.linkedAt),
+    'last_seen_at': _dateJson(row.lastSeenAt),
+    'deleted_at': _dateJson(row.deletedAt),
+  };
+
+  Map<String, Object?> _appInstallationBackupJson(AppInstallationRow row) => {
+    'id': row.id,
+    'installation_guid': row.installationGuid,
+    'created_at': _dateJson(row.createdAt),
+    'last_seen_at': _dateJson(row.lastSeenAt),
   };
 
   Map<String, Object?> _packMemberBackupJson(PackMemberRow row) => {
@@ -2799,7 +2921,33 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     return LocalUser(
       id: row.id,
       displayName: row.displayName,
+      avatarUrl: row.avatarUrl,
+      identityKind: LocalUserIdentityKindStorage.parse(row.identityKind),
+      remoteUserId: row.remoteUserId,
+      remoteProvider: row.remoteProvider == null
+          ? null
+          : AuthProviderTypeStorage.parse(row.remoteProvider!),
+      isPrimary: row.isPrimary,
       createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
+      linkedAt: row.linkedAt == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(row.linkedAt!),
+      lastSeenAt: row.lastSeenAt == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(row.lastSeenAt!),
+      deletedAt: row.deletedAt == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(row.deletedAt!),
+    );
+  }
+
+  AppInstallation _toAppInstallation(AppInstallationRow row) {
+    return AppInstallation(
+      id: row.id,
+      installationGuid: row.installationGuid,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
+      lastSeenAt: DateTime.fromMillisecondsSinceEpoch(row.lastSeenAt),
     );
   }
 

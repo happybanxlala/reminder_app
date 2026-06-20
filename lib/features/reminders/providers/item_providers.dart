@@ -6,6 +6,7 @@ import '../data/local/reminder_dao.dart';
 import '../domain/item_pack.dart';
 import 'developer_settings_providers.dart';
 import 'database_providers.dart';
+import 'identity_providers.dart';
 
 const itemActivityFeedPageSize = 20;
 
@@ -19,7 +20,10 @@ class ItemManagementGroup {
 }
 
 final itemRepositoryProvider = Provider<ItemRepository>((ref) {
-  return ItemRepository(ref.watch(appDatabaseProvider).reminderDao);
+  return ItemRepository(
+    ref.watch(appDatabaseProvider).reminderDao,
+    currentActorId: () => currentActorId(ref),
+  );
 });
 
 final itemPacksProvider = StreamProvider<List<ItemPack>>((ref) {

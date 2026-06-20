@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/backup_models.dart';
+import 'package:reminder_app/features/reminders/data/identity_repository.dart';
 import 'package:reminder_app/features/reminders/data/item_repository.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/pack_template_repository.dart';
@@ -60,7 +61,12 @@ void main() {
       relations.whereType<Map<String, Object?>>().map(
         (row) => row['relationType'],
       ),
-      containsAll(['localUser', 'packMember', 'resourceConsumptionRule']),
+      containsAll([
+        'localUser',
+        'appInstallation',
+        'packMember',
+        'resourceConsumptionRule',
+      ]),
     );
     expect(
       activityLogs.whereType<Map<String, Object?>>().map(
@@ -75,6 +81,10 @@ void main() {
         'activityEvent',
       ]),
     );
+    expect(source, isNot(contains('access_token')));
+    expect(source, isNot(contains('refresh_token')));
+    expect(source, isNot(contains('oauth')));
+    expect(source, isNot(contains('credential')));
   });
 
   test('export excludes system stage tracker and related records', () async {
@@ -229,6 +239,13 @@ void main() {
       ).listStageAcknowledgementsForPack(sharedPack.id),
       isNotEmpty,
     );
+    final identity = await IdentityRepository(
+      targetDb.reminderDao,
+    ).getCurrentAppUser();
+    final installations = await targetDb.reminderDao.listAppInstallations();
+    expect(identity.id, isNotEmpty);
+    expect(identity.identityKind, LocalUserIdentityKind.local);
+    expect(installations, isNotEmpty);
   });
 
   test('import accepts v1 backup without shared pack metadata', () async {
@@ -249,6 +266,11 @@ void main() {
     expect(importedPack.packType, ItemPackType.personal);
     expect(importedPack.hostUserId, isNull);
     expect(importedItem.item.assignedToUserId, isNull);
+    final identity = await IdentityRepository(
+      db.reminderDao,
+    ).getCurrentAppUser();
+    expect(identity.id, AppDatabase.defaultHostUserId);
+    expect(identity.identityKind, LocalUserIdentityKind.local);
   });
 
   test('reset clears user data and rebuilds system seed', () async {

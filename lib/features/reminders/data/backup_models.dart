@@ -30,7 +30,7 @@ class BackupPayload {
   });
 
   static const appName = 'reminder_app';
-  static const currentSchemaVersion = 2;
+  static const currentSchemaVersion = 3;
 
   final String app;
   final int schemaVersion;

@@ -115,12 +115,14 @@ class ItemRepository {
     ItemActionService? actionService,
     ItemSnapshotUpdateService? snapshotUpdateService,
     DateTime Function()? clock,
+    Future<String> Function()? currentActorId,
   }) : _statusService = statusService ?? const ItemStatusService(),
        _actionService = actionService ?? const ItemActionService(),
        _snapshotUpdateService =
            snapshotUpdateService ??
            ItemSnapshotUpdateService(statusService: statusService),
-       _clock = clock ?? DateTime.now;
+       _clock = clock ?? DateTime.now,
+       _currentActorId = currentActorId;
 
   static const managedItemStatuses = {
     ItemLifecycleStatus.active,
@@ -139,6 +141,7 @@ class ItemRepository {
   final FixedScheduleValidator _fixedScheduleValidator =
       const FixedScheduleValidator();
   final DateTime Function() _clock;
+  final Future<String> Function()? _currentActorId;
 
   Stream<List<ItemPack>> watchPacks({bool includeArchived = false}) =>
       _dao.watchItemPacks(includeArchived: includeArchived);
@@ -222,7 +225,7 @@ class ItemRepository {
     String? actorUserId,
   }) async {
     final now = _clock();
-    final actor = actorUserId ?? AppDatabase.defaultHostUserId;
+    final actor = await _resolveActorId(actorUserId);
     return _dao.attachedDatabase.transaction(() async {
       final packId = await _resolvePackId(input.packId, now);
       final itemId = await _createItemRecord(
@@ -255,7 +258,7 @@ class ItemRepository {
     String? actorUserId,
   }) async {
     final now = _clock();
-    final actor = actorUserId ?? AppDatabase.defaultHostUserId;
+    final actor = await _resolveActorId(actorUserId);
     return _dao.attachedDatabase.transaction(() async {
       final createdPackId = newPack == null
           ? null
@@ -342,7 +345,7 @@ class ItemRepository {
       return false;
     }
     final now = _clock();
-    final actor = actorUserId ?? AppDatabase.defaultHostUserId;
+    final actor = await _resolveActorId(actorUserId);
     if (!await _canActOnPack(existing.pack, actor)) {
       return false;
     }
@@ -413,7 +416,7 @@ class ItemRepository {
     if (existing == null) {
       return false;
     }
-    final actor = actorUserId ?? AppDatabase.defaultHostUserId;
+    final actor = await _resolveActorId(actorUserId);
     if (!await _canActOnPack(existing.pack, actor)) {
       return false;
     }
@@ -460,7 +463,7 @@ class ItemRepository {
     return _recordAction(
       id,
       action: action,
-      actorUserId: AppDatabase.defaultHostUserId,
+      actorUserId: await _resolveActorId(null),
     );
   }
 
@@ -495,7 +498,7 @@ class ItemRepository {
 
     final now = _clock();
     final actionDate = _normalizeDate(revertedAt ?? now);
-    final actor = actorUserId ?? AppDatabase.defaultHostUserId;
+    final actor = await _resolveActorId(actorUserId);
     if (!await _canActOnPack(existing.pack, actor)) {
       return false;
     }
@@ -1599,6 +1602,17 @@ class ItemRepository {
 
   DateTime _normalizeDate(DateTime value) {
     return DateTime(value.year, value.month, value.day);
+  }
+
+  Future<String> _resolveActorId(String? actorUserId) async {
+    if (actorUserId != null) {
+      return actorUserId;
+    }
+    final resolver = _currentActorId;
+    if (resolver == null) {
+      return AppDatabase.defaultHostUserId;
+    }
+    return resolver();
   }
 
   Future<bool> _canActOnPack(ItemPack pack, String actorUserId) {

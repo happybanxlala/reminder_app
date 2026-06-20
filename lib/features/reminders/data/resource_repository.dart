@@ -49,9 +49,11 @@ class ResourceRepository {
     ResourceStatusService? statusService,
     ResourceRefillService? refillService,
     DateTime Function()? clock,
+    Future<String> Function()? currentActorId,
   }) : _statusService = statusService ?? const ResourceStatusService(),
        _refillService = refillService ?? const ResourceRefillService(),
-       _clock = clock ?? DateTime.now;
+       _clock = clock ?? DateTime.now,
+       _currentActorId = currentActorId;
 
   static const managedResourceStatuses = {
     ResourceLifecycleStatus.active,
@@ -62,6 +64,7 @@ class ResourceRepository {
   final ResourceStatusService _statusService;
   final ResourceRefillService _refillService;
   final DateTime Function() _clock;
+  final Future<String> Function()? _currentActorId;
 
   Stream<List<ResourceBundle>> watchResources() => _dao.watchResourceBundles(
     statuses: const {ResourceLifecycleStatus.active},
@@ -371,7 +374,7 @@ class ResourceRepository {
     }
     final now = _clock();
     final actionDate = _normalizeDate(actionAt ?? now);
-    final actor = actorUserId ?? AppDatabase.defaultHostUserId;
+    final actor = await _resolveActorId(actorUserId);
     if (!await _canActOnPack(existing.pack, actor)) {
       return false;
     }
@@ -477,7 +480,7 @@ class ResourceRepository {
     }
     final now = _clock();
     final actionDate = _normalizeDate(actionAt ?? now);
-    final actor = actorUserId ?? AppDatabase.defaultHostUserId;
+    final actor = await _resolveActorId(actorUserId);
     if (!await _canActOnPack(existing.pack, actor)) {
       return false;
     }
@@ -779,6 +782,17 @@ class ResourceRepository {
 
   DateTime _normalizeDate(DateTime value) {
     return DateTime(value.year, value.month, value.day);
+  }
+
+  Future<String> _resolveActorId(String? actorUserId) async {
+    if (actorUserId != null) {
+      return actorUserId;
+    }
+    final resolver = _currentActorId;
+    if (resolver == null) {
+      return AppDatabase.defaultHostUserId;
+    }
+    return resolver();
   }
 
   Future<bool> _canActOnPack(ItemPack pack, String actorUserId) {

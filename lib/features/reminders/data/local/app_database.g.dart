@@ -29,6 +29,66 @@ class $LocalUsersTable extends LocalUsers
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _avatarUrlMeta = const VerificationMeta(
+    'avatarUrl',
+  );
+  @override
+  late final GeneratedColumn<String> avatarUrl = GeneratedColumn<String>(
+    'avatar_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _identityKindMeta = const VerificationMeta(
+    'identityKind',
+  );
+  @override
+  late final GeneratedColumn<String> identityKind = GeneratedColumn<String>(
+    'identity_kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('local'),
+  );
+  static const VerificationMeta _remoteUserIdMeta = const VerificationMeta(
+    'remoteUserId',
+  );
+  @override
+  late final GeneratedColumn<String> remoteUserId = GeneratedColumn<String>(
+    'remote_user_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _remoteProviderMeta = const VerificationMeta(
+    'remoteProvider',
+  );
+  @override
+  late final GeneratedColumn<String> remoteProvider = GeneratedColumn<String>(
+    'remote_provider',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isPrimaryMeta = const VerificationMeta(
+    'isPrimary',
+  );
+  @override
+  late final GeneratedColumn<bool> isPrimary = GeneratedColumn<bool>(
+    'is_primary',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_primary" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -40,8 +100,66 @@ class $LocalUsersTable extends LocalUsers
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, displayName, createdAt];
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _linkedAtMeta = const VerificationMeta(
+    'linkedAt',
+  );
+  @override
+  late final GeneratedColumn<int> linkedAt = GeneratedColumn<int>(
+    'linked_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastSeenAtMeta = const VerificationMeta(
+    'lastSeenAt',
+  );
+  @override
+  late final GeneratedColumn<int> lastSeenAt = GeneratedColumn<int>(
+    'last_seen_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<int> deletedAt = GeneratedColumn<int>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    displayName,
+    avatarUrl,
+    identityKind,
+    remoteUserId,
+    remoteProvider,
+    isPrimary,
+    createdAt,
+    updatedAt,
+    linkedAt,
+    lastSeenAt,
+    deletedAt,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -70,6 +188,45 @@ class $LocalUsersTable extends LocalUsers
     } else if (isInserting) {
       context.missing(_displayNameMeta);
     }
+    if (data.containsKey('avatar_url')) {
+      context.handle(
+        _avatarUrlMeta,
+        avatarUrl.isAcceptableOrUnknown(data['avatar_url']!, _avatarUrlMeta),
+      );
+    }
+    if (data.containsKey('identity_kind')) {
+      context.handle(
+        _identityKindMeta,
+        identityKind.isAcceptableOrUnknown(
+          data['identity_kind']!,
+          _identityKindMeta,
+        ),
+      );
+    }
+    if (data.containsKey('remote_user_id')) {
+      context.handle(
+        _remoteUserIdMeta,
+        remoteUserId.isAcceptableOrUnknown(
+          data['remote_user_id']!,
+          _remoteUserIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('remote_provider')) {
+      context.handle(
+        _remoteProviderMeta,
+        remoteProvider.isAcceptableOrUnknown(
+          data['remote_provider']!,
+          _remoteProviderMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_primary')) {
+      context.handle(
+        _isPrimaryMeta,
+        isPrimary.isAcceptableOrUnknown(data['is_primary']!, _isPrimaryMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -77,6 +234,33 @@ class $LocalUsersTable extends LocalUsers
       );
     } else if (isInserting) {
       context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('linked_at')) {
+      context.handle(
+        _linkedAtMeta,
+        linkedAt.isAcceptableOrUnknown(data['linked_at']!, _linkedAtMeta),
+      );
+    }
+    if (data.containsKey('last_seen_at')) {
+      context.handle(
+        _lastSeenAtMeta,
+        lastSeenAt.isAcceptableOrUnknown(
+          data['last_seen_at']!,
+          _lastSeenAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
     }
     return context;
   }
@@ -95,10 +279,46 @@ class $LocalUsersTable extends LocalUsers
         DriftSqlType.string,
         data['${effectivePrefix}display_name'],
       )!,
+      avatarUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}avatar_url'],
+      ),
+      identityKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}identity_kind'],
+      )!,
+      remoteUserId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_user_id'],
+      ),
+      remoteProvider: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_provider'],
+      ),
+      isPrimary: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_primary'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
       )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      linkedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}linked_at'],
+      ),
+      lastSeenAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_seen_at'],
+      ),
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}deleted_at'],
+      ),
     );
   }
 
@@ -111,18 +331,57 @@ class $LocalUsersTable extends LocalUsers
 class LocalUserRow extends DataClass implements Insertable<LocalUserRow> {
   final String id;
   final String displayName;
+  final String? avatarUrl;
+  final String identityKind;
+  final String? remoteUserId;
+  final String? remoteProvider;
+  final bool isPrimary;
   final int createdAt;
+  final int updatedAt;
+  final int? linkedAt;
+  final int? lastSeenAt;
+  final int? deletedAt;
   const LocalUserRow({
     required this.id,
     required this.displayName,
+    this.avatarUrl,
+    required this.identityKind,
+    this.remoteUserId,
+    this.remoteProvider,
+    required this.isPrimary,
     required this.createdAt,
+    required this.updatedAt,
+    this.linkedAt,
+    this.lastSeenAt,
+    this.deletedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['display_name'] = Variable<String>(displayName);
+    if (!nullToAbsent || avatarUrl != null) {
+      map['avatar_url'] = Variable<String>(avatarUrl);
+    }
+    map['identity_kind'] = Variable<String>(identityKind);
+    if (!nullToAbsent || remoteUserId != null) {
+      map['remote_user_id'] = Variable<String>(remoteUserId);
+    }
+    if (!nullToAbsent || remoteProvider != null) {
+      map['remote_provider'] = Variable<String>(remoteProvider);
+    }
+    map['is_primary'] = Variable<bool>(isPrimary);
     map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || linkedAt != null) {
+      map['linked_at'] = Variable<int>(linkedAt);
+    }
+    if (!nullToAbsent || lastSeenAt != null) {
+      map['last_seen_at'] = Variable<int>(lastSeenAt);
+    }
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<int>(deletedAt);
+    }
     return map;
   }
 
@@ -130,7 +389,28 @@ class LocalUserRow extends DataClass implements Insertable<LocalUserRow> {
     return LocalUsersCompanion(
       id: Value(id),
       displayName: Value(displayName),
+      avatarUrl: avatarUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(avatarUrl),
+      identityKind: Value(identityKind),
+      remoteUserId: remoteUserId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUserId),
+      remoteProvider: remoteProvider == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteProvider),
+      isPrimary: Value(isPrimary),
       createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      linkedAt: linkedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(linkedAt),
+      lastSeenAt: lastSeenAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSeenAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
     );
   }
 
@@ -142,7 +422,16 @@ class LocalUserRow extends DataClass implements Insertable<LocalUserRow> {
     return LocalUserRow(
       id: serializer.fromJson<String>(json['id']),
       displayName: serializer.fromJson<String>(json['displayName']),
+      avatarUrl: serializer.fromJson<String?>(json['avatarUrl']),
+      identityKind: serializer.fromJson<String>(json['identityKind']),
+      remoteUserId: serializer.fromJson<String?>(json['remoteUserId']),
+      remoteProvider: serializer.fromJson<String?>(json['remoteProvider']),
+      isPrimary: serializer.fromJson<bool>(json['isPrimary']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      linkedAt: serializer.fromJson<int?>(json['linkedAt']),
+      lastSeenAt: serializer.fromJson<int?>(json['lastSeenAt']),
+      deletedAt: serializer.fromJson<int?>(json['deletedAt']),
     );
   }
   @override
@@ -151,23 +440,72 @@ class LocalUserRow extends DataClass implements Insertable<LocalUserRow> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'displayName': serializer.toJson<String>(displayName),
+      'avatarUrl': serializer.toJson<String?>(avatarUrl),
+      'identityKind': serializer.toJson<String>(identityKind),
+      'remoteUserId': serializer.toJson<String?>(remoteUserId),
+      'remoteProvider': serializer.toJson<String?>(remoteProvider),
+      'isPrimary': serializer.toJson<bool>(isPrimary),
       'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'linkedAt': serializer.toJson<int?>(linkedAt),
+      'lastSeenAt': serializer.toJson<int?>(lastSeenAt),
+      'deletedAt': serializer.toJson<int?>(deletedAt),
     };
   }
 
-  LocalUserRow copyWith({String? id, String? displayName, int? createdAt}) =>
-      LocalUserRow(
-        id: id ?? this.id,
-        displayName: displayName ?? this.displayName,
-        createdAt: createdAt ?? this.createdAt,
-      );
+  LocalUserRow copyWith({
+    String? id,
+    String? displayName,
+    Value<String?> avatarUrl = const Value.absent(),
+    String? identityKind,
+    Value<String?> remoteUserId = const Value.absent(),
+    Value<String?> remoteProvider = const Value.absent(),
+    bool? isPrimary,
+    int? createdAt,
+    int? updatedAt,
+    Value<int?> linkedAt = const Value.absent(),
+    Value<int?> lastSeenAt = const Value.absent(),
+    Value<int?> deletedAt = const Value.absent(),
+  }) => LocalUserRow(
+    id: id ?? this.id,
+    displayName: displayName ?? this.displayName,
+    avatarUrl: avatarUrl.present ? avatarUrl.value : this.avatarUrl,
+    identityKind: identityKind ?? this.identityKind,
+    remoteUserId: remoteUserId.present ? remoteUserId.value : this.remoteUserId,
+    remoteProvider: remoteProvider.present
+        ? remoteProvider.value
+        : this.remoteProvider,
+    isPrimary: isPrimary ?? this.isPrimary,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    linkedAt: linkedAt.present ? linkedAt.value : this.linkedAt,
+    lastSeenAt: lastSeenAt.present ? lastSeenAt.value : this.lastSeenAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
   LocalUserRow copyWithCompanion(LocalUsersCompanion data) {
     return LocalUserRow(
       id: data.id.present ? data.id.value : this.id,
       displayName: data.displayName.present
           ? data.displayName.value
           : this.displayName,
+      avatarUrl: data.avatarUrl.present ? data.avatarUrl.value : this.avatarUrl,
+      identityKind: data.identityKind.present
+          ? data.identityKind.value
+          : this.identityKind,
+      remoteUserId: data.remoteUserId.present
+          ? data.remoteUserId.value
+          : this.remoteUserId,
+      remoteProvider: data.remoteProvider.present
+          ? data.remoteProvider.value
+          : this.remoteProvider,
+      isPrimary: data.isPrimary.present ? data.isPrimary.value : this.isPrimary,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      linkedAt: data.linkedAt.present ? data.linkedAt.value : this.linkedAt,
+      lastSeenAt: data.lastSeenAt.present
+          ? data.lastSeenAt.value
+          : this.lastSeenAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
     );
   }
 
@@ -176,37 +514,95 @@ class LocalUserRow extends DataClass implements Insertable<LocalUserRow> {
     return (StringBuffer('LocalUserRow(')
           ..write('id: $id, ')
           ..write('displayName: $displayName, ')
-          ..write('createdAt: $createdAt')
+          ..write('avatarUrl: $avatarUrl, ')
+          ..write('identityKind: $identityKind, ')
+          ..write('remoteUserId: $remoteUserId, ')
+          ..write('remoteProvider: $remoteProvider, ')
+          ..write('isPrimary: $isPrimary, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('linkedAt: $linkedAt, ')
+          ..write('lastSeenAt: $lastSeenAt, ')
+          ..write('deletedAt: $deletedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, displayName, createdAt);
+  int get hashCode => Object.hash(
+    id,
+    displayName,
+    avatarUrl,
+    identityKind,
+    remoteUserId,
+    remoteProvider,
+    isPrimary,
+    createdAt,
+    updatedAt,
+    linkedAt,
+    lastSeenAt,
+    deletedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is LocalUserRow &&
           other.id == this.id &&
           other.displayName == this.displayName &&
-          other.createdAt == this.createdAt);
+          other.avatarUrl == this.avatarUrl &&
+          other.identityKind == this.identityKind &&
+          other.remoteUserId == this.remoteUserId &&
+          other.remoteProvider == this.remoteProvider &&
+          other.isPrimary == this.isPrimary &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.linkedAt == this.linkedAt &&
+          other.lastSeenAt == this.lastSeenAt &&
+          other.deletedAt == this.deletedAt);
 }
 
 class LocalUsersCompanion extends UpdateCompanion<LocalUserRow> {
   final Value<String> id;
   final Value<String> displayName;
+  final Value<String?> avatarUrl;
+  final Value<String> identityKind;
+  final Value<String?> remoteUserId;
+  final Value<String?> remoteProvider;
+  final Value<bool> isPrimary;
   final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> linkedAt;
+  final Value<int?> lastSeenAt;
+  final Value<int?> deletedAt;
   final Value<int> rowid;
   const LocalUsersCompanion({
     this.id = const Value.absent(),
     this.displayName = const Value.absent(),
+    this.avatarUrl = const Value.absent(),
+    this.identityKind = const Value.absent(),
+    this.remoteUserId = const Value.absent(),
+    this.remoteProvider = const Value.absent(),
+    this.isPrimary = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.linkedAt = const Value.absent(),
+    this.lastSeenAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LocalUsersCompanion.insert({
     required String id,
     required String displayName,
+    this.avatarUrl = const Value.absent(),
+    this.identityKind = const Value.absent(),
+    this.remoteUserId = const Value.absent(),
+    this.remoteProvider = const Value.absent(),
+    this.isPrimary = const Value.absent(),
     required int createdAt,
+    this.updatedAt = const Value.absent(),
+    this.linkedAt = const Value.absent(),
+    this.lastSeenAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        displayName = Value(displayName),
@@ -214,13 +610,31 @@ class LocalUsersCompanion extends UpdateCompanion<LocalUserRow> {
   static Insertable<LocalUserRow> custom({
     Expression<String>? id,
     Expression<String>? displayName,
+    Expression<String>? avatarUrl,
+    Expression<String>? identityKind,
+    Expression<String>? remoteUserId,
+    Expression<String>? remoteProvider,
+    Expression<bool>? isPrimary,
     Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? linkedAt,
+    Expression<int>? lastSeenAt,
+    Expression<int>? deletedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (displayName != null) 'display_name': displayName,
+      if (avatarUrl != null) 'avatar_url': avatarUrl,
+      if (identityKind != null) 'identity_kind': identityKind,
+      if (remoteUserId != null) 'remote_user_id': remoteUserId,
+      if (remoteProvider != null) 'remote_provider': remoteProvider,
+      if (isPrimary != null) 'is_primary': isPrimary,
       if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (linkedAt != null) 'linked_at': linkedAt,
+      if (lastSeenAt != null) 'last_seen_at': lastSeenAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -228,13 +642,31 @@ class LocalUsersCompanion extends UpdateCompanion<LocalUserRow> {
   LocalUsersCompanion copyWith({
     Value<String>? id,
     Value<String>? displayName,
+    Value<String?>? avatarUrl,
+    Value<String>? identityKind,
+    Value<String?>? remoteUserId,
+    Value<String?>? remoteProvider,
+    Value<bool>? isPrimary,
     Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int?>? linkedAt,
+    Value<int?>? lastSeenAt,
+    Value<int?>? deletedAt,
     Value<int>? rowid,
   }) {
     return LocalUsersCompanion(
       id: id ?? this.id,
       displayName: displayName ?? this.displayName,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      identityKind: identityKind ?? this.identityKind,
+      remoteUserId: remoteUserId ?? this.remoteUserId,
+      remoteProvider: remoteProvider ?? this.remoteProvider,
+      isPrimary: isPrimary ?? this.isPrimary,
       createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      linkedAt: linkedAt ?? this.linkedAt,
+      lastSeenAt: lastSeenAt ?? this.lastSeenAt,
+      deletedAt: deletedAt ?? this.deletedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -248,8 +680,35 @@ class LocalUsersCompanion extends UpdateCompanion<LocalUserRow> {
     if (displayName.present) {
       map['display_name'] = Variable<String>(displayName.value);
     }
+    if (avatarUrl.present) {
+      map['avatar_url'] = Variable<String>(avatarUrl.value);
+    }
+    if (identityKind.present) {
+      map['identity_kind'] = Variable<String>(identityKind.value);
+    }
+    if (remoteUserId.present) {
+      map['remote_user_id'] = Variable<String>(remoteUserId.value);
+    }
+    if (remoteProvider.present) {
+      map['remote_provider'] = Variable<String>(remoteProvider.value);
+    }
+    if (isPrimary.present) {
+      map['is_primary'] = Variable<bool>(isPrimary.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (linkedAt.present) {
+      map['linked_at'] = Variable<int>(linkedAt.value);
+    }
+    if (lastSeenAt.present) {
+      map['last_seen_at'] = Variable<int>(lastSeenAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<int>(deletedAt.value);
     }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
@@ -262,8 +721,333 @@ class LocalUsersCompanion extends UpdateCompanion<LocalUserRow> {
     return (StringBuffer('LocalUsersCompanion(')
           ..write('id: $id, ')
           ..write('displayName: $displayName, ')
+          ..write('avatarUrl: $avatarUrl, ')
+          ..write('identityKind: $identityKind, ')
+          ..write('remoteUserId: $remoteUserId, ')
+          ..write('remoteProvider: $remoteProvider, ')
+          ..write('isPrimary: $isPrimary, ')
           ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('linkedAt: $linkedAt, ')
+          ..write('lastSeenAt: $lastSeenAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AppInstallationsTable extends AppInstallations
+    with TableInfo<$AppInstallationsTable, AppInstallationRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AppInstallationsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _installationGuidMeta = const VerificationMeta(
+    'installationGuid',
+  );
+  @override
+  late final GeneratedColumn<String> installationGuid = GeneratedColumn<String>(
+    'installation_guid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastSeenAtMeta = const VerificationMeta(
+    'lastSeenAt',
+  );
+  @override
+  late final GeneratedColumn<int> lastSeenAt = GeneratedColumn<int>(
+    'last_seen_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    installationGuid,
+    createdAt,
+    lastSeenAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'app_installations';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AppInstallationRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('installation_guid')) {
+      context.handle(
+        _installationGuidMeta,
+        installationGuid.isAcceptableOrUnknown(
+          data['installation_guid']!,
+          _installationGuidMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_installationGuidMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('last_seen_at')) {
+      context.handle(
+        _lastSeenAtMeta,
+        lastSeenAt.isAcceptableOrUnknown(
+          data['last_seen_at']!,
+          _lastSeenAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_lastSeenAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AppInstallationRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AppInstallationRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      installationGuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}installation_guid'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      lastSeenAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_seen_at'],
+      )!,
+    );
+  }
+
+  @override
+  $AppInstallationsTable createAlias(String alias) {
+    return $AppInstallationsTable(attachedDatabase, alias);
+  }
+}
+
+class AppInstallationRow extends DataClass
+    implements Insertable<AppInstallationRow> {
+  final int id;
+  final String installationGuid;
+  final int createdAt;
+  final int lastSeenAt;
+  const AppInstallationRow({
+    required this.id,
+    required this.installationGuid,
+    required this.createdAt,
+    required this.lastSeenAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['installation_guid'] = Variable<String>(installationGuid);
+    map['created_at'] = Variable<int>(createdAt);
+    map['last_seen_at'] = Variable<int>(lastSeenAt);
+    return map;
+  }
+
+  AppInstallationsCompanion toCompanion(bool nullToAbsent) {
+    return AppInstallationsCompanion(
+      id: Value(id),
+      installationGuid: Value(installationGuid),
+      createdAt: Value(createdAt),
+      lastSeenAt: Value(lastSeenAt),
+    );
+  }
+
+  factory AppInstallationRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AppInstallationRow(
+      id: serializer.fromJson<int>(json['id']),
+      installationGuid: serializer.fromJson<String>(json['installationGuid']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      lastSeenAt: serializer.fromJson<int>(json['lastSeenAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'installationGuid': serializer.toJson<String>(installationGuid),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'lastSeenAt': serializer.toJson<int>(lastSeenAt),
+    };
+  }
+
+  AppInstallationRow copyWith({
+    int? id,
+    String? installationGuid,
+    int? createdAt,
+    int? lastSeenAt,
+  }) => AppInstallationRow(
+    id: id ?? this.id,
+    installationGuid: installationGuid ?? this.installationGuid,
+    createdAt: createdAt ?? this.createdAt,
+    lastSeenAt: lastSeenAt ?? this.lastSeenAt,
+  );
+  AppInstallationRow copyWithCompanion(AppInstallationsCompanion data) {
+    return AppInstallationRow(
+      id: data.id.present ? data.id.value : this.id,
+      installationGuid: data.installationGuid.present
+          ? data.installationGuid.value
+          : this.installationGuid,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      lastSeenAt: data.lastSeenAt.present
+          ? data.lastSeenAt.value
+          : this.lastSeenAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppInstallationRow(')
+          ..write('id: $id, ')
+          ..write('installationGuid: $installationGuid, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('lastSeenAt: $lastSeenAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, installationGuid, createdAt, lastSeenAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AppInstallationRow &&
+          other.id == this.id &&
+          other.installationGuid == this.installationGuid &&
+          other.createdAt == this.createdAt &&
+          other.lastSeenAt == this.lastSeenAt);
+}
+
+class AppInstallationsCompanion extends UpdateCompanion<AppInstallationRow> {
+  final Value<int> id;
+  final Value<String> installationGuid;
+  final Value<int> createdAt;
+  final Value<int> lastSeenAt;
+  const AppInstallationsCompanion({
+    this.id = const Value.absent(),
+    this.installationGuid = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.lastSeenAt = const Value.absent(),
+  });
+  AppInstallationsCompanion.insert({
+    this.id = const Value.absent(),
+    required String installationGuid,
+    required int createdAt,
+    required int lastSeenAt,
+  }) : installationGuid = Value(installationGuid),
+       createdAt = Value(createdAt),
+       lastSeenAt = Value(lastSeenAt);
+  static Insertable<AppInstallationRow> custom({
+    Expression<int>? id,
+    Expression<String>? installationGuid,
+    Expression<int>? createdAt,
+    Expression<int>? lastSeenAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (installationGuid != null) 'installation_guid': installationGuid,
+      if (createdAt != null) 'created_at': createdAt,
+      if (lastSeenAt != null) 'last_seen_at': lastSeenAt,
+    });
+  }
+
+  AppInstallationsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? installationGuid,
+    Value<int>? createdAt,
+    Value<int>? lastSeenAt,
+  }) {
+    return AppInstallationsCompanion(
+      id: id ?? this.id,
+      installationGuid: installationGuid ?? this.installationGuid,
+      createdAt: createdAt ?? this.createdAt,
+      lastSeenAt: lastSeenAt ?? this.lastSeenAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (installationGuid.present) {
+      map['installation_guid'] = Variable<String>(installationGuid.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (lastSeenAt.present) {
+      map['last_seen_at'] = Variable<int>(lastSeenAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppInstallationsCompanion(')
+          ..write('id: $id, ')
+          ..write('installationGuid: $installationGuid, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('lastSeenAt: $lastSeenAt')
           ..write(')'))
         .toString();
   }
@@ -13074,6 +13858,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $LocalUsersTable localUsers = $LocalUsersTable(this);
+  late final $AppInstallationsTable appInstallations = $AppInstallationsTable(
+    this,
+  );
   late final $ItemPacksTable itemPacks = $ItemPacksTable(this);
   late final $PackMembersTable packMembers = $PackMembersTable(this);
   late final $ItemsTable items = $ItemsTable(this);
@@ -13108,6 +13895,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     localUsers,
+    appInstallations,
     itemPacks,
     packMembers,
     items,
@@ -13133,14 +13921,32 @@ typedef $$LocalUsersTableCreateCompanionBuilder =
     LocalUsersCompanion Function({
       required String id,
       required String displayName,
+      Value<String?> avatarUrl,
+      Value<String> identityKind,
+      Value<String?> remoteUserId,
+      Value<String?> remoteProvider,
+      Value<bool> isPrimary,
       required int createdAt,
+      Value<int> updatedAt,
+      Value<int?> linkedAt,
+      Value<int?> lastSeenAt,
+      Value<int?> deletedAt,
       Value<int> rowid,
     });
 typedef $$LocalUsersTableUpdateCompanionBuilder =
     LocalUsersCompanion Function({
       Value<String> id,
       Value<String> displayName,
+      Value<String?> avatarUrl,
+      Value<String> identityKind,
+      Value<String?> remoteUserId,
+      Value<String?> remoteProvider,
+      Value<bool> isPrimary,
       Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> linkedAt,
+      Value<int?> lastSeenAt,
+      Value<int?> deletedAt,
       Value<int> rowid,
     });
 
@@ -13343,8 +14149,53 @@ class $$LocalUsersTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get avatarUrl => $composableBuilder(
+    column: $table.avatarUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get identityKind => $composableBuilder(
+    column: $table.identityKind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remoteUserId => $composableBuilder(
+    column: $table.remoteUserId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remoteProvider => $composableBuilder(
+    column: $table.remoteProvider,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isPrimary => $composableBuilder(
+    column: $table.isPrimary,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get linkedAt => $composableBuilder(
+    column: $table.linkedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastSeenAt => $composableBuilder(
+    column: $table.lastSeenAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -13569,8 +14420,53 @@ class $$LocalUsersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get avatarUrl => $composableBuilder(
+    column: $table.avatarUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get identityKind => $composableBuilder(
+    column: $table.identityKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get remoteUserId => $composableBuilder(
+    column: $table.remoteUserId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get remoteProvider => $composableBuilder(
+    column: $table.remoteProvider,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isPrimary => $composableBuilder(
+    column: $table.isPrimary,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get linkedAt => $composableBuilder(
+    column: $table.linkedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastSeenAt => $composableBuilder(
+    column: $table.lastSeenAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -13592,8 +14488,43 @@ class $$LocalUsersTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get avatarUrl =>
+      $composableBuilder(column: $table.avatarUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get identityKind => $composableBuilder(
+    column: $table.identityKind,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get remoteUserId => $composableBuilder(
+    column: $table.remoteUserId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get remoteProvider => $composableBuilder(
+    column: $table.remoteProvider,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isPrimary =>
+      $composableBuilder(column: $table.isPrimary, builder: (column) => column);
+
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get linkedAt =>
+      $composableBuilder(column: $table.linkedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get lastSeenAt => $composableBuilder(
+    column: $table.lastSeenAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   Expression<T> itemPacksRefs<T extends Object>(
     Expression<T> Function($$ItemPacksTableAnnotationComposer a) f,
@@ -13836,24 +14767,60 @@ class $$LocalUsersTableTableManager
               ({
                 Value<String> id = const Value.absent(),
                 Value<String> displayName = const Value.absent(),
+                Value<String?> avatarUrl = const Value.absent(),
+                Value<String> identityKind = const Value.absent(),
+                Value<String?> remoteUserId = const Value.absent(),
+                Value<String?> remoteProvider = const Value.absent(),
+                Value<bool> isPrimary = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> linkedAt = const Value.absent(),
+                Value<int?> lastSeenAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalUsersCompanion(
                 id: id,
                 displayName: displayName,
+                avatarUrl: avatarUrl,
+                identityKind: identityKind,
+                remoteUserId: remoteUserId,
+                remoteProvider: remoteProvider,
+                isPrimary: isPrimary,
                 createdAt: createdAt,
+                updatedAt: updatedAt,
+                linkedAt: linkedAt,
+                lastSeenAt: lastSeenAt,
+                deletedAt: deletedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
               ({
                 required String id,
                 required String displayName,
+                Value<String?> avatarUrl = const Value.absent(),
+                Value<String> identityKind = const Value.absent(),
+                Value<String?> remoteUserId = const Value.absent(),
+                Value<String?> remoteProvider = const Value.absent(),
+                Value<bool> isPrimary = const Value.absent(),
                 required int createdAt,
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> linkedAt = const Value.absent(),
+                Value<int?> lastSeenAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalUsersCompanion.insert(
                 id: id,
                 displayName: displayName,
+                avatarUrl: avatarUrl,
+                identityKind: identityKind,
+                remoteUserId: remoteUserId,
+                remoteProvider: remoteProvider,
+                isPrimary: isPrimary,
                 createdAt: createdAt,
+                updatedAt: updatedAt,
+                linkedAt: linkedAt,
+                lastSeenAt: lastSeenAt,
+                deletedAt: deletedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -14088,6 +15055,195 @@ typedef $$LocalUsersTableProcessedTableManager =
         bool stageAcknowledgementsRefs,
         bool activityEventsRefs,
       })
+    >;
+typedef $$AppInstallationsTableCreateCompanionBuilder =
+    AppInstallationsCompanion Function({
+      Value<int> id,
+      required String installationGuid,
+      required int createdAt,
+      required int lastSeenAt,
+    });
+typedef $$AppInstallationsTableUpdateCompanionBuilder =
+    AppInstallationsCompanion Function({
+      Value<int> id,
+      Value<String> installationGuid,
+      Value<int> createdAt,
+      Value<int> lastSeenAt,
+    });
+
+class $$AppInstallationsTableFilterComposer
+    extends Composer<_$AppDatabase, $AppInstallationsTable> {
+  $$AppInstallationsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get installationGuid => $composableBuilder(
+    column: $table.installationGuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastSeenAt => $composableBuilder(
+    column: $table.lastSeenAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AppInstallationsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AppInstallationsTable> {
+  $$AppInstallationsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get installationGuid => $composableBuilder(
+    column: $table.installationGuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastSeenAt => $composableBuilder(
+    column: $table.lastSeenAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AppInstallationsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AppInstallationsTable> {
+  $$AppInstallationsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get installationGuid => $composableBuilder(
+    column: $table.installationGuid,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get lastSeenAt => $composableBuilder(
+    column: $table.lastSeenAt,
+    builder: (column) => column,
+  );
+}
+
+class $$AppInstallationsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AppInstallationsTable,
+          AppInstallationRow,
+          $$AppInstallationsTableFilterComposer,
+          $$AppInstallationsTableOrderingComposer,
+          $$AppInstallationsTableAnnotationComposer,
+          $$AppInstallationsTableCreateCompanionBuilder,
+          $$AppInstallationsTableUpdateCompanionBuilder,
+          (
+            AppInstallationRow,
+            BaseReferences<
+              _$AppDatabase,
+              $AppInstallationsTable,
+              AppInstallationRow
+            >,
+          ),
+          AppInstallationRow,
+          PrefetchHooks Function()
+        > {
+  $$AppInstallationsTableTableManager(
+    _$AppDatabase db,
+    $AppInstallationsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AppInstallationsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AppInstallationsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AppInstallationsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> installationGuid = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> lastSeenAt = const Value.absent(),
+              }) => AppInstallationsCompanion(
+                id: id,
+                installationGuid: installationGuid,
+                createdAt: createdAt,
+                lastSeenAt: lastSeenAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String installationGuid,
+                required int createdAt,
+                required int lastSeenAt,
+              }) => AppInstallationsCompanion.insert(
+                id: id,
+                installationGuid: installationGuid,
+                createdAt: createdAt,
+                lastSeenAt: lastSeenAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AppInstallationsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AppInstallationsTable,
+      AppInstallationRow,
+      $$AppInstallationsTableFilterComposer,
+      $$AppInstallationsTableOrderingComposer,
+      $$AppInstallationsTableAnnotationComposer,
+      $$AppInstallationsTableCreateCompanionBuilder,
+      $$AppInstallationsTableUpdateCompanionBuilder,
+      (
+        AppInstallationRow,
+        BaseReferences<
+          _$AppDatabase,
+          $AppInstallationsTable,
+          AppInstallationRow
+        >,
+      ),
+      AppInstallationRow,
+      PrefetchHooks Function()
     >;
 typedef $$ItemPacksTableCreateCompanionBuilder =
     ItemPacksCompanion Function({
@@ -25733,6 +26889,8 @@ class $AppDatabaseManager {
   $AppDatabaseManager(this._db);
   $$LocalUsersTableTableManager get localUsers =>
       $$LocalUsersTableTableManager(_db, _db.localUsers);
+  $$AppInstallationsTableTableManager get appInstallations =>
+      $$AppInstallationsTableTableManager(_db, _db.appInstallations);
   $$ItemPacksTableTableManager get itemPacks =>
       $$ItemPacksTableTableManager(_db, _db.itemPacks);
   $$PackMembersTableTableManager get packMembers =>

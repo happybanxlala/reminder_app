@@ -6,11 +6,16 @@ import 'local/app_database.dart';
 import 'local/reminder_dao.dart';
 
 class SharedPackRepository {
-  const SharedPackRepository(this._dao, {DateTime Function()? clock})
-    : _clock = clock ?? DateTime.now;
+  const SharedPackRepository(
+    this._dao, {
+    DateTime Function()? clock,
+    Future<String> Function()? currentActorId,
+  }) : _clock = clock ?? DateTime.now,
+       _currentActorId = currentActorId;
 
   final ReminderDao _dao;
   final DateTime Function() _clock;
+  final Future<String> Function()? _currentActorId;
 
   Future<List<LocalUser>> listLocalUsers() {
     return _dao.listLocalUsers();
@@ -32,7 +37,7 @@ class SharedPackRepository {
         pack.packType == ItemPackType.shared) {
       return false;
     }
-    final host = hostUserId ?? AppDatabase.defaultHostUserId;
+    final host = hostUserId ?? await _resolveActorId(null);
     final now = _clock();
     return _dao.attachedDatabase.transaction(() async {
       final updated = await _dao.updateItemPackFields(
@@ -82,8 +87,7 @@ class SharedPackRepository {
         pack.packType != ItemPackType.shared) {
       return false;
     }
-    final actor =
-        actorUserId ?? pack.hostUserId ?? AppDatabase.defaultHostUserId;
+    final actor = actorUserId ?? pack.hostUserId ?? await _resolveActorId(null);
     final now = _clock();
     return _dao.attachedDatabase.transaction(() async {
       await _dao.upsertPackMember(
@@ -108,5 +112,16 @@ class SharedPackRepository {
       );
       return true;
     });
+  }
+
+  Future<String> _resolveActorId(String? actorUserId) async {
+    if (actorUserId != null) {
+      return actorUserId;
+    }
+    final resolver = _currentActorId;
+    if (resolver == null) {
+      return AppDatabase.defaultHostUserId;
+    }
+    return resolver();
   }
 }

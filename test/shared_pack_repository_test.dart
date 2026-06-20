@@ -1,5 +1,6 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:reminder_app/features/reminders/data/identity_repository.dart';
 import 'package:reminder_app/features/reminders/data/item_repository.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/resource_repository.dart';
@@ -265,6 +266,109 @@ void main() {
           'stage_acknowledged',
         ]),
       );
+    },
+  );
+
+  test(
+    'current local user remains shared actor after remote identity link',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final identityRepository = IdentityRepository(db.reminderDao);
+      final localUser = await identityRepository.ensureLocalIdentity();
+      Future<String> currentActor() async =>
+          (await identityRepository.getCurrentAppUser()).id;
+      final itemRepository = ItemRepository(
+        db.reminderDao,
+        currentActorId: currentActor,
+      );
+      final sharedRepository = SharedPackRepository(
+        db.reminderDao,
+        currentActorId: currentActor,
+      );
+
+      final packId = await itemRepository.createPack(
+        const ItemPackInput(title: 'Shared identity'),
+      );
+      expect(await sharedRepository.convertPackToShared(packId), isTrue);
+      final memberBeforeLink = await db.reminderDao.getPackMember(
+        packId: packId,
+        userId: localUser.id,
+      );
+      expect(memberBeforeLink, isNotNull);
+
+      final linked = await identityRepository.linkRemoteIdentity(
+        remoteUserId: 'fake_supabase_user_current',
+        provider: AuthProviderType.supabaseAnonymous,
+      );
+      final itemId = await itemRepository.createItem(
+        ItemInput(
+          title: 'Water plants',
+          type: ItemType.stateBased,
+          config: const StateBasedItemConfig(
+            warningAfter: Duration(days: 1),
+            dangerAfter: Duration(days: 2),
+          ),
+          packId: packId,
+        ),
+      );
+
+      expect(await itemRepository.markDone(itemId), isTrue);
+      final completions = await db.reminderDao.listItemCompletions(itemId);
+      expect(completions.single.completedByUserId, localUser.id);
+      expect(completions.single.completedByUserId, isNot(linked.remoteUserId));
+      expect(
+        await db.reminderDao.getPackMember(
+          packId: packId,
+          userId: localUser.id,
+        ),
+        isNotNull,
+      );
+    },
+  );
+
+  test(
+    'shared operation is rejected when current local user is not member',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final identityRepository = IdentityRepository(db.reminderDao);
+      await identityRepository.ensureLocalIdentity();
+      Future<String> currentActor() async =>
+          (await identityRepository.getCurrentAppUser()).id;
+      final itemRepository = ItemRepository(
+        db.reminderDao,
+        currentActorId: currentActor,
+      );
+      final sharedRepository = SharedPackRepository(
+        db.reminderDao,
+        currentActorId: currentActor,
+      );
+
+      final packId = await itemRepository.createPack(
+        const ItemPackInput(title: 'Host-owned'),
+      );
+      expect(
+        await sharedRepository.convertPackToShared(
+          packId,
+          hostUserId: AppDatabase.defaultHostUserId,
+        ),
+        isTrue,
+      );
+      final itemId = await itemRepository.createItem(
+        ItemInput(
+          title: 'Non-member task',
+          type: ItemType.stateBased,
+          config: const StateBasedItemConfig(
+            warningAfter: Duration(days: 1),
+            dangerAfter: Duration(days: 2),
+          ),
+          packId: packId,
+        ),
+      );
+
+      expect(await itemRepository.markDone(itemId), isFalse);
+      expect(await db.reminderDao.listItemCompletions(itemId), isEmpty);
     },
   );
 }

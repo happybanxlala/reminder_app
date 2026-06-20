@@ -4,9 +4,13 @@ import '../data/local/reminder_dao.dart';
 import '../data/resource_repository.dart';
 import '../domain/resource.dart';
 import 'database_providers.dart';
+import 'identity_providers.dart';
 
 final resourceRepositoryProvider = Provider<ResourceRepository>((ref) {
-  return ResourceRepository(ref.watch(appDatabaseProvider).reminderDao);
+  return ResourceRepository(
+    ref.watch(appDatabaseProvider).reminderDao,
+    currentActorId: () => currentActorId(ref),
+  );
 });
 
 final resourcesProvider = StreamProvider<List<ResourceBundle>>((ref) {
