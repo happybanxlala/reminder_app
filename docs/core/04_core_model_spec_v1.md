@@ -66,6 +66,12 @@ Domain 必須保持分離。Home 可以在 presentation layer 聚合 `Item`、`R
 - `StageOccurrence`
 - `StageRecord`
 - `StageRelatedItem`
+- `LocalUser`
+- `PackMember`
+- `ItemCompletion`
+- `ResourceEvent`
+- `StageAcknowledgement`
+- `ActivityEvent`
 
 ### 1.4 已實作 enum 清單
 
@@ -89,6 +95,10 @@ Domain 必須保持分離。Home 可以在 presentation layer 聚合 `Item`、`R
 - `StageRuleStatus { active, paused, archived }`
 - `StageRecordSourceType { generated, manual }`
 - `StageRecordStatus { normal, acknowledged, ignored, archived }`
+- `ItemPackType { personal, shared }`
+- `PackMemberRole { host, member }`
+- `PackMemberStatus { active, removed }`
+- `ResourceEventChangeType { adjust, increment, decrement }`
 
 ## 2. 已實作模型
 
@@ -891,7 +901,7 @@ Drift table `app_settings` 另有固定 `id = 1`、`createdAt`、`updatedAt`。
 - `AppDatabase.beforeOpen` 會確保 `app_settings` 有 `id = 1` 的 row。
 - 設定頁 route 已實作：`/feature/settings`，route name 是 `settings`。
 - 設定頁一般設定暴露 `reminderTone` 與 notification reminder time；system StageTracker 顯示開關仍保留底層設定 / repository 行為，但不出現在一般 UAT UI。
-- 設定頁資料管理提供 JSON backup / import / reset。Backup payload 使用 `app = reminder_app`、`schemaVersion = 1`、`exportedAt` ISO-8601 與 `data` keys：`packs/items/resources/stages/stageTrackers/customTemplates/relations/activityLogs`。
+- 設定頁資料管理提供 JSON backup / import / reset。Backup payload 使用 `app = reminder_app`、`schemaVersion = 3`、`exportedAt` ISO-8601 與 `data` keys：`packs/items/resources/stages/stageTrackers/customTemplates/relations/activityLogs`。
 - Backup 包含 user-created Pack、Item、Resource、user-created StageTracker、StageRule、StageRecord、StageRelatedItem、ResourceConsumptionRule、自訂 PackTemplate、ItemActionRecord 與 ResourceActionRecord；不包含 system StageTracker、debug-only setting、temporary UI state 或 app settings。
 - Import 採 replace all user data，不做 merge；匯入前檢查 `app` 與 `schemaVersion`，失敗時不改動現有資料。匯入時 system default Pack 會以目前資料庫 seed 重建 / 保留，backup 中指向舊 system default Pack 的 `packId` 會 remap 到目前 system default Pack。
 - Reset database 會清空 user data，並保留或重建 system default Pack、`app_settings` 與 system default StageTracker。
@@ -905,6 +915,220 @@ ReminderTone.standard: 使用較平衡的 warning / danger 門檻。
 ReminderTone.early: 較早提醒使用者。
 ```
 
+### 2.14 Shared Pack Phase 1 Domain
+
+#### 產品語意
+
+Shared Pack Phase 1 是本機多人協作語意模擬，不是正式 online sync、登入、邀請或 realtime collaboration。
+
+Shared Pack 的核心原則是：優先讓狀態變更透明、可追溯，而不是用嚴格 task ownership 限制誰可以完成事情。
+
+#### 已實作資料模型
+
+```ts
+LocalUser {
+  id: string
+  displayName: string
+  avatarUrl?: string
+  identityKind: "local" | "anonymous_remote" | "linked" | "placeholder" | "removed"
+  remoteUserId?: string
+  remoteProvider?: "supabase_anonymous" | "apple" | "google" | "email"
+  isPrimary: boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+  linkedAt?: DateTime
+  lastSeenAt?: DateTime
+  deletedAt?: DateTime
+}
+```
+
+```ts
+PackMember {
+  packId: number
+  userId: string
+  role: "host" | "member"
+  status: "active" | "removed"
+  joinedAt: DateTime
+}
+```
+
+```ts
+ItemCompletion {
+  id: number
+  itemId: number
+  packId: number
+  itemActionRecordId: number
+  completedByUserId: string
+  completedAt: DateTime
+  undoneByUserId?: string
+  undoneAt?: DateTime
+  clientMutationId?: string
+  createdAt: DateTime
+}
+```
+
+```ts
+ResourceEvent {
+  id: number
+  resourceId: number
+  packId: number
+  actorUserId: string
+  changeType: "adjust" | "increment" | "decrement"
+  previousValue?: number
+  newValue?: number
+  deltaValue?: number
+  unit?: string
+  createdAt: DateTime
+  metadataJson?: string
+}
+```
+
+```ts
+StageAcknowledgement {
+  id: number
+  stageRecordId: number
+  packId: number
+  userId: string
+  acknowledgedAt: DateTime
+}
+```
+
+```ts
+ActivityEvent {
+  id: number
+  packId: number
+  actorUserId: string
+  entityType: string
+  entityId: number
+  action: string
+  beforeJson?: string
+  afterJson?: string
+  metadataJson?: string
+  createdAt: DateTime
+}
+```
+
+#### 已實作行為
+
+- App 會保留兩個 local debug users：`user_host / Host` 與 `user_member_1 / Member`，供 Shared Pack 本機模擬與舊資料相容。
+- Phase 2 後，App UI repository path 未指定 actor 時會透過 current local identity 取得 actor；未注入 identity resolver 的 repository test/debug path 仍 fallback `user_host`。
+- `ItemPack` 透過 `packType` 區分 `personal / shared`。
+- Personal Pack 可以轉為 Shared Pack；轉換後會設定 `hostUserId`，建立 active host `PackMember`，並寫入 `ActivityEvent(pack_converted_to_shared)`。
+- Shared Pack 不可轉回 Personal Pack。
+- Shared Pack 可加入 local/debug member，並寫入 `ActivityEvent(member_added)`。
+- Phase 1 不提供完整 member management UI；Host / member 支援先在本機資料模型與 repository 中驗證。
+- `assignedToUserId` 只是提示性質，代表預期負責人，不限制完成權限。
+- Shared Pack 的狀態變更 action 必須由 active pack member 執行；Personal Pack 維持既有單人模式，repository 未指定 actor 時預設 `user_host`。
+- 任一 active pack member 都可以完成 item，也可以 undo 其他 member 的 completion；`assignedToUserId` 不限制誰能完成。
+- Item completion 會寫入 `ItemActionRecord(done)`，並同步寫入 `ItemCompletion(completedByUserId, completedAt)`。
+- Undo 不刪除原 completion，不覆寫 `completedByUserId`；undo 會寫入 `ItemActionRecord(reverted)`，並在 `ItemCompletion` 記錄 `undoneByUserId / undoneAt`。
+- Shared Pack item completion 採 first-write-wins：同一 item 已有未 undone active completion 時，後續 completion attempt 是 no-op，即使 action date 不同也不覆寫 current `completedByUserId`；undo 後才可再次完成並建立新的 factual completion event。
+- Resource 不使用 take task / completed_by 語意；quantity resource 的 adjust / increment / decrement 會寫入 `ResourceEvent` 與 `ActivityEvent`。
+- `ResourceEventChangeType.increment / decrement` 是可合併的 delta operation；`adjust` 是 absolute adjustment，未來 sync 時需要 base version 檢查。
+- Stage 不使用 complete / completed_by 作為核心語意。
+- Stage acknowledge 是 member-specific record；同一 member 重複 acknowledge 同一 stage 會更新 `acknowledgedAt`，不影響其他 member。
+- Shared Pack 重要事件會寫入 `ActivityEvent`，包含 pack converted、member added、item created、item assigned、item completed、item undone、resource adjusted / incremented / decremented、stage acknowledged。
+
+#### Phase 1.5 驗收規則
+
+- Shared Pack 的 completion / undo / assignment / resource adjust / resource delta / stage acknowledge 若 actor 不是 active pack member，必須 no-op，不應產生 action record、resource event、stage acknowledgement 或 activity event。
+- Shared Pack duplicate completion 不以日期為唯一判斷；只要 item 仍有未 undone `ItemCompletion`，later attempt 必須保留第一筆 `completedByUserId`。
+- 舊 backup schema v1 若缺少 Shared Pack metadata，import 時應補成 Personal Pack 預設值，不應讓舊個人資料因缺 shared metadata 而失敗。
+- Home widget 與既有 Personal Pack flow 不改語意；未帶 actor 的既有 repository call 繼續使用 `user_host`。
+
+#### 範例
+
+```text
+Host 將「養貓」轉為 Shared Pack，加入 Member。
+Host 指派「補貓砂」給 Member。
+Member 完成「補貓砂」，completion 記錄 completedByUserId = user_member_1。
+Host 復原該 completion，原 completion 保留，並記錄 undoneByUserId = user_host。
+```
+
+### 2.15 Phase 2：Device Identity & Account Binding Foundation
+
+#### 產品語意
+
+Reminder App 使用漸進式身份模型，不在首次使用時強制登入。面向使用者的未登入狀態稱為「此裝置資料」，不使用 Local Mode、Guest Mode 或 Anonymous Mode。
+
+文案語意：
+
+```text
+你的資料目前只保存在此裝置。
+之後可綁定 Apple / Google / Email，以避免資料遺失。
+```
+
+身份階梯：
+
+```text
+Level 0：此裝置資料
+- 本機 app_user_id / GUID
+- 不需要登入
+- 可使用 personal pack、本機提醒、widget、backup
+- 可保留 Phase 1 local shared pack simulation
+
+Level 1：匿名遠端身份
+- 未來使用 Supabase anonymous auth
+- 使用者仍不需要輸入 Apple / Google / Email
+- server 可識別 user
+- 用於正式 shared pack / online pack membership
+
+Level 2：綁定保護
+- 未來可綁定 Apple / Google / Email
+- 目的為避免換機 / 刪 app / 遺失資料
+- 不是一開始的強制登入入口
+
+Level 3：完整帳號
+- 多裝置同步
+- 找回資料
+- 管理帳號 / 刪除帳號
+```
+
+Phase 2 只實作 Level 0 的穩定本機身份，以及 Level 1 / 2 / 3 的資料欄位與 interface 預留；不接 Supabase network。
+
+#### 已實作資料模型
+
+```ts
+AppInstallation {
+  id: number
+  installationGuid: string
+  createdAt: DateTime
+  lastSeenAt: DateTime
+}
+```
+
+`LocalUser` 直接沿用 `local_users` table，不另建 `app_users`。`remoteUserId` 未來對應 Supabase Auth user id；`remoteProvider` 預留 `supabase_anonymous / apple / google / email`。
+
+Phase 2 暫不建立 `auth_identity_links` table；目前 single remote link 存在 `local_users.remoteUserId / remoteProvider / linkedAt`，未來多 provider link 可拆表。
+
+#### 已實作行為
+
+- `IdentityRepository.ensureLocalIdentity()` 會確保 app installation identity 存在，並回傳目前 primary local user。
+- 若沒有 primary local user，會建立一個 GUID local user，`identityKind = local`，`displayName = 此裝置資料`。
+- 重複呼叫 `ensureLocalIdentity()` 不會建立第二個 primary user。
+- 既有 Phase 1 / 1.5 資料升級時，`user_host` 保留為 legacy primary local user，不重寫歷史 actor / member id。
+- 登入 / 綁定採 link model：local app user id 穩定存在，`remoteUserId` nullable，`linkedAt` nullable。
+- `linkRemoteIdentity(remoteUserId, provider)` 不改變 local user id；provider 為 `supabase_anonymous` 時 `identityKind = anonymous_remote`，provider 為 `apple / google / email` 時 `identityKind = linked`。
+- `FakeAuthRepository` 提供 provider-agnostic fake auth adapter；`signInAnonymously()` 回傳 `fake_supabase_user_<guid>`，Apple / Google / Email fake link 只回傳本機 fake remote identity。
+- Phase 2 不加入 `supabase_flutter`，不呼叫 Supabase Auth，不建立 remote database，不儲存 access token、refresh token、OAuth credential 或 Apple / Google credential。
+- Shared Pack membership 仍使用 local app user id；remote user id 不會取代 `pack_members.userId`、`completedByUserId`、`actorUserId` 或 stage acknowledgement user id。
+- Personal Pack 在「此裝置資料」狀態下可正常使用，不需要 shared membership。
+- Settings developer debug 區只顯示 read-only「此裝置資料」資訊，不提供正式登入 UI。
+
+#### Backup / Restore
+
+- Backup 可包含 local app user id、display name、identity kind、nullable remote reference、app installation id、pack member relation 與 activity history。
+- Backup 不包含 Supabase token、refresh token、OAuth credential、Apple / Google credential。
+- v1 / v2 舊 backup 若缺 identity fields，import 會補 `identityKind = local`、`remoteUserId = null`、`remoteProvider = null`，並確保 default local identity 與 app installation 可用。
+- restored shared pack 在正式 online sync 前視為 local restored shared data，不驗證 remote membership。
+
+#### 長線語意預留
+
+- 正式 online Shared Pack 將需要 Supabase-recognized identity，但不一定需要 Apple / Google / Email；可先使用 anonymous remote identity。
+- 被移除 member 不應刪除 user row；可使用 `identityKind = removed` 或 `PackMember.status = removed` 保留歷史 actor。
+- 未來 remote shared pack 若遇到本機未認識 user，可建立 `identityKind = placeholder`，之後補 display name / avatar / remote user id。
+- 刪除帳號後 shared pack history 不應被破壞；activity event 可保留 actor display name snapshot，UI 可顯示「已移除成員」或匿名化名稱。
+
 ## 3. 跨 Domain 行為
 
 ### 3.1 完成 Item 並消耗 Resource
@@ -912,13 +1136,18 @@ ReminderTone.early: 較早提醒使用者。
 `ItemRepository.markDone` 套用 resource consumption rules 時，同一個 transaction 內包含：
 
 1. 計算 item done action。
+   - Shared Pack 會先檢查 actor 是否為 active pack member。
+   - Shared Pack 若已有 active `ItemCompletion`，本次 completion 是 no-op。
 2. 更新 item snapshot。
 3. 插入 `ItemActionRecord(done)`。
-4. 查詢 matching enabled `ResourceConsumptionRule`。
-5. 僅對 active quantity-based resource 扣量。
-6. quantity clamp 到 `0`。
-7. 插入 `ResourceActionRecord(consumed)`，並寫入 `sourceItemActionRecordId`。
-8. 新 done record payload 寫入完成前 `undoSnapshot`，供「恢復成未完成」精準還原。
+4. 插入 `ItemCompletion(completedByUserId, completedAt)`，保留 factual completion actor。
+5. 寫入 `ActivityEvent(item_completed)`。
+6. 查詢 matching enabled `ResourceConsumptionRule`。
+7. 僅對 active quantity-based resource 扣量。
+8. quantity clamp 到 `0`。
+9. 插入 `ResourceActionRecord(consumed)`，並寫入 `sourceItemActionRecordId`。
+10. 寫入對應 `ResourceEvent(decrement)`，記錄 actor、previous value、new value、delta value、unit、time。
+11. 新 done record payload 寫入完成前 `undoSnapshot`，供「恢復成未完成」精準還原。
 
 Matching rule 條件：
 
@@ -935,11 +1164,14 @@ Matching rule 條件：
 同一個 transaction 內包含：
 
 1. 驗證輸入 record 存在、類型為 `done`、尚未 reverted，且 payload 有 `undoSnapshot`。
-2. 插入 `ItemActionRecord(reverted)`，payload 記錄 `reason = undo_done` 與被撤銷的 done record id。
-3. 將原 done record 標記 `isReverted = true`，寫入 `revertedAt` 與 `revertedByActionRecordId`。
-4. 依 `undoSnapshot` 還原 item fixed / state snapshot 欄位。
-5. 查詢原 done 產生的 `ResourceActionRecord(consumed)`，不重新計算 consumption rule。
-6. 逐筆將 quantity resource 補回原 consumed amount，標記原 consumed record reverted，並新增 `ResourceActionRecord(reverted)`。
+2. Shared Pack 會檢查 actor 是否為 active pack member。
+3. 插入 `ItemActionRecord(reverted)`，payload 記錄 `reason = undo_done` 與被撤銷的 done record id。
+4. 將原 done record 標記 `isReverted = true`，寫入 `revertedAt` 與 `revertedByActionRecordId`。
+5. 更新原 `ItemCompletion` 的 `undoneByUserId / undoneAt`；不得刪除或覆寫 `completedByUserId`。
+6. 依 `undoSnapshot` 還原 item fixed / state snapshot 欄位。
+7. 查詢原 done 產生的 `ResourceActionRecord(consumed)`，不重新計算 consumption rule。
+8. 逐筆將 quantity resource 補回原 consumed amount，標記原 consumed record reverted，新增 `ResourceActionRecord(reverted)`，並寫入對應 `ResourceEvent(increment)`。
+9. 寫入 `ActivityEvent(item_undone)`。
 
 disabled consumption rule 不影響 undo；archived resource 仍可被補回，因為這是撤銷歷史錯誤，不是新的消耗行為。
 
@@ -1123,7 +1355,33 @@ Pack 管理 route：`/feature/item-packs-management`，route name：`item-packs-
 
 ## 5. Drift Schema
 
-目前 schema version：`5`。
+目前 schema version：`7`。
+
+### 5.0 local_users
+
+```text
+id
+displayName
+avatarUrl
+identityKind
+remoteUserId
+remoteProvider
+isPrimary
+createdAt
+updatedAt
+linkedAt
+lastSeenAt
+deletedAt
+```
+
+### 5.0.1 app_installations
+
+```text
+id
+installationGuid
+createdAt
+lastSeenAt
+```
 
 ### 5.1 item_packs
 
@@ -1135,8 +1393,20 @@ iconEmoji
 orderIndex
 status
 isSystemDefault
+packType
+hostUserId
 createdAt
 updatedAt
+```
+
+### 5.1.1 pack_members
+
+```text
+packId
+userId
+role
+status
+joinedAt
 ```
 
 ### 5.2 items
@@ -1164,6 +1434,7 @@ stateAnchorDate
 stateExpectedAfterMinutes
 stateWarningAfterMinutes
 stateDangerAfterMinutes
+assignedToUserId
 lastDoneAt
 createdAt
 updatedAt
@@ -1183,6 +1454,21 @@ revertedAt
 revertedByActionRecordId
 createdAt
 updatedAt
+```
+
+### 5.3.1 item_completions
+
+```text
+id
+itemId
+packId
+itemActionRecordId
+completedByUserId
+completedAt
+undoneByUserId
+undoneAt
+clientMutationId
+createdAt
 ```
 
 ### 5.4 resources
@@ -1240,6 +1526,22 @@ revertedAt
 revertedByActionRecordId
 createdAt
 updatedAt
+```
+
+### 5.6.1 resource_events
+
+```text
+id
+resourceId
+packId
+actorUserId
+changeType
+previousValue
+newValue
+deltaValue
+unit
+createdAt
+metadataJson
 ```
 
 ### 5.7 stage_trackers
@@ -1309,6 +1611,37 @@ createdAt
 updatedAt
 ```
 
+### 5.10.1 stage_acknowledgements
+
+```text
+id
+stageRecordId
+packId
+userId
+acknowledgedAt
+```
+
+Unique key：
+
+```text
+stageRecordId + userId
+```
+
+### 5.10.2 activity_events
+
+```text
+id
+packId
+actorUserId
+entityType
+entityId
+action
+beforeJson
+afterJson
+metadataJson
+createdAt
+```
+
 ### 5.11 app_settings
 
 ```text
@@ -1370,6 +1703,7 @@ updatedAt
 
 - Pack detail page。
 - 建立後跨 Pack 搬移 Item / Resource / StageTracker。
+- 將 Shared Pack 複製成新的 Personal Pack。
 - snooze。
 - deferred action 恢復。
 - time-based resource 由 Item action 自動消耗。
