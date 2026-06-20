@@ -394,7 +394,11 @@ class _UndoItemRepository extends ItemRepository {
   final ValueChanged<DateTime?> onUndo;
 
   @override
-  Future<bool> undoDone(int doneActionRecordId, {DateTime? revertedAt}) async {
+  Future<bool> undoDone(
+    int doneActionRecordId, {
+    DateTime? revertedAt,
+    String? actorUserId,
+  }) async {
     onUndo(revertedAt);
     return true;
   }

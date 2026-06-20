@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 
 import '../domain/attention_policy.dart';
@@ -11,6 +13,7 @@ import '../domain/item_status_service.dart';
 import '../domain/pack_template.dart';
 import '../domain/resource.dart';
 import '../domain/resource_refill_service.dart';
+import '../domain/shared_pack.dart';
 import '../domain/stage_tracker.dart';
 import 'local/app_database.dart';
 import 'local/reminder_dao.dart';
@@ -24,6 +27,7 @@ class ItemInput {
     required this.config,
     this.attentionPolicySource = AttentionPolicySource.systemDefault,
     this.packId,
+    this.assignedToUserId,
   });
 
   final String title;
@@ -32,6 +36,7 @@ class ItemInput {
   final ItemConfig config;
   final AttentionPolicySource attentionPolicySource;
   final int? packId;
+  final String? assignedToUserId;
 }
 
 class ItemResourceBindingInput {
@@ -214,8 +219,10 @@ class ItemRepository {
   Future<int> createItem(
     ItemInput input, {
     List<ItemResourceBindingInput> resourceBindings = const [],
+    String? actorUserId,
   }) async {
     final now = _clock();
+    final actor = actorUserId ?? AppDatabase.defaultHostUserId;
     return _dao.attachedDatabase.transaction(() async {
       final packId = await _resolvePackId(input.packId, now);
       final itemId = await _createItemRecord(
@@ -223,6 +230,14 @@ class ItemRepository {
         now: now,
       );
       await _insertCreatedAction(itemId, now: now);
+      await _insertActivityEvent(
+        packId: packId,
+        actorUserId: actor,
+        entityType: 'item',
+        entityId: itemId,
+        action: 'item_created',
+        now: now,
+      );
       await _applyResourceBindingInputs(
         itemId: itemId,
         packId: packId,
@@ -237,8 +252,10 @@ class ItemRepository {
     required ItemInput item,
     ItemPackInput? newPack,
     List<ItemResourceBindingInput> resourceBindings = const [],
+    String? actorUserId,
   }) async {
     final now = _clock();
+    final actor = actorUserId ?? AppDatabase.defaultHostUserId;
     return _dao.attachedDatabase.transaction(() async {
       final createdPackId = newPack == null
           ? null
@@ -255,6 +272,14 @@ class ItemRepository {
         now: now,
       );
       await _insertCreatedAction(itemId, now: now);
+      await _insertActivityEvent(
+        packId: packId,
+        actorUserId: actor,
+        entityType: 'item',
+        entityId: itemId,
+        action: 'item_created',
+        now: now,
+      );
       await _applyResourceBindingInputs(
         itemId: itemId,
         packId: packId,
@@ -306,6 +331,48 @@ class ItemRepository {
     });
   }
 
+  Future<bool> assignItemToUser(
+    int itemId, {
+    required String? assignedToUserId,
+    String? actorUserId,
+  }) async {
+    final existing = await getItemById(itemId);
+    if (existing == null ||
+        existing.item.status == ItemLifecycleStatus.archived) {
+      return false;
+    }
+    final now = _clock();
+    final actor = actorUserId ?? AppDatabase.defaultHostUserId;
+    if (!await _canActOnPack(existing.pack, actor)) {
+      return false;
+    }
+    return _dao.attachedDatabase.transaction(() async {
+      final updated = await _dao.updateItemFields(
+        itemId,
+        ItemsCompanion(
+          assignedToUserId: Value(assignedToUserId),
+          updatedAt: Value(now.millisecondsSinceEpoch),
+        ),
+      );
+      if (!updated) {
+        return false;
+      }
+      await _insertActivityEvent(
+        packId: existing.item.packId,
+        actorUserId: actor,
+        entityType: 'item',
+        entityId: itemId,
+        action: 'item_assigned',
+        beforeJson: _jsonObject({
+          'assigned_to_user_id': existing.item.assignedToUserId,
+        }),
+        afterJson: _jsonObject({'assigned_to_user_id': assignedToUserId}),
+        now: now,
+      );
+      return true;
+    });
+  }
+
   Future<bool> moveItemToPack(
     int itemId, {
     required int targetPackId,
@@ -338,11 +405,16 @@ class ItemRepository {
     int id, {
     DateTime? doneAt,
     String? remark,
+    String? actorUserId,
     ItemNextCycleStrategy nextCycleStrategy =
         ItemNextCycleStrategy.keepSchedule,
   }) async {
     final existing = await getItemById(id);
     if (existing == null) {
+      return false;
+    }
+    final actor = actorUserId ?? AppDatabase.defaultHostUserId;
+    if (!await _canActOnPack(existing.pack, actor)) {
       return false;
     }
     final action = _actionService.planDone(
@@ -355,7 +427,13 @@ class ItemRepository {
     if (action == null) {
       return false;
     }
-    return _recordAction(id, action: action);
+    if (existing.pack.packType == ItemPackType.shared) {
+      final existingCompletion = await _dao.getActiveItemCompletionForItem(id);
+      if (existingCompletion != null) {
+        return false;
+      }
+    }
+    return _recordAction(id, action: action, actorUserId: actor);
   }
 
   Future<bool> skip(
@@ -379,7 +457,11 @@ class ItemRepository {
     if (action == null) {
       return false;
     }
-    return _recordAction(id, action: action);
+    return _recordAction(
+      id,
+      action: action,
+      actorUserId: AppDatabase.defaultHostUserId,
+    );
   }
 
   Future<bool> defer(
@@ -391,7 +473,11 @@ class ItemRepository {
     return false;
   }
 
-  Future<bool> undoDone(int doneActionRecordId, {DateTime? revertedAt}) async {
+  Future<bool> undoDone(
+    int doneActionRecordId, {
+    DateTime? revertedAt,
+    String? actorUserId,
+  }) async {
     final doneRecord = await _dao.getItemActionRecordById(doneActionRecordId);
     if (doneRecord == null ||
         doneRecord.actionType != ItemActionType.done ||
@@ -409,6 +495,10 @@ class ItemRepository {
 
     final now = _clock();
     final actionDate = _normalizeDate(revertedAt ?? now);
+    final actor = actorUserId ?? AppDatabase.defaultHostUserId;
+    if (!await _canActOnPack(existing.pack, actor)) {
+      return false;
+    }
     try {
       return await _dao.attachedDatabase.transaction(() async {
         final revertedRecordId = await _dao.insertItemActionRecord(
@@ -438,6 +528,11 @@ class ItemRepository {
         if (!markedDone) {
           throw const _UndoDoneFailure();
         }
+        await _dao.markItemCompletionUndone(
+          itemActionRecordId: doneActionRecordId,
+          undoneByUserId: actor,
+          undoneAt: actionDate,
+        );
         final restored = await _dao.updateItemFields(
           doneRecord.itemId,
           snapshot.toCompanion(now),
@@ -452,12 +547,25 @@ class ItemRepository {
             consumedRecord,
             itemRevertedActionRecordId: revertedRecordId,
             actionDate: actionDate,
+            actorUserId: actor,
             now: now,
           );
           if (!restoredResource) {
             throw const _UndoDoneFailure();
           }
         }
+        await _insertActivityEvent(
+          packId: existing.item.packId,
+          actorUserId: actor,
+          entityType: 'item',
+          entityId: doneRecord.itemId,
+          action: 'item_undone',
+          metadataJson: _jsonObject({
+            'item_action_record_id': doneActionRecordId,
+            'reverted_action_record_id': revertedRecordId,
+          }),
+          now: now,
+        );
         return true;
       });
     } on _UndoDoneFailure {
@@ -543,6 +651,8 @@ class ItemRepository {
         orderIndex: existing.orderIndex,
         status: existing.status.name,
         isSystemDefault: existing.isSystemDefault,
+        packType: existing.packType.name,
+        hostUserId: existing.hostUserId,
         createdAt: existing.createdAt.millisecondsSinceEpoch,
         updatedAt: now.millisecondsSinceEpoch,
       ),
@@ -669,6 +779,7 @@ class ItemRepository {
   Future<bool> _recordAction(
     int id, {
     required PlannedItemAction action,
+    required String actorUserId,
   }) async {
     final existing = await getItemById(id);
     if (existing == null) {
@@ -705,10 +816,34 @@ class ItemRepository {
         ),
       );
       if (action.type == ItemActionType.done) {
+        await _dao.insertItemCompletion(
+          ItemCompletionsCompanion.insert(
+            itemId: id,
+            packId: existing.item.packId,
+            itemActionRecordId: itemActionRecordId,
+            completedByUserId: actorUserId,
+            completedAt: _normalizeDate(
+              action.actionDate,
+            ).millisecondsSinceEpoch,
+            createdAt: now.millisecondsSinceEpoch,
+          ),
+        );
+        await _insertActivityEvent(
+          packId: existing.item.packId,
+          actorUserId: actorUserId,
+          entityType: 'item',
+          entityId: id,
+          action: 'item_completed',
+          metadataJson: _jsonObject({
+            'item_action_record_id': itemActionRecordId,
+          }),
+          now: now,
+        );
         await _applyResourceConsumptionRules(
           id,
           itemActionRecordId: itemActionRecordId,
           actionDate: action.actionDate,
+          actorUserId: actorUserId,
           now: now,
         );
       }
@@ -720,6 +855,7 @@ class ItemRepository {
     ResourceActionRecord consumedRecord, {
     required int itemRevertedActionRecordId,
     required DateTime actionDate,
+    required String actorUserId,
     required DateTime now,
   }) async {
     if (consumedRecord.isReverted) {
@@ -735,6 +871,7 @@ class ItemRepository {
       return false;
     }
     final config = resource.config as QuantityBasedResourceConfig;
+    final previousQuantity = config.currentQuantity;
     final resultingQuantity = const ResourceRefillService().refillQuantity(
       config,
       amount,
@@ -761,6 +898,24 @@ class ItemRepository {
         updatedAt: now.millisecondsSinceEpoch,
       ),
     );
+    await _dao.insertResourceEvent(
+      ResourceEventsCompanion.insert(
+        resourceId: resource.id,
+        packId: resource.packId,
+        actorUserId: actorUserId,
+        changeType: ResourceEventChangeType.increment.name,
+        previousValue: Value(previousQuantity),
+        newValue: Value(resultingQuantity),
+        deltaValue: Value(amount),
+        unit: Value(config.unitLabel),
+        createdAt: now.millisecondsSinceEpoch,
+        metadataJson: Value(
+          _jsonObject({
+            'source_item_reverted_action_record_id': itemRevertedActionRecordId,
+          }),
+        ),
+      ),
+    );
     return _dao.updateResourceActionRecordFields(
       consumedRecord.id,
       ResourceActionRecordsCompanion(
@@ -772,10 +927,41 @@ class ItemRepository {
     );
   }
 
+  Future<void> _insertActivityEvent({
+    required int packId,
+    required String actorUserId,
+    required String entityType,
+    required int entityId,
+    required String action,
+    String? beforeJson,
+    String? afterJson,
+    String? metadataJson,
+    required DateTime now,
+  }) {
+    return _dao.insertActivityEvent(
+      ActivityEventsCompanion.insert(
+        packId: packId,
+        actorUserId: actorUserId,
+        entityType: entityType,
+        entityId: entityId,
+        action: action,
+        beforeJson: Value(beforeJson),
+        afterJson: Value(afterJson),
+        metadataJson: Value(metadataJson),
+        createdAt: now.millisecondsSinceEpoch,
+      ),
+    );
+  }
+
+  String _jsonObject(Map<String, Object?> value) {
+    return jsonEncode(value);
+  }
+
   Future<void> _applyResourceConsumptionRules(
     int itemId, {
     required int itemActionRecordId,
     required DateTime actionDate,
+    required String actorUserId,
     required DateTime now,
   }) async {
     final rules = await _dao.listConsumptionRulesForItem(
@@ -796,6 +982,7 @@ class ItemRepository {
         continue;
       }
       final config = resource.config as QuantityBasedResourceConfig;
+      final previousQuantity = config.currentQuantity;
       final resultingQuantity = refillService.consumeQuantity(
         config,
         rule.consumeAmount,
@@ -817,6 +1004,22 @@ class ItemRepository {
           sourceItemActionRecordId: Value(itemActionRecordId),
           createdAt: now.millisecondsSinceEpoch,
           updatedAt: now.millisecondsSinceEpoch,
+        ),
+      );
+      await _dao.insertResourceEvent(
+        ResourceEventsCompanion.insert(
+          resourceId: resource.id,
+          packId: resource.packId,
+          actorUserId: actorUserId,
+          changeType: ResourceEventChangeType.decrement.name,
+          previousValue: Value(previousQuantity),
+          newValue: Value(resultingQuantity),
+          deltaValue: Value(-rule.consumeAmount),
+          unit: Value(config.unitLabel),
+          createdAt: now.millisecondsSinceEpoch,
+          metadataJson: Value(
+            _jsonObject({'source_item_action_record_id': itemActionRecordId}),
+          ),
         ),
       );
     }
@@ -930,6 +1133,7 @@ class ItemRepository {
       config: input.config,
       attentionPolicySource: input.attentionPolicySource,
       packId: packId,
+      assignedToUserId: input.assignedToUserId,
     );
   }
 
@@ -1081,6 +1285,7 @@ class ItemRepository {
       stateDangerAfterMinutes: Value(
         _durationMinutes(_stateDangerAfter(input.config)),
       ),
+      assignedToUserId: Value(input.assignedToUserId),
       lastDoneAt: Value(_snapshotLastDoneAtForCreate(input.config)),
       createdAt: now.millisecondsSinceEpoch,
       updatedAt: now.millisecondsSinceEpoch,
@@ -1128,6 +1333,7 @@ class ItemRepository {
       stateDangerAfterMinutes: _durationMinutes(
         _stateDangerAfter(input.config),
       ),
+      assignedToUserId: input.assignedToUserId,
       lastDoneAt: existing.lastDoneAt?.millisecondsSinceEpoch,
       createdAt: existing.createdAt.millisecondsSinceEpoch,
       updatedAt: now.millisecondsSinceEpoch,
@@ -1258,6 +1464,8 @@ class ItemRepository {
         orderIndex: existing.orderIndex,
         status: ItemPackStatus.archived.name,
         isSystemDefault: existing.isSystemDefault,
+        packType: existing.packType.name,
+        hostUserId: existing.hostUserId,
         createdAt: existing.createdAt.millisecondsSinceEpoch,
         updatedAt: now.millisecondsSinceEpoch,
       ),
@@ -1391,6 +1599,13 @@ class ItemRepository {
 
   DateTime _normalizeDate(DateTime value) {
     return DateTime(value.year, value.month, value.day);
+  }
+
+  Future<bool> _canActOnPack(ItemPack pack, String actorUserId) {
+    if (pack.packType != ItemPackType.shared) {
+      return Future.value(true);
+    }
+    return _dao.isActivePackMember(packId: pack.id, userId: actorUserId);
   }
 
   int? _fixedAnchorDate(ItemConfig config) {

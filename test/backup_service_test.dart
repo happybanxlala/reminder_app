@@ -8,11 +8,15 @@ import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/pack_template_repository.dart';
 import 'package:reminder_app/features/reminders/data/reminder_backup_service.dart';
 import 'package:reminder_app/features/reminders/data/resource_repository.dart';
+import 'package:reminder_app/features/reminders/data/shared_pack_repository.dart';
 import 'package:reminder_app/features/reminders/data/stage_tracker_models.dart';
 import 'package:reminder_app/features/reminders/data/stage_tracker_repository.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/resource.dart';
+import 'package:reminder_app/features/reminders/domain/shared_pack.dart';
+import 'package:reminder_app/features/reminders/domain/stage_occurrence.dart';
+import 'package:reminder_app/features/reminders/domain/stage_record.dart';
 import 'package:reminder_app/features/reminders/domain/stage_rule.dart';
 
 void main() {
@@ -50,6 +54,27 @@ void main() {
     expect(data['customTemplates'], isNotEmpty);
     expect(data['relations'], isNotEmpty);
     expect(data['activityLogs'], isNotEmpty);
+    final relations = data['relations'] as List<Object?>;
+    final activityLogs = data['activityLogs'] as List<Object?>;
+    expect(
+      relations.whereType<Map<String, Object?>>().map(
+        (row) => row['relationType'],
+      ),
+      containsAll(['localUser', 'packMember', 'resourceConsumptionRule']),
+    );
+    expect(
+      activityLogs.whereType<Map<String, Object?>>().map(
+        (row) => row['logType'],
+      ),
+      containsAll([
+        'itemAction',
+        'resourceAction',
+        'itemCompletion',
+        'resourceEvent',
+        'stageAcknowledgement',
+        'activityEvent',
+      ]),
+    );
   });
 
   test('export excludes system stage tracker and related records', () async {
@@ -175,6 +200,55 @@ void main() {
     expect(items.map((item) => item.item.title), isNot(contains('Old item')));
     expect(packs.any((pack) => pack.isSystemDefault), isTrue);
     expect(systemTracker.isSystemDefault, isTrue);
+    final sharedPack = packs.firstWhere((pack) => pack.title == 'Housework');
+    expect(sharedPack.packType.name, 'shared');
+    expect(
+      await targetDb.reminderDao.listPackMembers(sharedPack.id),
+      isNotEmpty,
+    );
+    expect(
+      await targetDb.reminderDao.listActivityEventsForPack(sharedPack.id),
+      isNotEmpty,
+    );
+    final cleanSink = items.firstWhere(
+      (item) => item.item.title == 'Clean sink',
+    );
+    expect(
+      await targetDb.reminderDao.listItemCompletions(cleanSink.item.id),
+      isNotEmpty,
+    );
+    expect(
+      await ResourceRepository(
+        targetDb.reminderDao,
+      ).listResourceEventsForPack(sharedPack.id),
+      isNotEmpty,
+    );
+    expect(
+      await StageTrackerRepository(
+        targetDb.reminderDao,
+      ).listStageAcknowledgementsForPack(sharedPack.id),
+      isNotEmpty,
+    );
+  });
+
+  test('import accepts v1 backup without shared pack metadata', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+
+    final service = ReminderBackupService(db.reminderDao);
+    await service.importJsonString(jsonEncode(_v1BackupJson()));
+
+    final itemRepository = ItemRepository(db.reminderDao);
+    final packs = await itemRepository.watchPacks(includeArchived: true).first;
+    final importedPack = packs.firstWhere((pack) => pack.title == 'Legacy');
+    final items = await itemRepository.watchPackManagementItems().first;
+    final importedItem = items.firstWhere(
+      (bundle) => bundle.item.title == 'Legacy item',
+    );
+
+    expect(importedPack.packType, ItemPackType.personal);
+    expect(importedPack.hostUserId, isNull);
+    expect(importedItem.item.assignedToUserId, isNull);
   });
 
   test('reset clears user data and rebuilds system seed', () async {
@@ -205,11 +279,14 @@ void main() {
 Future<void> _seedUserData(AppDatabase db) async {
   final itemRepository = ItemRepository(db.reminderDao);
   final resourceRepository = ResourceRepository(db.reminderDao);
+  final sharedRepository = SharedPackRepository(db.reminderDao);
   final stageRepository = StageTrackerRepository(db.reminderDao);
   final templateRepository = PackTemplateRepository(db.reminderDao);
   final packId = await itemRepository.createPack(
     const ItemPackInput(title: 'Housework', iconEmoji: '🏠'),
   );
+  await sharedRepository.convertPackToShared(packId);
+  await sharedRepository.addLocalMember(packId);
   final itemId = await itemRepository.createItem(
     ItemInput(
       title: 'Clean sink',
@@ -220,6 +297,15 @@ Future<void> _seedUserData(AppDatabase db) async {
       ),
       packId: packId,
     ),
+  );
+  await itemRepository.assignItemToUser(
+    itemId,
+    assignedToUserId: AppDatabase.defaultMemberUserId,
+  );
+  await itemRepository.markDone(
+    itemId,
+    doneAt: DateTime(2026, 6, 4),
+    actorUserId: AppDatabase.defaultMemberUserId,
   );
   final resourceId = await resourceRepository.createResource(
     ResourceInput(
@@ -241,6 +327,11 @@ Future<void> _seedUserData(AppDatabase db) async {
       consumeAmount: 1,
     ),
   );
+  await resourceRepository.adjustResourceQuantity(
+    resourceId,
+    newQuantity: 4,
+    actorUserId: AppDatabase.defaultHostUserId,
+  );
   final trackerId = await stageRepository.createStageTracker(
     StageTrackerInput(
       title: 'Maintenance',
@@ -256,14 +347,85 @@ Future<void> _seedUserData(AppDatabase db) async {
       intervalUnit: StageIntervalUnit.days,
     ),
   );
-  await stageRepository.createImportantStage(
+  final stageRecordId = await stageRepository.createImportantStage(
     trackerId,
     ManualStageInput(label: 'Inspection', occurrenceDate: DateTime(2026, 6, 4)),
+  );
+  await stageRepository.acknowledgeOccurrence(
+    StageOccurrence(
+      stageTrackerId: trackerId,
+      stageRecordId: stageRecordId,
+      sourceType: StageRecordSourceType.manual,
+      occurrenceDate: DateTime(2026, 6, 4),
+      label: 'Inspection',
+      reminderOffsetDays: 0,
+      recordStatus: StageRecordStatus.normal,
+    ),
+    actorUserId: AppDatabase.defaultHostUserId,
   );
   await templateRepository.savePackAsTemplate(
     packId: packId,
     templateName: 'Housework template',
   );
+}
+
+Map<String, Object?> _v1BackupJson() {
+  final now = DateTime(2026, 5, 1).toIso8601String();
+  return {
+    'app': BackupPayload.appName,
+    'schemaVersion': 1,
+    'exportedAt': now,
+    'data': {
+      'packs': [
+        {
+          'id': 99,
+          'title': 'Legacy',
+          'description': null,
+          'icon_emoji': '📌',
+          'order_index': 0,
+          'status': 'active',
+          'is_system_default': false,
+          'created_at': now,
+          'updated_at': now,
+        },
+      ],
+      'items': [
+        {
+          'id': 100,
+          'pack_id': 99,
+          'title': 'Legacy item',
+          'description': null,
+          'status': 'active',
+          'type': 'stateBased',
+          'attention_policy_source': 'systemDefault',
+          'fixed_schedule_type': null,
+          'fixed_schedule_interval': null,
+          'fixed_monthly_day': null,
+          'fixed_repeat_rule_v2': null,
+          'fixed_anchor_date': null,
+          'fixed_due_date': null,
+          'fixed_time_of_day': null,
+          'fixed_overdue_policy': null,
+          'fixed_expected_before_minutes': null,
+          'fixed_warning_before_minutes': null,
+          'fixed_danger_before_minutes': null,
+          'state_anchor_date': null,
+          'state_expected_after_minutes': 1440,
+          'state_warning_after_minutes': 1440,
+          'state_danger_after_minutes': 2880,
+          'last_done_at': null,
+          'created_at': now,
+          'updated_at': now,
+        },
+      ],
+      'resources': [],
+      'stages': [],
+      'stageTrackers': [],
+      'customTemplates': [],
+      'relations': [],
+      'activityLogs': [],
+    },
+  };
 }
 
 Map<String, Object?> _emptyDataJson() {

@@ -30,7 +30,7 @@ class BackupPayload {
   });
 
   static const appName = 'reminder_app';
-  static const currentSchemaVersion = 1;
+  static const currentSchemaVersion = 2;
 
   final String app;
   final int schemaVersion;
@@ -76,7 +76,7 @@ class BackupPayload {
     if (schemaVersion is! int) {
       throw const InvalidBackupFormatException();
     }
-    if (schemaVersion != currentSchemaVersion) {
+    if (schemaVersion < 1 || schemaVersion > currentSchemaVersion) {
       throw const UnsupportedBackupVersionException();
     }
 

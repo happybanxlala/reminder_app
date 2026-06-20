@@ -12,7 +12,9 @@ part 'app_database.g.dart';
 
 @DriftDatabase(
   tables: [
+    LocalUsers,
     ItemPacks,
+    PackMembers,
     Items,
     PackTemplates,
     PackTemplateItems,
@@ -20,15 +22,23 @@ part 'app_database.g.dart';
     ResourceConsumptionRules,
     ResourceActionRecords,
     ItemActionRecords,
+    ItemCompletions,
+    ResourceEvents,
     StageTrackers,
     StageRules,
     StageRecords,
     StageRelatedItems,
+    StageAcknowledgements,
+    ActivityEvents,
     AppSettingsEntries,
   ],
   daos: [ReminderDao],
 )
 class AppDatabase extends _$AppDatabase {
+  static const defaultHostUserId = 'user_host';
+  static const defaultHostDisplayName = 'Host';
+  static const defaultMemberUserId = 'user_member_1';
+  static const defaultMemberDisplayName = 'Member';
   static const systemDefaultPackTitle = '一般';
   static const systemDefaultPackIconEmoji = '📌';
   static const systemDefaultPackOrderIndex = 0;
@@ -41,7 +51,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -59,8 +69,12 @@ class AppDatabase extends _$AppDatabase {
       if (from < 5) {
         await _upgradeToV5(m);
       }
+      if (from < 6) {
+        await _upgradeToV6(m);
+      }
     },
     beforeOpen: (details) async {
+      await _ensureLocalUsers();
       await _ensureSystemDefaultPack();
       await _ensureAppSettings();
       await _ensureSystemDefaultStageTracker();
@@ -68,6 +82,7 @@ class AppDatabase extends _$AppDatabase {
   );
 
   Future<void> ensureSystemSeedData() async {
+    await _ensureLocalUsers();
     await _ensureSystemDefaultPack();
     await _ensureAppSettings();
     await _ensureSystemDefaultStageTracker();
@@ -167,6 +182,36 @@ class AppDatabase extends _$AppDatabase {
   Future<void> _upgradeToV5(Migrator m) async {
     await m.createTable(packTemplates);
     await m.createTable(packTemplateItems);
+  }
+
+  Future<void> _upgradeToV6(Migrator m) async {
+    await m.createTable(localUsers);
+    await m.addColumn(itemPacks, itemPacks.packType);
+    await m.addColumn(itemPacks, itemPacks.hostUserId);
+    await m.createTable(packMembers);
+    await m.addColumn(items, items.assignedToUserId);
+    await m.createTable(itemCompletions);
+    await m.createTable(resourceEvents);
+    await m.createTable(stageAcknowledgements);
+    await m.createTable(activityEvents);
+  }
+
+  Future<void> _ensureLocalUsers() async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await into(localUsers).insertOnConflictUpdate(
+      LocalUsersCompanion.insert(
+        id: defaultHostUserId,
+        displayName: defaultHostDisplayName,
+        createdAt: now,
+      ),
+    );
+    await into(localUsers).insertOnConflictUpdate(
+      LocalUsersCompanion.insert(
+        id: defaultMemberUserId,
+        displayName: defaultMemberDisplayName,
+        createdAt: now,
+      ),
+    );
   }
 
   Future<void> _ensureSystemDefaultPack() async {

@@ -1,3 +1,5 @@
+import 'shared_pack.dart';
+
 enum ItemPackStatus { active, archived }
 
 class ItemPackInput {
@@ -21,6 +23,8 @@ class ItemPack {
     this.orderIndex = 0,
     required this.status,
     required this.isSystemDefault,
+    this.packType = ItemPackType.personal,
+    this.hostUserId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -32,6 +36,8 @@ class ItemPack {
   final int orderIndex;
   final ItemPackStatus status;
   final bool isSystemDefault;
+  final ItemPackType packType;
+  final String? hostUserId;
   final DateTime createdAt;
   final DateTime updatedAt;
 }

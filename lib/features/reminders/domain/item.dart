@@ -84,6 +84,7 @@ class Item {
     required this.config,
     this.attentionPolicySource = AttentionPolicySource.systemDefault,
     this.status = ItemLifecycleStatus.active,
+    this.assignedToUserId,
     this.lastDoneAt,
     required this.createdAt,
     required this.updatedAt,
@@ -97,6 +98,7 @@ class Item {
   final ItemConfig config;
   final AttentionPolicySource attentionPolicySource;
   final ItemLifecycleStatus status;
+  final String? assignedToUserId;
   final DateTime? lastDoneAt;
   final DateTime createdAt;
   final DateTime updatedAt;

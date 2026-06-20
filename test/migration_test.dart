@@ -4,11 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 
 void main() {
-  test('database uses schema version 5 and core tables are writable', () async {
+  test('database uses schema version 6 and core tables are writable', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
 
-    expect(db.schemaVersion, 5);
+    expect(db.schemaVersion, 6);
 
     final packId = await db
         .into(db.itemPacks)
@@ -165,6 +165,64 @@ void main() {
           ),
         );
 
+    final completionId = await db
+        .into(db.itemCompletions)
+        .insert(
+          ItemCompletionsCompanion.insert(
+            itemId: itemId,
+            packId: packId,
+            itemActionRecordId: await db
+                .into(db.itemActionRecords)
+                .insert(
+                  ItemActionRecordsCompanion.insert(
+                    itemId: itemId,
+                    actionType: 'done',
+                    actionDate: DateTime(2026, 4, 10).millisecondsSinceEpoch,
+                    createdAt: DateTime(2026, 4, 10).millisecondsSinceEpoch,
+                    updatedAt: DateTime(2026, 4, 10).millisecondsSinceEpoch,
+                  ),
+                ),
+            completedByUserId: AppDatabase.defaultHostUserId,
+            completedAt: DateTime(2026, 4, 10).millisecondsSinceEpoch,
+            createdAt: DateTime(2026, 4, 10).millisecondsSinceEpoch,
+          ),
+        );
+    final resourceEventId = await db
+        .into(db.resourceEvents)
+        .insert(
+          ResourceEventsCompanion.insert(
+            resourceId: resourceId,
+            packId: packId,
+            actorUserId: AppDatabase.defaultHostUserId,
+            changeType: 'adjust',
+            previousValue: const Value(4),
+            newValue: const Value(5),
+            createdAt: DateTime(2026, 4, 10).millisecondsSinceEpoch,
+          ),
+        );
+    final stageAcknowledgementId = await db
+        .into(db.stageAcknowledgements)
+        .insert(
+          StageAcknowledgementsCompanion.insert(
+            stageRecordId: recordId,
+            packId: packId,
+            userId: AppDatabase.defaultHostUserId,
+            acknowledgedAt: DateTime(2026, 4, 10).millisecondsSinceEpoch,
+          ),
+        );
+    final activityEventId = await db
+        .into(db.activityEvents)
+        .insert(
+          ActivityEventsCompanion.insert(
+            packId: packId,
+            actorUserId: AppDatabase.defaultHostUserId,
+            entityType: 'item',
+            entityId: itemId,
+            action: 'item_completed',
+            createdAt: DateTime(2026, 4, 10).millisecondsSinceEpoch,
+          ),
+        );
+
     expect(packId, greaterThan(0));
     expect(itemId, greaterThan(0));
     expect(templateId, greaterThan(0));
@@ -175,6 +233,10 @@ void main() {
     expect(stageTrackerId, greaterThan(0));
     expect(ruleId, greaterThan(0));
     expect(recordId, greaterThan(0));
+    expect(completionId, greaterThan(0));
+    expect(resourceEventId, greaterThan(0));
+    expect(stageAcknowledgementId, greaterThan(0));
+    expect(activityEventId, greaterThan(0));
 
     await db
         .into(db.appSettingsEntries)
@@ -192,12 +254,16 @@ void main() {
       db.itemPacks,
     )..where((t) => t.isSystemDefault.equals(true))).get();
     final items = await db.select(db.items).get();
+    final packs = await db.select(db.itemPacks).get();
     final stageTrackers = await db.select(db.stageTrackers).get();
     final settings = await db.select(db.appSettingsEntries).get();
     final templates = await db.select(db.packTemplates).get();
     final templateItems = await db.select(db.packTemplateItems).get();
     expect(defaultPacks, hasLength(1));
+    expect(packs.firstWhere((pack) => pack.id == packId).packType, 'personal');
+    expect(packs.firstWhere((pack) => pack.id == packId).hostUserId, null);
     expect(items.single.status, 'active');
+    expect(items.single.assignedToUserId, null);
     expect(items.single.attentionPolicySource, 'systemDefault');
     expect(
       stageTrackers.where((tracker) => tracker.systemKey == 'reminder_app'),

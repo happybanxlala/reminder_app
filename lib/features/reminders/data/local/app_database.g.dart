@@ -3,6 +3,272 @@
 part of 'app_database.dart';
 
 // ignore_for_file: type=lint
+class $LocalUsersTable extends LocalUsers
+    with TableInfo<$LocalUsersTable, LocalUserRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalUsersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _displayNameMeta = const VerificationMeta(
+    'displayName',
+  );
+  @override
+  late final GeneratedColumn<String> displayName = GeneratedColumn<String>(
+    'display_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, displayName, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_users';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LocalUserRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('display_name')) {
+      context.handle(
+        _displayNameMeta,
+        displayName.isAcceptableOrUnknown(
+          data['display_name']!,
+          _displayNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_displayNameMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LocalUserRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalUserRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      displayName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}display_name'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $LocalUsersTable createAlias(String alias) {
+    return $LocalUsersTable(attachedDatabase, alias);
+  }
+}
+
+class LocalUserRow extends DataClass implements Insertable<LocalUserRow> {
+  final String id;
+  final String displayName;
+  final int createdAt;
+  const LocalUserRow({
+    required this.id,
+    required this.displayName,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['display_name'] = Variable<String>(displayName);
+    map['created_at'] = Variable<int>(createdAt);
+    return map;
+  }
+
+  LocalUsersCompanion toCompanion(bool nullToAbsent) {
+    return LocalUsersCompanion(
+      id: Value(id),
+      displayName: Value(displayName),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory LocalUserRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalUserRow(
+      id: serializer.fromJson<String>(json['id']),
+      displayName: serializer.fromJson<String>(json['displayName']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'displayName': serializer.toJson<String>(displayName),
+      'createdAt': serializer.toJson<int>(createdAt),
+    };
+  }
+
+  LocalUserRow copyWith({String? id, String? displayName, int? createdAt}) =>
+      LocalUserRow(
+        id: id ?? this.id,
+        displayName: displayName ?? this.displayName,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  LocalUserRow copyWithCompanion(LocalUsersCompanion data) {
+    return LocalUserRow(
+      id: data.id.present ? data.id.value : this.id,
+      displayName: data.displayName.present
+          ? data.displayName.value
+          : this.displayName,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalUserRow(')
+          ..write('id: $id, ')
+          ..write('displayName: $displayName, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, displayName, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalUserRow &&
+          other.id == this.id &&
+          other.displayName == this.displayName &&
+          other.createdAt == this.createdAt);
+}
+
+class LocalUsersCompanion extends UpdateCompanion<LocalUserRow> {
+  final Value<String> id;
+  final Value<String> displayName;
+  final Value<int> createdAt;
+  final Value<int> rowid;
+  const LocalUsersCompanion({
+    this.id = const Value.absent(),
+    this.displayName = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalUsersCompanion.insert({
+    required String id,
+    required String displayName,
+    required int createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       displayName = Value(displayName),
+       createdAt = Value(createdAt);
+  static Insertable<LocalUserRow> custom({
+    Expression<String>? id,
+    Expression<String>? displayName,
+    Expression<int>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (displayName != null) 'display_name': displayName,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalUsersCompanion copyWith({
+    Value<String>? id,
+    Value<String>? displayName,
+    Value<int>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return LocalUsersCompanion(
+      id: id ?? this.id,
+      displayName: displayName ?? this.displayName,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (displayName.present) {
+      map['display_name'] = Variable<String>(displayName.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalUsersCompanion(')
+          ..write('id: $id, ')
+          ..write('displayName: $displayName, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $ItemPacksTable extends ItemPacks
     with TableInfo<$ItemPacksTable, ItemPackRow> {
   @override
@@ -91,6 +357,32 @@ class $ItemPacksTable extends ItemPacks
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _packTypeMeta = const VerificationMeta(
+    'packType',
+  );
+  @override
+  late final GeneratedColumn<String> packType = GeneratedColumn<String>(
+    'pack_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('personal'),
+  );
+  static const VerificationMeta _hostUserIdMeta = const VerificationMeta(
+    'hostUserId',
+  );
+  @override
+  late final GeneratedColumn<String> hostUserId = GeneratedColumn<String>(
+    'host_user_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES local_users (id)',
+    ),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -122,6 +414,8 @@ class $ItemPacksTable extends ItemPacks
     orderIndex,
     status,
     isSystemDefault,
+    packType,
+    hostUserId,
     createdAt,
     updatedAt,
   ];
@@ -184,6 +478,21 @@ class $ItemPacksTable extends ItemPacks
         ),
       );
     }
+    if (data.containsKey('pack_type')) {
+      context.handle(
+        _packTypeMeta,
+        packType.isAcceptableOrUnknown(data['pack_type']!, _packTypeMeta),
+      );
+    }
+    if (data.containsKey('host_user_id')) {
+      context.handle(
+        _hostUserIdMeta,
+        hostUserId.isAcceptableOrUnknown(
+          data['host_user_id']!,
+          _hostUserIdMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -237,6 +546,14 @@ class $ItemPacksTable extends ItemPacks
         DriftSqlType.bool,
         data['${effectivePrefix}is_system_default'],
       )!,
+      packType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}pack_type'],
+      )!,
+      hostUserId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}host_user_id'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
@@ -262,6 +579,8 @@ class ItemPackRow extends DataClass implements Insertable<ItemPackRow> {
   final int orderIndex;
   final String status;
   final bool isSystemDefault;
+  final String packType;
+  final String? hostUserId;
   final int createdAt;
   final int updatedAt;
   const ItemPackRow({
@@ -272,6 +591,8 @@ class ItemPackRow extends DataClass implements Insertable<ItemPackRow> {
     required this.orderIndex,
     required this.status,
     required this.isSystemDefault,
+    required this.packType,
+    this.hostUserId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -287,6 +608,10 @@ class ItemPackRow extends DataClass implements Insertable<ItemPackRow> {
     map['order_index'] = Variable<int>(orderIndex);
     map['status'] = Variable<String>(status);
     map['is_system_default'] = Variable<bool>(isSystemDefault);
+    map['pack_type'] = Variable<String>(packType);
+    if (!nullToAbsent || hostUserId != null) {
+      map['host_user_id'] = Variable<String>(hostUserId);
+    }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     return map;
@@ -303,6 +628,10 @@ class ItemPackRow extends DataClass implements Insertable<ItemPackRow> {
       orderIndex: Value(orderIndex),
       status: Value(status),
       isSystemDefault: Value(isSystemDefault),
+      packType: Value(packType),
+      hostUserId: hostUserId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(hostUserId),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -321,6 +650,8 @@ class ItemPackRow extends DataClass implements Insertable<ItemPackRow> {
       orderIndex: serializer.fromJson<int>(json['orderIndex']),
       status: serializer.fromJson<String>(json['status']),
       isSystemDefault: serializer.fromJson<bool>(json['isSystemDefault']),
+      packType: serializer.fromJson<String>(json['packType']),
+      hostUserId: serializer.fromJson<String?>(json['hostUserId']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -336,6 +667,8 @@ class ItemPackRow extends DataClass implements Insertable<ItemPackRow> {
       'orderIndex': serializer.toJson<int>(orderIndex),
       'status': serializer.toJson<String>(status),
       'isSystemDefault': serializer.toJson<bool>(isSystemDefault),
+      'packType': serializer.toJson<String>(packType),
+      'hostUserId': serializer.toJson<String?>(hostUserId),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -349,6 +682,8 @@ class ItemPackRow extends DataClass implements Insertable<ItemPackRow> {
     int? orderIndex,
     String? status,
     bool? isSystemDefault,
+    String? packType,
+    Value<String?> hostUserId = const Value.absent(),
     int? createdAt,
     int? updatedAt,
   }) => ItemPackRow(
@@ -359,6 +694,8 @@ class ItemPackRow extends DataClass implements Insertable<ItemPackRow> {
     orderIndex: orderIndex ?? this.orderIndex,
     status: status ?? this.status,
     isSystemDefault: isSystemDefault ?? this.isSystemDefault,
+    packType: packType ?? this.packType,
+    hostUserId: hostUserId.present ? hostUserId.value : this.hostUserId,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -377,6 +714,10 @@ class ItemPackRow extends DataClass implements Insertable<ItemPackRow> {
       isSystemDefault: data.isSystemDefault.present
           ? data.isSystemDefault.value
           : this.isSystemDefault,
+      packType: data.packType.present ? data.packType.value : this.packType,
+      hostUserId: data.hostUserId.present
+          ? data.hostUserId.value
+          : this.hostUserId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -392,6 +733,8 @@ class ItemPackRow extends DataClass implements Insertable<ItemPackRow> {
           ..write('orderIndex: $orderIndex, ')
           ..write('status: $status, ')
           ..write('isSystemDefault: $isSystemDefault, ')
+          ..write('packType: $packType, ')
+          ..write('hostUserId: $hostUserId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -407,6 +750,8 @@ class ItemPackRow extends DataClass implements Insertable<ItemPackRow> {
     orderIndex,
     status,
     isSystemDefault,
+    packType,
+    hostUserId,
     createdAt,
     updatedAt,
   );
@@ -421,6 +766,8 @@ class ItemPackRow extends DataClass implements Insertable<ItemPackRow> {
           other.orderIndex == this.orderIndex &&
           other.status == this.status &&
           other.isSystemDefault == this.isSystemDefault &&
+          other.packType == this.packType &&
+          other.hostUserId == this.hostUserId &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -433,6 +780,8 @@ class ItemPacksCompanion extends UpdateCompanion<ItemPackRow> {
   final Value<int> orderIndex;
   final Value<String> status;
   final Value<bool> isSystemDefault;
+  final Value<String> packType;
+  final Value<String?> hostUserId;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   const ItemPacksCompanion({
@@ -443,6 +792,8 @@ class ItemPacksCompanion extends UpdateCompanion<ItemPackRow> {
     this.orderIndex = const Value.absent(),
     this.status = const Value.absent(),
     this.isSystemDefault = const Value.absent(),
+    this.packType = const Value.absent(),
+    this.hostUserId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -454,6 +805,8 @@ class ItemPacksCompanion extends UpdateCompanion<ItemPackRow> {
     this.orderIndex = const Value.absent(),
     this.status = const Value.absent(),
     this.isSystemDefault = const Value.absent(),
+    this.packType = const Value.absent(),
+    this.hostUserId = const Value.absent(),
     required int createdAt,
     required int updatedAt,
   }) : title = Value(title),
@@ -467,6 +820,8 @@ class ItemPacksCompanion extends UpdateCompanion<ItemPackRow> {
     Expression<int>? orderIndex,
     Expression<String>? status,
     Expression<bool>? isSystemDefault,
+    Expression<String>? packType,
+    Expression<String>? hostUserId,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
@@ -478,6 +833,8 @@ class ItemPacksCompanion extends UpdateCompanion<ItemPackRow> {
       if (orderIndex != null) 'order_index': orderIndex,
       if (status != null) 'status': status,
       if (isSystemDefault != null) 'is_system_default': isSystemDefault,
+      if (packType != null) 'pack_type': packType,
+      if (hostUserId != null) 'host_user_id': hostUserId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -491,6 +848,8 @@ class ItemPacksCompanion extends UpdateCompanion<ItemPackRow> {
     Value<int>? orderIndex,
     Value<String>? status,
     Value<bool>? isSystemDefault,
+    Value<String>? packType,
+    Value<String?>? hostUserId,
     Value<int>? createdAt,
     Value<int>? updatedAt,
   }) {
@@ -502,6 +861,8 @@ class ItemPacksCompanion extends UpdateCompanion<ItemPackRow> {
       orderIndex: orderIndex ?? this.orderIndex,
       status: status ?? this.status,
       isSystemDefault: isSystemDefault ?? this.isSystemDefault,
+      packType: packType ?? this.packType,
+      hostUserId: hostUserId ?? this.hostUserId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -531,6 +892,12 @@ class ItemPacksCompanion extends UpdateCompanion<ItemPackRow> {
     if (isSystemDefault.present) {
       map['is_system_default'] = Variable<bool>(isSystemDefault.value);
     }
+    if (packType.present) {
+      map['pack_type'] = Variable<String>(packType.value);
+    }
+    if (hostUserId.present) {
+      map['host_user_id'] = Variable<String>(hostUserId.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -550,8 +917,373 @@ class ItemPacksCompanion extends UpdateCompanion<ItemPackRow> {
           ..write('orderIndex: $orderIndex, ')
           ..write('status: $status, ')
           ..write('isSystemDefault: $isSystemDefault, ')
+          ..write('packType: $packType, ')
+          ..write('hostUserId: $hostUserId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $PackMembersTable extends PackMembers
+    with TableInfo<$PackMembersTable, PackMemberRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PackMembersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _packIdMeta = const VerificationMeta('packId');
+  @override
+  late final GeneratedColumn<int> packId = GeneratedColumn<int>(
+    'pack_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES item_packs (id)',
+    ),
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES local_users (id)',
+    ),
+  );
+  static const VerificationMeta _roleMeta = const VerificationMeta('role');
+  @override
+  late final GeneratedColumn<String> role = GeneratedColumn<String>(
+    'role',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('active'),
+  );
+  static const VerificationMeta _joinedAtMeta = const VerificationMeta(
+    'joinedAt',
+  );
+  @override
+  late final GeneratedColumn<int> joinedAt = GeneratedColumn<int>(
+    'joined_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    packId,
+    userId,
+    role,
+    status,
+    joinedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'pack_members';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PackMemberRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('pack_id')) {
+      context.handle(
+        _packIdMeta,
+        packId.isAcceptableOrUnknown(data['pack_id']!, _packIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_packIdMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('role')) {
+      context.handle(
+        _roleMeta,
+        role.isAcceptableOrUnknown(data['role']!, _roleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_roleMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('joined_at')) {
+      context.handle(
+        _joinedAtMeta,
+        joinedAt.isAcceptableOrUnknown(data['joined_at']!, _joinedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_joinedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {packId, userId};
+  @override
+  PackMemberRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PackMemberRow(
+      packId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pack_id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      role: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}role'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      joinedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}joined_at'],
+      )!,
+    );
+  }
+
+  @override
+  $PackMembersTable createAlias(String alias) {
+    return $PackMembersTable(attachedDatabase, alias);
+  }
+}
+
+class PackMemberRow extends DataClass implements Insertable<PackMemberRow> {
+  final int packId;
+  final String userId;
+  final String role;
+  final String status;
+  final int joinedAt;
+  const PackMemberRow({
+    required this.packId,
+    required this.userId,
+    required this.role,
+    required this.status,
+    required this.joinedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['pack_id'] = Variable<int>(packId);
+    map['user_id'] = Variable<String>(userId);
+    map['role'] = Variable<String>(role);
+    map['status'] = Variable<String>(status);
+    map['joined_at'] = Variable<int>(joinedAt);
+    return map;
+  }
+
+  PackMembersCompanion toCompanion(bool nullToAbsent) {
+    return PackMembersCompanion(
+      packId: Value(packId),
+      userId: Value(userId),
+      role: Value(role),
+      status: Value(status),
+      joinedAt: Value(joinedAt),
+    );
+  }
+
+  factory PackMemberRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PackMemberRow(
+      packId: serializer.fromJson<int>(json['packId']),
+      userId: serializer.fromJson<String>(json['userId']),
+      role: serializer.fromJson<String>(json['role']),
+      status: serializer.fromJson<String>(json['status']),
+      joinedAt: serializer.fromJson<int>(json['joinedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'packId': serializer.toJson<int>(packId),
+      'userId': serializer.toJson<String>(userId),
+      'role': serializer.toJson<String>(role),
+      'status': serializer.toJson<String>(status),
+      'joinedAt': serializer.toJson<int>(joinedAt),
+    };
+  }
+
+  PackMemberRow copyWith({
+    int? packId,
+    String? userId,
+    String? role,
+    String? status,
+    int? joinedAt,
+  }) => PackMemberRow(
+    packId: packId ?? this.packId,
+    userId: userId ?? this.userId,
+    role: role ?? this.role,
+    status: status ?? this.status,
+    joinedAt: joinedAt ?? this.joinedAt,
+  );
+  PackMemberRow copyWithCompanion(PackMembersCompanion data) {
+    return PackMemberRow(
+      packId: data.packId.present ? data.packId.value : this.packId,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      role: data.role.present ? data.role.value : this.role,
+      status: data.status.present ? data.status.value : this.status,
+      joinedAt: data.joinedAt.present ? data.joinedAt.value : this.joinedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PackMemberRow(')
+          ..write('packId: $packId, ')
+          ..write('userId: $userId, ')
+          ..write('role: $role, ')
+          ..write('status: $status, ')
+          ..write('joinedAt: $joinedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(packId, userId, role, status, joinedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PackMemberRow &&
+          other.packId == this.packId &&
+          other.userId == this.userId &&
+          other.role == this.role &&
+          other.status == this.status &&
+          other.joinedAt == this.joinedAt);
+}
+
+class PackMembersCompanion extends UpdateCompanion<PackMemberRow> {
+  final Value<int> packId;
+  final Value<String> userId;
+  final Value<String> role;
+  final Value<String> status;
+  final Value<int> joinedAt;
+  final Value<int> rowid;
+  const PackMembersCompanion({
+    this.packId = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.role = const Value.absent(),
+    this.status = const Value.absent(),
+    this.joinedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PackMembersCompanion.insert({
+    required int packId,
+    required String userId,
+    required String role,
+    this.status = const Value.absent(),
+    required int joinedAt,
+    this.rowid = const Value.absent(),
+  }) : packId = Value(packId),
+       userId = Value(userId),
+       role = Value(role),
+       joinedAt = Value(joinedAt);
+  static Insertable<PackMemberRow> custom({
+    Expression<int>? packId,
+    Expression<String>? userId,
+    Expression<String>? role,
+    Expression<String>? status,
+    Expression<int>? joinedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (packId != null) 'pack_id': packId,
+      if (userId != null) 'user_id': userId,
+      if (role != null) 'role': role,
+      if (status != null) 'status': status,
+      if (joinedAt != null) 'joined_at': joinedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PackMembersCompanion copyWith({
+    Value<int>? packId,
+    Value<String>? userId,
+    Value<String>? role,
+    Value<String>? status,
+    Value<int>? joinedAt,
+    Value<int>? rowid,
+  }) {
+    return PackMembersCompanion(
+      packId: packId ?? this.packId,
+      userId: userId ?? this.userId,
+      role: role ?? this.role,
+      status: status ?? this.status,
+      joinedAt: joinedAt ?? this.joinedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (packId.present) {
+      map['pack_id'] = Variable<int>(packId.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (role.present) {
+      map['role'] = Variable<String>(role.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (joinedAt.present) {
+      map['joined_at'] = Variable<int>(joinedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PackMembersCompanion(')
+          ..write('packId: $packId, ')
+          ..write('userId: $userId, ')
+          ..write('role: $role, ')
+          ..write('status: $status, ')
+          ..write('joinedAt: $joinedAt, ')
+          ..write('rowid: $rowid')
           ..write(')'))
         .toString();
   }
@@ -804,6 +1536,20 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
         type: DriftSqlType.int,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _assignedToUserIdMeta = const VerificationMeta(
+    'assignedToUserId',
+  );
+  @override
+  late final GeneratedColumn<String> assignedToUserId = GeneratedColumn<String>(
+    'assigned_to_user_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES local_users (id)',
+    ),
+  );
   static const VerificationMeta _lastDoneAtMeta = const VerificationMeta(
     'lastDoneAt',
   );
@@ -861,6 +1607,7 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
     stateExpectedAfterMinutes,
     stateWarningAfterMinutes,
     stateDangerAfterMinutes,
+    assignedToUserId,
     lastDoneAt,
     createdAt,
     updatedAt,
@@ -1063,6 +1810,15 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
         ),
       );
     }
+    if (data.containsKey('assigned_to_user_id')) {
+      context.handle(
+        _assignedToUserIdMeta,
+        assignedToUserId.isAcceptableOrUnknown(
+          data['assigned_to_user_id']!,
+          _assignedToUserIdMeta,
+        ),
+      );
+    }
     if (data.containsKey('last_done_at')) {
       context.handle(
         _lastDoneAtMeta,
@@ -1185,6 +1941,10 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
         DriftSqlType.int,
         data['${effectivePrefix}state_danger_after_minutes'],
       ),
+      assignedToUserId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}assigned_to_user_id'],
+      ),
       lastDoneAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}last_done_at'],
@@ -1229,6 +1989,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
   final int? stateExpectedAfterMinutes;
   final int? stateWarningAfterMinutes;
   final int? stateDangerAfterMinutes;
+  final String? assignedToUserId;
   final int? lastDoneAt;
   final int createdAt;
   final int updatedAt;
@@ -1255,6 +2016,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     this.stateExpectedAfterMinutes,
     this.stateWarningAfterMinutes,
     this.stateDangerAfterMinutes,
+    this.assignedToUserId,
     this.lastDoneAt,
     required this.createdAt,
     required this.updatedAt,
@@ -1328,6 +2090,9 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
         stateDangerAfterMinutes,
       );
     }
+    if (!nullToAbsent || assignedToUserId != null) {
+      map['assigned_to_user_id'] = Variable<String>(assignedToUserId);
+    }
     if (!nullToAbsent || lastDoneAt != null) {
       map['last_done_at'] = Variable<int>(lastDoneAt);
     }
@@ -1395,6 +2160,9 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       stateDangerAfterMinutes: stateDangerAfterMinutes == null && nullToAbsent
           ? const Value.absent()
           : Value(stateDangerAfterMinutes),
+      assignedToUserId: assignedToUserId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(assignedToUserId),
       lastDoneAt: lastDoneAt == null && nullToAbsent
           ? const Value.absent()
           : Value(lastDoneAt),
@@ -1453,6 +2221,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       stateDangerAfterMinutes: serializer.fromJson<int?>(
         json['stateDangerAfterMinutes'],
       ),
+      assignedToUserId: serializer.fromJson<String?>(json['assignedToUserId']),
       lastDoneAt: serializer.fromJson<int?>(json['lastDoneAt']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
@@ -1496,6 +2265,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       'stateDangerAfterMinutes': serializer.toJson<int?>(
         stateDangerAfterMinutes,
       ),
+      'assignedToUserId': serializer.toJson<String?>(assignedToUserId),
       'lastDoneAt': serializer.toJson<int?>(lastDoneAt),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
@@ -1525,6 +2295,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     Value<int?> stateExpectedAfterMinutes = const Value.absent(),
     Value<int?> stateWarningAfterMinutes = const Value.absent(),
     Value<int?> stateDangerAfterMinutes = const Value.absent(),
+    Value<String?> assignedToUserId = const Value.absent(),
     Value<int?> lastDoneAt = const Value.absent(),
     int? createdAt,
     int? updatedAt,
@@ -1579,6 +2350,9 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     stateDangerAfterMinutes: stateDangerAfterMinutes.present
         ? stateDangerAfterMinutes.value
         : this.stateDangerAfterMinutes,
+    assignedToUserId: assignedToUserId.present
+        ? assignedToUserId.value
+        : this.assignedToUserId,
     lastDoneAt: lastDoneAt.present ? lastDoneAt.value : this.lastDoneAt,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -1641,6 +2415,9 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       stateDangerAfterMinutes: data.stateDangerAfterMinutes.present
           ? data.stateDangerAfterMinutes.value
           : this.stateDangerAfterMinutes,
+      assignedToUserId: data.assignedToUserId.present
+          ? data.assignedToUserId.value
+          : this.assignedToUserId,
       lastDoneAt: data.lastDoneAt.present
           ? data.lastDoneAt.value
           : this.lastDoneAt,
@@ -1674,6 +2451,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
           ..write('stateExpectedAfterMinutes: $stateExpectedAfterMinutes, ')
           ..write('stateWarningAfterMinutes: $stateWarningAfterMinutes, ')
           ..write('stateDangerAfterMinutes: $stateDangerAfterMinutes, ')
+          ..write('assignedToUserId: $assignedToUserId, ')
           ..write('lastDoneAt: $lastDoneAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -1705,6 +2483,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     stateExpectedAfterMinutes,
     stateWarningAfterMinutes,
     stateDangerAfterMinutes,
+    assignedToUserId,
     lastDoneAt,
     createdAt,
     updatedAt,
@@ -1735,6 +2514,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
           other.stateExpectedAfterMinutes == this.stateExpectedAfterMinutes &&
           other.stateWarningAfterMinutes == this.stateWarningAfterMinutes &&
           other.stateDangerAfterMinutes == this.stateDangerAfterMinutes &&
+          other.assignedToUserId == this.assignedToUserId &&
           other.lastDoneAt == this.lastDoneAt &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -1763,6 +2543,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
   final Value<int?> stateExpectedAfterMinutes;
   final Value<int?> stateWarningAfterMinutes;
   final Value<int?> stateDangerAfterMinutes;
+  final Value<String?> assignedToUserId;
   final Value<int?> lastDoneAt;
   final Value<int> createdAt;
   final Value<int> updatedAt;
@@ -1789,6 +2570,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     this.stateExpectedAfterMinutes = const Value.absent(),
     this.stateWarningAfterMinutes = const Value.absent(),
     this.stateDangerAfterMinutes = const Value.absent(),
+    this.assignedToUserId = const Value.absent(),
     this.lastDoneAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -1816,6 +2598,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     this.stateExpectedAfterMinutes = const Value.absent(),
     this.stateWarningAfterMinutes = const Value.absent(),
     this.stateDangerAfterMinutes = const Value.absent(),
+    this.assignedToUserId = const Value.absent(),
     this.lastDoneAt = const Value.absent(),
     required int createdAt,
     required int updatedAt,
@@ -1847,6 +2630,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     Expression<int>? stateExpectedAfterMinutes,
     Expression<int>? stateWarningAfterMinutes,
     Expression<int>? stateDangerAfterMinutes,
+    Expression<String>? assignedToUserId,
     Expression<int>? lastDoneAt,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
@@ -1883,6 +2667,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
         'state_warning_after_minutes': stateWarningAfterMinutes,
       if (stateDangerAfterMinutes != null)
         'state_danger_after_minutes': stateDangerAfterMinutes,
+      if (assignedToUserId != null) 'assigned_to_user_id': assignedToUserId,
       if (lastDoneAt != null) 'last_done_at': lastDoneAt,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -1912,6 +2697,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     Value<int?>? stateExpectedAfterMinutes,
     Value<int?>? stateWarningAfterMinutes,
     Value<int?>? stateDangerAfterMinutes,
+    Value<String?>? assignedToUserId,
     Value<int?>? lastDoneAt,
     Value<int>? createdAt,
     Value<int>? updatedAt,
@@ -1947,6 +2733,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
           stateWarningAfterMinutes ?? this.stateWarningAfterMinutes,
       stateDangerAfterMinutes:
           stateDangerAfterMinutes ?? this.stateDangerAfterMinutes,
+      assignedToUserId: assignedToUserId ?? this.assignedToUserId,
       lastDoneAt: lastDoneAt ?? this.lastDoneAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -2038,6 +2825,9 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
         stateDangerAfterMinutes.value,
       );
     }
+    if (assignedToUserId.present) {
+      map['assigned_to_user_id'] = Variable<String>(assignedToUserId.value);
+    }
     if (lastDoneAt.present) {
       map['last_done_at'] = Variable<int>(lastDoneAt.value);
     }
@@ -2075,6 +2865,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
           ..write('stateExpectedAfterMinutes: $stateExpectedAfterMinutes, ')
           ..write('stateWarningAfterMinutes: $stateWarningAfterMinutes, ')
           ..write('stateDangerAfterMinutes: $stateDangerAfterMinutes, ')
+          ..write('assignedToUserId: $assignedToUserId, ')
           ..write('lastDoneAt: $lastDoneAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -7041,6 +7832,1327 @@ class ResourceActionRecordsCompanion
   }
 }
 
+class $ItemCompletionsTable extends ItemCompletions
+    with TableInfo<$ItemCompletionsTable, ItemCompletionRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ItemCompletionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _itemIdMeta = const VerificationMeta('itemId');
+  @override
+  late final GeneratedColumn<int> itemId = GeneratedColumn<int>(
+    'item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES items (id)',
+    ),
+  );
+  static const VerificationMeta _packIdMeta = const VerificationMeta('packId');
+  @override
+  late final GeneratedColumn<int> packId = GeneratedColumn<int>(
+    'pack_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES item_packs (id)',
+    ),
+  );
+  static const VerificationMeta _itemActionRecordIdMeta =
+      const VerificationMeta('itemActionRecordId');
+  @override
+  late final GeneratedColumn<int> itemActionRecordId = GeneratedColumn<int>(
+    'item_action_record_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES item_action_records (id)',
+    ),
+  );
+  static const VerificationMeta _completedByUserIdMeta = const VerificationMeta(
+    'completedByUserId',
+  );
+  @override
+  late final GeneratedColumn<String> completedByUserId =
+      GeneratedColumn<String>(
+        'completed_by_user_id',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'REFERENCES local_users (id)',
+        ),
+      );
+  static const VerificationMeta _completedAtMeta = const VerificationMeta(
+    'completedAt',
+  );
+  @override
+  late final GeneratedColumn<int> completedAt = GeneratedColumn<int>(
+    'completed_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _undoneByUserIdMeta = const VerificationMeta(
+    'undoneByUserId',
+  );
+  @override
+  late final GeneratedColumn<String> undoneByUserId = GeneratedColumn<String>(
+    'undone_by_user_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES local_users (id)',
+    ),
+  );
+  static const VerificationMeta _undoneAtMeta = const VerificationMeta(
+    'undoneAt',
+  );
+  @override
+  late final GeneratedColumn<int> undoneAt = GeneratedColumn<int>(
+    'undone_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _clientMutationIdMeta = const VerificationMeta(
+    'clientMutationId',
+  );
+  @override
+  late final GeneratedColumn<String> clientMutationId = GeneratedColumn<String>(
+    'client_mutation_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    itemId,
+    packId,
+    itemActionRecordId,
+    completedByUserId,
+    completedAt,
+    undoneByUserId,
+    undoneAt,
+    clientMutationId,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'item_completions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ItemCompletionRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('item_id')) {
+      context.handle(
+        _itemIdMeta,
+        itemId.isAcceptableOrUnknown(data['item_id']!, _itemIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_itemIdMeta);
+    }
+    if (data.containsKey('pack_id')) {
+      context.handle(
+        _packIdMeta,
+        packId.isAcceptableOrUnknown(data['pack_id']!, _packIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_packIdMeta);
+    }
+    if (data.containsKey('item_action_record_id')) {
+      context.handle(
+        _itemActionRecordIdMeta,
+        itemActionRecordId.isAcceptableOrUnknown(
+          data['item_action_record_id']!,
+          _itemActionRecordIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_itemActionRecordIdMeta);
+    }
+    if (data.containsKey('completed_by_user_id')) {
+      context.handle(
+        _completedByUserIdMeta,
+        completedByUserId.isAcceptableOrUnknown(
+          data['completed_by_user_id']!,
+          _completedByUserIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_completedByUserIdMeta);
+    }
+    if (data.containsKey('completed_at')) {
+      context.handle(
+        _completedAtMeta,
+        completedAt.isAcceptableOrUnknown(
+          data['completed_at']!,
+          _completedAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_completedAtMeta);
+    }
+    if (data.containsKey('undone_by_user_id')) {
+      context.handle(
+        _undoneByUserIdMeta,
+        undoneByUserId.isAcceptableOrUnknown(
+          data['undone_by_user_id']!,
+          _undoneByUserIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('undone_at')) {
+      context.handle(
+        _undoneAtMeta,
+        undoneAt.isAcceptableOrUnknown(data['undone_at']!, _undoneAtMeta),
+      );
+    }
+    if (data.containsKey('client_mutation_id')) {
+      context.handle(
+        _clientMutationIdMeta,
+        clientMutationId.isAcceptableOrUnknown(
+          data['client_mutation_id']!,
+          _clientMutationIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ItemCompletionRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ItemCompletionRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      itemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}item_id'],
+      )!,
+      packId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pack_id'],
+      )!,
+      itemActionRecordId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}item_action_record_id'],
+      )!,
+      completedByUserId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}completed_by_user_id'],
+      )!,
+      completedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}completed_at'],
+      )!,
+      undoneByUserId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}undone_by_user_id'],
+      ),
+      undoneAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}undone_at'],
+      ),
+      clientMutationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}client_mutation_id'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ItemCompletionsTable createAlias(String alias) {
+    return $ItemCompletionsTable(attachedDatabase, alias);
+  }
+}
+
+class ItemCompletionRow extends DataClass
+    implements Insertable<ItemCompletionRow> {
+  final int id;
+  final int itemId;
+  final int packId;
+  final int itemActionRecordId;
+  final String completedByUserId;
+  final int completedAt;
+  final String? undoneByUserId;
+  final int? undoneAt;
+  final String? clientMutationId;
+  final int createdAt;
+  const ItemCompletionRow({
+    required this.id,
+    required this.itemId,
+    required this.packId,
+    required this.itemActionRecordId,
+    required this.completedByUserId,
+    required this.completedAt,
+    this.undoneByUserId,
+    this.undoneAt,
+    this.clientMutationId,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['item_id'] = Variable<int>(itemId);
+    map['pack_id'] = Variable<int>(packId);
+    map['item_action_record_id'] = Variable<int>(itemActionRecordId);
+    map['completed_by_user_id'] = Variable<String>(completedByUserId);
+    map['completed_at'] = Variable<int>(completedAt);
+    if (!nullToAbsent || undoneByUserId != null) {
+      map['undone_by_user_id'] = Variable<String>(undoneByUserId);
+    }
+    if (!nullToAbsent || undoneAt != null) {
+      map['undone_at'] = Variable<int>(undoneAt);
+    }
+    if (!nullToAbsent || clientMutationId != null) {
+      map['client_mutation_id'] = Variable<String>(clientMutationId);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    return map;
+  }
+
+  ItemCompletionsCompanion toCompanion(bool nullToAbsent) {
+    return ItemCompletionsCompanion(
+      id: Value(id),
+      itemId: Value(itemId),
+      packId: Value(packId),
+      itemActionRecordId: Value(itemActionRecordId),
+      completedByUserId: Value(completedByUserId),
+      completedAt: Value(completedAt),
+      undoneByUserId: undoneByUserId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(undoneByUserId),
+      undoneAt: undoneAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(undoneAt),
+      clientMutationId: clientMutationId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(clientMutationId),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory ItemCompletionRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ItemCompletionRow(
+      id: serializer.fromJson<int>(json['id']),
+      itemId: serializer.fromJson<int>(json['itemId']),
+      packId: serializer.fromJson<int>(json['packId']),
+      itemActionRecordId: serializer.fromJson<int>(json['itemActionRecordId']),
+      completedByUserId: serializer.fromJson<String>(json['completedByUserId']),
+      completedAt: serializer.fromJson<int>(json['completedAt']),
+      undoneByUserId: serializer.fromJson<String?>(json['undoneByUserId']),
+      undoneAt: serializer.fromJson<int?>(json['undoneAt']),
+      clientMutationId: serializer.fromJson<String?>(json['clientMutationId']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'itemId': serializer.toJson<int>(itemId),
+      'packId': serializer.toJson<int>(packId),
+      'itemActionRecordId': serializer.toJson<int>(itemActionRecordId),
+      'completedByUserId': serializer.toJson<String>(completedByUserId),
+      'completedAt': serializer.toJson<int>(completedAt),
+      'undoneByUserId': serializer.toJson<String?>(undoneByUserId),
+      'undoneAt': serializer.toJson<int?>(undoneAt),
+      'clientMutationId': serializer.toJson<String?>(clientMutationId),
+      'createdAt': serializer.toJson<int>(createdAt),
+    };
+  }
+
+  ItemCompletionRow copyWith({
+    int? id,
+    int? itemId,
+    int? packId,
+    int? itemActionRecordId,
+    String? completedByUserId,
+    int? completedAt,
+    Value<String?> undoneByUserId = const Value.absent(),
+    Value<int?> undoneAt = const Value.absent(),
+    Value<String?> clientMutationId = const Value.absent(),
+    int? createdAt,
+  }) => ItemCompletionRow(
+    id: id ?? this.id,
+    itemId: itemId ?? this.itemId,
+    packId: packId ?? this.packId,
+    itemActionRecordId: itemActionRecordId ?? this.itemActionRecordId,
+    completedByUserId: completedByUserId ?? this.completedByUserId,
+    completedAt: completedAt ?? this.completedAt,
+    undoneByUserId: undoneByUserId.present
+        ? undoneByUserId.value
+        : this.undoneByUserId,
+    undoneAt: undoneAt.present ? undoneAt.value : this.undoneAt,
+    clientMutationId: clientMutationId.present
+        ? clientMutationId.value
+        : this.clientMutationId,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  ItemCompletionRow copyWithCompanion(ItemCompletionsCompanion data) {
+    return ItemCompletionRow(
+      id: data.id.present ? data.id.value : this.id,
+      itemId: data.itemId.present ? data.itemId.value : this.itemId,
+      packId: data.packId.present ? data.packId.value : this.packId,
+      itemActionRecordId: data.itemActionRecordId.present
+          ? data.itemActionRecordId.value
+          : this.itemActionRecordId,
+      completedByUserId: data.completedByUserId.present
+          ? data.completedByUserId.value
+          : this.completedByUserId,
+      completedAt: data.completedAt.present
+          ? data.completedAt.value
+          : this.completedAt,
+      undoneByUserId: data.undoneByUserId.present
+          ? data.undoneByUserId.value
+          : this.undoneByUserId,
+      undoneAt: data.undoneAt.present ? data.undoneAt.value : this.undoneAt,
+      clientMutationId: data.clientMutationId.present
+          ? data.clientMutationId.value
+          : this.clientMutationId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ItemCompletionRow(')
+          ..write('id: $id, ')
+          ..write('itemId: $itemId, ')
+          ..write('packId: $packId, ')
+          ..write('itemActionRecordId: $itemActionRecordId, ')
+          ..write('completedByUserId: $completedByUserId, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('undoneByUserId: $undoneByUserId, ')
+          ..write('undoneAt: $undoneAt, ')
+          ..write('clientMutationId: $clientMutationId, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    itemId,
+    packId,
+    itemActionRecordId,
+    completedByUserId,
+    completedAt,
+    undoneByUserId,
+    undoneAt,
+    clientMutationId,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ItemCompletionRow &&
+          other.id == this.id &&
+          other.itemId == this.itemId &&
+          other.packId == this.packId &&
+          other.itemActionRecordId == this.itemActionRecordId &&
+          other.completedByUserId == this.completedByUserId &&
+          other.completedAt == this.completedAt &&
+          other.undoneByUserId == this.undoneByUserId &&
+          other.undoneAt == this.undoneAt &&
+          other.clientMutationId == this.clientMutationId &&
+          other.createdAt == this.createdAt);
+}
+
+class ItemCompletionsCompanion extends UpdateCompanion<ItemCompletionRow> {
+  final Value<int> id;
+  final Value<int> itemId;
+  final Value<int> packId;
+  final Value<int> itemActionRecordId;
+  final Value<String> completedByUserId;
+  final Value<int> completedAt;
+  final Value<String?> undoneByUserId;
+  final Value<int?> undoneAt;
+  final Value<String?> clientMutationId;
+  final Value<int> createdAt;
+  const ItemCompletionsCompanion({
+    this.id = const Value.absent(),
+    this.itemId = const Value.absent(),
+    this.packId = const Value.absent(),
+    this.itemActionRecordId = const Value.absent(),
+    this.completedByUserId = const Value.absent(),
+    this.completedAt = const Value.absent(),
+    this.undoneByUserId = const Value.absent(),
+    this.undoneAt = const Value.absent(),
+    this.clientMutationId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  ItemCompletionsCompanion.insert({
+    this.id = const Value.absent(),
+    required int itemId,
+    required int packId,
+    required int itemActionRecordId,
+    required String completedByUserId,
+    required int completedAt,
+    this.undoneByUserId = const Value.absent(),
+    this.undoneAt = const Value.absent(),
+    this.clientMutationId = const Value.absent(),
+    required int createdAt,
+  }) : itemId = Value(itemId),
+       packId = Value(packId),
+       itemActionRecordId = Value(itemActionRecordId),
+       completedByUserId = Value(completedByUserId),
+       completedAt = Value(completedAt),
+       createdAt = Value(createdAt);
+  static Insertable<ItemCompletionRow> custom({
+    Expression<int>? id,
+    Expression<int>? itemId,
+    Expression<int>? packId,
+    Expression<int>? itemActionRecordId,
+    Expression<String>? completedByUserId,
+    Expression<int>? completedAt,
+    Expression<String>? undoneByUserId,
+    Expression<int>? undoneAt,
+    Expression<String>? clientMutationId,
+    Expression<int>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (itemId != null) 'item_id': itemId,
+      if (packId != null) 'pack_id': packId,
+      if (itemActionRecordId != null)
+        'item_action_record_id': itemActionRecordId,
+      if (completedByUserId != null) 'completed_by_user_id': completedByUserId,
+      if (completedAt != null) 'completed_at': completedAt,
+      if (undoneByUserId != null) 'undone_by_user_id': undoneByUserId,
+      if (undoneAt != null) 'undone_at': undoneAt,
+      if (clientMutationId != null) 'client_mutation_id': clientMutationId,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  ItemCompletionsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? itemId,
+    Value<int>? packId,
+    Value<int>? itemActionRecordId,
+    Value<String>? completedByUserId,
+    Value<int>? completedAt,
+    Value<String?>? undoneByUserId,
+    Value<int?>? undoneAt,
+    Value<String?>? clientMutationId,
+    Value<int>? createdAt,
+  }) {
+    return ItemCompletionsCompanion(
+      id: id ?? this.id,
+      itemId: itemId ?? this.itemId,
+      packId: packId ?? this.packId,
+      itemActionRecordId: itemActionRecordId ?? this.itemActionRecordId,
+      completedByUserId: completedByUserId ?? this.completedByUserId,
+      completedAt: completedAt ?? this.completedAt,
+      undoneByUserId: undoneByUserId ?? this.undoneByUserId,
+      undoneAt: undoneAt ?? this.undoneAt,
+      clientMutationId: clientMutationId ?? this.clientMutationId,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (itemId.present) {
+      map['item_id'] = Variable<int>(itemId.value);
+    }
+    if (packId.present) {
+      map['pack_id'] = Variable<int>(packId.value);
+    }
+    if (itemActionRecordId.present) {
+      map['item_action_record_id'] = Variable<int>(itemActionRecordId.value);
+    }
+    if (completedByUserId.present) {
+      map['completed_by_user_id'] = Variable<String>(completedByUserId.value);
+    }
+    if (completedAt.present) {
+      map['completed_at'] = Variable<int>(completedAt.value);
+    }
+    if (undoneByUserId.present) {
+      map['undone_by_user_id'] = Variable<String>(undoneByUserId.value);
+    }
+    if (undoneAt.present) {
+      map['undone_at'] = Variable<int>(undoneAt.value);
+    }
+    if (clientMutationId.present) {
+      map['client_mutation_id'] = Variable<String>(clientMutationId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ItemCompletionsCompanion(')
+          ..write('id: $id, ')
+          ..write('itemId: $itemId, ')
+          ..write('packId: $packId, ')
+          ..write('itemActionRecordId: $itemActionRecordId, ')
+          ..write('completedByUserId: $completedByUserId, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('undoneByUserId: $undoneByUserId, ')
+          ..write('undoneAt: $undoneAt, ')
+          ..write('clientMutationId: $clientMutationId, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ResourceEventsTable extends ResourceEvents
+    with TableInfo<$ResourceEventsTable, ResourceEventRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ResourceEventsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _resourceIdMeta = const VerificationMeta(
+    'resourceId',
+  );
+  @override
+  late final GeneratedColumn<int> resourceId = GeneratedColumn<int>(
+    'resource_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES resources (id)',
+    ),
+  );
+  static const VerificationMeta _packIdMeta = const VerificationMeta('packId');
+  @override
+  late final GeneratedColumn<int> packId = GeneratedColumn<int>(
+    'pack_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES item_packs (id)',
+    ),
+  );
+  static const VerificationMeta _actorUserIdMeta = const VerificationMeta(
+    'actorUserId',
+  );
+  @override
+  late final GeneratedColumn<String> actorUserId = GeneratedColumn<String>(
+    'actor_user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES local_users (id)',
+    ),
+  );
+  static const VerificationMeta _changeTypeMeta = const VerificationMeta(
+    'changeType',
+  );
+  @override
+  late final GeneratedColumn<String> changeType = GeneratedColumn<String>(
+    'change_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _previousValueMeta = const VerificationMeta(
+    'previousValue',
+  );
+  @override
+  late final GeneratedColumn<int> previousValue = GeneratedColumn<int>(
+    'previous_value',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _newValueMeta = const VerificationMeta(
+    'newValue',
+  );
+  @override
+  late final GeneratedColumn<int> newValue = GeneratedColumn<int>(
+    'new_value',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deltaValueMeta = const VerificationMeta(
+    'deltaValue',
+  );
+  @override
+  late final GeneratedColumn<int> deltaValue = GeneratedColumn<int>(
+    'delta_value',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _unitMeta = const VerificationMeta('unit');
+  @override
+  late final GeneratedColumn<String> unit = GeneratedColumn<String>(
+    'unit',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _metadataJsonMeta = const VerificationMeta(
+    'metadataJson',
+  );
+  @override
+  late final GeneratedColumn<String> metadataJson = GeneratedColumn<String>(
+    'metadata_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    resourceId,
+    packId,
+    actorUserId,
+    changeType,
+    previousValue,
+    newValue,
+    deltaValue,
+    unit,
+    createdAt,
+    metadataJson,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'resource_events';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ResourceEventRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('resource_id')) {
+      context.handle(
+        _resourceIdMeta,
+        resourceId.isAcceptableOrUnknown(data['resource_id']!, _resourceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_resourceIdMeta);
+    }
+    if (data.containsKey('pack_id')) {
+      context.handle(
+        _packIdMeta,
+        packId.isAcceptableOrUnknown(data['pack_id']!, _packIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_packIdMeta);
+    }
+    if (data.containsKey('actor_user_id')) {
+      context.handle(
+        _actorUserIdMeta,
+        actorUserId.isAcceptableOrUnknown(
+          data['actor_user_id']!,
+          _actorUserIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_actorUserIdMeta);
+    }
+    if (data.containsKey('change_type')) {
+      context.handle(
+        _changeTypeMeta,
+        changeType.isAcceptableOrUnknown(data['change_type']!, _changeTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_changeTypeMeta);
+    }
+    if (data.containsKey('previous_value')) {
+      context.handle(
+        _previousValueMeta,
+        previousValue.isAcceptableOrUnknown(
+          data['previous_value']!,
+          _previousValueMeta,
+        ),
+      );
+    }
+    if (data.containsKey('new_value')) {
+      context.handle(
+        _newValueMeta,
+        newValue.isAcceptableOrUnknown(data['new_value']!, _newValueMeta),
+      );
+    }
+    if (data.containsKey('delta_value')) {
+      context.handle(
+        _deltaValueMeta,
+        deltaValue.isAcceptableOrUnknown(data['delta_value']!, _deltaValueMeta),
+      );
+    }
+    if (data.containsKey('unit')) {
+      context.handle(
+        _unitMeta,
+        unit.isAcceptableOrUnknown(data['unit']!, _unitMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('metadata_json')) {
+      context.handle(
+        _metadataJsonMeta,
+        metadataJson.isAcceptableOrUnknown(
+          data['metadata_json']!,
+          _metadataJsonMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ResourceEventRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ResourceEventRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      resourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}resource_id'],
+      )!,
+      packId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pack_id'],
+      )!,
+      actorUserId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}actor_user_id'],
+      )!,
+      changeType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}change_type'],
+      )!,
+      previousValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}previous_value'],
+      ),
+      newValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}new_value'],
+      ),
+      deltaValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}delta_value'],
+      ),
+      unit: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}unit'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      metadataJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}metadata_json'],
+      ),
+    );
+  }
+
+  @override
+  $ResourceEventsTable createAlias(String alias) {
+    return $ResourceEventsTable(attachedDatabase, alias);
+  }
+}
+
+class ResourceEventRow extends DataClass
+    implements Insertable<ResourceEventRow> {
+  final int id;
+  final int resourceId;
+  final int packId;
+  final String actorUserId;
+  final String changeType;
+  final int? previousValue;
+  final int? newValue;
+  final int? deltaValue;
+  final String? unit;
+  final int createdAt;
+  final String? metadataJson;
+  const ResourceEventRow({
+    required this.id,
+    required this.resourceId,
+    required this.packId,
+    required this.actorUserId,
+    required this.changeType,
+    this.previousValue,
+    this.newValue,
+    this.deltaValue,
+    this.unit,
+    required this.createdAt,
+    this.metadataJson,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['resource_id'] = Variable<int>(resourceId);
+    map['pack_id'] = Variable<int>(packId);
+    map['actor_user_id'] = Variable<String>(actorUserId);
+    map['change_type'] = Variable<String>(changeType);
+    if (!nullToAbsent || previousValue != null) {
+      map['previous_value'] = Variable<int>(previousValue);
+    }
+    if (!nullToAbsent || newValue != null) {
+      map['new_value'] = Variable<int>(newValue);
+    }
+    if (!nullToAbsent || deltaValue != null) {
+      map['delta_value'] = Variable<int>(deltaValue);
+    }
+    if (!nullToAbsent || unit != null) {
+      map['unit'] = Variable<String>(unit);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    if (!nullToAbsent || metadataJson != null) {
+      map['metadata_json'] = Variable<String>(metadataJson);
+    }
+    return map;
+  }
+
+  ResourceEventsCompanion toCompanion(bool nullToAbsent) {
+    return ResourceEventsCompanion(
+      id: Value(id),
+      resourceId: Value(resourceId),
+      packId: Value(packId),
+      actorUserId: Value(actorUserId),
+      changeType: Value(changeType),
+      previousValue: previousValue == null && nullToAbsent
+          ? const Value.absent()
+          : Value(previousValue),
+      newValue: newValue == null && nullToAbsent
+          ? const Value.absent()
+          : Value(newValue),
+      deltaValue: deltaValue == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deltaValue),
+      unit: unit == null && nullToAbsent ? const Value.absent() : Value(unit),
+      createdAt: Value(createdAt),
+      metadataJson: metadataJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(metadataJson),
+    );
+  }
+
+  factory ResourceEventRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ResourceEventRow(
+      id: serializer.fromJson<int>(json['id']),
+      resourceId: serializer.fromJson<int>(json['resourceId']),
+      packId: serializer.fromJson<int>(json['packId']),
+      actorUserId: serializer.fromJson<String>(json['actorUserId']),
+      changeType: serializer.fromJson<String>(json['changeType']),
+      previousValue: serializer.fromJson<int?>(json['previousValue']),
+      newValue: serializer.fromJson<int?>(json['newValue']),
+      deltaValue: serializer.fromJson<int?>(json['deltaValue']),
+      unit: serializer.fromJson<String?>(json['unit']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      metadataJson: serializer.fromJson<String?>(json['metadataJson']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'resourceId': serializer.toJson<int>(resourceId),
+      'packId': serializer.toJson<int>(packId),
+      'actorUserId': serializer.toJson<String>(actorUserId),
+      'changeType': serializer.toJson<String>(changeType),
+      'previousValue': serializer.toJson<int?>(previousValue),
+      'newValue': serializer.toJson<int?>(newValue),
+      'deltaValue': serializer.toJson<int?>(deltaValue),
+      'unit': serializer.toJson<String?>(unit),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'metadataJson': serializer.toJson<String?>(metadataJson),
+    };
+  }
+
+  ResourceEventRow copyWith({
+    int? id,
+    int? resourceId,
+    int? packId,
+    String? actorUserId,
+    String? changeType,
+    Value<int?> previousValue = const Value.absent(),
+    Value<int?> newValue = const Value.absent(),
+    Value<int?> deltaValue = const Value.absent(),
+    Value<String?> unit = const Value.absent(),
+    int? createdAt,
+    Value<String?> metadataJson = const Value.absent(),
+  }) => ResourceEventRow(
+    id: id ?? this.id,
+    resourceId: resourceId ?? this.resourceId,
+    packId: packId ?? this.packId,
+    actorUserId: actorUserId ?? this.actorUserId,
+    changeType: changeType ?? this.changeType,
+    previousValue: previousValue.present
+        ? previousValue.value
+        : this.previousValue,
+    newValue: newValue.present ? newValue.value : this.newValue,
+    deltaValue: deltaValue.present ? deltaValue.value : this.deltaValue,
+    unit: unit.present ? unit.value : this.unit,
+    createdAt: createdAt ?? this.createdAt,
+    metadataJson: metadataJson.present ? metadataJson.value : this.metadataJson,
+  );
+  ResourceEventRow copyWithCompanion(ResourceEventsCompanion data) {
+    return ResourceEventRow(
+      id: data.id.present ? data.id.value : this.id,
+      resourceId: data.resourceId.present
+          ? data.resourceId.value
+          : this.resourceId,
+      packId: data.packId.present ? data.packId.value : this.packId,
+      actorUserId: data.actorUserId.present
+          ? data.actorUserId.value
+          : this.actorUserId,
+      changeType: data.changeType.present
+          ? data.changeType.value
+          : this.changeType,
+      previousValue: data.previousValue.present
+          ? data.previousValue.value
+          : this.previousValue,
+      newValue: data.newValue.present ? data.newValue.value : this.newValue,
+      deltaValue: data.deltaValue.present
+          ? data.deltaValue.value
+          : this.deltaValue,
+      unit: data.unit.present ? data.unit.value : this.unit,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      metadataJson: data.metadataJson.present
+          ? data.metadataJson.value
+          : this.metadataJson,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ResourceEventRow(')
+          ..write('id: $id, ')
+          ..write('resourceId: $resourceId, ')
+          ..write('packId: $packId, ')
+          ..write('actorUserId: $actorUserId, ')
+          ..write('changeType: $changeType, ')
+          ..write('previousValue: $previousValue, ')
+          ..write('newValue: $newValue, ')
+          ..write('deltaValue: $deltaValue, ')
+          ..write('unit: $unit, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('metadataJson: $metadataJson')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    resourceId,
+    packId,
+    actorUserId,
+    changeType,
+    previousValue,
+    newValue,
+    deltaValue,
+    unit,
+    createdAt,
+    metadataJson,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ResourceEventRow &&
+          other.id == this.id &&
+          other.resourceId == this.resourceId &&
+          other.packId == this.packId &&
+          other.actorUserId == this.actorUserId &&
+          other.changeType == this.changeType &&
+          other.previousValue == this.previousValue &&
+          other.newValue == this.newValue &&
+          other.deltaValue == this.deltaValue &&
+          other.unit == this.unit &&
+          other.createdAt == this.createdAt &&
+          other.metadataJson == this.metadataJson);
+}
+
+class ResourceEventsCompanion extends UpdateCompanion<ResourceEventRow> {
+  final Value<int> id;
+  final Value<int> resourceId;
+  final Value<int> packId;
+  final Value<String> actorUserId;
+  final Value<String> changeType;
+  final Value<int?> previousValue;
+  final Value<int?> newValue;
+  final Value<int?> deltaValue;
+  final Value<String?> unit;
+  final Value<int> createdAt;
+  final Value<String?> metadataJson;
+  const ResourceEventsCompanion({
+    this.id = const Value.absent(),
+    this.resourceId = const Value.absent(),
+    this.packId = const Value.absent(),
+    this.actorUserId = const Value.absent(),
+    this.changeType = const Value.absent(),
+    this.previousValue = const Value.absent(),
+    this.newValue = const Value.absent(),
+    this.deltaValue = const Value.absent(),
+    this.unit = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.metadataJson = const Value.absent(),
+  });
+  ResourceEventsCompanion.insert({
+    this.id = const Value.absent(),
+    required int resourceId,
+    required int packId,
+    required String actorUserId,
+    required String changeType,
+    this.previousValue = const Value.absent(),
+    this.newValue = const Value.absent(),
+    this.deltaValue = const Value.absent(),
+    this.unit = const Value.absent(),
+    required int createdAt,
+    this.metadataJson = const Value.absent(),
+  }) : resourceId = Value(resourceId),
+       packId = Value(packId),
+       actorUserId = Value(actorUserId),
+       changeType = Value(changeType),
+       createdAt = Value(createdAt);
+  static Insertable<ResourceEventRow> custom({
+    Expression<int>? id,
+    Expression<int>? resourceId,
+    Expression<int>? packId,
+    Expression<String>? actorUserId,
+    Expression<String>? changeType,
+    Expression<int>? previousValue,
+    Expression<int>? newValue,
+    Expression<int>? deltaValue,
+    Expression<String>? unit,
+    Expression<int>? createdAt,
+    Expression<String>? metadataJson,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (resourceId != null) 'resource_id': resourceId,
+      if (packId != null) 'pack_id': packId,
+      if (actorUserId != null) 'actor_user_id': actorUserId,
+      if (changeType != null) 'change_type': changeType,
+      if (previousValue != null) 'previous_value': previousValue,
+      if (newValue != null) 'new_value': newValue,
+      if (deltaValue != null) 'delta_value': deltaValue,
+      if (unit != null) 'unit': unit,
+      if (createdAt != null) 'created_at': createdAt,
+      if (metadataJson != null) 'metadata_json': metadataJson,
+    });
+  }
+
+  ResourceEventsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? resourceId,
+    Value<int>? packId,
+    Value<String>? actorUserId,
+    Value<String>? changeType,
+    Value<int?>? previousValue,
+    Value<int?>? newValue,
+    Value<int?>? deltaValue,
+    Value<String?>? unit,
+    Value<int>? createdAt,
+    Value<String?>? metadataJson,
+  }) {
+    return ResourceEventsCompanion(
+      id: id ?? this.id,
+      resourceId: resourceId ?? this.resourceId,
+      packId: packId ?? this.packId,
+      actorUserId: actorUserId ?? this.actorUserId,
+      changeType: changeType ?? this.changeType,
+      previousValue: previousValue ?? this.previousValue,
+      newValue: newValue ?? this.newValue,
+      deltaValue: deltaValue ?? this.deltaValue,
+      unit: unit ?? this.unit,
+      createdAt: createdAt ?? this.createdAt,
+      metadataJson: metadataJson ?? this.metadataJson,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (resourceId.present) {
+      map['resource_id'] = Variable<int>(resourceId.value);
+    }
+    if (packId.present) {
+      map['pack_id'] = Variable<int>(packId.value);
+    }
+    if (actorUserId.present) {
+      map['actor_user_id'] = Variable<String>(actorUserId.value);
+    }
+    if (changeType.present) {
+      map['change_type'] = Variable<String>(changeType.value);
+    }
+    if (previousValue.present) {
+      map['previous_value'] = Variable<int>(previousValue.value);
+    }
+    if (newValue.present) {
+      map['new_value'] = Variable<int>(newValue.value);
+    }
+    if (deltaValue.present) {
+      map['delta_value'] = Variable<int>(deltaValue.value);
+    }
+    if (unit.present) {
+      map['unit'] = Variable<String>(unit.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (metadataJson.present) {
+      map['metadata_json'] = Variable<String>(metadataJson.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ResourceEventsCompanion(')
+          ..write('id: $id, ')
+          ..write('resourceId: $resourceId, ')
+          ..write('packId: $packId, ')
+          ..write('actorUserId: $actorUserId, ')
+          ..write('changeType: $changeType, ')
+          ..write('previousValue: $previousValue, ')
+          ..write('newValue: $newValue, ')
+          ..write('deltaValue: $deltaValue, ')
+          ..write('unit: $unit, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('metadataJson: $metadataJson')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $StageTrackersTable extends StageTrackers
     with TableInfo<$StageTrackersTable, StageTrackerRow> {
   @override
@@ -9589,6 +11701,1003 @@ class StageRelatedItemsCompanion extends UpdateCompanion<StageRelatedItemRow> {
   }
 }
 
+class $StageAcknowledgementsTable extends StageAcknowledgements
+    with TableInfo<$StageAcknowledgementsTable, StageAcknowledgementRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $StageAcknowledgementsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _stageRecordIdMeta = const VerificationMeta(
+    'stageRecordId',
+  );
+  @override
+  late final GeneratedColumn<int> stageRecordId = GeneratedColumn<int>(
+    'stage_record_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES stage_records (id)',
+    ),
+  );
+  static const VerificationMeta _packIdMeta = const VerificationMeta('packId');
+  @override
+  late final GeneratedColumn<int> packId = GeneratedColumn<int>(
+    'pack_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES item_packs (id)',
+    ),
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES local_users (id)',
+    ),
+  );
+  static const VerificationMeta _acknowledgedAtMeta = const VerificationMeta(
+    'acknowledgedAt',
+  );
+  @override
+  late final GeneratedColumn<int> acknowledgedAt = GeneratedColumn<int>(
+    'acknowledged_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    stageRecordId,
+    packId,
+    userId,
+    acknowledgedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'stage_acknowledgements';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<StageAcknowledgementRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('stage_record_id')) {
+      context.handle(
+        _stageRecordIdMeta,
+        stageRecordId.isAcceptableOrUnknown(
+          data['stage_record_id']!,
+          _stageRecordIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_stageRecordIdMeta);
+    }
+    if (data.containsKey('pack_id')) {
+      context.handle(
+        _packIdMeta,
+        packId.isAcceptableOrUnknown(data['pack_id']!, _packIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_packIdMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('acknowledged_at')) {
+      context.handle(
+        _acknowledgedAtMeta,
+        acknowledgedAt.isAcceptableOrUnknown(
+          data['acknowledged_at']!,
+          _acknowledgedAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_acknowledgedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {stageRecordId, userId},
+  ];
+  @override
+  StageAcknowledgementRow map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return StageAcknowledgementRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      stageRecordId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}stage_record_id'],
+      )!,
+      packId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pack_id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      acknowledgedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}acknowledged_at'],
+      )!,
+    );
+  }
+
+  @override
+  $StageAcknowledgementsTable createAlias(String alias) {
+    return $StageAcknowledgementsTable(attachedDatabase, alias);
+  }
+}
+
+class StageAcknowledgementRow extends DataClass
+    implements Insertable<StageAcknowledgementRow> {
+  final int id;
+  final int stageRecordId;
+  final int packId;
+  final String userId;
+  final int acknowledgedAt;
+  const StageAcknowledgementRow({
+    required this.id,
+    required this.stageRecordId,
+    required this.packId,
+    required this.userId,
+    required this.acknowledgedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['stage_record_id'] = Variable<int>(stageRecordId);
+    map['pack_id'] = Variable<int>(packId);
+    map['user_id'] = Variable<String>(userId);
+    map['acknowledged_at'] = Variable<int>(acknowledgedAt);
+    return map;
+  }
+
+  StageAcknowledgementsCompanion toCompanion(bool nullToAbsent) {
+    return StageAcknowledgementsCompanion(
+      id: Value(id),
+      stageRecordId: Value(stageRecordId),
+      packId: Value(packId),
+      userId: Value(userId),
+      acknowledgedAt: Value(acknowledgedAt),
+    );
+  }
+
+  factory StageAcknowledgementRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return StageAcknowledgementRow(
+      id: serializer.fromJson<int>(json['id']),
+      stageRecordId: serializer.fromJson<int>(json['stageRecordId']),
+      packId: serializer.fromJson<int>(json['packId']),
+      userId: serializer.fromJson<String>(json['userId']),
+      acknowledgedAt: serializer.fromJson<int>(json['acknowledgedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'stageRecordId': serializer.toJson<int>(stageRecordId),
+      'packId': serializer.toJson<int>(packId),
+      'userId': serializer.toJson<String>(userId),
+      'acknowledgedAt': serializer.toJson<int>(acknowledgedAt),
+    };
+  }
+
+  StageAcknowledgementRow copyWith({
+    int? id,
+    int? stageRecordId,
+    int? packId,
+    String? userId,
+    int? acknowledgedAt,
+  }) => StageAcknowledgementRow(
+    id: id ?? this.id,
+    stageRecordId: stageRecordId ?? this.stageRecordId,
+    packId: packId ?? this.packId,
+    userId: userId ?? this.userId,
+    acknowledgedAt: acknowledgedAt ?? this.acknowledgedAt,
+  );
+  StageAcknowledgementRow copyWithCompanion(
+    StageAcknowledgementsCompanion data,
+  ) {
+    return StageAcknowledgementRow(
+      id: data.id.present ? data.id.value : this.id,
+      stageRecordId: data.stageRecordId.present
+          ? data.stageRecordId.value
+          : this.stageRecordId,
+      packId: data.packId.present ? data.packId.value : this.packId,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      acknowledgedAt: data.acknowledgedAt.present
+          ? data.acknowledgedAt.value
+          : this.acknowledgedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StageAcknowledgementRow(')
+          ..write('id: $id, ')
+          ..write('stageRecordId: $stageRecordId, ')
+          ..write('packId: $packId, ')
+          ..write('userId: $userId, ')
+          ..write('acknowledgedAt: $acknowledgedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, stageRecordId, packId, userId, acknowledgedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is StageAcknowledgementRow &&
+          other.id == this.id &&
+          other.stageRecordId == this.stageRecordId &&
+          other.packId == this.packId &&
+          other.userId == this.userId &&
+          other.acknowledgedAt == this.acknowledgedAt);
+}
+
+class StageAcknowledgementsCompanion
+    extends UpdateCompanion<StageAcknowledgementRow> {
+  final Value<int> id;
+  final Value<int> stageRecordId;
+  final Value<int> packId;
+  final Value<String> userId;
+  final Value<int> acknowledgedAt;
+  const StageAcknowledgementsCompanion({
+    this.id = const Value.absent(),
+    this.stageRecordId = const Value.absent(),
+    this.packId = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.acknowledgedAt = const Value.absent(),
+  });
+  StageAcknowledgementsCompanion.insert({
+    this.id = const Value.absent(),
+    required int stageRecordId,
+    required int packId,
+    required String userId,
+    required int acknowledgedAt,
+  }) : stageRecordId = Value(stageRecordId),
+       packId = Value(packId),
+       userId = Value(userId),
+       acknowledgedAt = Value(acknowledgedAt);
+  static Insertable<StageAcknowledgementRow> custom({
+    Expression<int>? id,
+    Expression<int>? stageRecordId,
+    Expression<int>? packId,
+    Expression<String>? userId,
+    Expression<int>? acknowledgedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (stageRecordId != null) 'stage_record_id': stageRecordId,
+      if (packId != null) 'pack_id': packId,
+      if (userId != null) 'user_id': userId,
+      if (acknowledgedAt != null) 'acknowledged_at': acknowledgedAt,
+    });
+  }
+
+  StageAcknowledgementsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? stageRecordId,
+    Value<int>? packId,
+    Value<String>? userId,
+    Value<int>? acknowledgedAt,
+  }) {
+    return StageAcknowledgementsCompanion(
+      id: id ?? this.id,
+      stageRecordId: stageRecordId ?? this.stageRecordId,
+      packId: packId ?? this.packId,
+      userId: userId ?? this.userId,
+      acknowledgedAt: acknowledgedAt ?? this.acknowledgedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (stageRecordId.present) {
+      map['stage_record_id'] = Variable<int>(stageRecordId.value);
+    }
+    if (packId.present) {
+      map['pack_id'] = Variable<int>(packId.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (acknowledgedAt.present) {
+      map['acknowledged_at'] = Variable<int>(acknowledgedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StageAcknowledgementsCompanion(')
+          ..write('id: $id, ')
+          ..write('stageRecordId: $stageRecordId, ')
+          ..write('packId: $packId, ')
+          ..write('userId: $userId, ')
+          ..write('acknowledgedAt: $acknowledgedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ActivityEventsTable extends ActivityEvents
+    with TableInfo<$ActivityEventsTable, ActivityEventRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ActivityEventsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _packIdMeta = const VerificationMeta('packId');
+  @override
+  late final GeneratedColumn<int> packId = GeneratedColumn<int>(
+    'pack_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES item_packs (id)',
+    ),
+  );
+  static const VerificationMeta _actorUserIdMeta = const VerificationMeta(
+    'actorUserId',
+  );
+  @override
+  late final GeneratedColumn<String> actorUserId = GeneratedColumn<String>(
+    'actor_user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES local_users (id)',
+    ),
+  );
+  static const VerificationMeta _entityTypeMeta = const VerificationMeta(
+    'entityType',
+  );
+  @override
+  late final GeneratedColumn<String> entityType = GeneratedColumn<String>(
+    'entity_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _entityIdMeta = const VerificationMeta(
+    'entityId',
+  );
+  @override
+  late final GeneratedColumn<int> entityId = GeneratedColumn<int>(
+    'entity_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _actionMeta = const VerificationMeta('action');
+  @override
+  late final GeneratedColumn<String> action = GeneratedColumn<String>(
+    'action',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _beforeJsonMeta = const VerificationMeta(
+    'beforeJson',
+  );
+  @override
+  late final GeneratedColumn<String> beforeJson = GeneratedColumn<String>(
+    'before_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _afterJsonMeta = const VerificationMeta(
+    'afterJson',
+  );
+  @override
+  late final GeneratedColumn<String> afterJson = GeneratedColumn<String>(
+    'after_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _metadataJsonMeta = const VerificationMeta(
+    'metadataJson',
+  );
+  @override
+  late final GeneratedColumn<String> metadataJson = GeneratedColumn<String>(
+    'metadata_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    packId,
+    actorUserId,
+    entityType,
+    entityId,
+    action,
+    beforeJson,
+    afterJson,
+    metadataJson,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'activity_events';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ActivityEventRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('pack_id')) {
+      context.handle(
+        _packIdMeta,
+        packId.isAcceptableOrUnknown(data['pack_id']!, _packIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_packIdMeta);
+    }
+    if (data.containsKey('actor_user_id')) {
+      context.handle(
+        _actorUserIdMeta,
+        actorUserId.isAcceptableOrUnknown(
+          data['actor_user_id']!,
+          _actorUserIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_actorUserIdMeta);
+    }
+    if (data.containsKey('entity_type')) {
+      context.handle(
+        _entityTypeMeta,
+        entityType.isAcceptableOrUnknown(data['entity_type']!, _entityTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityTypeMeta);
+    }
+    if (data.containsKey('entity_id')) {
+      context.handle(
+        _entityIdMeta,
+        entityId.isAcceptableOrUnknown(data['entity_id']!, _entityIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityIdMeta);
+    }
+    if (data.containsKey('action')) {
+      context.handle(
+        _actionMeta,
+        action.isAcceptableOrUnknown(data['action']!, _actionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_actionMeta);
+    }
+    if (data.containsKey('before_json')) {
+      context.handle(
+        _beforeJsonMeta,
+        beforeJson.isAcceptableOrUnknown(data['before_json']!, _beforeJsonMeta),
+      );
+    }
+    if (data.containsKey('after_json')) {
+      context.handle(
+        _afterJsonMeta,
+        afterJson.isAcceptableOrUnknown(data['after_json']!, _afterJsonMeta),
+      );
+    }
+    if (data.containsKey('metadata_json')) {
+      context.handle(
+        _metadataJsonMeta,
+        metadataJson.isAcceptableOrUnknown(
+          data['metadata_json']!,
+          _metadataJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ActivityEventRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ActivityEventRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      packId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pack_id'],
+      )!,
+      actorUserId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}actor_user_id'],
+      )!,
+      entityType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_type'],
+      )!,
+      entityId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}entity_id'],
+      )!,
+      action: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}action'],
+      )!,
+      beforeJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}before_json'],
+      ),
+      afterJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}after_json'],
+      ),
+      metadataJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}metadata_json'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ActivityEventsTable createAlias(String alias) {
+    return $ActivityEventsTable(attachedDatabase, alias);
+  }
+}
+
+class ActivityEventRow extends DataClass
+    implements Insertable<ActivityEventRow> {
+  final int id;
+  final int packId;
+  final String actorUserId;
+  final String entityType;
+  final int entityId;
+  final String action;
+  final String? beforeJson;
+  final String? afterJson;
+  final String? metadataJson;
+  final int createdAt;
+  const ActivityEventRow({
+    required this.id,
+    required this.packId,
+    required this.actorUserId,
+    required this.entityType,
+    required this.entityId,
+    required this.action,
+    this.beforeJson,
+    this.afterJson,
+    this.metadataJson,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['pack_id'] = Variable<int>(packId);
+    map['actor_user_id'] = Variable<String>(actorUserId);
+    map['entity_type'] = Variable<String>(entityType);
+    map['entity_id'] = Variable<int>(entityId);
+    map['action'] = Variable<String>(action);
+    if (!nullToAbsent || beforeJson != null) {
+      map['before_json'] = Variable<String>(beforeJson);
+    }
+    if (!nullToAbsent || afterJson != null) {
+      map['after_json'] = Variable<String>(afterJson);
+    }
+    if (!nullToAbsent || metadataJson != null) {
+      map['metadata_json'] = Variable<String>(metadataJson);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    return map;
+  }
+
+  ActivityEventsCompanion toCompanion(bool nullToAbsent) {
+    return ActivityEventsCompanion(
+      id: Value(id),
+      packId: Value(packId),
+      actorUserId: Value(actorUserId),
+      entityType: Value(entityType),
+      entityId: Value(entityId),
+      action: Value(action),
+      beforeJson: beforeJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(beforeJson),
+      afterJson: afterJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(afterJson),
+      metadataJson: metadataJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(metadataJson),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory ActivityEventRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ActivityEventRow(
+      id: serializer.fromJson<int>(json['id']),
+      packId: serializer.fromJson<int>(json['packId']),
+      actorUserId: serializer.fromJson<String>(json['actorUserId']),
+      entityType: serializer.fromJson<String>(json['entityType']),
+      entityId: serializer.fromJson<int>(json['entityId']),
+      action: serializer.fromJson<String>(json['action']),
+      beforeJson: serializer.fromJson<String?>(json['beforeJson']),
+      afterJson: serializer.fromJson<String?>(json['afterJson']),
+      metadataJson: serializer.fromJson<String?>(json['metadataJson']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'packId': serializer.toJson<int>(packId),
+      'actorUserId': serializer.toJson<String>(actorUserId),
+      'entityType': serializer.toJson<String>(entityType),
+      'entityId': serializer.toJson<int>(entityId),
+      'action': serializer.toJson<String>(action),
+      'beforeJson': serializer.toJson<String?>(beforeJson),
+      'afterJson': serializer.toJson<String?>(afterJson),
+      'metadataJson': serializer.toJson<String?>(metadataJson),
+      'createdAt': serializer.toJson<int>(createdAt),
+    };
+  }
+
+  ActivityEventRow copyWith({
+    int? id,
+    int? packId,
+    String? actorUserId,
+    String? entityType,
+    int? entityId,
+    String? action,
+    Value<String?> beforeJson = const Value.absent(),
+    Value<String?> afterJson = const Value.absent(),
+    Value<String?> metadataJson = const Value.absent(),
+    int? createdAt,
+  }) => ActivityEventRow(
+    id: id ?? this.id,
+    packId: packId ?? this.packId,
+    actorUserId: actorUserId ?? this.actorUserId,
+    entityType: entityType ?? this.entityType,
+    entityId: entityId ?? this.entityId,
+    action: action ?? this.action,
+    beforeJson: beforeJson.present ? beforeJson.value : this.beforeJson,
+    afterJson: afterJson.present ? afterJson.value : this.afterJson,
+    metadataJson: metadataJson.present ? metadataJson.value : this.metadataJson,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  ActivityEventRow copyWithCompanion(ActivityEventsCompanion data) {
+    return ActivityEventRow(
+      id: data.id.present ? data.id.value : this.id,
+      packId: data.packId.present ? data.packId.value : this.packId,
+      actorUserId: data.actorUserId.present
+          ? data.actorUserId.value
+          : this.actorUserId,
+      entityType: data.entityType.present
+          ? data.entityType.value
+          : this.entityType,
+      entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      action: data.action.present ? data.action.value : this.action,
+      beforeJson: data.beforeJson.present
+          ? data.beforeJson.value
+          : this.beforeJson,
+      afterJson: data.afterJson.present ? data.afterJson.value : this.afterJson,
+      metadataJson: data.metadataJson.present
+          ? data.metadataJson.value
+          : this.metadataJson,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ActivityEventRow(')
+          ..write('id: $id, ')
+          ..write('packId: $packId, ')
+          ..write('actorUserId: $actorUserId, ')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('action: $action, ')
+          ..write('beforeJson: $beforeJson, ')
+          ..write('afterJson: $afterJson, ')
+          ..write('metadataJson: $metadataJson, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    packId,
+    actorUserId,
+    entityType,
+    entityId,
+    action,
+    beforeJson,
+    afterJson,
+    metadataJson,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ActivityEventRow &&
+          other.id == this.id &&
+          other.packId == this.packId &&
+          other.actorUserId == this.actorUserId &&
+          other.entityType == this.entityType &&
+          other.entityId == this.entityId &&
+          other.action == this.action &&
+          other.beforeJson == this.beforeJson &&
+          other.afterJson == this.afterJson &&
+          other.metadataJson == this.metadataJson &&
+          other.createdAt == this.createdAt);
+}
+
+class ActivityEventsCompanion extends UpdateCompanion<ActivityEventRow> {
+  final Value<int> id;
+  final Value<int> packId;
+  final Value<String> actorUserId;
+  final Value<String> entityType;
+  final Value<int> entityId;
+  final Value<String> action;
+  final Value<String?> beforeJson;
+  final Value<String?> afterJson;
+  final Value<String?> metadataJson;
+  final Value<int> createdAt;
+  const ActivityEventsCompanion({
+    this.id = const Value.absent(),
+    this.packId = const Value.absent(),
+    this.actorUserId = const Value.absent(),
+    this.entityType = const Value.absent(),
+    this.entityId = const Value.absent(),
+    this.action = const Value.absent(),
+    this.beforeJson = const Value.absent(),
+    this.afterJson = const Value.absent(),
+    this.metadataJson = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  ActivityEventsCompanion.insert({
+    this.id = const Value.absent(),
+    required int packId,
+    required String actorUserId,
+    required String entityType,
+    required int entityId,
+    required String action,
+    this.beforeJson = const Value.absent(),
+    this.afterJson = const Value.absent(),
+    this.metadataJson = const Value.absent(),
+    required int createdAt,
+  }) : packId = Value(packId),
+       actorUserId = Value(actorUserId),
+       entityType = Value(entityType),
+       entityId = Value(entityId),
+       action = Value(action),
+       createdAt = Value(createdAt);
+  static Insertable<ActivityEventRow> custom({
+    Expression<int>? id,
+    Expression<int>? packId,
+    Expression<String>? actorUserId,
+    Expression<String>? entityType,
+    Expression<int>? entityId,
+    Expression<String>? action,
+    Expression<String>? beforeJson,
+    Expression<String>? afterJson,
+    Expression<String>? metadataJson,
+    Expression<int>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (packId != null) 'pack_id': packId,
+      if (actorUserId != null) 'actor_user_id': actorUserId,
+      if (entityType != null) 'entity_type': entityType,
+      if (entityId != null) 'entity_id': entityId,
+      if (action != null) 'action': action,
+      if (beforeJson != null) 'before_json': beforeJson,
+      if (afterJson != null) 'after_json': afterJson,
+      if (metadataJson != null) 'metadata_json': metadataJson,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  ActivityEventsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? packId,
+    Value<String>? actorUserId,
+    Value<String>? entityType,
+    Value<int>? entityId,
+    Value<String>? action,
+    Value<String?>? beforeJson,
+    Value<String?>? afterJson,
+    Value<String?>? metadataJson,
+    Value<int>? createdAt,
+  }) {
+    return ActivityEventsCompanion(
+      id: id ?? this.id,
+      packId: packId ?? this.packId,
+      actorUserId: actorUserId ?? this.actorUserId,
+      entityType: entityType ?? this.entityType,
+      entityId: entityId ?? this.entityId,
+      action: action ?? this.action,
+      beforeJson: beforeJson ?? this.beforeJson,
+      afterJson: afterJson ?? this.afterJson,
+      metadataJson: metadataJson ?? this.metadataJson,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (packId.present) {
+      map['pack_id'] = Variable<int>(packId.value);
+    }
+    if (actorUserId.present) {
+      map['actor_user_id'] = Variable<String>(actorUserId.value);
+    }
+    if (entityType.present) {
+      map['entity_type'] = Variable<String>(entityType.value);
+    }
+    if (entityId.present) {
+      map['entity_id'] = Variable<int>(entityId.value);
+    }
+    if (action.present) {
+      map['action'] = Variable<String>(action.value);
+    }
+    if (beforeJson.present) {
+      map['before_json'] = Variable<String>(beforeJson.value);
+    }
+    if (afterJson.present) {
+      map['after_json'] = Variable<String>(afterJson.value);
+    }
+    if (metadataJson.present) {
+      map['metadata_json'] = Variable<String>(metadataJson.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ActivityEventsCompanion(')
+          ..write('id: $id, ')
+          ..write('packId: $packId, ')
+          ..write('actorUserId: $actorUserId, ')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('action: $action, ')
+          ..write('beforeJson: $beforeJson, ')
+          ..write('afterJson: $afterJson, ')
+          ..write('metadataJson: $metadataJson, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $AppSettingsEntriesTable extends AppSettingsEntries
     with TableInfo<$AppSettingsEntriesTable, AppSettingsRow> {
   @override
@@ -9964,7 +13073,9 @@ class AppSettingsEntriesCompanion extends UpdateCompanion<AppSettingsRow> {
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
+  late final $LocalUsersTable localUsers = $LocalUsersTable(this);
   late final $ItemPacksTable itemPacks = $ItemPacksTable(this);
+  late final $PackMembersTable packMembers = $PackMembersTable(this);
   late final $ItemsTable items = $ItemsTable(this);
   late final $PackTemplatesTable packTemplates = $PackTemplatesTable(this);
   late final $PackTemplateItemsTable packTemplateItems =
@@ -9976,11 +13087,18 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $ItemActionRecordsTable(this);
   late final $ResourceActionRecordsTable resourceActionRecords =
       $ResourceActionRecordsTable(this);
+  late final $ItemCompletionsTable itemCompletions = $ItemCompletionsTable(
+    this,
+  );
+  late final $ResourceEventsTable resourceEvents = $ResourceEventsTable(this);
   late final $StageTrackersTable stageTrackers = $StageTrackersTable(this);
   late final $StageRulesTable stageRules = $StageRulesTable(this);
   late final $StageRecordsTable stageRecords = $StageRecordsTable(this);
   late final $StageRelatedItemsTable stageRelatedItems =
       $StageRelatedItemsTable(this);
+  late final $StageAcknowledgementsTable stageAcknowledgements =
+      $StageAcknowledgementsTable(this);
+  late final $ActivityEventsTable activityEvents = $ActivityEventsTable(this);
   late final $AppSettingsEntriesTable appSettingsEntries =
       $AppSettingsEntriesTable(this);
   late final ReminderDao reminderDao = ReminderDao(this as AppDatabase);
@@ -9989,7 +13107,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
+    localUsers,
     itemPacks,
+    packMembers,
     items,
     packTemplates,
     packTemplateItems,
@@ -9997,14 +13117,978 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     resourceConsumptionRules,
     itemActionRecords,
     resourceActionRecords,
+    itemCompletions,
+    resourceEvents,
     stageTrackers,
     stageRules,
     stageRecords,
     stageRelatedItems,
+    stageAcknowledgements,
+    activityEvents,
     appSettingsEntries,
   ];
 }
 
+typedef $$LocalUsersTableCreateCompanionBuilder =
+    LocalUsersCompanion Function({
+      required String id,
+      required String displayName,
+      required int createdAt,
+      Value<int> rowid,
+    });
+typedef $$LocalUsersTableUpdateCompanionBuilder =
+    LocalUsersCompanion Function({
+      Value<String> id,
+      Value<String> displayName,
+      Value<int> createdAt,
+      Value<int> rowid,
+    });
+
+final class $$LocalUsersTableReferences
+    extends BaseReferences<_$AppDatabase, $LocalUsersTable, LocalUserRow> {
+  $$LocalUsersTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$ItemPacksTable, List<ItemPackRow>>
+  _itemPacksRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.itemPacks,
+    aliasName: $_aliasNameGenerator(db.localUsers.id, db.itemPacks.hostUserId),
+  );
+
+  $$ItemPacksTableProcessedTableManager get itemPacksRefs {
+    final manager = $$ItemPacksTableTableManager(
+      $_db,
+      $_db.itemPacks,
+    ).filter((f) => f.hostUserId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_itemPacksRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$PackMembersTable, List<PackMemberRow>>
+  _packMembersRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.packMembers,
+    aliasName: $_aliasNameGenerator(db.localUsers.id, db.packMembers.userId),
+  );
+
+  $$PackMembersTableProcessedTableManager get packMembersRefs {
+    final manager = $$PackMembersTableTableManager(
+      $_db,
+      $_db.packMembers,
+    ).filter((f) => f.userId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_packMembersRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$ItemsTable, List<ItemRow>> _itemsRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.items,
+    aliasName: $_aliasNameGenerator(
+      db.localUsers.id,
+      db.items.assignedToUserId,
+    ),
+  );
+
+  $$ItemsTableProcessedTableManager get itemsRefs {
+    final manager = $$ItemsTableTableManager($_db, $_db.items).filter(
+      (f) => f.assignedToUserId.id.sqlEquals($_itemColumn<String>('id')!),
+    );
+
+    final cache = $_typedResult.readTableOrNull(_itemsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$ItemCompletionsTable, List<ItemCompletionRow>>
+  _completedItemCompletionsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.itemCompletions,
+        aliasName: $_aliasNameGenerator(
+          db.localUsers.id,
+          db.itemCompletions.completedByUserId,
+        ),
+      );
+
+  $$ItemCompletionsTableProcessedTableManager get completedItemCompletions {
+    final manager =
+        $$ItemCompletionsTableTableManager($_db, $_db.itemCompletions).filter(
+          (f) => f.completedByUserId.id.sqlEquals($_itemColumn<String>('id')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(
+      _completedItemCompletionsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$ItemCompletionsTable, List<ItemCompletionRow>>
+  _undoneItemCompletionsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.itemCompletions,
+        aliasName: $_aliasNameGenerator(
+          db.localUsers.id,
+          db.itemCompletions.undoneByUserId,
+        ),
+      );
+
+  $$ItemCompletionsTableProcessedTableManager get undoneItemCompletions {
+    final manager = $$ItemCompletionsTableTableManager(
+      $_db,
+      $_db.itemCompletions,
+    ).filter((f) => f.undoneByUserId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _undoneItemCompletionsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$ResourceEventsTable, List<ResourceEventRow>>
+  _resourceEventsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.resourceEvents,
+    aliasName: $_aliasNameGenerator(
+      db.localUsers.id,
+      db.resourceEvents.actorUserId,
+    ),
+  );
+
+  $$ResourceEventsTableProcessedTableManager get resourceEventsRefs {
+    final manager = $$ResourceEventsTableTableManager(
+      $_db,
+      $_db.resourceEvents,
+    ).filter((f) => f.actorUserId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_resourceEventsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $StageAcknowledgementsTable,
+    List<StageAcknowledgementRow>
+  >
+  _stageAcknowledgementsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.stageAcknowledgements,
+        aliasName: $_aliasNameGenerator(
+          db.localUsers.id,
+          db.stageAcknowledgements.userId,
+        ),
+      );
+
+  $$StageAcknowledgementsTableProcessedTableManager
+  get stageAcknowledgementsRefs {
+    final manager = $$StageAcknowledgementsTableTableManager(
+      $_db,
+      $_db.stageAcknowledgements,
+    ).filter((f) => f.userId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _stageAcknowledgementsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$ActivityEventsTable, List<ActivityEventRow>>
+  _activityEventsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.activityEvents,
+    aliasName: $_aliasNameGenerator(
+      db.localUsers.id,
+      db.activityEvents.actorUserId,
+    ),
+  );
+
+  $$ActivityEventsTableProcessedTableManager get activityEventsRefs {
+    final manager = $$ActivityEventsTableTableManager(
+      $_db,
+      $_db.activityEvents,
+    ).filter((f) => f.actorUserId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_activityEventsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$LocalUsersTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalUsersTable> {
+  $$LocalUsersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get displayName => $composableBuilder(
+    column: $table.displayName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> itemPacksRefs(
+    Expression<bool> Function($$ItemPacksTableFilterComposer f) f,
+  ) {
+    final $$ItemPacksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.hostUserId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableFilterComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> packMembersRefs(
+    Expression<bool> Function($$PackMembersTableFilterComposer f) f,
+  ) {
+    final $$PackMembersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.packMembers,
+      getReferencedColumn: (t) => t.userId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PackMembersTableFilterComposer(
+            $db: $db,
+            $table: $db.packMembers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> itemsRefs(
+    Expression<bool> Function($$ItemsTableFilterComposer f) f,
+  ) {
+    final $$ItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.assignedToUserId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> completedItemCompletions(
+    Expression<bool> Function($$ItemCompletionsTableFilterComposer f) f,
+  ) {
+    final $$ItemCompletionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.itemCompletions,
+      getReferencedColumn: (t) => t.completedByUserId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemCompletionsTableFilterComposer(
+            $db: $db,
+            $table: $db.itemCompletions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> undoneItemCompletions(
+    Expression<bool> Function($$ItemCompletionsTableFilterComposer f) f,
+  ) {
+    final $$ItemCompletionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.itemCompletions,
+      getReferencedColumn: (t) => t.undoneByUserId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemCompletionsTableFilterComposer(
+            $db: $db,
+            $table: $db.itemCompletions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> resourceEventsRefs(
+    Expression<bool> Function($$ResourceEventsTableFilterComposer f) f,
+  ) {
+    final $$ResourceEventsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.resourceEvents,
+      getReferencedColumn: (t) => t.actorUserId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ResourceEventsTableFilterComposer(
+            $db: $db,
+            $table: $db.resourceEvents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> stageAcknowledgementsRefs(
+    Expression<bool> Function($$StageAcknowledgementsTableFilterComposer f) f,
+  ) {
+    final $$StageAcknowledgementsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.stageAcknowledgements,
+          getReferencedColumn: (t) => t.userId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$StageAcknowledgementsTableFilterComposer(
+                $db: $db,
+                $table: $db.stageAcknowledgements,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<bool> activityEventsRefs(
+    Expression<bool> Function($$ActivityEventsTableFilterComposer f) f,
+  ) {
+    final $$ActivityEventsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.activityEvents,
+      getReferencedColumn: (t) => t.actorUserId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ActivityEventsTableFilterComposer(
+            $db: $db,
+            $table: $db.activityEvents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$LocalUsersTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalUsersTable> {
+  $$LocalUsersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get displayName => $composableBuilder(
+    column: $table.displayName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LocalUsersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalUsersTable> {
+  $$LocalUsersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get displayName => $composableBuilder(
+    column: $table.displayName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  Expression<T> itemPacksRefs<T extends Object>(
+    Expression<T> Function($$ItemPacksTableAnnotationComposer a) f,
+  ) {
+    final $$ItemPacksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.hostUserId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> packMembersRefs<T extends Object>(
+    Expression<T> Function($$PackMembersTableAnnotationComposer a) f,
+  ) {
+    final $$PackMembersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.packMembers,
+      getReferencedColumn: (t) => t.userId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PackMembersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.packMembers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> itemsRefs<T extends Object>(
+    Expression<T> Function($$ItemsTableAnnotationComposer a) f,
+  ) {
+    final $$ItemsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.assignedToUserId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> completedItemCompletions<T extends Object>(
+    Expression<T> Function($$ItemCompletionsTableAnnotationComposer a) f,
+  ) {
+    final $$ItemCompletionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.itemCompletions,
+      getReferencedColumn: (t) => t.completedByUserId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemCompletionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.itemCompletions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> undoneItemCompletions<T extends Object>(
+    Expression<T> Function($$ItemCompletionsTableAnnotationComposer a) f,
+  ) {
+    final $$ItemCompletionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.itemCompletions,
+      getReferencedColumn: (t) => t.undoneByUserId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemCompletionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.itemCompletions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> resourceEventsRefs<T extends Object>(
+    Expression<T> Function($$ResourceEventsTableAnnotationComposer a) f,
+  ) {
+    final $$ResourceEventsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.resourceEvents,
+      getReferencedColumn: (t) => t.actorUserId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ResourceEventsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.resourceEvents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> stageAcknowledgementsRefs<T extends Object>(
+    Expression<T> Function($$StageAcknowledgementsTableAnnotationComposer a) f,
+  ) {
+    final $$StageAcknowledgementsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.stageAcknowledgements,
+          getReferencedColumn: (t) => t.userId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$StageAcknowledgementsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.stageAcknowledgements,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> activityEventsRefs<T extends Object>(
+    Expression<T> Function($$ActivityEventsTableAnnotationComposer a) f,
+  ) {
+    final $$ActivityEventsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.activityEvents,
+      getReferencedColumn: (t) => t.actorUserId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ActivityEventsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.activityEvents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$LocalUsersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LocalUsersTable,
+          LocalUserRow,
+          $$LocalUsersTableFilterComposer,
+          $$LocalUsersTableOrderingComposer,
+          $$LocalUsersTableAnnotationComposer,
+          $$LocalUsersTableCreateCompanionBuilder,
+          $$LocalUsersTableUpdateCompanionBuilder,
+          (LocalUserRow, $$LocalUsersTableReferences),
+          LocalUserRow,
+          PrefetchHooks Function({
+            bool itemPacksRefs,
+            bool packMembersRefs,
+            bool itemsRefs,
+            bool completedItemCompletions,
+            bool undoneItemCompletions,
+            bool resourceEventsRefs,
+            bool stageAcknowledgementsRefs,
+            bool activityEventsRefs,
+          })
+        > {
+  $$LocalUsersTableTableManager(_$AppDatabase db, $LocalUsersTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalUsersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalUsersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocalUsersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> displayName = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalUsersCompanion(
+                id: id,
+                displayName: displayName,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String displayName,
+                required int createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => LocalUsersCompanion.insert(
+                id: id,
+                displayName: displayName,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$LocalUsersTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                itemPacksRefs = false,
+                packMembersRefs = false,
+                itemsRefs = false,
+                completedItemCompletions = false,
+                undoneItemCompletions = false,
+                resourceEventsRefs = false,
+                stageAcknowledgementsRefs = false,
+                activityEventsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (itemPacksRefs) db.itemPacks,
+                    if (packMembersRefs) db.packMembers,
+                    if (itemsRefs) db.items,
+                    if (completedItemCompletions) db.itemCompletions,
+                    if (undoneItemCompletions) db.itemCompletions,
+                    if (resourceEventsRefs) db.resourceEvents,
+                    if (stageAcknowledgementsRefs) db.stageAcknowledgements,
+                    if (activityEventsRefs) db.activityEvents,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (itemPacksRefs)
+                        await $_getPrefetchedData<
+                          LocalUserRow,
+                          $LocalUsersTable,
+                          ItemPackRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$LocalUsersTableReferences
+                              ._itemPacksRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$LocalUsersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).itemPacksRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.hostUserId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (packMembersRefs)
+                        await $_getPrefetchedData<
+                          LocalUserRow,
+                          $LocalUsersTable,
+                          PackMemberRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$LocalUsersTableReferences
+                              ._packMembersRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$LocalUsersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).packMembersRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.userId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (itemsRefs)
+                        await $_getPrefetchedData<
+                          LocalUserRow,
+                          $LocalUsersTable,
+                          ItemRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$LocalUsersTableReferences
+                              ._itemsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$LocalUsersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).itemsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.assignedToUserId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (completedItemCompletions)
+                        await $_getPrefetchedData<
+                          LocalUserRow,
+                          $LocalUsersTable,
+                          ItemCompletionRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$LocalUsersTableReferences
+                              ._completedItemCompletionsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$LocalUsersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).completedItemCompletions,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.completedByUserId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (undoneItemCompletions)
+                        await $_getPrefetchedData<
+                          LocalUserRow,
+                          $LocalUsersTable,
+                          ItemCompletionRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$LocalUsersTableReferences
+                              ._undoneItemCompletionsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$LocalUsersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).undoneItemCompletions,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.undoneByUserId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (resourceEventsRefs)
+                        await $_getPrefetchedData<
+                          LocalUserRow,
+                          $LocalUsersTable,
+                          ResourceEventRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$LocalUsersTableReferences
+                              ._resourceEventsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$LocalUsersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).resourceEventsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.actorUserId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (stageAcknowledgementsRefs)
+                        await $_getPrefetchedData<
+                          LocalUserRow,
+                          $LocalUsersTable,
+                          StageAcknowledgementRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$LocalUsersTableReferences
+                              ._stageAcknowledgementsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$LocalUsersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).stageAcknowledgementsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.userId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (activityEventsRefs)
+                        await $_getPrefetchedData<
+                          LocalUserRow,
+                          $LocalUsersTable,
+                          ActivityEventRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$LocalUsersTableReferences
+                              ._activityEventsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$LocalUsersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).activityEventsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.actorUserId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$LocalUsersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LocalUsersTable,
+      LocalUserRow,
+      $$LocalUsersTableFilterComposer,
+      $$LocalUsersTableOrderingComposer,
+      $$LocalUsersTableAnnotationComposer,
+      $$LocalUsersTableCreateCompanionBuilder,
+      $$LocalUsersTableUpdateCompanionBuilder,
+      (LocalUserRow, $$LocalUsersTableReferences),
+      LocalUserRow,
+      PrefetchHooks Function({
+        bool itemPacksRefs,
+        bool packMembersRefs,
+        bool itemsRefs,
+        bool completedItemCompletions,
+        bool undoneItemCompletions,
+        bool resourceEventsRefs,
+        bool stageAcknowledgementsRefs,
+        bool activityEventsRefs,
+      })
+    >;
 typedef $$ItemPacksTableCreateCompanionBuilder =
     ItemPacksCompanion Function({
       Value<int> id,
@@ -10014,6 +14098,8 @@ typedef $$ItemPacksTableCreateCompanionBuilder =
       Value<int> orderIndex,
       Value<String> status,
       Value<bool> isSystemDefault,
+      Value<String> packType,
+      Value<String?> hostUserId,
       required int createdAt,
       required int updatedAt,
     });
@@ -10026,6 +14112,8 @@ typedef $$ItemPacksTableUpdateCompanionBuilder =
       Value<int> orderIndex,
       Value<String> status,
       Value<bool> isSystemDefault,
+      Value<String> packType,
+      Value<String?> hostUserId,
       Value<int> createdAt,
       Value<int> updatedAt,
     });
@@ -10033,6 +14121,43 @@ typedef $$ItemPacksTableUpdateCompanionBuilder =
 final class $$ItemPacksTableReferences
     extends BaseReferences<_$AppDatabase, $ItemPacksTable, ItemPackRow> {
   $$ItemPacksTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $LocalUsersTable _hostUserIdTable(_$AppDatabase db) =>
+      db.localUsers.createAlias(
+        $_aliasNameGenerator(db.itemPacks.hostUserId, db.localUsers.id),
+      );
+
+  $$LocalUsersTableProcessedTableManager? get hostUserId {
+    final $_column = $_itemColumn<String>('host_user_id');
+    if ($_column == null) return null;
+    final manager = $$LocalUsersTableTableManager(
+      $_db,
+      $_db.localUsers,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_hostUserIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<$PackMembersTable, List<PackMemberRow>>
+  _packMembersRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.packMembers,
+    aliasName: $_aliasNameGenerator(db.itemPacks.id, db.packMembers.packId),
+  );
+
+  $$PackMembersTableProcessedTableManager get packMembersRefs {
+    final manager = $$PackMembersTableTableManager(
+      $_db,
+      $_db.packMembers,
+    ).filter((f) => f.packId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_packMembersRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 
   static MultiTypedResultKey<$ItemsTable, List<ItemRow>> _itemsRefsTable(
     _$AppDatabase db,
@@ -10071,6 +14196,44 @@ final class $$ItemPacksTableReferences
     );
   }
 
+  static MultiTypedResultKey<$ItemCompletionsTable, List<ItemCompletionRow>>
+  _itemCompletionsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.itemCompletions,
+    aliasName: $_aliasNameGenerator(db.itemPacks.id, db.itemCompletions.packId),
+  );
+
+  $$ItemCompletionsTableProcessedTableManager get itemCompletionsRefs {
+    final manager = $$ItemCompletionsTableTableManager(
+      $_db,
+      $_db.itemCompletions,
+    ).filter((f) => f.packId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _itemCompletionsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$ResourceEventsTable, List<ResourceEventRow>>
+  _resourceEventsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.resourceEvents,
+    aliasName: $_aliasNameGenerator(db.itemPacks.id, db.resourceEvents.packId),
+  );
+
+  $$ResourceEventsTableProcessedTableManager get resourceEventsRefs {
+    final manager = $$ResourceEventsTableTableManager(
+      $_db,
+      $_db.resourceEvents,
+    ).filter((f) => f.packId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_resourceEventsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
   static MultiTypedResultKey<$StageTrackersTable, List<StageTrackerRow>>
   _stageTrackersRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.stageTrackers,
@@ -10084,6 +14247,52 @@ final class $$ItemPacksTableReferences
     ).filter((f) => f.packId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_stageTrackersRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $StageAcknowledgementsTable,
+    List<StageAcknowledgementRow>
+  >
+  _stageAcknowledgementsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.stageAcknowledgements,
+        aliasName: $_aliasNameGenerator(
+          db.itemPacks.id,
+          db.stageAcknowledgements.packId,
+        ),
+      );
+
+  $$StageAcknowledgementsTableProcessedTableManager
+  get stageAcknowledgementsRefs {
+    final manager = $$StageAcknowledgementsTableTableManager(
+      $_db,
+      $_db.stageAcknowledgements,
+    ).filter((f) => f.packId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _stageAcknowledgementsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$ActivityEventsTable, List<ActivityEventRow>>
+  _activityEventsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.activityEvents,
+    aliasName: $_aliasNameGenerator(db.itemPacks.id, db.activityEvents.packId),
+  );
+
+  $$ActivityEventsTableProcessedTableManager get activityEventsRefs {
+    final manager = $$ActivityEventsTableTableManager(
+      $_db,
+      $_db.activityEvents,
+    ).filter((f) => f.packId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_activityEventsRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -10134,6 +14343,11 @@ class $$ItemPacksTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get packType => $composableBuilder(
+    column: $table.packType,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnFilters(column),
@@ -10143,6 +14357,54 @@ class $$ItemPacksTableFilterComposer
     column: $table.updatedAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  $$LocalUsersTableFilterComposer get hostUserId {
+    final $$LocalUsersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.hostUserId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableFilterComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> packMembersRefs(
+    Expression<bool> Function($$PackMembersTableFilterComposer f) f,
+  ) {
+    final $$PackMembersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.packMembers,
+      getReferencedColumn: (t) => t.packId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PackMembersTableFilterComposer(
+            $db: $db,
+            $table: $db.packMembers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 
   Expression<bool> itemsRefs(
     Expression<bool> Function($$ItemsTableFilterComposer f) f,
@@ -10194,6 +14456,56 @@ class $$ItemPacksTableFilterComposer
     return f(composer);
   }
 
+  Expression<bool> itemCompletionsRefs(
+    Expression<bool> Function($$ItemCompletionsTableFilterComposer f) f,
+  ) {
+    final $$ItemCompletionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.itemCompletions,
+      getReferencedColumn: (t) => t.packId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemCompletionsTableFilterComposer(
+            $db: $db,
+            $table: $db.itemCompletions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> resourceEventsRefs(
+    Expression<bool> Function($$ResourceEventsTableFilterComposer f) f,
+  ) {
+    final $$ResourceEventsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.resourceEvents,
+      getReferencedColumn: (t) => t.packId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ResourceEventsTableFilterComposer(
+            $db: $db,
+            $table: $db.resourceEvents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
   Expression<bool> stageTrackersRefs(
     Expression<bool> Function($$StageTrackersTableFilterComposer f) f,
   ) {
@@ -10210,6 +14522,57 @@ class $$ItemPacksTableFilterComposer
           }) => $$StageTrackersTableFilterComposer(
             $db: $db,
             $table: $db.stageTrackers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> stageAcknowledgementsRefs(
+    Expression<bool> Function($$StageAcknowledgementsTableFilterComposer f) f,
+  ) {
+    final $$StageAcknowledgementsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.stageAcknowledgements,
+          getReferencedColumn: (t) => t.packId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$StageAcknowledgementsTableFilterComposer(
+                $db: $db,
+                $table: $db.stageAcknowledgements,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<bool> activityEventsRefs(
+    Expression<bool> Function($$ActivityEventsTableFilterComposer f) f,
+  ) {
+    final $$ActivityEventsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.activityEvents,
+      getReferencedColumn: (t) => t.packId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ActivityEventsTableFilterComposer(
+            $db: $db,
+            $table: $db.activityEvents,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -10264,6 +14627,11 @@ class $$ItemPacksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get packType => $composableBuilder(
+    column: $table.packType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -10273,6 +14641,29 @@ class $$ItemPacksTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  $$LocalUsersTableOrderingComposer get hostUserId {
+    final $$LocalUsersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.hostUserId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableOrderingComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$ItemPacksTableAnnotationComposer
@@ -10311,11 +14702,62 @@ class $$ItemPacksTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get packType =>
+      $composableBuilder(column: $table.packType, builder: (column) => column);
+
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
   GeneratedColumn<int> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$LocalUsersTableAnnotationComposer get hostUserId {
+    final $$LocalUsersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.hostUserId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> packMembersRefs<T extends Object>(
+    Expression<T> Function($$PackMembersTableAnnotationComposer a) f,
+  ) {
+    final $$PackMembersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.packMembers,
+      getReferencedColumn: (t) => t.packId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PackMembersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.packMembers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 
   Expression<T> itemsRefs<T extends Object>(
     Expression<T> Function($$ItemsTableAnnotationComposer a) f,
@@ -10367,6 +14809,56 @@ class $$ItemPacksTableAnnotationComposer
     return f(composer);
   }
 
+  Expression<T> itemCompletionsRefs<T extends Object>(
+    Expression<T> Function($$ItemCompletionsTableAnnotationComposer a) f,
+  ) {
+    final $$ItemCompletionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.itemCompletions,
+      getReferencedColumn: (t) => t.packId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemCompletionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.itemCompletions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> resourceEventsRefs<T extends Object>(
+    Expression<T> Function($$ResourceEventsTableAnnotationComposer a) f,
+  ) {
+    final $$ResourceEventsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.resourceEvents,
+      getReferencedColumn: (t) => t.packId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ResourceEventsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.resourceEvents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
   Expression<T> stageTrackersRefs<T extends Object>(
     Expression<T> Function($$StageTrackersTableAnnotationComposer a) f,
   ) {
@@ -10391,6 +14883,57 @@ class $$ItemPacksTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> stageAcknowledgementsRefs<T extends Object>(
+    Expression<T> Function($$StageAcknowledgementsTableAnnotationComposer a) f,
+  ) {
+    final $$StageAcknowledgementsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.stageAcknowledgements,
+          getReferencedColumn: (t) => t.packId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$StageAcknowledgementsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.stageAcknowledgements,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> activityEventsRefs<T extends Object>(
+    Expression<T> Function($$ActivityEventsTableAnnotationComposer a) f,
+  ) {
+    final $$ActivityEventsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.activityEvents,
+      getReferencedColumn: (t) => t.packId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ActivityEventsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.activityEvents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$ItemPacksTableTableManager
@@ -10407,9 +14950,15 @@ class $$ItemPacksTableTableManager
           (ItemPackRow, $$ItemPacksTableReferences),
           ItemPackRow,
           PrefetchHooks Function({
+            bool hostUserId,
+            bool packMembersRefs,
             bool itemsRefs,
             bool resourcesRefs,
+            bool itemCompletionsRefs,
+            bool resourceEventsRefs,
             bool stageTrackersRefs,
+            bool stageAcknowledgementsRefs,
+            bool activityEventsRefs,
           })
         > {
   $$ItemPacksTableTableManager(_$AppDatabase db, $ItemPacksTable table)
@@ -10432,6 +14981,8 @@ class $$ItemPacksTableTableManager
                 Value<int> orderIndex = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<bool> isSystemDefault = const Value.absent(),
+                Value<String> packType = const Value.absent(),
+                Value<String?> hostUserId = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
               }) => ItemPacksCompanion(
@@ -10442,6 +14993,8 @@ class $$ItemPacksTableTableManager
                 orderIndex: orderIndex,
                 status: status,
                 isSystemDefault: isSystemDefault,
+                packType: packType,
+                hostUserId: hostUserId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -10454,6 +15007,8 @@ class $$ItemPacksTableTableManager
                 Value<int> orderIndex = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<bool> isSystemDefault = const Value.absent(),
+                Value<String> packType = const Value.absent(),
+                Value<String?> hostUserId = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
               }) => ItemPacksCompanion.insert(
@@ -10464,6 +15019,8 @@ class $$ItemPacksTableTableManager
                 orderIndex: orderIndex,
                 status: status,
                 isSystemDefault: isSystemDefault,
+                packType: packType,
+                hostUserId: hostUserId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -10477,20 +15034,83 @@ class $$ItemPacksTableTableManager
               .toList(),
           prefetchHooksCallback:
               ({
+                hostUserId = false,
+                packMembersRefs = false,
                 itemsRefs = false,
                 resourcesRefs = false,
+                itemCompletionsRefs = false,
+                resourceEventsRefs = false,
                 stageTrackersRefs = false,
+                stageAcknowledgementsRefs = false,
+                activityEventsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
+                    if (packMembersRefs) db.packMembers,
                     if (itemsRefs) db.items,
                     if (resourcesRefs) db.resources,
+                    if (itemCompletionsRefs) db.itemCompletions,
+                    if (resourceEventsRefs) db.resourceEvents,
                     if (stageTrackersRefs) db.stageTrackers,
+                    if (stageAcknowledgementsRefs) db.stageAcknowledgements,
+                    if (activityEventsRefs) db.activityEvents,
                   ],
-                  addJoins: null,
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (hostUserId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.hostUserId,
+                                    referencedTable: $$ItemPacksTableReferences
+                                        ._hostUserIdTable(db),
+                                    referencedColumn: $$ItemPacksTableReferences
+                                        ._hostUserIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
                   getPrefetchedDataCallback: (items) async {
                     return [
+                      if (packMembersRefs)
+                        await $_getPrefetchedData<
+                          ItemPackRow,
+                          $ItemPacksTable,
+                          PackMemberRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ItemPacksTableReferences
+                              ._packMembersRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ItemPacksTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).packMembersRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.packId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                       if (itemsRefs)
                         await $_getPrefetchedData<
                           ItemPackRow,
@@ -10533,6 +15153,48 @@ class $$ItemPacksTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (itemCompletionsRefs)
+                        await $_getPrefetchedData<
+                          ItemPackRow,
+                          $ItemPacksTable,
+                          ItemCompletionRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ItemPacksTableReferences
+                              ._itemCompletionsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ItemPacksTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).itemCompletionsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.packId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (resourceEventsRefs)
+                        await $_getPrefetchedData<
+                          ItemPackRow,
+                          $ItemPacksTable,
+                          ResourceEventRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ItemPacksTableReferences
+                              ._resourceEventsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ItemPacksTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).resourceEventsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.packId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                       if (stageTrackersRefs)
                         await $_getPrefetchedData<
                           ItemPackRow,
@@ -10548,6 +15210,48 @@ class $$ItemPacksTableTableManager
                                 table,
                                 p0,
                               ).stageTrackersRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.packId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (stageAcknowledgementsRefs)
+                        await $_getPrefetchedData<
+                          ItemPackRow,
+                          $ItemPacksTable,
+                          StageAcknowledgementRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ItemPacksTableReferences
+                              ._stageAcknowledgementsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ItemPacksTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).stageAcknowledgementsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.packId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (activityEventsRefs)
+                        await $_getPrefetchedData<
+                          ItemPackRow,
+                          $ItemPacksTable,
+                          ActivityEventRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ItemPacksTableReferences
+                              ._activityEventsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ItemPacksTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).activityEventsRefs,
                           referencedItemsForCurrentItem:
                               (item, referencedItems) => referencedItems.where(
                                 (e) => e.packId == item.id,
@@ -10575,10 +15279,423 @@ typedef $$ItemPacksTableProcessedTableManager =
       (ItemPackRow, $$ItemPacksTableReferences),
       ItemPackRow,
       PrefetchHooks Function({
+        bool hostUserId,
+        bool packMembersRefs,
         bool itemsRefs,
         bool resourcesRefs,
+        bool itemCompletionsRefs,
+        bool resourceEventsRefs,
         bool stageTrackersRefs,
+        bool stageAcknowledgementsRefs,
+        bool activityEventsRefs,
       })
+    >;
+typedef $$PackMembersTableCreateCompanionBuilder =
+    PackMembersCompanion Function({
+      required int packId,
+      required String userId,
+      required String role,
+      Value<String> status,
+      required int joinedAt,
+      Value<int> rowid,
+    });
+typedef $$PackMembersTableUpdateCompanionBuilder =
+    PackMembersCompanion Function({
+      Value<int> packId,
+      Value<String> userId,
+      Value<String> role,
+      Value<String> status,
+      Value<int> joinedAt,
+      Value<int> rowid,
+    });
+
+final class $$PackMembersTableReferences
+    extends BaseReferences<_$AppDatabase, $PackMembersTable, PackMemberRow> {
+  $$PackMembersTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $ItemPacksTable _packIdTable(_$AppDatabase db) =>
+      db.itemPacks.createAlias(
+        $_aliasNameGenerator(db.packMembers.packId, db.itemPacks.id),
+      );
+
+  $$ItemPacksTableProcessedTableManager get packId {
+    final $_column = $_itemColumn<int>('pack_id')!;
+
+    final manager = $$ItemPacksTableTableManager(
+      $_db,
+      $_db.itemPacks,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_packIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $LocalUsersTable _userIdTable(_$AppDatabase db) =>
+      db.localUsers.createAlias(
+        $_aliasNameGenerator(db.packMembers.userId, db.localUsers.id),
+      );
+
+  $$LocalUsersTableProcessedTableManager get userId {
+    final $_column = $_itemColumn<String>('user_id')!;
+
+    final manager = $$LocalUsersTableTableManager(
+      $_db,
+      $_db.localUsers,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_userIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$PackMembersTableFilterComposer
+    extends Composer<_$AppDatabase, $PackMembersTable> {
+  $$PackMembersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get joinedAt => $composableBuilder(
+    column: $table.joinedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$ItemPacksTableFilterComposer get packId {
+    final $$ItemPacksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.packId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableFilterComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalUsersTableFilterComposer get userId {
+    final $$LocalUsersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableFilterComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PackMembersTableOrderingComposer
+    extends Composer<_$AppDatabase, $PackMembersTable> {
+  $$PackMembersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get joinedAt => $composableBuilder(
+    column: $table.joinedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ItemPacksTableOrderingComposer get packId {
+    final $$ItemPacksTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.packId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableOrderingComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalUsersTableOrderingComposer get userId {
+    final $$LocalUsersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableOrderingComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PackMembersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PackMembersTable> {
+  $$PackMembersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get role =>
+      $composableBuilder(column: $table.role, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get joinedAt =>
+      $composableBuilder(column: $table.joinedAt, builder: (column) => column);
+
+  $$ItemPacksTableAnnotationComposer get packId {
+    final $$ItemPacksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.packId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalUsersTableAnnotationComposer get userId {
+    final $$LocalUsersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PackMembersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PackMembersTable,
+          PackMemberRow,
+          $$PackMembersTableFilterComposer,
+          $$PackMembersTableOrderingComposer,
+          $$PackMembersTableAnnotationComposer,
+          $$PackMembersTableCreateCompanionBuilder,
+          $$PackMembersTableUpdateCompanionBuilder,
+          (PackMemberRow, $$PackMembersTableReferences),
+          PackMemberRow,
+          PrefetchHooks Function({bool packId, bool userId})
+        > {
+  $$PackMembersTableTableManager(_$AppDatabase db, $PackMembersTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PackMembersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PackMembersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PackMembersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> packId = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> role = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int> joinedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PackMembersCompanion(
+                packId: packId,
+                userId: userId,
+                role: role,
+                status: status,
+                joinedAt: joinedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required int packId,
+                required String userId,
+                required String role,
+                Value<String> status = const Value.absent(),
+                required int joinedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => PackMembersCompanion.insert(
+                packId: packId,
+                userId: userId,
+                role: role,
+                status: status,
+                joinedAt: joinedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$PackMembersTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({packId = false, userId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (packId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.packId,
+                                referencedTable: $$PackMembersTableReferences
+                                    ._packIdTable(db),
+                                referencedColumn: $$PackMembersTableReferences
+                                    ._packIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+                    if (userId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.userId,
+                                referencedTable: $$PackMembersTableReferences
+                                    ._userIdTable(db),
+                                referencedColumn: $$PackMembersTableReferences
+                                    ._userIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$PackMembersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PackMembersTable,
+      PackMemberRow,
+      $$PackMembersTableFilterComposer,
+      $$PackMembersTableOrderingComposer,
+      $$PackMembersTableAnnotationComposer,
+      $$PackMembersTableCreateCompanionBuilder,
+      $$PackMembersTableUpdateCompanionBuilder,
+      (PackMemberRow, $$PackMembersTableReferences),
+      PackMemberRow,
+      PrefetchHooks Function({bool packId, bool userId})
     >;
 typedef $$ItemsTableCreateCompanionBuilder =
     ItemsCompanion Function({
@@ -10604,6 +15721,7 @@ typedef $$ItemsTableCreateCompanionBuilder =
       Value<int?> stateExpectedAfterMinutes,
       Value<int?> stateWarningAfterMinutes,
       Value<int?> stateDangerAfterMinutes,
+      Value<String?> assignedToUserId,
       Value<int?> lastDoneAt,
       required int createdAt,
       required int updatedAt,
@@ -10632,6 +15750,7 @@ typedef $$ItemsTableUpdateCompanionBuilder =
       Value<int?> stateExpectedAfterMinutes,
       Value<int?> stateWarningAfterMinutes,
       Value<int?> stateDangerAfterMinutes,
+      Value<String?> assignedToUserId,
       Value<int?> lastDoneAt,
       Value<int> createdAt,
       Value<int> updatedAt,
@@ -10652,6 +15771,25 @@ final class $$ItemsTableReferences
       $_db.itemPacks,
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_packIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $LocalUsersTable _assignedToUserIdTable(_$AppDatabase db) =>
+      db.localUsers.createAlias(
+        $_aliasNameGenerator(db.items.assignedToUserId, db.localUsers.id),
+      );
+
+  $$LocalUsersTableProcessedTableManager? get assignedToUserId {
+    final $_column = $_itemColumn<String>('assigned_to_user_id');
+    if ($_column == null) return null;
+    final manager = $$LocalUsersTableTableManager(
+      $_db,
+      $_db.localUsers,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_assignedToUserIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -10704,6 +15842,26 @@ final class $$ItemsTableReferences
 
     final cache = $_typedResult.readTableOrNull(
       _itemActionRecordsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$ItemCompletionsTable, List<ItemCompletionRow>>
+  _itemCompletionsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.itemCompletions,
+    aliasName: $_aliasNameGenerator(db.items.id, db.itemCompletions.itemId),
+  );
+
+  $$ItemCompletionsTableProcessedTableManager get itemCompletionsRefs {
+    final manager = $$ItemCompletionsTableTableManager(
+      $_db,
+      $_db.itemCompletions,
+    ).filter((f) => f.itemId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _itemCompletionsRefsTable($_db),
     );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
@@ -10886,6 +16044,29 @@ class $$ItemsTableFilterComposer extends Composer<_$AppDatabase, $ItemsTable> {
     return composer;
   }
 
+  $$LocalUsersTableFilterComposer get assignedToUserId {
+    final $$LocalUsersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.assignedToUserId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableFilterComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
   Expression<bool> resourceConsumptionRulesRefs(
     Expression<bool> Function($$ResourceConsumptionRulesTableFilterComposer f)
     f,
@@ -10929,6 +16110,31 @@ class $$ItemsTableFilterComposer extends Composer<_$AppDatabase, $ItemsTable> {
           }) => $$ItemActionRecordsTableFilterComposer(
             $db: $db,
             $table: $db.itemActionRecords,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> itemCompletionsRefs(
+    Expression<bool> Function($$ItemCompletionsTableFilterComposer f) f,
+  ) {
+    final $$ItemCompletionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.itemCompletions,
+      getReferencedColumn: (t) => t.itemId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemCompletionsTableFilterComposer(
+            $db: $db,
+            $table: $db.itemCompletions,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -11115,6 +16321,29 @@ class $$ItemsTableOrderingComposer
     );
     return composer;
   }
+
+  $$LocalUsersTableOrderingComposer get assignedToUserId {
+    final $$LocalUsersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.assignedToUserId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableOrderingComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$ItemsTableAnnotationComposer
@@ -11257,6 +16486,29 @@ class $$ItemsTableAnnotationComposer
     return composer;
   }
 
+  $$LocalUsersTableAnnotationComposer get assignedToUserId {
+    final $$LocalUsersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.assignedToUserId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
   Expression<T> resourceConsumptionRulesRefs<T extends Object>(
     Expression<T> Function($$ResourceConsumptionRulesTableAnnotationComposer a)
     f,
@@ -11310,6 +16562,31 @@ class $$ItemsTableAnnotationComposer
     return f(composer);
   }
 
+  Expression<T> itemCompletionsRefs<T extends Object>(
+    Expression<T> Function($$ItemCompletionsTableAnnotationComposer a) f,
+  ) {
+    final $$ItemCompletionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.itemCompletions,
+      getReferencedColumn: (t) => t.itemId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemCompletionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.itemCompletions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
   Expression<T> stageRelatedItemsRefs<T extends Object>(
     Expression<T> Function($$StageRelatedItemsTableAnnotationComposer a) f,
   ) {
@@ -11352,8 +16629,10 @@ class $$ItemsTableTableManager
           ItemRow,
           PrefetchHooks Function({
             bool packId,
+            bool assignedToUserId,
             bool resourceConsumptionRulesRefs,
             bool itemActionRecordsRefs,
+            bool itemCompletionsRefs,
             bool stageRelatedItemsRefs,
           })
         > {
@@ -11392,6 +16671,7 @@ class $$ItemsTableTableManager
                 Value<int?> stateExpectedAfterMinutes = const Value.absent(),
                 Value<int?> stateWarningAfterMinutes = const Value.absent(),
                 Value<int?> stateDangerAfterMinutes = const Value.absent(),
+                Value<String?> assignedToUserId = const Value.absent(),
                 Value<int?> lastDoneAt = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
@@ -11418,6 +16698,7 @@ class $$ItemsTableTableManager
                 stateExpectedAfterMinutes: stateExpectedAfterMinutes,
                 stateWarningAfterMinutes: stateWarningAfterMinutes,
                 stateDangerAfterMinutes: stateDangerAfterMinutes,
+                assignedToUserId: assignedToUserId,
                 lastDoneAt: lastDoneAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -11446,6 +16727,7 @@ class $$ItemsTableTableManager
                 Value<int?> stateExpectedAfterMinutes = const Value.absent(),
                 Value<int?> stateWarningAfterMinutes = const Value.absent(),
                 Value<int?> stateDangerAfterMinutes = const Value.absent(),
+                Value<String?> assignedToUserId = const Value.absent(),
                 Value<int?> lastDoneAt = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
@@ -11472,6 +16754,7 @@ class $$ItemsTableTableManager
                 stateExpectedAfterMinutes: stateExpectedAfterMinutes,
                 stateWarningAfterMinutes: stateWarningAfterMinutes,
                 stateDangerAfterMinutes: stateDangerAfterMinutes,
+                assignedToUserId: assignedToUserId,
                 lastDoneAt: lastDoneAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -11485,8 +16768,10 @@ class $$ItemsTableTableManager
           prefetchHooksCallback:
               ({
                 packId = false,
+                assignedToUserId = false,
                 resourceConsumptionRulesRefs = false,
                 itemActionRecordsRefs = false,
+                itemCompletionsRefs = false,
                 stageRelatedItemsRefs = false,
               }) {
                 return PrefetchHooks(
@@ -11495,6 +16780,7 @@ class $$ItemsTableTableManager
                     if (resourceConsumptionRulesRefs)
                       db.resourceConsumptionRules,
                     if (itemActionRecordsRefs) db.itemActionRecords,
+                    if (itemCompletionsRefs) db.itemCompletions,
                     if (stageRelatedItemsRefs) db.stageRelatedItems,
                   ],
                   addJoins:
@@ -11522,6 +16808,19 @@ class $$ItemsTableTableManager
                                         ._packIdTable(db),
                                     referencedColumn: $$ItemsTableReferences
                                         ._packIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
+                        if (assignedToUserId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.assignedToUserId,
+                                    referencedTable: $$ItemsTableReferences
+                                        ._assignedToUserIdTable(db),
+                                    referencedColumn: $$ItemsTableReferences
+                                        ._assignedToUserIdTable(db)
                                         .id,
                                   )
                                   as T;
@@ -11573,6 +16872,27 @@ class $$ItemsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (itemCompletionsRefs)
+                        await $_getPrefetchedData<
+                          ItemRow,
+                          $ItemsTable,
+                          ItemCompletionRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ItemsTableReferences
+                              ._itemCompletionsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ItemsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).itemCompletionsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.itemId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                       if (stageRelatedItemsRefs)
                         await $_getPrefetchedData<
                           ItemRow,
@@ -11616,8 +16936,10 @@ typedef $$ItemsTableProcessedTableManager =
       ItemRow,
       PrefetchHooks Function({
         bool packId,
+        bool assignedToUserId,
         bool resourceConsumptionRulesRefs,
         bool itemActionRecordsRefs,
+        bool itemCompletionsRefs,
         bool stageRelatedItemsRefs,
       })
     >;
@@ -12719,6 +18041,27 @@ final class $$ResourcesTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$ResourceEventsTable, List<ResourceEventRow>>
+  _resourceEventsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.resourceEvents,
+    aliasName: $_aliasNameGenerator(
+      db.resources.id,
+      db.resourceEvents.resourceId,
+    ),
+  );
+
+  $$ResourceEventsTableProcessedTableManager get resourceEventsRefs {
+    final manager = $$ResourceEventsTableTableManager(
+      $_db,
+      $_db.resourceEvents,
+    ).filter((f) => f.resourceId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_resourceEventsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$ResourcesTableFilterComposer
@@ -12893,6 +18236,31 @@ class $$ResourcesTableFilterComposer
                     $removeJoinBuilderFromRootComposer,
               ),
         );
+    return f(composer);
+  }
+
+  Expression<bool> resourceEventsRefs(
+    Expression<bool> Function($$ResourceEventsTableFilterComposer f) f,
+  ) {
+    final $$ResourceEventsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.resourceEvents,
+      getReferencedColumn: (t) => t.resourceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ResourceEventsTableFilterComposer(
+            $db: $db,
+            $table: $db.resourceEvents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return f(composer);
   }
 }
@@ -13182,6 +18550,31 @@ class $$ResourcesTableAnnotationComposer
         );
     return f(composer);
   }
+
+  Expression<T> resourceEventsRefs<T extends Object>(
+    Expression<T> Function($$ResourceEventsTableAnnotationComposer a) f,
+  ) {
+    final $$ResourceEventsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.resourceEvents,
+      getReferencedColumn: (t) => t.resourceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ResourceEventsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.resourceEvents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$ResourcesTableTableManager
@@ -13201,6 +18594,7 @@ class $$ResourcesTableTableManager
             bool packId,
             bool resourceConsumptionRulesRefs,
             bool resourceActionRecordsRefs,
+            bool resourceEventsRefs,
           })
         > {
   $$ResourcesTableTableManager(_$AppDatabase db, $ResourcesTable table)
@@ -13311,6 +18705,7 @@ class $$ResourcesTableTableManager
                 packId = false,
                 resourceConsumptionRulesRefs = false,
                 resourceActionRecordsRefs = false,
+                resourceEventsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -13318,6 +18713,7 @@ class $$ResourcesTableTableManager
                     if (resourceConsumptionRulesRefs)
                       db.resourceConsumptionRules,
                     if (resourceActionRecordsRefs) db.resourceActionRecords,
+                    if (resourceEventsRefs) db.resourceEvents,
                   ],
                   addJoins:
                       <
@@ -13395,6 +18791,27 @@ class $$ResourcesTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (resourceEventsRefs)
+                        await $_getPrefetchedData<
+                          ResourceRow,
+                          $ResourcesTable,
+                          ResourceEventRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ResourcesTableReferences
+                              ._resourceEventsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ResourcesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).resourceEventsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.resourceId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -13419,6 +18836,7 @@ typedef $$ResourcesTableProcessedTableManager =
         bool packId,
         bool resourceConsumptionRulesRefs,
         bool resourceActionRecordsRefs,
+        bool resourceEventsRefs,
       })
     >;
 typedef $$ResourceConsumptionRulesTableCreateCompanionBuilder =
@@ -14003,6 +19421,29 @@ final class $$ItemActionRecordsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$ItemCompletionsTable, List<ItemCompletionRow>>
+  _itemCompletionsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.itemCompletions,
+    aliasName: $_aliasNameGenerator(
+      db.itemActionRecords.id,
+      db.itemCompletions.itemActionRecordId,
+    ),
+  );
+
+  $$ItemCompletionsTableProcessedTableManager get itemCompletionsRefs {
+    final manager =
+        $$ItemCompletionsTableTableManager($_db, $_db.itemCompletions).filter(
+          (f) => f.itemActionRecordId.id.sqlEquals($_itemColumn<int>('id')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(
+      _itemCompletionsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$ItemActionRecordsTableFilterComposer
@@ -14110,6 +19551,31 @@ class $$ItemActionRecordsTableFilterComposer
                     $removeJoinBuilderFromRootComposer,
               ),
         );
+    return f(composer);
+  }
+
+  Expression<bool> itemCompletionsRefs(
+    Expression<bool> Function($$ItemCompletionsTableFilterComposer f) f,
+  ) {
+    final $$ItemCompletionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.itemCompletions,
+      getReferencedColumn: (t) => t.itemActionRecordId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemCompletionsTableFilterComposer(
+            $db: $db,
+            $table: $db.itemCompletions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return f(composer);
   }
 }
@@ -14294,6 +19760,31 @@ class $$ItemActionRecordsTableAnnotationComposer
         );
     return f(composer);
   }
+
+  Expression<T> itemCompletionsRefs<T extends Object>(
+    Expression<T> Function($$ItemCompletionsTableAnnotationComposer a) f,
+  ) {
+    final $$ItemCompletionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.itemCompletions,
+      getReferencedColumn: (t) => t.itemActionRecordId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemCompletionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.itemCompletions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$ItemActionRecordsTableTableManager
@@ -14309,7 +19800,11 @@ class $$ItemActionRecordsTableTableManager
           $$ItemActionRecordsTableUpdateCompanionBuilder,
           (ItemActionRecordRow, $$ItemActionRecordsTableReferences),
           ItemActionRecordRow,
-          PrefetchHooks Function({bool itemId, bool resourceActionRecordsRefs})
+          PrefetchHooks Function({
+            bool itemId,
+            bool resourceActionRecordsRefs,
+            bool itemCompletionsRefs,
+          })
         > {
   $$ItemActionRecordsTableTableManager(
     _$AppDatabase db,
@@ -14388,11 +19883,16 @@ class $$ItemActionRecordsTableTableManager
               )
               .toList(),
           prefetchHooksCallback:
-              ({itemId = false, resourceActionRecordsRefs = false}) {
+              ({
+                itemId = false,
+                resourceActionRecordsRefs = false,
+                itemCompletionsRefs = false,
+              }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (resourceActionRecordsRefs) db.resourceActionRecords,
+                    if (itemCompletionsRefs) db.itemCompletions,
                   ],
                   addJoins:
                       <
@@ -14451,6 +19951,27 @@ class $$ItemActionRecordsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (itemCompletionsRefs)
+                        await $_getPrefetchedData<
+                          ItemActionRecordRow,
+                          $ItemActionRecordsTable,
+                          ItemCompletionRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ItemActionRecordsTableReferences
+                              ._itemCompletionsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ItemActionRecordsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).itemCompletionsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.itemActionRecordId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -14471,7 +19992,11 @@ typedef $$ItemActionRecordsTableProcessedTableManager =
       $$ItemActionRecordsTableUpdateCompanionBuilder,
       (ItemActionRecordRow, $$ItemActionRecordsTableReferences),
       ItemActionRecordRow,
-      PrefetchHooks Function({bool itemId, bool resourceActionRecordsRefs})
+      PrefetchHooks Function({
+        bool itemId,
+        bool resourceActionRecordsRefs,
+        bool itemCompletionsRefs,
+      })
     >;
 typedef $$ResourceActionRecordsTableCreateCompanionBuilder =
     ResourceActionRecordsCompanion Function({
@@ -15116,6 +20641,1448 @@ typedef $$ResourceActionRecordsTableProcessedTableManager =
       (ResourceActionRecordRow, $$ResourceActionRecordsTableReferences),
       ResourceActionRecordRow,
       PrefetchHooks Function({bool resourceId, bool sourceItemActionRecordId})
+    >;
+typedef $$ItemCompletionsTableCreateCompanionBuilder =
+    ItemCompletionsCompanion Function({
+      Value<int> id,
+      required int itemId,
+      required int packId,
+      required int itemActionRecordId,
+      required String completedByUserId,
+      required int completedAt,
+      Value<String?> undoneByUserId,
+      Value<int?> undoneAt,
+      Value<String?> clientMutationId,
+      required int createdAt,
+    });
+typedef $$ItemCompletionsTableUpdateCompanionBuilder =
+    ItemCompletionsCompanion Function({
+      Value<int> id,
+      Value<int> itemId,
+      Value<int> packId,
+      Value<int> itemActionRecordId,
+      Value<String> completedByUserId,
+      Value<int> completedAt,
+      Value<String?> undoneByUserId,
+      Value<int?> undoneAt,
+      Value<String?> clientMutationId,
+      Value<int> createdAt,
+    });
+
+final class $$ItemCompletionsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $ItemCompletionsTable,
+          ItemCompletionRow
+        > {
+  $$ItemCompletionsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $ItemsTable _itemIdTable(_$AppDatabase db) => db.items.createAlias(
+    $_aliasNameGenerator(db.itemCompletions.itemId, db.items.id),
+  );
+
+  $$ItemsTableProcessedTableManager get itemId {
+    final $_column = $_itemColumn<int>('item_id')!;
+
+    final manager = $$ItemsTableTableManager(
+      $_db,
+      $_db.items,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_itemIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ItemPacksTable _packIdTable(_$AppDatabase db) =>
+      db.itemPacks.createAlias(
+        $_aliasNameGenerator(db.itemCompletions.packId, db.itemPacks.id),
+      );
+
+  $$ItemPacksTableProcessedTableManager get packId {
+    final $_column = $_itemColumn<int>('pack_id')!;
+
+    final manager = $$ItemPacksTableTableManager(
+      $_db,
+      $_db.itemPacks,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_packIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ItemActionRecordsTable _itemActionRecordIdTable(_$AppDatabase db) =>
+      db.itemActionRecords.createAlias(
+        $_aliasNameGenerator(
+          db.itemCompletions.itemActionRecordId,
+          db.itemActionRecords.id,
+        ),
+      );
+
+  $$ItemActionRecordsTableProcessedTableManager get itemActionRecordId {
+    final $_column = $_itemColumn<int>('item_action_record_id')!;
+
+    final manager = $$ItemActionRecordsTableTableManager(
+      $_db,
+      $_db.itemActionRecords,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_itemActionRecordIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $LocalUsersTable _completedByUserIdTable(_$AppDatabase db) =>
+      db.localUsers.createAlias(
+        $_aliasNameGenerator(
+          db.itemCompletions.completedByUserId,
+          db.localUsers.id,
+        ),
+      );
+
+  $$LocalUsersTableProcessedTableManager get completedByUserId {
+    final $_column = $_itemColumn<String>('completed_by_user_id')!;
+
+    final manager = $$LocalUsersTableTableManager(
+      $_db,
+      $_db.localUsers,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_completedByUserIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $LocalUsersTable _undoneByUserIdTable(_$AppDatabase db) =>
+      db.localUsers.createAlias(
+        $_aliasNameGenerator(
+          db.itemCompletions.undoneByUserId,
+          db.localUsers.id,
+        ),
+      );
+
+  $$LocalUsersTableProcessedTableManager? get undoneByUserId {
+    final $_column = $_itemColumn<String>('undone_by_user_id');
+    if ($_column == null) return null;
+    final manager = $$LocalUsersTableTableManager(
+      $_db,
+      $_db.localUsers,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_undoneByUserIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ItemCompletionsTableFilterComposer
+    extends Composer<_$AppDatabase, $ItemCompletionsTable> {
+  $$ItemCompletionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get undoneAt => $composableBuilder(
+    column: $table.undoneAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get clientMutationId => $composableBuilder(
+    column: $table.clientMutationId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$ItemsTableFilterComposer get itemId {
+    final $$ItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.itemId,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemPacksTableFilterComposer get packId {
+    final $$ItemPacksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.packId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableFilterComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemActionRecordsTableFilterComposer get itemActionRecordId {
+    final $$ItemActionRecordsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.itemActionRecordId,
+      referencedTable: $db.itemActionRecords,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemActionRecordsTableFilterComposer(
+            $db: $db,
+            $table: $db.itemActionRecords,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalUsersTableFilterComposer get completedByUserId {
+    final $$LocalUsersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.completedByUserId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableFilterComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalUsersTableFilterComposer get undoneByUserId {
+    final $$LocalUsersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.undoneByUserId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableFilterComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ItemCompletionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ItemCompletionsTable> {
+  $$ItemCompletionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get undoneAt => $composableBuilder(
+    column: $table.undoneAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get clientMutationId => $composableBuilder(
+    column: $table.clientMutationId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ItemsTableOrderingComposer get itemId {
+    final $$ItemsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.itemId,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableOrderingComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemPacksTableOrderingComposer get packId {
+    final $$ItemPacksTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.packId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableOrderingComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemActionRecordsTableOrderingComposer get itemActionRecordId {
+    final $$ItemActionRecordsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.itemActionRecordId,
+      referencedTable: $db.itemActionRecords,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemActionRecordsTableOrderingComposer(
+            $db: $db,
+            $table: $db.itemActionRecords,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalUsersTableOrderingComposer get completedByUserId {
+    final $$LocalUsersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.completedByUserId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableOrderingComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalUsersTableOrderingComposer get undoneByUserId {
+    final $$LocalUsersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.undoneByUserId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableOrderingComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ItemCompletionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ItemCompletionsTable> {
+  $$ItemCompletionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get undoneAt =>
+      $composableBuilder(column: $table.undoneAt, builder: (column) => column);
+
+  GeneratedColumn<String> get clientMutationId => $composableBuilder(
+    column: $table.clientMutationId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$ItemsTableAnnotationComposer get itemId {
+    final $$ItemsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.itemId,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemPacksTableAnnotationComposer get packId {
+    final $$ItemPacksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.packId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemActionRecordsTableAnnotationComposer get itemActionRecordId {
+    final $$ItemActionRecordsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.itemActionRecordId,
+          referencedTable: $db.itemActionRecords,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ItemActionRecordsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.itemActionRecords,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+
+  $$LocalUsersTableAnnotationComposer get completedByUserId {
+    final $$LocalUsersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.completedByUserId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalUsersTableAnnotationComposer get undoneByUserId {
+    final $$LocalUsersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.undoneByUserId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ItemCompletionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ItemCompletionsTable,
+          ItemCompletionRow,
+          $$ItemCompletionsTableFilterComposer,
+          $$ItemCompletionsTableOrderingComposer,
+          $$ItemCompletionsTableAnnotationComposer,
+          $$ItemCompletionsTableCreateCompanionBuilder,
+          $$ItemCompletionsTableUpdateCompanionBuilder,
+          (ItemCompletionRow, $$ItemCompletionsTableReferences),
+          ItemCompletionRow,
+          PrefetchHooks Function({
+            bool itemId,
+            bool packId,
+            bool itemActionRecordId,
+            bool completedByUserId,
+            bool undoneByUserId,
+          })
+        > {
+  $$ItemCompletionsTableTableManager(
+    _$AppDatabase db,
+    $ItemCompletionsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ItemCompletionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ItemCompletionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ItemCompletionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> itemId = const Value.absent(),
+                Value<int> packId = const Value.absent(),
+                Value<int> itemActionRecordId = const Value.absent(),
+                Value<String> completedByUserId = const Value.absent(),
+                Value<int> completedAt = const Value.absent(),
+                Value<String?> undoneByUserId = const Value.absent(),
+                Value<int?> undoneAt = const Value.absent(),
+                Value<String?> clientMutationId = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+              }) => ItemCompletionsCompanion(
+                id: id,
+                itemId: itemId,
+                packId: packId,
+                itemActionRecordId: itemActionRecordId,
+                completedByUserId: completedByUserId,
+                completedAt: completedAt,
+                undoneByUserId: undoneByUserId,
+                undoneAt: undoneAt,
+                clientMutationId: clientMutationId,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int itemId,
+                required int packId,
+                required int itemActionRecordId,
+                required String completedByUserId,
+                required int completedAt,
+                Value<String?> undoneByUserId = const Value.absent(),
+                Value<int?> undoneAt = const Value.absent(),
+                Value<String?> clientMutationId = const Value.absent(),
+                required int createdAt,
+              }) => ItemCompletionsCompanion.insert(
+                id: id,
+                itemId: itemId,
+                packId: packId,
+                itemActionRecordId: itemActionRecordId,
+                completedByUserId: completedByUserId,
+                completedAt: completedAt,
+                undoneByUserId: undoneByUserId,
+                undoneAt: undoneAt,
+                clientMutationId: clientMutationId,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ItemCompletionsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                itemId = false,
+                packId = false,
+                itemActionRecordId = false,
+                completedByUserId = false,
+                undoneByUserId = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (itemId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.itemId,
+                                    referencedTable:
+                                        $$ItemCompletionsTableReferences
+                                            ._itemIdTable(db),
+                                    referencedColumn:
+                                        $$ItemCompletionsTableReferences
+                                            ._itemIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (packId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.packId,
+                                    referencedTable:
+                                        $$ItemCompletionsTableReferences
+                                            ._packIdTable(db),
+                                    referencedColumn:
+                                        $$ItemCompletionsTableReferences
+                                            ._packIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (itemActionRecordId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.itemActionRecordId,
+                                    referencedTable:
+                                        $$ItemCompletionsTableReferences
+                                            ._itemActionRecordIdTable(db),
+                                    referencedColumn:
+                                        $$ItemCompletionsTableReferences
+                                            ._itemActionRecordIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (completedByUserId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.completedByUserId,
+                                    referencedTable:
+                                        $$ItemCompletionsTableReferences
+                                            ._completedByUserIdTable(db),
+                                    referencedColumn:
+                                        $$ItemCompletionsTableReferences
+                                            ._completedByUserIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (undoneByUserId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.undoneByUserId,
+                                    referencedTable:
+                                        $$ItemCompletionsTableReferences
+                                            ._undoneByUserIdTable(db),
+                                    referencedColumn:
+                                        $$ItemCompletionsTableReferences
+                                            ._undoneByUserIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$ItemCompletionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ItemCompletionsTable,
+      ItemCompletionRow,
+      $$ItemCompletionsTableFilterComposer,
+      $$ItemCompletionsTableOrderingComposer,
+      $$ItemCompletionsTableAnnotationComposer,
+      $$ItemCompletionsTableCreateCompanionBuilder,
+      $$ItemCompletionsTableUpdateCompanionBuilder,
+      (ItemCompletionRow, $$ItemCompletionsTableReferences),
+      ItemCompletionRow,
+      PrefetchHooks Function({
+        bool itemId,
+        bool packId,
+        bool itemActionRecordId,
+        bool completedByUserId,
+        bool undoneByUserId,
+      })
+    >;
+typedef $$ResourceEventsTableCreateCompanionBuilder =
+    ResourceEventsCompanion Function({
+      Value<int> id,
+      required int resourceId,
+      required int packId,
+      required String actorUserId,
+      required String changeType,
+      Value<int?> previousValue,
+      Value<int?> newValue,
+      Value<int?> deltaValue,
+      Value<String?> unit,
+      required int createdAt,
+      Value<String?> metadataJson,
+    });
+typedef $$ResourceEventsTableUpdateCompanionBuilder =
+    ResourceEventsCompanion Function({
+      Value<int> id,
+      Value<int> resourceId,
+      Value<int> packId,
+      Value<String> actorUserId,
+      Value<String> changeType,
+      Value<int?> previousValue,
+      Value<int?> newValue,
+      Value<int?> deltaValue,
+      Value<String?> unit,
+      Value<int> createdAt,
+      Value<String?> metadataJson,
+    });
+
+final class $$ResourceEventsTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $ResourceEventsTable, ResourceEventRow> {
+  $$ResourceEventsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $ResourcesTable _resourceIdTable(_$AppDatabase db) =>
+      db.resources.createAlias(
+        $_aliasNameGenerator(db.resourceEvents.resourceId, db.resources.id),
+      );
+
+  $$ResourcesTableProcessedTableManager get resourceId {
+    final $_column = $_itemColumn<int>('resource_id')!;
+
+    final manager = $$ResourcesTableTableManager(
+      $_db,
+      $_db.resources,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_resourceIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ItemPacksTable _packIdTable(_$AppDatabase db) =>
+      db.itemPacks.createAlias(
+        $_aliasNameGenerator(db.resourceEvents.packId, db.itemPacks.id),
+      );
+
+  $$ItemPacksTableProcessedTableManager get packId {
+    final $_column = $_itemColumn<int>('pack_id')!;
+
+    final manager = $$ItemPacksTableTableManager(
+      $_db,
+      $_db.itemPacks,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_packIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $LocalUsersTable _actorUserIdTable(_$AppDatabase db) =>
+      db.localUsers.createAlias(
+        $_aliasNameGenerator(db.resourceEvents.actorUserId, db.localUsers.id),
+      );
+
+  $$LocalUsersTableProcessedTableManager get actorUserId {
+    final $_column = $_itemColumn<String>('actor_user_id')!;
+
+    final manager = $$LocalUsersTableTableManager(
+      $_db,
+      $_db.localUsers,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_actorUserIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ResourceEventsTableFilterComposer
+    extends Composer<_$AppDatabase, $ResourceEventsTable> {
+  $$ResourceEventsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get changeType => $composableBuilder(
+    column: $table.changeType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get previousValue => $composableBuilder(
+    column: $table.previousValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get newValue => $composableBuilder(
+    column: $table.newValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get deltaValue => $composableBuilder(
+    column: $table.deltaValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get unit => $composableBuilder(
+    column: $table.unit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get metadataJson => $composableBuilder(
+    column: $table.metadataJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$ResourcesTableFilterComposer get resourceId {
+    final $$ResourcesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.resourceId,
+      referencedTable: $db.resources,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ResourcesTableFilterComposer(
+            $db: $db,
+            $table: $db.resources,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemPacksTableFilterComposer get packId {
+    final $$ItemPacksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.packId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableFilterComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalUsersTableFilterComposer get actorUserId {
+    final $$LocalUsersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.actorUserId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableFilterComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ResourceEventsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ResourceEventsTable> {
+  $$ResourceEventsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get changeType => $composableBuilder(
+    column: $table.changeType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get previousValue => $composableBuilder(
+    column: $table.previousValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get newValue => $composableBuilder(
+    column: $table.newValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get deltaValue => $composableBuilder(
+    column: $table.deltaValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get unit => $composableBuilder(
+    column: $table.unit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get metadataJson => $composableBuilder(
+    column: $table.metadataJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ResourcesTableOrderingComposer get resourceId {
+    final $$ResourcesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.resourceId,
+      referencedTable: $db.resources,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ResourcesTableOrderingComposer(
+            $db: $db,
+            $table: $db.resources,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemPacksTableOrderingComposer get packId {
+    final $$ItemPacksTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.packId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableOrderingComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalUsersTableOrderingComposer get actorUserId {
+    final $$LocalUsersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.actorUserId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableOrderingComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ResourceEventsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ResourceEventsTable> {
+  $$ResourceEventsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get changeType => $composableBuilder(
+    column: $table.changeType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get previousValue => $composableBuilder(
+    column: $table.previousValue,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get newValue =>
+      $composableBuilder(column: $table.newValue, builder: (column) => column);
+
+  GeneratedColumn<int> get deltaValue => $composableBuilder(
+    column: $table.deltaValue,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get unit =>
+      $composableBuilder(column: $table.unit, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get metadataJson => $composableBuilder(
+    column: $table.metadataJson,
+    builder: (column) => column,
+  );
+
+  $$ResourcesTableAnnotationComposer get resourceId {
+    final $$ResourcesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.resourceId,
+      referencedTable: $db.resources,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ResourcesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.resources,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemPacksTableAnnotationComposer get packId {
+    final $$ItemPacksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.packId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalUsersTableAnnotationComposer get actorUserId {
+    final $$LocalUsersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.actorUserId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ResourceEventsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ResourceEventsTable,
+          ResourceEventRow,
+          $$ResourceEventsTableFilterComposer,
+          $$ResourceEventsTableOrderingComposer,
+          $$ResourceEventsTableAnnotationComposer,
+          $$ResourceEventsTableCreateCompanionBuilder,
+          $$ResourceEventsTableUpdateCompanionBuilder,
+          (ResourceEventRow, $$ResourceEventsTableReferences),
+          ResourceEventRow,
+          PrefetchHooks Function({
+            bool resourceId,
+            bool packId,
+            bool actorUserId,
+          })
+        > {
+  $$ResourceEventsTableTableManager(
+    _$AppDatabase db,
+    $ResourceEventsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ResourceEventsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ResourceEventsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ResourceEventsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> resourceId = const Value.absent(),
+                Value<int> packId = const Value.absent(),
+                Value<String> actorUserId = const Value.absent(),
+                Value<String> changeType = const Value.absent(),
+                Value<int?> previousValue = const Value.absent(),
+                Value<int?> newValue = const Value.absent(),
+                Value<int?> deltaValue = const Value.absent(),
+                Value<String?> unit = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<String?> metadataJson = const Value.absent(),
+              }) => ResourceEventsCompanion(
+                id: id,
+                resourceId: resourceId,
+                packId: packId,
+                actorUserId: actorUserId,
+                changeType: changeType,
+                previousValue: previousValue,
+                newValue: newValue,
+                deltaValue: deltaValue,
+                unit: unit,
+                createdAt: createdAt,
+                metadataJson: metadataJson,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int resourceId,
+                required int packId,
+                required String actorUserId,
+                required String changeType,
+                Value<int?> previousValue = const Value.absent(),
+                Value<int?> newValue = const Value.absent(),
+                Value<int?> deltaValue = const Value.absent(),
+                Value<String?> unit = const Value.absent(),
+                required int createdAt,
+                Value<String?> metadataJson = const Value.absent(),
+              }) => ResourceEventsCompanion.insert(
+                id: id,
+                resourceId: resourceId,
+                packId: packId,
+                actorUserId: actorUserId,
+                changeType: changeType,
+                previousValue: previousValue,
+                newValue: newValue,
+                deltaValue: deltaValue,
+                unit: unit,
+                createdAt: createdAt,
+                metadataJson: metadataJson,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ResourceEventsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({resourceId = false, packId = false, actorUserId = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (resourceId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.resourceId,
+                                    referencedTable:
+                                        $$ResourceEventsTableReferences
+                                            ._resourceIdTable(db),
+                                    referencedColumn:
+                                        $$ResourceEventsTableReferences
+                                            ._resourceIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (packId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.packId,
+                                    referencedTable:
+                                        $$ResourceEventsTableReferences
+                                            ._packIdTable(db),
+                                    referencedColumn:
+                                        $$ResourceEventsTableReferences
+                                            ._packIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (actorUserId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.actorUserId,
+                                    referencedTable:
+                                        $$ResourceEventsTableReferences
+                                            ._actorUserIdTable(db),
+                                    referencedColumn:
+                                        $$ResourceEventsTableReferences
+                                            ._actorUserIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$ResourceEventsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ResourceEventsTable,
+      ResourceEventRow,
+      $$ResourceEventsTableFilterComposer,
+      $$ResourceEventsTableOrderingComposer,
+      $$ResourceEventsTableAnnotationComposer,
+      $$ResourceEventsTableCreateCompanionBuilder,
+      $$ResourceEventsTableUpdateCompanionBuilder,
+      (ResourceEventRow, $$ResourceEventsTableReferences),
+      ResourceEventRow,
+      PrefetchHooks Function({bool resourceId, bool packId, bool actorUserId})
     >;
 typedef $$StageTrackersTableCreateCompanionBuilder =
     StageTrackersCompanion Function({
@@ -16395,6 +23362,34 @@ final class $$StageRecordsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<
+    $StageAcknowledgementsTable,
+    List<StageAcknowledgementRow>
+  >
+  _stageAcknowledgementsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.stageAcknowledgements,
+        aliasName: $_aliasNameGenerator(
+          db.stageRecords.id,
+          db.stageAcknowledgements.stageRecordId,
+        ),
+      );
+
+  $$StageAcknowledgementsTableProcessedTableManager
+  get stageAcknowledgementsRefs {
+    final manager = $$StageAcknowledgementsTableTableManager(
+      $_db,
+      $_db.stageAcknowledgements,
+    ).filter((f) => f.stageRecordId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _stageAcknowledgementsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$StageRecordsTableFilterComposer
@@ -16534,6 +23529,32 @@ class $$StageRecordsTableFilterComposer
                 $removeJoinBuilderFromRootComposer,
           ),
     );
+    return f(composer);
+  }
+
+  Expression<bool> stageAcknowledgementsRefs(
+    Expression<bool> Function($$StageAcknowledgementsTableFilterComposer f) f,
+  ) {
+    final $$StageAcknowledgementsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.stageAcknowledgements,
+          getReferencedColumn: (t) => t.stageRecordId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$StageAcknowledgementsTableFilterComposer(
+                $db: $db,
+                $table: $db.stageAcknowledgements,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
     return f(composer);
   }
 }
@@ -16782,6 +23803,32 @@ class $$StageRecordsTableAnnotationComposer
         );
     return f(composer);
   }
+
+  Expression<T> stageAcknowledgementsRefs<T extends Object>(
+    Expression<T> Function($$StageAcknowledgementsTableAnnotationComposer a) f,
+  ) {
+    final $$StageAcknowledgementsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.stageAcknowledgements,
+          getReferencedColumn: (t) => t.stageRecordId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$StageAcknowledgementsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.stageAcknowledgements,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$StageRecordsTableTableManager
@@ -16801,6 +23848,7 @@ class $$StageRecordsTableTableManager
             bool stageTrackerId,
             bool stageRuleId,
             bool stageRelatedItemsRefs,
+            bool stageAcknowledgementsRefs,
           })
         > {
   $$StageRecordsTableTableManager(_$AppDatabase db, $StageRecordsTable table)
@@ -16891,11 +23939,13 @@ class $$StageRecordsTableTableManager
                 stageTrackerId = false,
                 stageRuleId = false,
                 stageRelatedItemsRefs = false,
+                stageAcknowledgementsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (stageRelatedItemsRefs) db.stageRelatedItems,
+                    if (stageAcknowledgementsRefs) db.stageAcknowledgements,
                   ],
                   addJoins:
                       <
@@ -16969,6 +24019,27 @@ class $$StageRecordsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (stageAcknowledgementsRefs)
+                        await $_getPrefetchedData<
+                          StageRecordRow,
+                          $StageRecordsTable,
+                          StageAcknowledgementRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$StageRecordsTableReferences
+                              ._stageAcknowledgementsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$StageRecordsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).stageAcknowledgementsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.stageRecordId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -16993,6 +24064,7 @@ typedef $$StageRecordsTableProcessedTableManager =
         bool stageTrackerId,
         bool stageRuleId,
         bool stageRelatedItemsRefs,
+        bool stageAcknowledgementsRefs,
       })
     >;
 typedef $$StageRelatedItemsTableCreateCompanionBuilder =
@@ -17416,6 +24488,1038 @@ typedef $$StageRelatedItemsTableProcessedTableManager =
       StageRelatedItemRow,
       PrefetchHooks Function({bool stageRecordId, bool itemId})
     >;
+typedef $$StageAcknowledgementsTableCreateCompanionBuilder =
+    StageAcknowledgementsCompanion Function({
+      Value<int> id,
+      required int stageRecordId,
+      required int packId,
+      required String userId,
+      required int acknowledgedAt,
+    });
+typedef $$StageAcknowledgementsTableUpdateCompanionBuilder =
+    StageAcknowledgementsCompanion Function({
+      Value<int> id,
+      Value<int> stageRecordId,
+      Value<int> packId,
+      Value<String> userId,
+      Value<int> acknowledgedAt,
+    });
+
+final class $$StageAcknowledgementsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $StageAcknowledgementsTable,
+          StageAcknowledgementRow
+        > {
+  $$StageAcknowledgementsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $StageRecordsTable _stageRecordIdTable(_$AppDatabase db) =>
+      db.stageRecords.createAlias(
+        $_aliasNameGenerator(
+          db.stageAcknowledgements.stageRecordId,
+          db.stageRecords.id,
+        ),
+      );
+
+  $$StageRecordsTableProcessedTableManager get stageRecordId {
+    final $_column = $_itemColumn<int>('stage_record_id')!;
+
+    final manager = $$StageRecordsTableTableManager(
+      $_db,
+      $_db.stageRecords,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_stageRecordIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ItemPacksTable _packIdTable(_$AppDatabase db) =>
+      db.itemPacks.createAlias(
+        $_aliasNameGenerator(db.stageAcknowledgements.packId, db.itemPacks.id),
+      );
+
+  $$ItemPacksTableProcessedTableManager get packId {
+    final $_column = $_itemColumn<int>('pack_id')!;
+
+    final manager = $$ItemPacksTableTableManager(
+      $_db,
+      $_db.itemPacks,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_packIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $LocalUsersTable _userIdTable(_$AppDatabase db) =>
+      db.localUsers.createAlias(
+        $_aliasNameGenerator(db.stageAcknowledgements.userId, db.localUsers.id),
+      );
+
+  $$LocalUsersTableProcessedTableManager get userId {
+    final $_column = $_itemColumn<String>('user_id')!;
+
+    final manager = $$LocalUsersTableTableManager(
+      $_db,
+      $_db.localUsers,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_userIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$StageAcknowledgementsTableFilterComposer
+    extends Composer<_$AppDatabase, $StageAcknowledgementsTable> {
+  $$StageAcknowledgementsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get acknowledgedAt => $composableBuilder(
+    column: $table.acknowledgedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$StageRecordsTableFilterComposer get stageRecordId {
+    final $$StageRecordsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.stageRecordId,
+      referencedTable: $db.stageRecords,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StageRecordsTableFilterComposer(
+            $db: $db,
+            $table: $db.stageRecords,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemPacksTableFilterComposer get packId {
+    final $$ItemPacksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.packId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableFilterComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalUsersTableFilterComposer get userId {
+    final $$LocalUsersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableFilterComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StageAcknowledgementsTableOrderingComposer
+    extends Composer<_$AppDatabase, $StageAcknowledgementsTable> {
+  $$StageAcknowledgementsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get acknowledgedAt => $composableBuilder(
+    column: $table.acknowledgedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$StageRecordsTableOrderingComposer get stageRecordId {
+    final $$StageRecordsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.stageRecordId,
+      referencedTable: $db.stageRecords,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StageRecordsTableOrderingComposer(
+            $db: $db,
+            $table: $db.stageRecords,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemPacksTableOrderingComposer get packId {
+    final $$ItemPacksTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.packId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableOrderingComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalUsersTableOrderingComposer get userId {
+    final $$LocalUsersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableOrderingComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StageAcknowledgementsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $StageAcknowledgementsTable> {
+  $$StageAcknowledgementsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get acknowledgedAt => $composableBuilder(
+    column: $table.acknowledgedAt,
+    builder: (column) => column,
+  );
+
+  $$StageRecordsTableAnnotationComposer get stageRecordId {
+    final $$StageRecordsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.stageRecordId,
+      referencedTable: $db.stageRecords,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StageRecordsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.stageRecords,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemPacksTableAnnotationComposer get packId {
+    final $$ItemPacksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.packId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalUsersTableAnnotationComposer get userId {
+    final $$LocalUsersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StageAcknowledgementsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $StageAcknowledgementsTable,
+          StageAcknowledgementRow,
+          $$StageAcknowledgementsTableFilterComposer,
+          $$StageAcknowledgementsTableOrderingComposer,
+          $$StageAcknowledgementsTableAnnotationComposer,
+          $$StageAcknowledgementsTableCreateCompanionBuilder,
+          $$StageAcknowledgementsTableUpdateCompanionBuilder,
+          (StageAcknowledgementRow, $$StageAcknowledgementsTableReferences),
+          StageAcknowledgementRow,
+          PrefetchHooks Function({bool stageRecordId, bool packId, bool userId})
+        > {
+  $$StageAcknowledgementsTableTableManager(
+    _$AppDatabase db,
+    $StageAcknowledgementsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$StageAcknowledgementsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$StageAcknowledgementsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$StageAcknowledgementsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> stageRecordId = const Value.absent(),
+                Value<int> packId = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<int> acknowledgedAt = const Value.absent(),
+              }) => StageAcknowledgementsCompanion(
+                id: id,
+                stageRecordId: stageRecordId,
+                packId: packId,
+                userId: userId,
+                acknowledgedAt: acknowledgedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int stageRecordId,
+                required int packId,
+                required String userId,
+                required int acknowledgedAt,
+              }) => StageAcknowledgementsCompanion.insert(
+                id: id,
+                stageRecordId: stageRecordId,
+                packId: packId,
+                userId: userId,
+                acknowledgedAt: acknowledgedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$StageAcknowledgementsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({stageRecordId = false, packId = false, userId = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (stageRecordId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.stageRecordId,
+                                    referencedTable:
+                                        $$StageAcknowledgementsTableReferences
+                                            ._stageRecordIdTable(db),
+                                    referencedColumn:
+                                        $$StageAcknowledgementsTableReferences
+                                            ._stageRecordIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (packId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.packId,
+                                    referencedTable:
+                                        $$StageAcknowledgementsTableReferences
+                                            ._packIdTable(db),
+                                    referencedColumn:
+                                        $$StageAcknowledgementsTableReferences
+                                            ._packIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (userId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.userId,
+                                    referencedTable:
+                                        $$StageAcknowledgementsTableReferences
+                                            ._userIdTable(db),
+                                    referencedColumn:
+                                        $$StageAcknowledgementsTableReferences
+                                            ._userIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$StageAcknowledgementsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $StageAcknowledgementsTable,
+      StageAcknowledgementRow,
+      $$StageAcknowledgementsTableFilterComposer,
+      $$StageAcknowledgementsTableOrderingComposer,
+      $$StageAcknowledgementsTableAnnotationComposer,
+      $$StageAcknowledgementsTableCreateCompanionBuilder,
+      $$StageAcknowledgementsTableUpdateCompanionBuilder,
+      (StageAcknowledgementRow, $$StageAcknowledgementsTableReferences),
+      StageAcknowledgementRow,
+      PrefetchHooks Function({bool stageRecordId, bool packId, bool userId})
+    >;
+typedef $$ActivityEventsTableCreateCompanionBuilder =
+    ActivityEventsCompanion Function({
+      Value<int> id,
+      required int packId,
+      required String actorUserId,
+      required String entityType,
+      required int entityId,
+      required String action,
+      Value<String?> beforeJson,
+      Value<String?> afterJson,
+      Value<String?> metadataJson,
+      required int createdAt,
+    });
+typedef $$ActivityEventsTableUpdateCompanionBuilder =
+    ActivityEventsCompanion Function({
+      Value<int> id,
+      Value<int> packId,
+      Value<String> actorUserId,
+      Value<String> entityType,
+      Value<int> entityId,
+      Value<String> action,
+      Value<String?> beforeJson,
+      Value<String?> afterJson,
+      Value<String?> metadataJson,
+      Value<int> createdAt,
+    });
+
+final class $$ActivityEventsTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $ActivityEventsTable, ActivityEventRow> {
+  $$ActivityEventsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $ItemPacksTable _packIdTable(_$AppDatabase db) =>
+      db.itemPacks.createAlias(
+        $_aliasNameGenerator(db.activityEvents.packId, db.itemPacks.id),
+      );
+
+  $$ItemPacksTableProcessedTableManager get packId {
+    final $_column = $_itemColumn<int>('pack_id')!;
+
+    final manager = $$ItemPacksTableTableManager(
+      $_db,
+      $_db.itemPacks,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_packIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $LocalUsersTable _actorUserIdTable(_$AppDatabase db) =>
+      db.localUsers.createAlias(
+        $_aliasNameGenerator(db.activityEvents.actorUserId, db.localUsers.id),
+      );
+
+  $$LocalUsersTableProcessedTableManager get actorUserId {
+    final $_column = $_itemColumn<String>('actor_user_id')!;
+
+    final manager = $$LocalUsersTableTableManager(
+      $_db,
+      $_db.localUsers,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_actorUserIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ActivityEventsTableFilterComposer
+    extends Composer<_$AppDatabase, $ActivityEventsTable> {
+  $$ActivityEventsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get action => $composableBuilder(
+    column: $table.action,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get beforeJson => $composableBuilder(
+    column: $table.beforeJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get afterJson => $composableBuilder(
+    column: $table.afterJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get metadataJson => $composableBuilder(
+    column: $table.metadataJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$ItemPacksTableFilterComposer get packId {
+    final $$ItemPacksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.packId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableFilterComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalUsersTableFilterComposer get actorUserId {
+    final $$LocalUsersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.actorUserId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableFilterComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ActivityEventsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ActivityEventsTable> {
+  $$ActivityEventsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get action => $composableBuilder(
+    column: $table.action,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get beforeJson => $composableBuilder(
+    column: $table.beforeJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get afterJson => $composableBuilder(
+    column: $table.afterJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get metadataJson => $composableBuilder(
+    column: $table.metadataJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ItemPacksTableOrderingComposer get packId {
+    final $$ItemPacksTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.packId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableOrderingComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalUsersTableOrderingComposer get actorUserId {
+    final $$LocalUsersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.actorUserId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableOrderingComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ActivityEventsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ActivityEventsTable> {
+  $$ActivityEventsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get entityId =>
+      $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumn<String> get action =>
+      $composableBuilder(column: $table.action, builder: (column) => column);
+
+  GeneratedColumn<String> get beforeJson => $composableBuilder(
+    column: $table.beforeJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get afterJson =>
+      $composableBuilder(column: $table.afterJson, builder: (column) => column);
+
+  GeneratedColumn<String> get metadataJson => $composableBuilder(
+    column: $table.metadataJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$ItemPacksTableAnnotationComposer get packId {
+    final $$ItemPacksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.packId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalUsersTableAnnotationComposer get actorUserId {
+    final $$LocalUsersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.actorUserId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ActivityEventsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ActivityEventsTable,
+          ActivityEventRow,
+          $$ActivityEventsTableFilterComposer,
+          $$ActivityEventsTableOrderingComposer,
+          $$ActivityEventsTableAnnotationComposer,
+          $$ActivityEventsTableCreateCompanionBuilder,
+          $$ActivityEventsTableUpdateCompanionBuilder,
+          (ActivityEventRow, $$ActivityEventsTableReferences),
+          ActivityEventRow,
+          PrefetchHooks Function({bool packId, bool actorUserId})
+        > {
+  $$ActivityEventsTableTableManager(
+    _$AppDatabase db,
+    $ActivityEventsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ActivityEventsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ActivityEventsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ActivityEventsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> packId = const Value.absent(),
+                Value<String> actorUserId = const Value.absent(),
+                Value<String> entityType = const Value.absent(),
+                Value<int> entityId = const Value.absent(),
+                Value<String> action = const Value.absent(),
+                Value<String?> beforeJson = const Value.absent(),
+                Value<String?> afterJson = const Value.absent(),
+                Value<String?> metadataJson = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+              }) => ActivityEventsCompanion(
+                id: id,
+                packId: packId,
+                actorUserId: actorUserId,
+                entityType: entityType,
+                entityId: entityId,
+                action: action,
+                beforeJson: beforeJson,
+                afterJson: afterJson,
+                metadataJson: metadataJson,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int packId,
+                required String actorUserId,
+                required String entityType,
+                required int entityId,
+                required String action,
+                Value<String?> beforeJson = const Value.absent(),
+                Value<String?> afterJson = const Value.absent(),
+                Value<String?> metadataJson = const Value.absent(),
+                required int createdAt,
+              }) => ActivityEventsCompanion.insert(
+                id: id,
+                packId: packId,
+                actorUserId: actorUserId,
+                entityType: entityType,
+                entityId: entityId,
+                action: action,
+                beforeJson: beforeJson,
+                afterJson: afterJson,
+                metadataJson: metadataJson,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ActivityEventsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({packId = false, actorUserId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (packId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.packId,
+                                referencedTable: $$ActivityEventsTableReferences
+                                    ._packIdTable(db),
+                                referencedColumn:
+                                    $$ActivityEventsTableReferences
+                                        ._packIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+                    if (actorUserId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.actorUserId,
+                                referencedTable: $$ActivityEventsTableReferences
+                                    ._actorUserIdTable(db),
+                                referencedColumn:
+                                    $$ActivityEventsTableReferences
+                                        ._actorUserIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ActivityEventsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ActivityEventsTable,
+      ActivityEventRow,
+      $$ActivityEventsTableFilterComposer,
+      $$ActivityEventsTableOrderingComposer,
+      $$ActivityEventsTableAnnotationComposer,
+      $$ActivityEventsTableCreateCompanionBuilder,
+      $$ActivityEventsTableUpdateCompanionBuilder,
+      (ActivityEventRow, $$ActivityEventsTableReferences),
+      ActivityEventRow,
+      PrefetchHooks Function({bool packId, bool actorUserId})
+    >;
 typedef $$AppSettingsEntriesTableCreateCompanionBuilder =
     AppSettingsEntriesCompanion Function({
       Value<int> id,
@@ -17627,8 +25731,12 @@ typedef $$AppSettingsEntriesTableProcessedTableManager =
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
+  $$LocalUsersTableTableManager get localUsers =>
+      $$LocalUsersTableTableManager(_db, _db.localUsers);
   $$ItemPacksTableTableManager get itemPacks =>
       $$ItemPacksTableTableManager(_db, _db.itemPacks);
+  $$PackMembersTableTableManager get packMembers =>
+      $$PackMembersTableTableManager(_db, _db.packMembers);
   $$ItemsTableTableManager get items =>
       $$ItemsTableTableManager(_db, _db.items);
   $$PackTemplatesTableTableManager get packTemplates =>
@@ -17646,6 +25754,10 @@ class $AppDatabaseManager {
       $$ItemActionRecordsTableTableManager(_db, _db.itemActionRecords);
   $$ResourceActionRecordsTableTableManager get resourceActionRecords =>
       $$ResourceActionRecordsTableTableManager(_db, _db.resourceActionRecords);
+  $$ItemCompletionsTableTableManager get itemCompletions =>
+      $$ItemCompletionsTableTableManager(_db, _db.itemCompletions);
+  $$ResourceEventsTableTableManager get resourceEvents =>
+      $$ResourceEventsTableTableManager(_db, _db.resourceEvents);
   $$StageTrackersTableTableManager get stageTrackers =>
       $$StageTrackersTableTableManager(_db, _db.stageTrackers);
   $$StageRulesTableTableManager get stageRules =>
@@ -17654,6 +25766,10 @@ class $AppDatabaseManager {
       $$StageRecordsTableTableManager(_db, _db.stageRecords);
   $$StageRelatedItemsTableTableManager get stageRelatedItems =>
       $$StageRelatedItemsTableTableManager(_db, _db.stageRelatedItems);
+  $$StageAcknowledgementsTableTableManager get stageAcknowledgements =>
+      $$StageAcknowledgementsTableTableManager(_db, _db.stageAcknowledgements);
+  $$ActivityEventsTableTableManager get activityEvents =>
+      $$ActivityEventsTableTableManager(_db, _db.activityEvents);
   $$AppSettingsEntriesTableTableManager get appSettingsEntries =>
       $$AppSettingsEntriesTableTableManager(_db, _db.appSettingsEntries);
 }

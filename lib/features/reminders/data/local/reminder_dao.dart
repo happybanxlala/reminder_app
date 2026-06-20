@@ -8,6 +8,7 @@ import '../../domain/item_action_record.dart';
 import '../../domain/item_pack.dart';
 import '../../domain/repeat_rule_v2.dart';
 import '../../domain/resource.dart';
+import '../../domain/shared_pack.dart';
 import '../../domain/stage_record.dart';
 import '../../domain/stage_related_item.dart';
 import '../../domain/stage_rule.dart';
@@ -171,7 +172,9 @@ class StageRelatedItemEntry {
 
 @DriftAccessor(
   tables: [
+    LocalUsers,
     ItemPacks,
+    PackMembers,
     Items,
     PackTemplates,
     PackTemplateItems,
@@ -179,10 +182,14 @@ class StageRelatedItemEntry {
     ResourceConsumptionRules,
     ResourceActionRecords,
     ItemActionRecords,
+    ItemCompletions,
+    ResourceEvents,
     StageTrackers,
     StageRules,
     StageRecords,
     StageRelatedItems,
+    StageAcknowledgements,
+    ActivityEvents,
     AppSettingsEntries,
   ],
 )
@@ -190,8 +197,80 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     with _$ReminderDaoMixin {
   ReminderDao(super.attachedDatabase);
 
+  Future<List<LocalUser>> listLocalUsers() async {
+    final rows =
+        await (select(localUsers)..orderBy([
+              (t) => OrderingTerm.asc(t.createdAt),
+              (t) => OrderingTerm.asc(t.id),
+            ]))
+            .get();
+    return rows.map(_toLocalUser).toList(growable: false);
+  }
+
+  Future<LocalUser?> getLocalUserById(String id) async {
+    final row = await (select(
+      localUsers,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _toLocalUser(row);
+  }
+
   Future<int> insertItemPack(ItemPacksCompanion entry) {
     return into(itemPacks).insert(entry);
+  }
+
+  Future<void> upsertPackMember(PackMembersCompanion entry) {
+    return into(packMembers).insertOnConflictUpdate(entry);
+  }
+
+  Future<List<PackMember>> listPackMembers(int packId) async {
+    final rows =
+        await (select(packMembers)
+              ..where((t) => t.packId.equals(packId))
+              ..orderBy([
+                (t) => OrderingTerm.asc(t.joinedAt),
+                (t) => OrderingTerm.asc(t.userId),
+              ]))
+            .get();
+    return rows.map(_toPackMember).toList(growable: false);
+  }
+
+  Future<PackMember?> getPackMember({
+    required int packId,
+    required String userId,
+  }) async {
+    final row =
+        await (select(packMembers)
+              ..where((t) => t.packId.equals(packId) & t.userId.equals(userId)))
+            .getSingleOrNull();
+    return row == null ? null : _toPackMember(row);
+  }
+
+  Future<bool> isActivePackMember({
+    required int packId,
+    required String userId,
+  }) async {
+    final row =
+        await (select(packMembers)..where(
+              (t) =>
+                  t.packId.equals(packId) &
+                  t.userId.equals(userId) &
+                  t.status.equals(PackMemberStatus.active.name),
+            ))
+            .getSingleOrNull();
+    return row != null;
+  }
+
+  Future<int> insertActivityEvent(ActivityEventsCompanion entry) {
+    return into(activityEvents).insert(entry);
+  }
+
+  Future<List<ActivityEvent>> listActivityEventsForPack(int packId) async {
+    final rows =
+        await (select(activityEvents)
+              ..where((t) => t.packId.equals(packId))
+              ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
+            .get();
+    return rows.map(_toActivityEvent).toList(growable: false);
   }
 
   Future<BackupData> exportBackupData() async {
@@ -267,6 +346,24 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     final templateRows = await (select(
       packTemplates,
     )..orderBy([(t) => OrderingTerm.asc(t.id)])).get();
+    final localUserRows = await (select(
+      localUsers,
+    )..orderBy([(t) => OrderingTerm.asc(t.id)])).get();
+    final packMemberRows = await (select(
+      packMembers,
+    )..orderBy([(t) => OrderingTerm.asc(t.packId)])).get();
+    final itemCompletionRows = await (select(
+      itemCompletions,
+    )..orderBy([(t) => OrderingTerm.asc(t.id)])).get();
+    final resourceEventRows = await (select(
+      resourceEvents,
+    )..orderBy([(t) => OrderingTerm.asc(t.id)])).get();
+    final stageAcknowledgementRows = await (select(
+      stageAcknowledgements,
+    )..orderBy([(t) => OrderingTerm.asc(t.id)])).get();
+    final activityEventRows = await (select(
+      activityEvents,
+    )..orderBy([(t) => OrderingTerm.asc(t.id)])).get();
     final templateItemRows =
         await (select(packTemplateItems)..orderBy([
               (t) => OrderingTerm.asc(t.templateId),
@@ -303,6 +400,10 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
           },
       ],
       relations: [
+        for (final row in localUserRows)
+          {'relationType': 'localUser', ..._localUserBackupJson(row)},
+        for (final row in packMemberRows)
+          {'relationType': 'packMember', ..._packMemberBackupJson(row)},
         for (final row in consumptionRuleRows)
           {
             'relationType': 'resourceConsumptionRule',
@@ -319,6 +420,17 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
           {'logType': 'itemAction', ..._itemActionBackupJson(row)},
         for (final row in resourceActionRows)
           {'logType': 'resourceAction', ..._resourceActionBackupJson(row)},
+        for (final row in itemCompletionRows)
+          {'logType': 'itemCompletion', ..._itemCompletionBackupJson(row)},
+        for (final row in resourceEventRows)
+          {'logType': 'resourceEvent', ..._resourceEventBackupJson(row)},
+        for (final row in stageAcknowledgementRows)
+          {
+            'logType': 'stageAcknowledgement',
+            ..._stageAcknowledgementBackupJson(row),
+          },
+        for (final row in activityEventRows)
+          {'logType': 'activityEvent', ..._activityEventBackupJson(row)},
       ],
     );
   }
@@ -335,6 +447,12 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
           .where((row) => row['isSystemDefault'] == true)
           .map((row) => _requiredInt(row, 'id'))
           .toSet();
+
+      for (final row in data.relations) {
+        if (row['relationType'] == 'localUser') {
+          await _insertOrReplaceMap('local_users', _localUserColumns, row);
+        }
+      }
 
       for (final row in data.packs) {
         if (row['isSystemDefault'] == true) {
@@ -406,6 +524,11 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
           await _insertMap('item_action_records', _itemActionColumns, row);
         }
       }
+      for (final row in data.activityLogs) {
+        if (row['logType'] == 'itemCompletion') {
+          await _insertMap('item_completions', _itemCompletionColumns, row);
+        }
+      }
       for (final row in data.relations) {
         if (row['relationType'] == 'resourceConsumptionRule') {
           await _insertMap(
@@ -419,6 +542,8 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
             _stageRelatedItemColumns,
             row,
           );
+        } else if (row['relationType'] == 'packMember') {
+          await _insertMap('pack_members', _packMemberColumns, row);
         }
       }
       for (final row in data.activityLogs) {
@@ -428,6 +553,19 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
             _resourceActionColumns,
             row,
           );
+        }
+      }
+      for (final row in data.activityLogs) {
+        if (row['logType'] == 'resourceEvent') {
+          await _insertMap('resource_events', _resourceEventColumns, row);
+        } else if (row['logType'] == 'stageAcknowledgement') {
+          await _insertMap(
+            'stage_acknowledgements',
+            _stageAcknowledgementColumns,
+            row,
+          );
+        } else if (row['logType'] == 'activityEvent') {
+          await _insertMap('activity_events', _activityEventColumns, row);
         }
       }
     });
@@ -471,6 +609,73 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     return into(itemActionRecords).insert(entry);
   }
 
+  Future<int> insertItemCompletion(ItemCompletionsCompanion entry) {
+    return into(itemCompletions).insert(entry);
+  }
+
+  Future<List<ItemCompletion>> listItemCompletions(int itemId) async {
+    final rows =
+        await (select(itemCompletions)
+              ..where((t) => t.itemId.equals(itemId))
+              ..orderBy([(t) => OrderingTerm.asc(t.completedAt)]))
+            .get();
+    return rows.map(_toItemCompletion).toList(growable: false);
+  }
+
+  Future<ItemCompletion?> getItemCompletionForAction(
+    int itemActionRecordId,
+  ) async {
+    final row =
+        await (select(itemCompletions)
+              ..where((t) => t.itemActionRecordId.equals(itemActionRecordId)))
+            .getSingleOrNull();
+    return row == null ? null : _toItemCompletion(row);
+  }
+
+  Future<ItemCompletion?> getActiveItemCompletionForDate({
+    required int itemId,
+    required DateTime completedAt,
+  }) async {
+    final row =
+        await (select(itemCompletions)..where(
+              (t) =>
+                  t.itemId.equals(itemId) &
+                  t.completedAt.equals(completedAt.millisecondsSinceEpoch) &
+                  t.undoneAt.isNull(),
+            ))
+            .getSingleOrNull();
+    return row == null ? null : _toItemCompletion(row);
+  }
+
+  Future<ItemCompletion?> getActiveItemCompletionForItem(int itemId) async {
+    final row =
+        await (select(itemCompletions)
+              ..where((t) => t.itemId.equals(itemId) & t.undoneAt.isNull())
+              ..orderBy([(t) => OrderingTerm.asc(t.completedAt)])
+              ..limit(1))
+            .getSingleOrNull();
+    return row == null ? null : _toItemCompletion(row);
+  }
+
+  Future<bool> markItemCompletionUndone({
+    required int itemActionRecordId,
+    required String undoneByUserId,
+    required DateTime undoneAt,
+  }) async {
+    return (await (update(itemCompletions)..where(
+              (t) =>
+                  t.itemActionRecordId.equals(itemActionRecordId) &
+                  t.undoneAt.isNull(),
+            ))
+            .write(
+              ItemCompletionsCompanion(
+                undoneByUserId: Value(undoneByUserId),
+                undoneAt: Value(undoneAt.millisecondsSinceEpoch),
+              ),
+            )) >
+        0;
+  }
+
   Future<ItemActionRecord?> getItemActionRecordById(int id) async {
     final row = await (select(
       itemActionRecords,
@@ -500,6 +705,30 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
 
   Future<int> insertResourceActionRecord(ResourceActionRecordsCompanion entry) {
     return into(resourceActionRecords).insert(entry);
+  }
+
+  Future<int> insertResourceEvent(ResourceEventsCompanion entry) {
+    return into(resourceEvents).insert(entry);
+  }
+
+  Future<List<ResourceEvent>> listResourceEventsForResource(
+    int resourceId,
+  ) async {
+    final rows =
+        await (select(resourceEvents)
+              ..where((t) => t.resourceId.equals(resourceId))
+              ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+            .get();
+    return rows.map(_toResourceEvent).toList(growable: false);
+  }
+
+  Future<List<ResourceEvent>> listResourceEventsForPack(int packId) async {
+    final rows =
+        await (select(resourceEvents)
+              ..where((t) => t.packId.equals(packId))
+              ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+            .get();
+    return rows.map(_toResourceEvent).toList(growable: false);
   }
 
   Future<bool> updateResourceActionRecordFields(
@@ -1232,6 +1461,52 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     return into(stageRecords).insert(entry);
   }
 
+  Future<void> upsertStageAcknowledgement(
+    StageAcknowledgementsCompanion entry,
+  ) async {
+    final existing =
+        await (select(stageAcknowledgements)..where(
+              (t) =>
+                  t.stageRecordId.equals(entry.stageRecordId.value) &
+                  t.userId.equals(entry.userId.value),
+            ))
+            .getSingleOrNull();
+    if (existing == null) {
+      await into(stageAcknowledgements).insert(entry);
+      return;
+    }
+    await (update(
+      stageAcknowledgements,
+    )..where((t) => t.id.equals(existing.id))).write(
+      StageAcknowledgementsCompanion(
+        packId: entry.packId,
+        acknowledgedAt: entry.acknowledgedAt,
+      ),
+    );
+  }
+
+  Future<List<StageAcknowledgement>> listStageAcknowledgementsForRecord(
+    int stageRecordId,
+  ) async {
+    final rows =
+        await (select(stageAcknowledgements)
+              ..where((t) => t.stageRecordId.equals(stageRecordId))
+              ..orderBy([(t) => OrderingTerm.asc(t.acknowledgedAt)]))
+            .get();
+    return rows.map(_toStageAcknowledgement).toList(growable: false);
+  }
+
+  Future<List<StageAcknowledgement>> listStageAcknowledgementsForPack(
+    int packId,
+  ) async {
+    final rows =
+        await (select(stageAcknowledgements)
+              ..where((t) => t.packId.equals(packId))
+              ..orderBy([(t) => OrderingTerm.asc(t.acknowledgedAt)]))
+            .get();
+    return rows.map(_toStageAcknowledgement).toList(growable: false);
+  }
+
   Future<bool> updateStageRecordRecord(StageRecordRow entry) {
     return update(stageRecords).replace(entry);
   }
@@ -1860,6 +2135,7 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  static const _localUserColumns = ['id', 'display_name', 'created_at'];
   static const _itemPackColumns = [
     'id',
     'title',
@@ -1868,8 +2144,17 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     'order_index',
     'status',
     'is_system_default',
+    'pack_type',
+    'host_user_id',
     'created_at',
     'updated_at',
+  ];
+  static const _packMemberColumns = [
+    'pack_id',
+    'user_id',
+    'role',
+    'status',
+    'joined_at',
   ];
   static const _itemColumns = [
     'id',
@@ -1894,6 +2179,7 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     'state_expected_after_minutes',
     'state_warning_after_minutes',
     'state_danger_after_minutes',
+    'assigned_to_user_id',
     'last_done_at',
     'created_at',
     'updated_at',
@@ -1959,6 +2245,31 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     'created_at',
     'updated_at',
   ];
+  static const _itemCompletionColumns = [
+    'id',
+    'item_id',
+    'pack_id',
+    'item_action_record_id',
+    'completed_by_user_id',
+    'completed_at',
+    'undone_by_user_id',
+    'undone_at',
+    'client_mutation_id',
+    'created_at',
+  ];
+  static const _resourceEventColumns = [
+    'id',
+    'resource_id',
+    'pack_id',
+    'actor_user_id',
+    'change_type',
+    'previous_value',
+    'new_value',
+    'delta_value',
+    'unit',
+    'created_at',
+    'metadata_json',
+  ];
   static const _stageTrackerColumns = [
     'id',
     'pack_id',
@@ -2008,6 +2319,25 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     'created_at',
     'updated_at',
   ];
+  static const _stageAcknowledgementColumns = [
+    'id',
+    'stage_record_id',
+    'pack_id',
+    'user_id',
+    'acknowledged_at',
+  ];
+  static const _activityEventColumns = [
+    'id',
+    'pack_id',
+    'actor_user_id',
+    'entity_type',
+    'entity_id',
+    'action',
+    'before_json',
+    'after_json',
+    'metadata_json',
+    'created_at',
+  ];
   static const _packTemplateColumns = [
     'id',
     'template_name',
@@ -2040,6 +2370,10 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
   ];
 
   Future<void> _clearUserData() async {
+    await customStatement('DELETE FROM activity_events');
+    await customStatement('DELETE FROM stage_acknowledgements');
+    await customStatement('DELETE FROM resource_events');
+    await customStatement('DELETE FROM item_completions');
     await customStatement('''
       DELETE FROM stage_related_items
       WHERE stage_record_id IN (
@@ -2074,7 +2408,15 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
       DELETE FROM stage_trackers
       WHERE is_system_default = 0 AND system_key IS NULL
       ''');
+    await customStatement('DELETE FROM pack_members');
     await customStatement('DELETE FROM item_packs WHERE is_system_default = 0');
+    await customStatement('''
+      DELETE FROM local_users
+      WHERE id NOT IN (
+        '${AppDatabase.defaultHostUserId}',
+        '${AppDatabase.defaultMemberUserId}'
+      )
+      ''');
   }
 
   Future<void> _insertMap(
@@ -2082,14 +2424,53 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     List<String> columns,
     Map<String, Object?> source,
   ) {
+    final normalized = _withImportDefaults(tableName, source);
     final placeholders = List.filled(columns.length, '?').join(', ');
     final columnSql = columns.join(', ');
     return customStatement(
       'INSERT INTO $tableName ($columnSql) VALUES ($placeholders)',
       columns
-          .map((column) => _sqlValue(source[column]))
+          .map((column) => _sqlValue(normalized[column]))
           .toList(growable: false),
     );
+  }
+
+  Future<void> _insertOrReplaceMap(
+    String tableName,
+    List<String> columns,
+    Map<String, Object?> source,
+  ) {
+    final normalized = _withImportDefaults(tableName, source);
+    final placeholders = List.filled(columns.length, '?').join(', ');
+    final columnSql = columns.join(', ');
+    return customStatement(
+      'INSERT OR REPLACE INTO $tableName ($columnSql) VALUES ($placeholders)',
+      columns
+          .map((column) => _sqlValue(normalized[column]))
+          .toList(growable: false),
+    );
+  }
+
+  Map<String, Object?> _withImportDefaults(
+    String tableName,
+    Map<String, Object?> source,
+  ) {
+    final copy = Map<String, Object?>.from(source);
+    switch (tableName) {
+      case 'item_packs':
+        copy['is_system_default'] ??= copy['isSystemDefault'] ?? false;
+        copy['pack_type'] ??= ItemPackType.personal.name;
+        break;
+      case 'items':
+        break;
+      case 'stage_trackers':
+        copy['is_system_default'] ??= copy['isSystemDefault'] ?? false;
+        copy['system_key'] ??= copy['systemKey'];
+        break;
+      default:
+        break;
+    }
+    return copy;
   }
 
   Map<String, Object?> _remapValues(
@@ -2127,6 +2508,20 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
         : DateTime.fromMillisecondsSinceEpoch(value).toIso8601String();
   }
 
+  Map<String, Object?> _localUserBackupJson(LocalUserRow row) => {
+    'id': row.id,
+    'display_name': row.displayName,
+    'created_at': _dateJson(row.createdAt),
+  };
+
+  Map<String, Object?> _packMemberBackupJson(PackMemberRow row) => {
+    'pack_id': row.packId,
+    'user_id': row.userId,
+    'role': row.role,
+    'status': row.status,
+    'joined_at': _dateJson(row.joinedAt),
+  };
+
   Map<String, Object?> _itemPackBackupJson(ItemPackRow row) => {
     'id': row.id,
     'title': row.title,
@@ -2136,6 +2531,8 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     'status': row.status,
     'is_system_default': row.isSystemDefault,
     'isSystemDefault': row.isSystemDefault,
+    'pack_type': row.packType,
+    'host_user_id': row.hostUserId,
     'created_at': _dateJson(row.createdAt),
     'updated_at': _dateJson(row.updatedAt),
   };
@@ -2163,6 +2560,7 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     'state_expected_after_minutes': row.stateExpectedAfterMinutes,
     'state_warning_after_minutes': row.stateWarningAfterMinutes,
     'state_danger_after_minutes': row.stateDangerAfterMinutes,
+    'assigned_to_user_id': row.assignedToUserId,
     'last_done_at': _dateJson(row.lastDoneAt),
     'created_at': _dateJson(row.createdAt),
     'updated_at': _dateJson(row.updatedAt),
@@ -2234,6 +2632,56 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     'reverted_by_action_record_id': row.revertedByActionRecordId,
     'created_at': _dateJson(row.createdAt),
     'updated_at': _dateJson(row.updatedAt),
+  };
+
+  Map<String, Object?> _itemCompletionBackupJson(ItemCompletionRow row) => {
+    'id': row.id,
+    'item_id': row.itemId,
+    'pack_id': row.packId,
+    'item_action_record_id': row.itemActionRecordId,
+    'completed_by_user_id': row.completedByUserId,
+    'completed_at': _dateJson(row.completedAt),
+    'undone_by_user_id': row.undoneByUserId,
+    'undone_at': _dateJson(row.undoneAt),
+    'client_mutation_id': row.clientMutationId,
+    'created_at': _dateJson(row.createdAt),
+  };
+
+  Map<String, Object?> _resourceEventBackupJson(ResourceEventRow row) => {
+    'id': row.id,
+    'resource_id': row.resourceId,
+    'pack_id': row.packId,
+    'actor_user_id': row.actorUserId,
+    'change_type': row.changeType,
+    'previous_value': row.previousValue,
+    'new_value': row.newValue,
+    'delta_value': row.deltaValue,
+    'unit': row.unit,
+    'created_at': _dateJson(row.createdAt),
+    'metadata_json': row.metadataJson,
+  };
+
+  Map<String, Object?> _stageAcknowledgementBackupJson(
+    StageAcknowledgementRow row,
+  ) => {
+    'id': row.id,
+    'stage_record_id': row.stageRecordId,
+    'pack_id': row.packId,
+    'user_id': row.userId,
+    'acknowledged_at': _dateJson(row.acknowledgedAt),
+  };
+
+  Map<String, Object?> _activityEventBackupJson(ActivityEventRow row) => {
+    'id': row.id,
+    'pack_id': row.packId,
+    'actor_user_id': row.actorUserId,
+    'entity_type': row.entityType,
+    'entity_id': row.entityId,
+    'action': row.action,
+    'before_json': row.beforeJson,
+    'after_json': row.afterJson,
+    'metadata_json': row.metadataJson,
+    'created_at': _dateJson(row.createdAt),
   };
 
   Map<String, Object?> _stageTrackerBackupJson(StageTrackerRow row) => {
@@ -2347,6 +2795,39 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     return matches;
   }
 
+  LocalUser _toLocalUser(LocalUserRow row) {
+    return LocalUser(
+      id: row.id,
+      displayName: row.displayName,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
+    );
+  }
+
+  PackMember _toPackMember(PackMemberRow row) {
+    return PackMember(
+      packId: row.packId,
+      userId: row.userId,
+      role: PackMemberRole.values.byName(row.role),
+      status: PackMemberStatus.values.byName(row.status),
+      joinedAt: DateTime.fromMillisecondsSinceEpoch(row.joinedAt),
+    );
+  }
+
+  ActivityEvent _toActivityEvent(ActivityEventRow row) {
+    return ActivityEvent(
+      id: row.id,
+      packId: row.packId,
+      actorUserId: row.actorUserId,
+      entityType: row.entityType,
+      entityId: row.entityId,
+      action: row.action,
+      beforeJson: row.beforeJson,
+      afterJson: row.afterJson,
+      metadataJson: row.metadataJson,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
+    );
+  }
+
   ItemPack _toItemPack(ItemPackRow row) {
     return ItemPack(
       id: row.id,
@@ -2356,6 +2837,8 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
       orderIndex: row.orderIndex,
       status: ItemPackStatus.values.byName(row.status),
       isSystemDefault: row.isSystemDefault,
+      packType: ItemPackType.values.byName(row.packType),
+      hostUserId: row.hostUserId,
       createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
     );
@@ -2397,6 +2880,7 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
       type: itemType,
       config: _toItemConfig(row, itemType),
       attentionPolicySource: _attentionPolicySource(row.attentionPolicySource),
+      assignedToUserId: row.assignedToUserId,
       lastDoneAt: row.lastDoneAt == null
           ? null
           : DateTime.fromMillisecondsSinceEpoch(row.lastDoneAt!),
@@ -2456,6 +2940,23 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
       revertedByActionRecordId: row.revertedByActionRecordId,
       createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
+    );
+  }
+
+  ItemCompletion _toItemCompletion(ItemCompletionRow row) {
+    return ItemCompletion(
+      id: row.id,
+      itemId: row.itemId,
+      packId: row.packId,
+      itemActionRecordId: row.itemActionRecordId,
+      completedByUserId: row.completedByUserId,
+      completedAt: DateTime.fromMillisecondsSinceEpoch(row.completedAt),
+      undoneByUserId: row.undoneByUserId,
+      undoneAt: row.undoneAt == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(row.undoneAt!),
+      clientMutationId: row.clientMutationId,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
     );
   }
 
@@ -2535,6 +3036,22 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  ResourceEvent _toResourceEvent(ResourceEventRow row) {
+    return ResourceEvent(
+      id: row.id,
+      resourceId: row.resourceId,
+      packId: row.packId,
+      actorUserId: row.actorUserId,
+      changeType: ResourceEventChangeType.values.byName(row.changeType),
+      previousValue: row.previousValue,
+      newValue: row.newValue,
+      deltaValue: row.deltaValue,
+      unit: row.unit,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
+      metadataJson: row.metadataJson,
+    );
+  }
+
   StageTracker _toStageTracker(StageTrackerRow row) {
     return StageTracker(
       id: row.id,
@@ -2589,6 +3106,16 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
       reminderOffsetDays: row.reminderOffsetDays,
       createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
+    );
+  }
+
+  StageAcknowledgement _toStageAcknowledgement(StageAcknowledgementRow row) {
+    return StageAcknowledgement(
+      id: row.id,
+      stageRecordId: row.stageRecordId,
+      packId: row.packId,
+      userId: row.userId,
+      acknowledgedAt: DateTime.fromMillisecondsSinceEpoch(row.acknowledgedAt),
     );
   }
 

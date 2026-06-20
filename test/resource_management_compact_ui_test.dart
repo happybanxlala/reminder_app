@@ -590,6 +590,7 @@ class _RecordingResourceRepository extends ResourceRepository {
     required int newQuantity,
     DateTime? actionAt,
     String? remark,
+    String? actorUserId,
   }) async {
     adjustCalls.add(
       _AdjustCall(

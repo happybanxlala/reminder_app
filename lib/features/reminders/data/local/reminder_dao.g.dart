@@ -4,7 +4,9 @@ part of 'reminder_dao.dart';
 
 // ignore_for_file: type=lint
 mixin _$ReminderDaoMixin on DatabaseAccessor<AppDatabase> {
+  $LocalUsersTable get localUsers => attachedDatabase.localUsers;
   $ItemPacksTable get itemPacks => attachedDatabase.itemPacks;
+  $PackMembersTable get packMembers => attachedDatabase.packMembers;
   $ItemsTable get items => attachedDatabase.items;
   $PackTemplatesTable get packTemplates => attachedDatabase.packTemplates;
   $PackTemplateItemsTable get packTemplateItems =>
@@ -16,11 +18,16 @@ mixin _$ReminderDaoMixin on DatabaseAccessor<AppDatabase> {
       attachedDatabase.itemActionRecords;
   $ResourceActionRecordsTable get resourceActionRecords =>
       attachedDatabase.resourceActionRecords;
+  $ItemCompletionsTable get itemCompletions => attachedDatabase.itemCompletions;
+  $ResourceEventsTable get resourceEvents => attachedDatabase.resourceEvents;
   $StageTrackersTable get stageTrackers => attachedDatabase.stageTrackers;
   $StageRulesTable get stageRules => attachedDatabase.stageRules;
   $StageRecordsTable get stageRecords => attachedDatabase.stageRecords;
   $StageRelatedItemsTable get stageRelatedItems =>
       attachedDatabase.stageRelatedItems;
+  $StageAcknowledgementsTable get stageAcknowledgements =>
+      attachedDatabase.stageAcknowledgements;
+  $ActivityEventsTable get activityEvents => attachedDatabase.activityEvents;
   $AppSettingsEntriesTable get appSettingsEntries =>
       attachedDatabase.appSettingsEntries;
   ReminderDaoManager get managers => ReminderDaoManager(this);
@@ -29,8 +36,12 @@ mixin _$ReminderDaoMixin on DatabaseAccessor<AppDatabase> {
 class ReminderDaoManager {
   final _$ReminderDaoMixin _db;
   ReminderDaoManager(this._db);
+  $$LocalUsersTableTableManager get localUsers =>
+      $$LocalUsersTableTableManager(_db.attachedDatabase, _db.localUsers);
   $$ItemPacksTableTableManager get itemPacks =>
       $$ItemPacksTableTableManager(_db.attachedDatabase, _db.itemPacks);
+  $$PackMembersTableTableManager get packMembers =>
+      $$PackMembersTableTableManager(_db.attachedDatabase, _db.packMembers);
   $$ItemsTableTableManager get items =>
       $$ItemsTableTableManager(_db.attachedDatabase, _db.items);
   $$PackTemplatesTableTableManager get packTemplates =>
@@ -57,6 +68,16 @@ class ReminderDaoManager {
         _db.attachedDatabase,
         _db.resourceActionRecords,
       );
+  $$ItemCompletionsTableTableManager get itemCompletions =>
+      $$ItemCompletionsTableTableManager(
+        _db.attachedDatabase,
+        _db.itemCompletions,
+      );
+  $$ResourceEventsTableTableManager get resourceEvents =>
+      $$ResourceEventsTableTableManager(
+        _db.attachedDatabase,
+        _db.resourceEvents,
+      );
   $$StageTrackersTableTableManager get stageTrackers =>
       $$StageTrackersTableTableManager(_db.attachedDatabase, _db.stageTrackers);
   $$StageRulesTableTableManager get stageRules =>
@@ -67,6 +88,16 @@ class ReminderDaoManager {
       $$StageRelatedItemsTableTableManager(
         _db.attachedDatabase,
         _db.stageRelatedItems,
+      );
+  $$StageAcknowledgementsTableTableManager get stageAcknowledgements =>
+      $$StageAcknowledgementsTableTableManager(
+        _db.attachedDatabase,
+        _db.stageAcknowledgements,
+      );
+  $$ActivityEventsTableTableManager get activityEvents =>
+      $$ActivityEventsTableTableManager(
+        _db.attachedDatabase,
+        _db.activityEvents,
       );
   $$AppSettingsEntriesTableTableManager get appSettingsEntries =>
       $$AppSettingsEntriesTableTableManager(

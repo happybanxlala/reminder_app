@@ -1759,6 +1759,7 @@ class _RecordingCreateItemRepository extends ItemRepository {
   Future<int> createItem(
     ItemInput input, {
     List<ItemResourceBindingInput> resourceBindings = const [],
+    String? actorUserId,
   }) async {
     recordedInput = input;
     recordedBindings = resourceBindings;

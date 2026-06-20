@@ -1,5 +1,18 @@
 import 'package:drift/drift.dart';
 
+@DataClassName('LocalUserRow')
+class LocalUsers extends Table {
+  @override
+  String get tableName => 'local_users';
+
+  TextColumn get id => text()();
+  TextColumn get displayName => text()();
+  IntColumn get createdAt => integer()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 @DataClassName('ItemPackRow')
 class ItemPacks extends Table {
   @override
@@ -13,8 +26,25 @@ class ItemPacks extends Table {
   TextColumn get status => text().withDefault(const Constant('active'))();
   BoolColumn get isSystemDefault =>
       boolean().withDefault(const Constant(false))();
+  TextColumn get packType => text().withDefault(const Constant('personal'))();
+  TextColumn get hostUserId => text().nullable().references(LocalUsers, #id)();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
+}
+
+@DataClassName('PackMemberRow')
+class PackMembers extends Table {
+  @override
+  String get tableName => 'pack_members';
+
+  IntColumn get packId => integer().references(ItemPacks, #id)();
+  TextColumn get userId => text().references(LocalUsers, #id)();
+  TextColumn get role => text()();
+  TextColumn get status => text().withDefault(const Constant('active'))();
+  IntColumn get joinedAt => integer()();
+
+  @override
+  Set<Column> get primaryKey => {packId, userId};
 }
 
 @DataClassName('ItemRow')
@@ -45,6 +75,8 @@ class Items extends Table {
   IntColumn get stateExpectedAfterMinutes => integer().nullable()();
   IntColumn get stateWarningAfterMinutes => integer().nullable()();
   IntColumn get stateDangerAfterMinutes => integer().nullable()();
+  TextColumn get assignedToUserId =>
+      text().nullable().references(LocalUsers, #id)();
   IntColumn get lastDoneAt => integer().nullable()();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
@@ -174,6 +206,45 @@ class ItemActionRecords extends Table {
   IntColumn get updatedAt => integer()();
 }
 
+@DataClassName('ItemCompletionRow')
+class ItemCompletions extends Table {
+  @override
+  String get tableName => 'item_completions';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get itemId => integer().references(Items, #id)();
+  IntColumn get packId => integer().references(ItemPacks, #id)();
+  IntColumn get itemActionRecordId =>
+      integer().references(ItemActionRecords, #id)();
+  @ReferenceName('completedItemCompletions')
+  TextColumn get completedByUserId => text().references(LocalUsers, #id)();
+  IntColumn get completedAt => integer()();
+  @ReferenceName('undoneItemCompletions')
+  TextColumn get undoneByUserId =>
+      text().nullable().references(LocalUsers, #id)();
+  IntColumn get undoneAt => integer().nullable()();
+  TextColumn get clientMutationId => text().nullable()();
+  IntColumn get createdAt => integer()();
+}
+
+@DataClassName('ResourceEventRow')
+class ResourceEvents extends Table {
+  @override
+  String get tableName => 'resource_events';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get resourceId => integer().references(Resources, #id)();
+  IntColumn get packId => integer().references(ItemPacks, #id)();
+  TextColumn get actorUserId => text().references(LocalUsers, #id)();
+  TextColumn get changeType => text()();
+  IntColumn get previousValue => integer().nullable()();
+  IntColumn get newValue => integer().nullable()();
+  IntColumn get deltaValue => integer().nullable()();
+  TextColumn get unit => text().nullable()();
+  IntColumn get createdAt => integer()();
+  TextColumn get metadataJson => text().nullable()();
+}
+
 @DataClassName('StageTrackerRow')
 class StageTrackers extends Table {
   @override
@@ -253,6 +324,40 @@ class StageRelatedItems extends Table {
   IntColumn get itemId => integer().references(Items, #id)();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
+}
+
+@DataClassName('StageAcknowledgementRow')
+class StageAcknowledgements extends Table {
+  @override
+  String get tableName => 'stage_acknowledgements';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get stageRecordId => integer().references(StageRecords, #id)();
+  IntColumn get packId => integer().references(ItemPacks, #id)();
+  TextColumn get userId => text().references(LocalUsers, #id)();
+  IntColumn get acknowledgedAt => integer()();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+    {stageRecordId, userId},
+  ];
+}
+
+@DataClassName('ActivityEventRow')
+class ActivityEvents extends Table {
+  @override
+  String get tableName => 'activity_events';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get packId => integer().references(ItemPacks, #id)();
+  TextColumn get actorUserId => text().references(LocalUsers, #id)();
+  TextColumn get entityType => text()();
+  IntColumn get entityId => integer()();
+  TextColumn get action => text()();
+  TextColumn get beforeJson => text().nullable()();
+  TextColumn get afterJson => text().nullable()();
+  TextColumn get metadataJson => text().nullable()();
+  IntColumn get createdAt => integer()();
 }
 
 @DataClassName('AppSettingsRow')

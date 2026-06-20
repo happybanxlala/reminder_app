@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 
 import '../domain/item_action_record.dart';
@@ -5,6 +7,7 @@ import '../domain/item_pack.dart';
 import '../domain/resource.dart';
 import '../domain/resource_refill_service.dart';
 import '../domain/resource_status_service.dart';
+import '../domain/shared_pack.dart';
 import 'local/app_database.dart';
 import 'local/reminder_dao.dart';
 
@@ -137,6 +140,14 @@ class ResourceRepository {
       resourceId,
       includeReverted: includeReverted,
     );
+  }
+
+  Future<List<ResourceEvent>> listResourceEventsForResource(int resourceId) {
+    return _dao.listResourceEventsForResource(resourceId);
+  }
+
+  Future<List<ResourceEvent>> listResourceEventsForPack(int packId) {
+    return _dao.listResourceEventsForPack(packId);
   }
 
   Stream<List<ResourceBinding>> watchBindings(int resourceId) {
@@ -351,6 +362,7 @@ class ResourceRepository {
     required int newQuantity,
     DateTime? actionAt,
     String? remark,
+    String? actorUserId,
   }) async {
     final existing = await getResourceById(resourceId);
     if (existing == null ||
@@ -359,8 +371,13 @@ class ResourceRepository {
     }
     final now = _clock();
     final actionDate = _normalizeDate(actionAt ?? now);
+    final actor = actorUserId ?? AppDatabase.defaultHostUserId;
+    if (!await _canActOnPack(existing.pack, actor)) {
+      return false;
+    }
     final resultingQuantity = _refillService.adjustQuantity(newQuantity);
     return _dao.attachedDatabase.transaction(() async {
+      final config = existing.resource.config as QuantityBasedResourceConfig;
       final updated = await _dao.updateResourceFields(
         resourceId,
         ResourcesCompanion(
@@ -381,6 +398,139 @@ class ResourceRepository {
           createdAt: now.millisecondsSinceEpoch,
           updatedAt: now.millisecondsSinceEpoch,
         ),
+      );
+      await _insertResourceEvent(
+        resourceId: resourceId,
+        packId: existing.resource.packId,
+        actorUserId: actor,
+        changeType: ResourceEventChangeType.adjust,
+        previousValue: config.currentQuantity,
+        newValue: resultingQuantity,
+        deltaValue: null,
+        unit: config.unitLabel,
+        metadata: {'resource_action': ResourceActionType.adjusted.name},
+        now: now,
+      );
+      await _insertActivityEvent(
+        packId: existing.resource.packId,
+        actorUserId: actor,
+        entityType: 'resource',
+        entityId: resourceId,
+        action: 'resource_adjusted',
+        beforeJson: _jsonObject({'quantity': config.currentQuantity}),
+        afterJson: _jsonObject({'quantity': resultingQuantity}),
+        now: now,
+      );
+      return true;
+    });
+  }
+
+  Future<bool> incrementResourceQuantity(
+    int resourceId, {
+    required int amount,
+    DateTime? actionAt,
+    String? remark,
+    String? actorUserId,
+  }) {
+    return _changeResourceQuantityByDelta(
+      resourceId,
+      amount: amount,
+      changeType: ResourceEventChangeType.increment,
+      actionAt: actionAt,
+      remark: remark,
+      actorUserId: actorUserId,
+    );
+  }
+
+  Future<bool> decrementResourceQuantity(
+    int resourceId, {
+    required int amount,
+    DateTime? actionAt,
+    String? remark,
+    String? actorUserId,
+  }) {
+    return _changeResourceQuantityByDelta(
+      resourceId,
+      amount: -amount,
+      changeType: ResourceEventChangeType.decrement,
+      actionAt: actionAt,
+      remark: remark,
+      actorUserId: actorUserId,
+    );
+  }
+
+  Future<bool> _changeResourceQuantityByDelta(
+    int resourceId, {
+    required int amount,
+    required ResourceEventChangeType changeType,
+    DateTime? actionAt,
+    String? remark,
+    String? actorUserId,
+  }) async {
+    if (amount == 0) {
+      return false;
+    }
+    final existing = await getResourceById(resourceId);
+    if (existing == null ||
+        existing.resource.config is! QuantityBasedResourceConfig) {
+      return false;
+    }
+    final now = _clock();
+    final actionDate = _normalizeDate(actionAt ?? now);
+    final actor = actorUserId ?? AppDatabase.defaultHostUserId;
+    if (!await _canActOnPack(existing.pack, actor)) {
+      return false;
+    }
+    final config = existing.resource.config as QuantityBasedResourceConfig;
+    final resultingQuantity = _refillService.adjustQuantity(
+      config.currentQuantity + amount,
+    );
+    return _dao.attachedDatabase.transaction(() async {
+      final updated = await _dao.updateResourceFields(
+        resourceId,
+        ResourcesCompanion(
+          quantityCurrent: Value(resultingQuantity),
+          updatedAt: Value(now.millisecondsSinceEpoch),
+        ),
+      );
+      if (!updated) {
+        return false;
+      }
+      await _dao.insertResourceActionRecord(
+        ResourceActionRecordsCompanion.insert(
+          resourceId: resourceId,
+          actionType: ResourceActionType.adjusted.name,
+          actionDate: actionDate.millisecondsSinceEpoch,
+          amount: Value(amount.abs()),
+          resultingQuantity: Value(resultingQuantity),
+          remark: Value(remark),
+          createdAt: now.millisecondsSinceEpoch,
+          updatedAt: now.millisecondsSinceEpoch,
+        ),
+      );
+      await _insertResourceEvent(
+        resourceId: resourceId,
+        packId: existing.resource.packId,
+        actorUserId: actor,
+        changeType: changeType,
+        previousValue: config.currentQuantity,
+        newValue: resultingQuantity,
+        deltaValue: amount,
+        unit: config.unitLabel,
+        metadata: {'resource_action': ResourceActionType.adjusted.name},
+        now: now,
+      );
+      await _insertActivityEvent(
+        packId: existing.resource.packId,
+        actorUserId: actor,
+        entityType: 'resource',
+        entityId: resourceId,
+        action: changeType == ResourceEventChangeType.increment
+            ? 'resource_incremented'
+            : 'resource_decremented',
+        beforeJson: _jsonObject({'quantity': config.currentQuantity}),
+        afterJson: _jsonObject({'quantity': resultingQuantity}),
+        now: now,
       );
       return true;
     });
@@ -410,6 +560,64 @@ class ResourceRepository {
         updatedAt: Value(now.millisecondsSinceEpoch),
       ),
     );
+  }
+
+  Future<void> _insertResourceEvent({
+    required int resourceId,
+    required int packId,
+    required String actorUserId,
+    required ResourceEventChangeType changeType,
+    required int? previousValue,
+    required int? newValue,
+    required int? deltaValue,
+    required String? unit,
+    required Map<String, Object?> metadata,
+    required DateTime now,
+  }) {
+    return _dao.insertResourceEvent(
+      ResourceEventsCompanion.insert(
+        resourceId: resourceId,
+        packId: packId,
+        actorUserId: actorUserId,
+        changeType: changeType.name,
+        previousValue: Value(previousValue),
+        newValue: Value(newValue),
+        deltaValue: Value(deltaValue),
+        unit: Value(unit),
+        createdAt: now.millisecondsSinceEpoch,
+        metadataJson: Value(_jsonObject(metadata)),
+      ),
+    );
+  }
+
+  Future<void> _insertActivityEvent({
+    required int packId,
+    required String actorUserId,
+    required String entityType,
+    required int entityId,
+    required String action,
+    String? beforeJson,
+    String? afterJson,
+    String? metadataJson,
+    required DateTime now,
+  }) {
+    return _dao.insertActivityEvent(
+      ActivityEventsCompanion.insert(
+        packId: packId,
+        actorUserId: actorUserId,
+        entityType: entityType,
+        entityId: entityId,
+        action: action,
+        beforeJson: Value(beforeJson),
+        afterJson: Value(afterJson),
+        metadataJson: Value(metadataJson),
+        createdAt: now.millisecondsSinceEpoch,
+      ),
+    );
+  }
+
+  String _jsonObject(Map<String, Object?> value) {
+    return jsonEncode(value);
   }
 
   ResourcesCompanion _resourceCompanion(
@@ -571,5 +779,12 @@ class ResourceRepository {
 
   DateTime _normalizeDate(DateTime value) {
     return DateTime(value.year, value.month, value.day);
+  }
+
+  Future<bool> _canActOnPack(ItemPack pack, String actorUserId) {
+    if (pack.packType != ItemPackType.shared) {
+      return Future.value(true);
+    }
+    return _dao.isActivePackMember(packId: pack.id, userId: actorUserId);
   }
 }

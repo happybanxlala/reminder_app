@@ -8,6 +8,7 @@ import '../domain/stage_occurrence_service.dart';
 import '../domain/stage_record.dart';
 import '../domain/stage_rule.dart';
 import '../domain/stage_tracker.dart';
+import '../domain/shared_pack.dart';
 import 'item_repository.dart';
 import 'local/app_database.dart';
 import 'local/reminder_dao.dart';
@@ -40,6 +41,18 @@ class StageTrackerRepository {
 
   Stream<List<StageRecord>> watchStageRecords() {
     return _dao.watchStageRecords();
+  }
+
+  Future<List<StageAcknowledgement>> listStageAcknowledgementsForRecord(
+    int stageRecordId,
+  ) {
+    return _dao.listStageAcknowledgementsForRecord(stageRecordId);
+  }
+
+  Future<List<StageAcknowledgement>> listStageAcknowledgementsForPack(
+    int packId,
+  ) {
+    return _dao.listStageAcknowledgementsForPack(packId);
   }
 
   Stream<List<StageActionEntry>> watchAcknowledgedActionEntriesForDate(
@@ -468,15 +481,48 @@ class StageTrackerRepository {
     );
   }
 
-  Future<void> acknowledgeOccurrence(StageOccurrence occurrence) {
-    return _upsertGeneratedOccurrenceRecord(
-      occurrence,
-      StageRecordStatus.acknowledged,
-    );
+  Future<void> acknowledgeOccurrence(
+    StageOccurrence occurrence, {
+    String? actorUserId,
+  }) async {
+    final actor = actorUserId ?? AppDatabase.defaultHostUserId;
+    final tracker = await getStageTrackerById(occurrence.stageTrackerId);
+    if (tracker == null || !await _canActOnPack(tracker.packId, actor)) {
+      return;
+    }
+    final now = _clock();
+    await _dao.attachedDatabase.transaction(() async {
+      final record = await _upsertGeneratedOccurrenceRecord(
+        occurrence,
+        StageRecordStatus.acknowledged,
+      );
+      if (record == null) {
+        return;
+      }
+      final acknowledgedAt = _normalizeDate(now);
+      await _dao.upsertStageAcknowledgement(
+        StageAcknowledgementsCompanion.insert(
+          stageRecordId: record.id,
+          packId: tracker.packId,
+          userId: actor,
+          acknowledgedAt: acknowledgedAt.millisecondsSinceEpoch,
+        ),
+      );
+      await _dao.insertActivityEvent(
+        ActivityEventsCompanion.insert(
+          packId: tracker.packId,
+          actorUserId: actor,
+          entityType: 'stage',
+          entityId: record.id,
+          action: 'stage_acknowledged',
+          createdAt: now.millisecondsSinceEpoch,
+        ),
+      );
+    });
   }
 
-  Future<void> ignoreOccurrence(StageOccurrence occurrence) {
-    return _upsertGeneratedOccurrenceRecord(
+  Future<void> ignoreOccurrence(StageOccurrence occurrence) async {
+    await _upsertGeneratedOccurrenceRecord(
       occurrence,
       StageRecordStatus.ignored,
     );
@@ -688,7 +734,7 @@ class StageTrackerRepository {
     );
   }
 
-  Future<void> _upsertGeneratedOccurrenceRecord(
+  Future<StageRecord?> _upsertGeneratedOccurrenceRecord(
     StageOccurrence occurrence,
     StageRecordStatus status,
   ) async {
@@ -697,16 +743,17 @@ class StageTrackerRepository {
         ? await _generatedRecordForOccurrence(occurrence)
         : await _dao.getStageRecordById(occurrence.stageRecordId!);
     if (existing == null) {
-      await _dao.insertStageRecord(
+      final id = await _dao.insertStageRecord(
         _recordCompanionForOccurrence(occurrence, status, now),
       );
-      return;
+      return _dao.getStageRecordById(id);
     }
     if (existing.status == StageRecordStatus.ignored ||
         existing.status == StageRecordStatus.archived) {
-      return;
+      return existing;
     }
     await _updateRecordStatus(existing, status);
+    return _dao.getStageRecordById(existing.id);
   }
 
   Future<StageRecord> _ensureRecordForOccurrence(
@@ -844,5 +891,13 @@ class StageTrackerRepository {
 
   DateTime _normalizeDate(DateTime value) {
     return DateTime(value.year, value.month, value.day);
+  }
+
+  Future<bool> _canActOnPack(int packId, String actorUserId) async {
+    final pack = await _dao.getItemPackById(packId);
+    if (pack == null || pack.packType != ItemPackType.shared) {
+      return true;
+    }
+    return _dao.isActivePackMember(packId: packId, userId: actorUserId);
   }
 }
