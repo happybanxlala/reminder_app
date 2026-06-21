@@ -11,7 +11,7 @@ Last aligned with repository contents on 2026-06-14.
 
 ## Supabase Remote Model
 
-Supabase remote data model, RLS policy draft, Phase 3A boundary, Phase 3B anonymous identity bridge, and Phase 3C Remote Shared Pack Minimal POC are documented in:
+Supabase remote data model, RLS policy draft, Phase 3A boundary, Phase 3B anonymous identity bridge, Phase 3C Remote Shared Pack Minimal POC, and Phase 3D developer smoke-test surface are documented in:
 
 - `docs/core/06_supabase_remote_model_spec.md`
 
@@ -1225,6 +1225,25 @@ Profile mapping 不使用 `sync_mappings`，因為 `local_users.remoteUserId` �
 - 不做 full two-way sync、realtime、invite、resource remote sync、stage remote sync、background sync、conflict resolution engine 或正式同步 UI。
 - 不在 app startup 自動建立 remote pack，不自動上傳所有 Personal Pack 或 Shared Pack。
 - 不修改 iOS / Android home widget 行為。
+
+### 2.18 Phase 3D：Developer Remote POC Action Surface
+
+Phase 3D adds a developer-only remote POC action surface for manual Supabase smoke testing.
+
+#### 已實作行為
+
+- Settings developer debug 區提供 `Supabase 遠端 POC` 區塊，只在 developer/debug visibility enabled 時顯示。
+- POC target 使用第一個 active local Shared Pack；沒有 Shared Pack 時顯示提示，不 crash。
+- Debug UI 顯示 Supabase config status、local / remote identity 摘要、selected Shared Pack、remote pack mapping、first mapped remote item、last operation result 與 remote snapshot summary。
+- 每個 remote POC operation 都必須由使用者手動按下，不在 app startup 自動執行。
+- Manual actions 包含 anonymous remote identity、remote profile、remote shared pack、minimal item push、remote item complete、remote snapshot pull。
+- Remote snapshot 只顯示 DTO summary，不 merge 回 local DB。
+- Remote item completion 不自動修改 local `ItemCompletion` 或 `completedByUserId`。
+
+#### 非目標
+
+- 不新增正式 sync UI、invite、realtime、resource / stage remote sync、background sync、automatic upload 或 conflict resolution engine。
+- 不修改 Drift schema、backup schema、home widget 行為或 visual tokens。
 
 ## 3. 跨 Domain 行為
 

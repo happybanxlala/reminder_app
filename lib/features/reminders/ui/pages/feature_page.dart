@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/reminder_theme.dart';
 import '../../data/backup_models.dart';
-import '../../data/anonymous_remote_identity_service.dart';
 import '../../data/local/reminder_dao.dart';
 import '../../data/supabase_config.dart';
 import '../../domain/attention_policy.dart';
@@ -24,6 +23,7 @@ import '../../providers/identity_providers.dart';
 import '../../providers/item_providers.dart';
 import '../../providers/pack_template_providers.dart';
 import '../../providers/resource_providers.dart';
+import '../../providers/remote_shared_pack_providers.dart';
 import '../../providers/settings_providers.dart';
 import '../../providers/attention_service_providers.dart';
 import '../../providers/stage_tracker_providers.dart';

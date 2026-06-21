@@ -769,3 +769,96 @@ Known risks / open questions：
 - Phase 3C SQL is still a draft and must be manually verified before production use.
 - Activity event writes are repository/RPC controlled for POC; long term should prefer stricter RPC/trigger-only shared mutation paths.
 - Remote undo, invite/member onboarding, resource sync, stage acknowledgement sync, and full conflict handling remain later phases.
+
+## 16. Phase 3D Manual Smoke Test
+
+Phase 3D adds a developer-only Settings surface for manually exercising the Phase 3C Remote Shared Pack POC against a Supabase dev project. It is not production sync UI.
+
+Developer UI scope：
+
+- Shows Supabase config status, identity kind, short local user id, remote provider, short remote user id.
+- Uses the first active local Shared Pack as the POC target.
+- Shows remote pack mapping status, short remote pack id, last operation result, and latest remote snapshot summary.
+- Stores last operation state only in provider / UI memory; it is not persisted.
+
+Manual actions：
+
+1. 建立匿名遠端身份。
+2. 建立 / 確認 Remote Profile。
+3. 建立遠端共同 Pack POC。
+4. 推送 Minimal Items POC。
+5. 完成遠端 Item POC。
+6. 拉取 Remote Snapshot POC。
+
+Rules：
+
+- No app startup auto upload.
+- No automatic personal pack upload.
+- No automatic shared pack upload.
+- No automatic push / pull.
+- No remote snapshot merge into local DB.
+- No local completion update from remote completion.
+- No invite, realtime, resource sync, stage sync, or conflict engine.
+
+### Supabase Setup
+
+1. 建立 Supabase dev project。
+2. 啟用 Anonymous Sign-ins。
+3. 在 SQL editor 手動 apply `docs/core/sql/phase3c_supabase_minimal_poc.sql`。
+4. 確認 RLS enabled。
+5. 只使用 anon key。
+6. 不要把 service role key 放入 Flutter app。
+
+### Flutter Run
+
+```bash
+flutter run \
+  --dart-define=SUPABASE_URL=... \
+  --dart-define=SUPABASE_ANON_KEY=...
+```
+
+### App Manual Test
+
+1. 打開 app。
+2. 建立或準備一個 local shared pack。
+3. 進入 Settings developer debug。
+4. 確認 Supabase config status = configured。
+5. 按「建立匿名遠端身份」。
+6. 確認 `identity_kind = anonymous_remote`。
+7. 按「建立 / 確認 Remote Profile」。
+8. 確認 UI 顯示 local shared pack。
+9. 按「建立遠端共同 Pack POC」。
+10. 按「推送 Minimal Items POC」。
+11. 在 Supabase dashboard 查看 `profiles / packs / pack_members / items / activity_events`。
+12. 按「完成遠端 Item POC」。
+13. 確認 `item_completions` 出現 active completion。
+14. 再按一次完成同一 item，應顯示 already completed，不覆寫 `completed_by_user_id`。
+15. 按「拉取 Remote Snapshot POC」。
+16. 確認 snapshot 摘要顯示 members / items / completions / activity events。
+17. 確認沒有 resources / stages 被上傳。
+18. 確認沒有 personal pack 被自動上傳。
+
+### RLS Manual Smoke Test
+
+1. 使用另一部測試裝置 / simulator / clean install / 清除 app data。
+2. 使用同一 Supabase project，但產生新的 anonymous remote identity。
+3. 不加入原本 remote pack。
+4. 嘗試透過 debug / manual SQL / controlled query 讀取原 remote pack。
+5. 預期被 RLS 擋下。
+6. 嘗試 complete 不是 member 的 item。
+7. 預期被 RLS 擋下。
+
+If the app debug UI does not expose a non-member query action, use Supabase SQL editor, REST client, or a temporary test harness to verify the RLS boundary.
+
+### Known Limitations
+
+- Phase 3D is not production sync.
+- Remote snapshot does not merge into local DB.
+- Remote completion does not update local completion history.
+- No invite flow.
+- No realtime.
+- No resource / stage remote sync.
+- No conflict engine.
+- POC actions are developer/debug only.
+
+Phase 4 boundary：formal sync UX, invite/member onboarding, realtime, resource/stage sync, and conflict resolution remain future work.

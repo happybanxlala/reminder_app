@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,16 +8,26 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:reminder_app/app/theme/reminder_theme.dart';
 import 'package:reminder_app/features/reminders/data/auth_repository.dart';
+import 'package:reminder_app/features/reminders/data/identity_repository.dart';
+import 'package:reminder_app/features/reminders/data/item_repository.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/reminder_backup_service.dart';
+import 'package:reminder_app/features/reminders/data/remote_shared_pack_data_source.dart';
+import 'package:reminder_app/features/reminders/data/remote_shared_pack_models.dart';
+import 'package:reminder_app/features/reminders/data/remote_shared_pack_repository.dart';
+import 'package:reminder_app/features/reminders/data/shared_pack_repository.dart';
 import 'package:reminder_app/features/reminders/domain/app_settings.dart';
 import 'package:reminder_app/features/reminders/domain/attention_policy.dart';
+import 'package:reminder_app/features/reminders/domain/item.dart';
+import 'package:reminder_app/features/reminders/domain/item_pack.dart';
+import 'package:reminder_app/features/reminders/domain/shared_pack.dart';
 import 'package:reminder_app/features/reminders/presentation/formatters/reminder_formatters.dart';
 import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
 import 'package:reminder_app/features/reminders/providers/backup_providers.dart';
 import 'package:reminder_app/features/reminders/providers/database_providers.dart';
 import 'package:reminder_app/features/reminders/providers/developer_settings_providers.dart';
 import 'package:reminder_app/features/reminders/providers/identity_providers.dart';
+import 'package:reminder_app/features/reminders/providers/remote_shared_pack_providers.dart';
 import 'package:reminder_app/features/reminders/providers/settings_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/feature_page.dart';
 
@@ -345,7 +356,7 @@ void main() {
 
     expect(
       find.text(ReminderUiText.supabaseConfigMissingMessage),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(tester.takeException(), isNull);
   });
@@ -373,7 +384,7 @@ void main() {
 
       expect(
         find.text(ReminderUiText.anonymousRemoteIdentityCreatedMessage),
-        findsOneWidget,
+        findsWidgets,
       );
       expect(
         find.text(ReminderUiText.identityKindAnonymousRemote),
@@ -385,6 +396,140 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'developer remote POC shows missing shared pack and fails gently',
+    (tester) async {
+      final fakeRemote = _FakeRemoteSharedPackDataSource();
+      await _pumpSettings(
+        tester,
+        developerVisible: true,
+        extraOverrides: [
+          authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+          remoteSharedPackDataSourceProvider.overrideWithValue(fakeRemote),
+        ],
+      );
+
+      expect(
+        find.text(ReminderUiText.supabaseRemotePocSectionTitle),
+        findsOneWidget,
+      );
+      expect(find.text(ReminderUiText.remotePocNoSharedPack), findsOneWidget);
+      expect(fakeRemote.createdPackCalls, 0);
+      expect(fakeRemote.createdItemCalls, 0);
+      expect(fakeRemote.snapshotCalls, 0);
+
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('settings-remote-poc-create-pack-row')),
+        120,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const Key('settings-remote-poc-create-pack-row')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('請先建立 / 選擇 local shared pack'), findsWidgets);
+      expect(fakeRemote.createdPackCalls, 0);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('developer remote POC displays first shared pack mapping', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final seed = await _seedSharedPackForRemotePoc(db);
+    await db.reminderDao.upsertSyncMapping(
+      SyncMappingsCompanion.insert(
+        localEntityType: RemoteSharedPackRepository.localEntityPack,
+        localEntityId: seed.packId,
+        remoteTable: RemoteSharedPackRepository.remoteTablePacks,
+        remoteEntityId: 'remote1',
+        syncState: SyncMappingState.pushed.name,
+        lastPushedAt: Value(DateTime(2026, 6, 21).millisecondsSinceEpoch),
+        createdAt: DateTime(2026, 6, 21).millisecondsSinceEpoch,
+        updatedAt: DateTime(2026, 6, 21).millisecondsSinceEpoch,
+      ),
+    );
+
+    await _pumpSettings(tester, developerVisible: true, database: db);
+
+    expect(find.textContaining('POC Pack'), findsWidgets);
+    expect(find.text('remote1'), findsWidgets);
+  });
+
+  testWidgets('developer remote POC actions run through fake remote source', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final seed = await _seedSharedPackForRemotePoc(db);
+    final fakeRemote = _FakeRemoteSharedPackDataSource();
+
+    await _pumpSettings(
+      tester,
+      developerVisible: true,
+      database: db,
+      extraOverrides: [
+        authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+        remoteSharedPackDataSourceProvider.overrideWithValue(fakeRemote),
+      ],
+    );
+
+    expect(fakeRemote.profileCalls, 0);
+    expect(fakeRemote.createdPackCalls, 0);
+    expect(fakeRemote.createdItemCalls, 0);
+    expect(fakeRemote.snapshotCalls, 0);
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-poc-create-profile-row'),
+    );
+    expect(fakeRemote.profileCalls, 1);
+    expect(find.textContaining('Remote Profile 已確認'), findsWidgets);
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-poc-create-pack-row'),
+    );
+    expect(fakeRemote.createdPackCalls, 1);
+    expect(find.textContaining('已建立遠端 Pack'), findsWidgets);
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-poc-push-items-row'),
+    );
+    expect(fakeRemote.createdItemCalls, 1);
+    expect(find.textContaining('已推送 1 個 items'), findsWidgets);
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-poc-complete-item-row'),
+    );
+    expect(fakeRemote.completionCalls, 1);
+    expect(find.text('遠端 Item 已完成'), findsWidgets);
+    expect(await db.reminderDao.listItemCompletions(seed.itemId), isEmpty);
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-poc-complete-item-row'),
+    );
+    expect(fakeRemote.completionCalls, 2);
+    expect(find.text('遠端 Item 已經完成，不覆寫完成者'), findsWidgets);
+    expect(await db.reminderDao.listItemCompletions(seed.itemId), isEmpty);
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-poc-pull-snapshot-row'),
+    );
+    expect(fakeRemote.snapshotCalls, 1);
+    expect(
+      find.text('members 1, items 1, completions 1, events 1'),
+      findsWidgets,
+    );
+  });
 
   testWidgets(
     'developer settings compatibility route renders unified settings',
@@ -467,6 +612,170 @@ Future<AppDatabase> _pumpSettings(
   );
   await tester.pumpAndSettle();
   return db;
+}
+
+Future<void> _tapSettingsRow(WidgetTester tester, Key key) async {
+  await tester.scrollUntilVisible(find.byKey(key), 120);
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(key));
+  await tester.pumpAndSettle();
+}
+
+class _RemotePocSeed {
+  const _RemotePocSeed({required this.packId, required this.itemId});
+
+  final int packId;
+  final int itemId;
+}
+
+Future<_RemotePocSeed> _seedSharedPackForRemotePoc(AppDatabase db) async {
+  final localUser = await IdentityRepository(
+    db.reminderDao,
+  ).ensureLocalIdentity();
+  final itemRepository = ItemRepository(db.reminderDao);
+  final packId = await itemRepository.createPack(
+    const ItemPackInput(title: 'POC Pack'),
+  );
+  await SharedPackRepository(
+    db.reminderDao,
+  ).convertPackToShared(packId, hostUserId: localUser.id);
+  final itemId = await itemRepository.createItem(
+    ItemInput(
+      title: 'POC Item',
+      type: ItemType.stateBased,
+      config: const StateBasedItemConfig(
+        warningAfter: Duration(days: 1),
+        dangerAfter: Duration(days: 2),
+      ),
+      packId: packId,
+    ),
+  );
+  return _RemotePocSeed(packId: packId, itemId: itemId);
+}
+
+class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
+  int profileCalls = 0;
+  int createdPackCalls = 0;
+  int createdItemCalls = 0;
+  int completionCalls = 0;
+  int snapshotCalls = 0;
+
+  final _packItems = <String, List<String>>{};
+  final _completedItems = <String, RemoteItemCompletionResult>{};
+
+  @override
+  Future<String> upsertCurrentProfile({required String displayName}) async {
+    profileCalls += 1;
+    return 'profile1';
+  }
+
+  @override
+  Future<String> createSharedPack({
+    required String name,
+    String? description,
+  }) async {
+    createdPackCalls += 1;
+    final id = 'rpack$createdPackCalls';
+    _packItems[id] = <String>[];
+    return id;
+  }
+
+  @override
+  Future<String> createPackItem({
+    required String packId,
+    required String title,
+    String? note,
+  }) async {
+    createdItemCalls += 1;
+    final id = 'ritem$createdItemCalls';
+    _packItems.putIfAbsent(packId, () => <String>[]).add(id);
+    return id;
+  }
+
+  @override
+  Future<RemoteItemCompletionResult> completePackItem({
+    required String itemId,
+    String? clientMutationId,
+  }) async {
+    completionCalls += 1;
+    final existing = _completedItems[itemId];
+    if (existing != null) {
+      return RemoteItemCompletionResult(
+        status: RemoteItemCompletionStatus.alreadyCompleted,
+        completionId: existing.completionId,
+        completedByUserId: existing.completedByUserId,
+        completedAt: existing.completedAt,
+      );
+    }
+    final result = RemoteItemCompletionResult(
+      status: RemoteItemCompletionStatus.completed,
+      completionId: 'completion1',
+      completedByUserId: 'profile1',
+      completedAt: DateTime(2026, 6, 21),
+    );
+    _completedItems[itemId] = result;
+    return result;
+  }
+
+  @override
+  Future<RemotePackSnapshot> fetchPackSnapshot(String remotePackId) async {
+    snapshotCalls += 1;
+    final itemIds = _packItems[remotePackId] ?? const <String>[];
+    return RemotePackSnapshot(
+      id: remotePackId,
+      name: 'Remote POC Pack',
+      hostUserId: 'profile1',
+      status: 'active',
+      createdAt: DateTime(2026, 6, 21),
+      updatedAt: DateTime(2026, 6, 21),
+      members: [
+        RemotePackMemberSnapshot(
+          id: 'member1',
+          packId: remotePackId,
+          userId: 'profile1',
+          role: 'host',
+          status: 'active',
+          joinedAt: DateTime(2026, 6, 21),
+        ),
+      ],
+      items: [
+        for (final itemId in itemIds)
+          RemoteItemSnapshot(
+            id: itemId,
+            packId: remotePackId,
+            title: 'Remote POC Item',
+            status: 'active',
+            createdByUserId: 'profile1',
+            updatedByUserId: 'profile1',
+            createdAt: DateTime(2026, 6, 21),
+            updatedAt: DateTime(2026, 6, 21),
+          ),
+      ],
+      completions: [
+        for (final entry in _completedItems.entries)
+          if (itemIds.contains(entry.key))
+            RemoteItemCompletionSnapshot(
+              id: entry.value.completionId,
+              packId: remotePackId,
+              itemId: entry.key,
+              completedByUserId: entry.value.completedByUserId,
+              completedAt: entry.value.completedAt,
+              createdAt: entry.value.completedAt,
+            ),
+      ],
+      activityEvents: [
+        RemoteActivityEventSnapshot(
+          id: 'event1',
+          packId: remotePackId,
+          actorUserId: 'profile1',
+          entityType: 'pack',
+          entityId: remotePackId,
+          action: 'pack_created',
+          createdAt: DateTime(2026, 6, 21),
+        ),
+      ],
+    );
+  }
 }
 
 class _FakeBackupService extends ReminderBackupService {

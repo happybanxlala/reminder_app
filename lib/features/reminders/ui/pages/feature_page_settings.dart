@@ -19,6 +19,28 @@ class SettingsPage extends ConsumerWidget {
     final databaseVersion = ref.watch(appDatabaseProvider).schemaVersion;
     final currentUserAsync = ref.watch(currentAppUserProvider);
     final supabaseRuntimeStatus = ref.watch(supabaseRuntimeStatusProvider);
+    final remotePocState = ref.watch(remotePocControllerProvider);
+    final remotePocTargetPackAsync = ref.watch(
+      remotePocTargetSharedPackProvider,
+    );
+    final remotePocTargetPack = remotePocTargetPackAsync.maybeWhen(
+      data: (pack) => pack,
+      orElse: () => null,
+    );
+    final remotePocPackMappingAsync = remotePocTargetPack == null
+        ? null
+        : ref.watch(remotePocPackMappingProvider(remotePocTargetPack.id));
+    final remotePocPackMapping = remotePocPackMappingAsync?.maybeWhen(
+      data: (mapping) => mapping,
+      orElse: () => null,
+    );
+    final remotePocFirstMappedItemAsync = remotePocTargetPack == null
+        ? null
+        : ref.watch(remotePocFirstMappedItemProvider(remotePocTargetPack.id));
+    final remotePocFirstMappedItem = remotePocFirstMappedItemAsync?.maybeWhen(
+      data: (bundle) => bundle,
+      orElse: () => null,
+    );
 
     return ReminderEditorScaffold(
       title: ReminderUiText.settingsTitle,
@@ -207,6 +229,51 @@ class SettingsPage extends ConsumerWidget {
                   label: ReminderUiText.supabaseConfigStatusLabel,
                   value: _supabaseRuntimeStatusLabel(supabaseRuntimeStatus),
                 ),
+                Text(
+                  ReminderUiText.supabaseRemotePocSectionTitle,
+                  key: const Key('settings-remote-poc-title'),
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: context.reminderPalette.textSecondary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                _SettingsReadOnlyRow(
+                  key: const Key('settings-remote-poc-shared-pack'),
+                  label: ReminderUiText.remotePocSharedPackLabel,
+                  value: _remotePocSharedPackValue(remotePocTargetPack),
+                ),
+                _SettingsReadOnlyRow(
+                  key: const Key('settings-remote-poc-remote-pack'),
+                  label: ReminderUiText.remotePocRemotePackLabel,
+                  value: remotePocPackMappingAsync?.isLoading ?? false
+                      ? ReminderUiText.loadingLabel
+                      : remotePocPackMapping == null
+                      ? ReminderUiText.remotePocNoRemoteMapping
+                      : _shortUserId(remotePocPackMapping.remoteEntityId),
+                ),
+                _SettingsReadOnlyRow(
+                  key: const Key('settings-remote-poc-mapped-item'),
+                  label: ReminderUiText.remotePocMappedItemLabel,
+                  value: remotePocFirstMappedItemAsync?.isLoading ?? false
+                      ? ReminderUiText.loadingLabel
+                      : remotePocFirstMappedItem == null
+                      ? ReminderUiText.remotePocNotCreated
+                      : remotePocFirstMappedItem.item.title,
+                ),
+                _SettingsReadOnlyRow(
+                  key: const Key('settings-remote-poc-last-operation'),
+                  label: ReminderUiText.remotePocLastOperationLabel,
+                  value:
+                      remotePocState.lastMessage ??
+                      ReminderUiText.remotePocNotRun,
+                ),
+                _SettingsReadOnlyRow(
+                  key: const Key('settings-remote-poc-snapshot-summary'),
+                  label: ReminderUiText.remotePocSnapshotLabel,
+                  value: _remotePocSnapshotSummaryValue(
+                    remotePocState.snapshotSummary,
+                  ),
+                ),
                 _SettingsActionRow(
                   key: const Key(
                     'settings-create-anonymous-remote-identity-row',
@@ -214,7 +281,83 @@ class SettingsPage extends ConsumerWidget {
                   label: ReminderUiText.createAnonymousRemoteIdentityLabel,
                   value: ReminderUiText.identityKindAnonymousRemote,
                   icon: Icons.cloud_outlined,
+                  enabled: !remotePocState.isRunning,
                   onTap: () => _ensureAnonymousRemoteIdentity(context, ref),
+                ),
+                _SettingsActionRow(
+                  key: const Key('settings-remote-poc-create-profile-row'),
+                  label: ReminderUiText.remotePocCreateProfileLabel,
+                  value: ReminderUiText.remotePocNotCreated,
+                  icon: Icons.account_circle_outlined,
+                  enabled: !remotePocState.isRunning,
+                  onTap: () => _runRemotePocAction(
+                    context,
+                    ref,
+                    (controller) => controller.ensureRemoteProfile(),
+                  ),
+                ),
+                _SettingsActionRow(
+                  key: const Key('settings-remote-poc-create-pack-row'),
+                  label: ReminderUiText.remotePocCreatePackLabel,
+                  value: remotePocPackMapping == null
+                      ? ReminderUiText.remotePocNoRemoteMapping
+                      : _shortUserId(remotePocPackMapping.remoteEntityId),
+                  icon: Icons.cloud_upload_outlined,
+                  enabled: !remotePocState.isRunning,
+                  onTap: () => _runRemotePocAction(
+                    context,
+                    ref,
+                    (controller) =>
+                        controller.createRemotePack(remotePocTargetPack?.id),
+                  ),
+                ),
+                _SettingsActionRow(
+                  key: const Key('settings-remote-poc-push-items-row'),
+                  label: ReminderUiText.remotePocPushItemsLabel,
+                  value: remotePocFirstMappedItem == null
+                      ? ReminderUiText.remotePocNotCreated
+                      : remotePocFirstMappedItem.item.title,
+                  icon: Icons.playlist_add_check_outlined,
+                  enabled: !remotePocState.isRunning,
+                  onTap: () => _runRemotePocAction(
+                    context,
+                    ref,
+                    (controller) =>
+                        controller.pushMinimalItems(remotePocTargetPack?.id),
+                  ),
+                ),
+                _SettingsActionRow(
+                  key: const Key('settings-remote-poc-complete-item-row'),
+                  label: ReminderUiText.remotePocCompleteItemLabel,
+                  value: remotePocFirstMappedItem == null
+                      ? ReminderUiText.remotePocNotCreated
+                      : remotePocFirstMappedItem.item.title,
+                  icon: Icons.task_alt_outlined,
+                  enabled: !remotePocState.isRunning,
+                  onTap: () => _runRemotePocAction(
+                    context,
+                    ref,
+                    (controller) => controller.completeFirstMappedItem(
+                      remotePocTargetPack?.id,
+                    ),
+                  ),
+                ),
+                _SettingsActionRow(
+                  key: const Key('settings-remote-poc-pull-snapshot-row'),
+                  label: ReminderUiText.remotePocPullSnapshotLabel,
+                  value: remotePocPackMapping == null
+                      ? ReminderUiText.remotePocNoRemoteMapping
+                      : _shortUserId(remotePocPackMapping.remoteEntityId),
+                  icon: Icons.cloud_download_outlined,
+                  enabled: !remotePocState.isRunning,
+                  onTap: () => _runRemotePocAction(
+                    context,
+                    ref,
+                    (controller) => controller.pullRemoteSnapshot(
+                      localPackId: remotePocTargetPack?.id,
+                      remotePackId: remotePocPackMapping?.remoteEntityId,
+                    ),
+                  ),
                 ),
                 _SettingsReadOnlyRow(
                   key: const Key('settings-debug-date-source'),
@@ -275,6 +418,20 @@ class SettingsPage extends ConsumerWidget {
       SupabaseRuntimeStatus.initializationFailed =>
         ReminderUiText.supabaseConfigInitializationFailed,
     };
+  }
+
+  String _remotePocSharedPackValue(ItemPack? pack) {
+    if (pack == null) {
+      return ReminderUiText.remotePocNoSharedPack;
+    }
+    return '${pack.title} #${pack.id}';
+  }
+
+  String _remotePocSnapshotSummaryValue(RemotePocSnapshotSummary? summary) {
+    if (summary == null) {
+      return ReminderUiText.remotePocNotRun;
+    }
+    return 'members ${summary.membersCount}, items ${summary.itemsCount}, completions ${summary.activeCompletionsCount}, events ${summary.activityEventsCount}';
   }
 
   Future<void> _showReminderTonePicker(
@@ -445,25 +602,26 @@ class SettingsPage extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
   ) async {
-    final result = await ref
-        .read(anonymousRemoteIdentityServiceProvider)
-        .ensureAnonymousRemoteIdentity();
+    await _runRemotePocAction(
+      context,
+      ref,
+      (controller) => controller.ensureAnonymousRemoteIdentity(),
+    );
+  }
+
+  Future<void> _runRemotePocAction(
+    BuildContext context,
+    WidgetRef ref,
+    Future<String> Function(RemotePocController controller) action,
+  ) async {
+    final message = await action(
+      ref.read(remotePocControllerProvider.notifier),
+    );
     ref.invalidate(currentAppUserProvider);
     ref.invalidate(currentAppUserIdProvider);
     if (!context.mounted) {
       return;
     }
-
-    final message = switch (result.status) {
-      AnonymousRemoteIdentityStatus.success =>
-        ReminderUiText.anonymousRemoteIdentityCreatedMessage,
-      AnonymousRemoteIdentityStatus.alreadyLinked =>
-        ReminderUiText.anonymousRemoteIdentityAlreadyLinkedMessage,
-      AnonymousRemoteIdentityStatus.configMissing =>
-        ReminderUiText.supabaseConfigMissingMessage,
-      AnonymousRemoteIdentityStatus.remoteAuthFailed =>
-        ReminderUiText.anonymousRemoteIdentityFailureMessage,
-    };
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
