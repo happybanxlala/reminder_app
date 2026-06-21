@@ -1143,6 +1143,176 @@ Expected boundaries:
 
 ### Follow-Up Boundary
 
-- Phase 4C can define remote member actions and explicit local import/merge policy.
+- Phase 4C can define remote member actions in the developer viewer.
 - Phase 4D can explore realtime soft notification or stronger RLS/RPC audit hardening.
 - Production remote pack UX remains out of scope until sync and merge rules are designed.
+
+## 19. Phase 4C Remote Member Actions MVP
+
+Phase 4C adds developer-only selected item actions to the Remote Pack Snapshot viewer:
+
+```text
+remote snapshot viewer
+→ select remote item
+→ complete selected remote item
+→ undo selected active completion
+→ manual refresh
+→ viewer shows completed_by / undone activity
+```
+
+It is not full sync, realtime, local merge, or production item operation UI.
+
+### Product Scope
+
+- Active remote pack members can complete selected remote items.
+- Active remote pack members can undo selected active completions.
+- `assigned_to_user_id` remains a hint and does not restrict completion.
+- `completed_by_user_id` is factual and must not be overwritten.
+- Undo records `undone_by_user_id` and `undone_at`; it does not delete the completion row.
+- `activity_events` remain the transparent shared history surface.
+
+### SQL / RPC
+
+Phase 4C SQL is an incremental manual draft:
+
+```text
+docs/core/sql/phase4c_supabase_remote_member_actions_mvp.sql
+```
+
+Apply it after Phase 3C and Phase 4A SQL.
+
+The SQL adds:
+
+- `undo_pack_item_completion(target_item_id uuid, client_mutation_id text default null)`
+- return status `undone` or `already_not_completed`
+- active member verification through `is_pack_member`
+- `auth.uid()` as the undo actor
+- update of `item_completions.undone_by_user_id / undone_at`
+- `activity_events(action = item_undone)`
+
+Phase 3C `complete_pack_item` remains the complete path. It already checks active membership, uses `auth.uid()`, returns `already_completed` for active completion, and relies on the partial unique index for first-write-wins.
+
+Direct client update/delete of `item_completions` is not part of the app runtime path. Complete and undo should stay RPC-controlled.
+
+### Viewer State And Actions
+
+The Settings developer viewer keeps selected item state in volatile provider memory:
+
+- selected remote item id
+- selected item title
+- active completion id
+- completed_by user id
+- completed_at
+
+Manual refresh preserves selected item if it still exists in the refreshed snapshot. If the selected item is missing, selection is cleared.
+
+Actions:
+
+- `完成選擇的 Remote Item` calls `completeRemoteItemByRemoteId`.
+- `復原選擇的 Remote Item` calls `undoRemoteItemByRemoteId`.
+- Actions never write local DB and never create local pack, local item, local completion, or `sync_mappings`.
+- Actions do not auto-refresh; users press `刷新遠端 Snapshot` to see remote state.
+
+### Error States
+
+Developer UI should map typed failures into gentle messages:
+
+- Supabase 尚未設定
+- 請先建立匿名遠端身份
+- 尚未選擇 remote item
+- 此 Remote Item 尚未完成
+- Remote Item 已經完成，不覆寫完成者
+- Remote Item 目前未完成，無需復原
+- 遠端資料被 RLS 拒絕
+- 網絡連線失敗
+- 遠端操作失敗，請查看 debug log
+
+### Phase 4C Manual Smoke Test
+
+Supabase setup:
+
+1. 啟用 Anonymous Sign-ins。
+2. Apply `docs/core/sql/phase3c_supabase_minimal_poc.sql`。
+3. Apply `docs/core/sql/phase4a_supabase_invite_membership_mvp.sql`。
+4. Apply `docs/core/sql/phase4c_supabase_remote_member_actions_mvp.sql`。
+5. 確認 RLS enabled。
+6. 只使用 anon key。
+7. 不使用 service role key。
+
+Host flow:
+
+1. 使用 Device A / simulator A。
+2. 建立 anonymous remote identity。
+3. 建立 Remote Profile。
+4. 準備 local Shared Pack。
+5. 建立 remote pack POC。
+6. 推送 Minimal Items。
+7. 建立 Invite Code。
+8. 刷新 Remote Snapshot viewer。
+9. 確認 items 顯示。
+
+Member flow:
+
+1. 使用 Device B / simulator B / clean install。
+2. 建立 anonymous remote identity。
+3. 建立 Remote Profile。
+4. 輸入 invite code。
+5. 加入 remote pack。
+6. 刷新 Remote Snapshot viewer。
+7. 選擇一個未完成 remote item。
+8. 按「完成選擇的 Remote Item」。
+9. 再刷新 Remote Snapshot。
+10. Viewer 應顯示 completed_by = Device B remote user。
+11. Activity 應顯示 `item_completed`。
+12. 按「復原選擇的 Remote Item」。
+13. 再刷新 Remote Snapshot。
+14. Viewer 應顯示 item 回到未完成。
+15. Activity 應顯示 `item_undone`。
+
+Host verification:
+
+1. Device A 刷新 Remote Snapshot。
+2. 應看到 Device B 的 completed_by / `item_completed` activity。
+3. Device B undo 後，Device A 再刷新。
+4. 應看到 item 回到未完成，但 activity history 保留。
+
+First-write-wins check:
+
+1. Device A 和 Device B 選同一個未完成 item。
+2. Device B 先 complete。
+3. Device A 再 complete。
+4. Device A 應收到 already completed。
+5. completed_by 不應被 Device A 覆寫。
+
+Non-member RLS check:
+
+1. 使用 Device C / clean install。
+2. 建立 anonymous remote identity。
+3. 不加入 invite。
+4. 嘗試拉 snapshot / complete item / undo item。
+5. 預期被 RLS 擋下。
+
+Expected boundaries:
+
+- 沒有 local pack 被自動建立。
+- 沒有 local item 被自動建立。
+- Remote snapshot 不 merge local DB。
+- Remote complete / undo 不改 local history。
+- Personal pack 不上傳。
+- Resources / stages 不上傳。
+- 沒有 realtime。
+- 沒有 background sync。
+- 只有手動 refresh。
+
+### Known Limitations
+
+- The viewer is developer-only.
+- No production remote item operation UI exists.
+- No local import / merge policy exists.
+- No realtime notification exists.
+- No resource or stage remote actions exist.
+
+### Follow-Up Boundary
+
+- Phase 4D can explore realtime soft notifications or stronger remote action audit hardening.
+- Phase 5 can design explicit local import / merge behavior if product scope requires it.

@@ -453,6 +453,7 @@ class SettingsPage extends ConsumerWidget {
                 _RemoteSnapshotViewer(
                   key: const Key('settings-remote-snapshot-viewer'),
                   snapshot: remotePocState.lastPulledRemoteSnapshot,
+                  selectedItem: remotePocState.selectedSnapshotItem,
                   targetType: remotePocSnapshotTargetType,
                   targetRemotePackId:
                       remotePocState.lastJoinedRemotePackId ??
@@ -465,6 +466,28 @@ class SettingsPage extends ConsumerWidget {
                   summary: remotePocState.snapshotSummary,
                   shortId: _shortUserId,
                   dateTimeValue: _remotePocDateTimeValue,
+                  onSelectItem: (itemId) => ref
+                      .read(remotePocControllerProvider.notifier)
+                      .selectRemoteSnapshotItem(itemId),
+                  onCompleteSelected:
+                      remotePocState.isRunning ||
+                          remotePocState.selectedSnapshotItem == null
+                      ? null
+                      : () => _runRemotePocAction(
+                          context,
+                          ref,
+                          (controller) =>
+                              controller.completeSelectedSnapshotItem(),
+                        ),
+                  onUndoSelected:
+                      remotePocState.isRunning ||
+                          remotePocState.selectedSnapshotItem == null
+                      ? null
+                      : () => _runRemotePocAction(
+                          context,
+                          ref,
+                          (controller) => controller.undoSelectedSnapshotItem(),
+                        ),
                 ),
                 _SettingsReadOnlyRow(
                   key: const Key('settings-debug-date-source'),
@@ -1060,6 +1083,7 @@ class _RemoteSnapshotViewer extends StatelessWidget {
   const _RemoteSnapshotViewer({
     super.key,
     required this.snapshot,
+    required this.selectedItem,
     required this.targetType,
     required this.targetRemotePackId,
     required this.hasTarget,
@@ -1068,9 +1092,13 @@ class _RemoteSnapshotViewer extends StatelessWidget {
     required this.summary,
     required this.shortId,
     required this.dateTimeValue,
+    required this.onSelectItem,
+    required this.onCompleteSelected,
+    required this.onUndoSelected,
   });
 
   final RemotePackSnapshot? snapshot;
+  final RemotePocSelectedItem? selectedItem;
   final RemotePocSnapshotTargetType? targetType;
   final String? targetRemotePackId;
   final bool hasTarget;
@@ -1079,6 +1107,9 @@ class _RemoteSnapshotViewer extends StatelessWidget {
   final RemotePocSnapshotSummary? summary;
   final String Function(String value) shortId;
   final String Function(DateTime? value) dateTimeValue;
+  final ValueChanged<String> onSelectItem;
+  final VoidCallback? onCompleteSelected;
+  final VoidCallback? onUndoSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -1191,12 +1222,50 @@ class _RemoteSnapshotViewer extends StatelessWidget {
               context,
               ReminderUiText.remotePocViewerItemsLabel,
             ),
+            _selectedItemSummary(context),
+            const SizedBox(height: 6),
             for (final item in snapshot.items)
-              _viewerBullet(
+              _viewerItemRow(
                 context,
                 key: Key('settings-remote-snapshot-item-${item.id}'),
+                item: item,
                 text: _itemValue(snapshot, item),
+                isSelected: selectedItem?.item.id == item.id,
               ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    key: const Key(
+                      'settings-remote-snapshot-complete-selected-button',
+                    ),
+                    onPressed: onCompleteSelected,
+                    icon: const Icon(Icons.check_circle_outline, size: 16),
+                    label: const Text(
+                      ReminderUiText.remotePocCompleteSelectedItemLabel,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    key: const Key(
+                      'settings-remote-snapshot-undo-selected-button',
+                    ),
+                    onPressed: onUndoSelected,
+                    icon: const Icon(Icons.undo_outlined, size: 16),
+                    label: const Text(
+                      ReminderUiText.remotePocUndoSelectedItemLabel,
+                    ),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 10),
             _viewerSectionTitle(
               context,
@@ -1242,13 +1311,7 @@ class _RemoteSnapshotViewer extends StatelessWidget {
   }
 
   String _itemValue(RemotePackSnapshot snapshot, RemoteItemSnapshot item) {
-    RemoteItemCompletionSnapshot? completion;
-    for (final entry in snapshot.completions) {
-      if (entry.itemId == item.id && entry.undoneAt == null) {
-        completion = entry;
-        break;
-      }
-    }
+    final completion = _completionFor(snapshot, item.id);
     final note = item.note == null || item.note!.trim().isEmpty
         ? ''
         : ' | ${_truncate(item.note!.trim())}';
@@ -1259,6 +1322,39 @@ class _RemoteSnapshotViewer extends StatelessWidget {
       return '${item.title}$note | ${item.status}$assigned | ${ReminderUiText.remotePocViewerIncomplete}';
     }
     return '${item.title}$note | ${item.status}$assigned | completed by ${shortId(completion.completedByUserId)} at ${dateTimeValue(completion.completedAt)}';
+  }
+
+  RemoteItemCompletionSnapshot? _completionFor(
+    RemotePackSnapshot snapshot,
+    String itemId,
+  ) {
+    for (final entry in snapshot.completions) {
+      if (entry.itemId == itemId && entry.undoneAt == null) {
+        return entry;
+      }
+    }
+    return null;
+  }
+
+  Widget _selectedItemSummary(BuildContext context) {
+    final selected = selectedItem;
+    if (selected == null) {
+      return _viewerMutedText(
+        context,
+        ReminderUiText.remotePocViewerNoSelectedItem,
+        key: const Key('settings-remote-snapshot-selected-empty'),
+      );
+    }
+    final completion = selected.activeCompletion;
+    final value = completion == null
+        ? '${selected.item.title} | ${ReminderUiText.remotePocViewerIncomplete}'
+        : '${selected.item.title} | completed by ${shortId(completion.completedByUserId)} at ${dateTimeValue(completion.completedAt)}';
+    return _viewerLine(
+      context,
+      key: const Key('settings-remote-snapshot-selected-item'),
+      label: ReminderUiText.remotePocViewerSelectedItemLabel,
+      value: value,
+    );
   }
 
   String _actorValue(RemoteActivityEventSnapshot event) {
@@ -1340,6 +1436,46 @@ class _RemoteSnapshotViewer extends StatelessWidget {
           color: palette.textPrimary,
           fontWeight: FontWeight.w700,
         ),
+      ),
+    );
+  }
+
+  Widget _viewerItemRow(
+    BuildContext context, {
+    required Key key,
+    required RemoteItemSnapshot item,
+    required String text,
+    required bool isSelected,
+  }) {
+    final palette = context.reminderPalette;
+    return Padding(
+      key: key,
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              '${isSelected ? '[${ReminderUiText.remotePocViewerSelectedIndicator}] ' : ''}$text',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: palette.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton.icon(
+            key: Key('settings-remote-snapshot-select-${item.id}'),
+            onPressed: () => onSelectItem(item.id),
+            icon: const Icon(Icons.radio_button_checked, size: 14),
+            label: const Text(ReminderUiText.remotePocViewerSelectItemLabel),
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              minimumSize: const Size(0, 32),
+            ),
+          ),
+        ],
       ),
     );
   }

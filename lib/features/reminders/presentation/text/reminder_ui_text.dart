@@ -220,6 +220,12 @@ class ReminderUiText {
   static const remotePocViewerLocalTarget = 'local mapped pack';
   static const remotePocViewerJoinedTarget = 'joined remote pack';
   static const remotePocViewerIncomplete = '未完成';
+  static const remotePocViewerSelectedItemLabel = 'Selected item';
+  static const remotePocViewerNoSelectedItem = '尚未選擇 remote item';
+  static const remotePocViewerSelectItemLabel = '選擇';
+  static const remotePocViewerSelectedIndicator = '已選擇';
+  static const remotePocCompleteSelectedItemLabel = '完成選擇的 Remote Item';
+  static const remotePocUndoSelectedItemLabel = '復原選擇的 Remote Item';
   static const remoteProviderSupabaseAnonymous = 'supabase_anonymous';
   static const remoteProviderApple = 'apple';
   static const remoteProviderGoogle = 'google';

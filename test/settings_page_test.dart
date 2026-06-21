@@ -548,6 +548,50 @@ void main() {
     expect(find.textContaining('Remote POC Item'), findsWidgets);
     expect(find.textContaining('completed by'), findsWidgets);
     expect(find.textContaining('pack_created'), findsWidgets);
+    expect(
+      find.text(ReminderUiText.remotePocViewerNoSelectedItem),
+      findsOneWidget,
+    );
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-snapshot-select-ritem1'),
+    );
+    expect(
+      find.textContaining(ReminderUiText.remotePocViewerSelectedIndicator),
+      findsWidgets,
+    );
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-snapshot-complete-selected-button'),
+    );
+    expect(fakeRemote.completionCalls, 3);
+    expect(find.textContaining('Remote Item 已經完成'), findsWidgets);
+    expect(await db.reminderDao.listItemCompletions(seed.itemId), isEmpty);
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-snapshot-undo-selected-button'),
+    );
+    expect(fakeRemote.undoCalls, 1);
+    expect(find.textContaining('已復原選擇的 Remote Item'), findsWidgets);
+    expect(await db.reminderDao.listItemCompletions(seed.itemId), isEmpty);
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-poc-pull-snapshot-row'),
+    );
+    expect(fakeRemote.snapshotCalls, 2);
+    expect(
+      find.textContaining(ReminderUiText.remotePocViewerSelectedItemLabel),
+      findsWidgets,
+    );
+    expect(
+      find.textContaining(ReminderUiText.remotePocViewerIncomplete),
+      findsWidgets,
+    );
+    expect(find.textContaining('item_undone'), findsWidgets);
   });
 
   testWidgets('developer remote POC invite flow stays volatile', (
@@ -620,6 +664,17 @@ void main() {
 
     await _tapSettingsRow(
       tester,
+      const Key('settings-remote-snapshot-select-snapshot-extra-item'),
+    );
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-snapshot-undo-selected-button'),
+    );
+    expect(find.text('此 Remote Item 尚未完成'), findsWidgets);
+    expect(fakeRemote.undoCalls, 0);
+
+    await _tapSettingsRow(
+      tester,
       const Key('settings-remote-poc-complete-snapshot-item-row'),
     );
     expect(fakeRemote.completionCalls, 1);
@@ -630,6 +685,57 @@ void main() {
       db.reminderDao,
     ).exportJsonString(exportedAt: DateTime(2026, 6, 21));
     expect(backup, isNot(contains('ABCD-1234-EFGH')));
+  });
+
+  testWidgets('developer remote viewer clears selection when item disappears', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    await _seedSharedPackForRemotePoc(db);
+    final fakeRemote = _FakeRemoteSharedPackDataSource();
+
+    await _pumpSettings(
+      tester,
+      developerVisible: true,
+      database: db,
+      extraOverrides: [
+        authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+        remoteSharedPackDataSourceProvider.overrideWithValue(fakeRemote),
+      ],
+    );
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-poc-create-pack-row'),
+    );
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-poc-push-items-row'),
+    );
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-poc-pull-snapshot-row'),
+    );
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-snapshot-select-ritem1'),
+    );
+    expect(
+      find.textContaining(ReminderUiText.remotePocViewerSelectedIndicator),
+      findsWidgets,
+    );
+
+    fakeRemote.hiddenItemIds.add('ritem1');
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-poc-pull-snapshot-row'),
+    );
+
+    expect(
+      find.text(ReminderUiText.remotePocViewerNoSelectedItem),
+      findsWidgets,
+    );
   });
 
   testWidgets('developer remote viewer refresh failure is friendly', (
@@ -805,11 +911,14 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   int joinInviteCalls = 0;
   int createdItemCalls = 0;
   int completionCalls = 0;
+  int undoCalls = 0;
   int snapshotCalls = 0;
   bool rejectSnapshot = false;
+  final hiddenItemIds = <String>{};
 
   final _packItems = <String, List<String>>{};
   final _completedItems = <String, RemoteItemCompletionResult>{};
+  final _undoActivityItems = <String>{};
 
   @override
   Future<String> upsertCurrentProfile({required String displayName}) async {
@@ -901,6 +1010,29 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   }
 
   @override
+  Future<RemoteItemUndoResult> undoPackItemCompletion({
+    required String itemId,
+    String? clientMutationId,
+  }) async {
+    undoCalls += 1;
+    final existing = _completedItems.remove(itemId);
+    if (existing == null) {
+      return RemoteItemUndoResult(
+        status: RemoteItemUndoStatus.alreadyNotCompleted,
+        itemId: itemId,
+      );
+    }
+    _undoActivityItems.add(itemId);
+    return RemoteItemUndoResult(
+      status: RemoteItemUndoStatus.undone,
+      itemId: itemId,
+      completionId: existing.completionId,
+      undoneByUserId: 'profile1',
+      undoneAt: DateTime(2026, 6, 21, 3),
+    );
+  }
+
+  @override
   Future<RemotePackSnapshot> fetchPackSnapshot(String remotePackId) async {
     snapshotCalls += 1;
     if (rejectSnapshot) {
@@ -912,6 +1044,7 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
     final displayItemIds = itemIds.isEmpty
         ? <String>['snapshot-item-1', 'snapshot-item-2']
         : <String>[...itemIds, 'snapshot-extra-item'];
+    displayItemIds.removeWhere(hiddenItemIds.contains);
     return RemotePackSnapshot(
       id: remotePackId,
       name: 'Remote POC Pack',
@@ -1001,6 +1134,16 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
           action: 'item_completed',
           createdAt: DateTime(2026, 6, 21, 2),
         ),
+        for (final itemId in _undoActivityItems)
+          RemoteActivityEventSnapshot(
+            id: 'event-undo-$itemId',
+            packId: remotePackId,
+            actorUserId: 'profile1',
+            entityType: 'item',
+            entityId: itemId,
+            action: 'item_undone',
+            createdAt: DateTime(2026, 6, 21, 3),
+          ),
       ],
     );
   }

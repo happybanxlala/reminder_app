@@ -414,6 +414,52 @@ void main() {
       expect(await harness.db.reminderDao.listItemCompletions(itemId), isEmpty);
     },
   );
+
+  test(
+    'undoRemoteItemByRemoteId works without local mapping or history merge',
+    () async {
+      final harness = await _Harness.create();
+      addTearDown(harness.close);
+      final packId = await harness.createSharedPackAsCurrentUser('Cats');
+      final itemId = await harness.createStateItem(packId, 'Clean bowl');
+
+      await harness.remoteRepository.completeRemoteItemByRemoteId(
+        'remote_snapshot_item_1',
+      );
+      final undone = await harness.remoteRepository.undoRemoteItemByRemoteId(
+        'remote_snapshot_item_1',
+      );
+      final alreadyNotCompleted = await harness.remoteRepository
+          .undoRemoteItemByRemoteId('remote_snapshot_item_1');
+
+      expect(undone.isSuccess, isTrue);
+      expect(undone.value!.status, RemoteItemUndoStatus.undone);
+      expect(alreadyNotCompleted.isSuccess, isTrue);
+      expect(
+        alreadyNotCompleted.value!.status,
+        RemoteItemUndoStatus.alreadyNotCompleted,
+      );
+      expect(harness.remoteDataSource.undoCount, 2);
+      expect(await harness.db.reminderDao.listSyncMappings(), isEmpty);
+      expect(await harness.db.reminderDao.listItemCompletions(itemId), isEmpty);
+    },
+  );
+
+  test('remote undo maps RLS rejection to typed failure', () async {
+    final harness = await _Harness.create();
+    addTearDown(harness.close);
+    harness.remoteDataSource.rejectUndo = true;
+
+    final result = await harness.remoteRepository.undoRemoteItemByRemoteId(
+      'remote_snapshot_item_1',
+    );
+
+    expect(result.isSuccess, isFalse);
+    expect(
+      result.failureReason,
+      RemoteSharedPackFailureReason.remoteRlsRejected,
+    );
+  });
 }
 
 class _Harness {
@@ -496,7 +542,9 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   int createdPackCount = 0;
   int createdInviteCount = 0;
   int joinInviteCount = 0;
+  int undoCount = 0;
   bool rejectCompletion = false;
+  bool rejectUndo = false;
   bool malformedSnapshot = false;
   bool rejectInviteCreate = false;
   bool alreadyMemberOnJoin = false;
@@ -611,6 +659,33 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
     );
     _completions[itemId] = completion;
     return completion;
+  }
+
+  @override
+  Future<RemoteItemUndoResult> undoPackItemCompletion({
+    required String itemId,
+    String? clientMutationId,
+  }) async {
+    undoCount += 1;
+    if (rejectUndo) {
+      throw const RemoteSharedPackException(
+        RemoteSharedPackFailureReason.remoteRlsRejected,
+      );
+    }
+    final existing = _completions.remove(itemId);
+    if (existing == null) {
+      return RemoteItemUndoResult(
+        status: RemoteItemUndoStatus.alreadyNotCompleted,
+        itemId: itemId,
+      );
+    }
+    return RemoteItemUndoResult(
+      status: RemoteItemUndoStatus.undone,
+      completionId: existing.completionId,
+      itemId: itemId,
+      undoneByUserId: 'fake_supabase_user_profile',
+      undoneAt: DateTime(2026, 6, 21, 10, 5),
+    );
   }
 
   @override

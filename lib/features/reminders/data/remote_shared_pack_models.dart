@@ -84,6 +84,24 @@ class RemoteItemCompletionResult {
   final DateTime completedAt;
 }
 
+enum RemoteItemUndoStatus { undone, alreadyNotCompleted }
+
+class RemoteItemUndoResult {
+  const RemoteItemUndoResult({
+    required this.status,
+    required this.itemId,
+    this.completionId,
+    this.undoneByUserId,
+    this.undoneAt,
+  });
+
+  final RemoteItemUndoStatus status;
+  final String itemId;
+  final String? completionId;
+  final String? undoneByUserId;
+  final DateTime? undoneAt;
+}
+
 class RemotePackInvite {
   const RemotePackInvite({
     required this.inviteId,

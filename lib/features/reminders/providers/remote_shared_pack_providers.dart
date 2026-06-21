@@ -54,6 +54,18 @@ class RemotePocSnapshotSummary {
 
 enum RemotePocSnapshotTargetType { localMappedPack, joinedRemotePack }
 
+class RemotePocSelectedItem {
+  const RemotePocSelectedItem({
+    required this.item,
+    required this.activeCompletion,
+  });
+
+  final RemoteItemSnapshot item;
+  final RemoteItemCompletionSnapshot? activeCompletion;
+
+  bool get hasActiveCompletion => activeCompletion != null;
+}
+
 class RemotePocOperationState {
   const RemotePocOperationState({
     this.isRunning = false,
@@ -72,6 +84,7 @@ class RemotePocOperationState {
     this.snapshotTargetType,
     this.lastRefreshAt,
     this.lastRefreshSucceeded,
+    this.selectedRemoteItemId,
   });
 
   final bool isRunning;
@@ -90,6 +103,7 @@ class RemotePocOperationState {
   final RemotePocSnapshotTargetType? snapshotTargetType;
   final DateTime? lastRefreshAt;
   final bool? lastRefreshSucceeded;
+  final String? selectedRemoteItemId;
 
   RemoteItemSnapshot? get firstSnapshotItem {
     final snapshot = lastPulledRemoteSnapshot;
@@ -97,6 +111,32 @@ class RemotePocOperationState {
       return null;
     }
     return snapshot.items.first;
+  }
+
+  RemotePocSelectedItem? get selectedSnapshotItem {
+    final snapshot = lastPulledRemoteSnapshot;
+    final selectedId = selectedRemoteItemId;
+    if (snapshot == null || selectedId == null) {
+      return null;
+    }
+    RemoteItemSnapshot? item;
+    for (final entry in snapshot.items) {
+      if (entry.id == selectedId) {
+        item = entry;
+        break;
+      }
+    }
+    if (item == null) {
+      return null;
+    }
+    RemoteItemCompletionSnapshot? completion;
+    for (final entry in snapshot.completions) {
+      if (entry.itemId == item.id && entry.undoneAt == null) {
+        completion = entry;
+        break;
+      }
+    }
+    return RemotePocSelectedItem(item: item, activeCompletion: completion);
   }
 
   RemotePocOperationState copyWith({
@@ -116,10 +156,12 @@ class RemotePocOperationState {
     RemotePocSnapshotTargetType? snapshotTargetType,
     DateTime? lastRefreshAt,
     bool? lastRefreshSucceeded,
+    String? selectedRemoteItemId,
     bool clearSnapshotSummary = false,
     bool clearInvite = false,
     bool clearJoinedRemotePackId = false,
     bool clearLastPulledRemoteSnapshot = false,
+    bool clearSelectedRemoteItem = false,
   }) {
     return RemotePocOperationState(
       isRunning: isRunning ?? this.isRunning,
@@ -156,6 +198,10 @@ class RemotePocOperationState {
           ? null
           : lastRefreshAt ?? this.lastRefreshAt,
       lastRefreshSucceeded: lastRefreshSucceeded ?? this.lastRefreshSucceeded,
+      selectedRemoteItemId:
+          clearSelectedRemoteItem || clearLastPulledRemoteSnapshot
+          ? null
+          : selectedRemoteItemId ?? this.selectedRemoteItemId,
     );
   }
 }
@@ -167,6 +213,10 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
 
   void updateInviteCodeInput(String value) {
     state = state.copyWith(inviteCodeInput: value);
+  }
+
+  void selectRemoteSnapshotItem(String itemId) {
+    state = state.copyWith(selectedRemoteItemId: itemId);
   }
 
   Future<String> ensureAnonymousRemoteIdentity() {
@@ -383,6 +433,70 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
     });
   }
 
+  Future<String> completeSelectedSnapshotItem() {
+    return _run('完成選擇的 Remote Item', () async {
+      final selected = state.selectedSnapshotItem;
+      if (selected == null) {
+        return const _RemotePocOutcome(
+          succeeded: false,
+          message: '尚未選擇 remote item',
+        );
+      }
+      final result = await _ref
+          .read(remoteSharedPackRepositoryProvider)
+          .completeRemoteItemByRemoteId(selected.item.id);
+      if (result.failureReason ==
+          RemoteSharedPackFailureReason.remoteItemAlreadyCompleted) {
+        return const _RemotePocOutcome(
+          succeeded: true,
+          message: 'Remote Item 已經完成，不覆寫完成者。請按「刷新遠端 Snapshot」。',
+        );
+      }
+      if (!result.isSuccess) {
+        return _failureOutcome(result.failureReason);
+      }
+      return const _RemotePocOutcome(
+        succeeded: true,
+        message: '已完成選擇的 Remote Item。請按「刷新遠端 Snapshot」。',
+      );
+    });
+  }
+
+  Future<String> undoSelectedSnapshotItem() {
+    return _run('復原選擇的 Remote Item', () async {
+      final selected = state.selectedSnapshotItem;
+      if (selected == null) {
+        return const _RemotePocOutcome(
+          succeeded: false,
+          message: '尚未選擇 remote item',
+        );
+      }
+      if (!selected.hasActiveCompletion) {
+        return const _RemotePocOutcome(
+          succeeded: false,
+          message: '此 Remote Item 尚未完成',
+        );
+      }
+      final result = await _ref
+          .read(remoteSharedPackRepositoryProvider)
+          .undoRemoteItemByRemoteId(selected.item.id);
+      if (!result.isSuccess) {
+        return _failureOutcome(result.failureReason);
+      }
+      final undo = result.value!;
+      if (undo.status == RemoteItemUndoStatus.alreadyNotCompleted) {
+        return const _RemotePocOutcome(
+          succeeded: true,
+          message: 'Remote Item 目前未完成，無需復原。請按「刷新遠端 Snapshot」。',
+        );
+      }
+      return const _RemotePocOutcome(
+        succeeded: true,
+        message: '已復原選擇的 Remote Item。請按「刷新遠端 Snapshot」。',
+      );
+    });
+  }
+
   Future<String> pullRemoteSnapshot({
     required int? localPackId,
     required String? remotePackId,
@@ -411,6 +525,16 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
         );
       }
       final snapshot = result.value!;
+      final selectedId = state.selectedRemoteItemId;
+      String? nextSelectedId;
+      if (selectedId != null) {
+        for (final item in snapshot.items) {
+          if (item.id == selectedId) {
+            nextSelectedId = selectedId;
+            break;
+          }
+        }
+      }
       final summary = RemotePocSnapshotSummary(
         membersCount: snapshot.members.length,
         itemsCount: snapshot.items.length,
@@ -425,6 +549,8 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
         snapshot: snapshot,
         snapshotTargetType: targetType,
         refreshAttempted: true,
+        selectedRemoteItemId: nextSelectedId,
+        clearSelectedRemoteItem: nextSelectedId == null,
       );
     });
   }
@@ -462,6 +588,8 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
       snapshotTargetType: outcome.snapshotTargetType,
       lastRefreshAt: outcome.refreshAttempted ? DateTime.now() : null,
       lastRefreshSucceeded: outcome.refreshAttempted ? outcome.succeeded : null,
+      selectedRemoteItemId: outcome.selectedRemoteItemId,
+      clearSelectedRemoteItem: outcome.clearSelectedRemoteItem,
     );
     return outcome.message;
   }
@@ -520,6 +648,8 @@ class _RemotePocOutcome {
     this.snapshot,
     this.snapshotTargetType,
     this.refreshAttempted = false,
+    this.selectedRemoteItemId,
+    this.clearSelectedRemoteItem = false,
   });
 
   final bool succeeded;
@@ -530,6 +660,8 @@ class _RemotePocOutcome {
   final RemotePackSnapshot? snapshot;
   final RemotePocSnapshotTargetType? snapshotTargetType;
   final bool refreshAttempted;
+  final String? selectedRemoteItemId;
+  final bool clearSelectedRemoteItem;
 }
 
 final remotePocControllerProvider =

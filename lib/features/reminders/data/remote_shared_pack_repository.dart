@@ -370,6 +370,35 @@ class RemoteSharedPackRepository {
     }
   }
 
+  Future<RemotePocResult<RemoteItemUndoResult>> undoRemoteItemByRemoteId(
+    String remoteItemId,
+  ) async {
+    final identityResult = await _ensureAnonymousIdentity();
+    if (!identityResult.isSuccess) {
+      return RemotePocResult.failure(
+        identityResult.failureReason,
+        identityResult.error,
+      );
+    }
+
+    try {
+      return RemotePocResult.success(
+        await _remoteDataSource.undoPackItemCompletion(
+          itemId: remoteItemId,
+          clientMutationId:
+              'remote_item_undo_${remoteItemId}_${_clock().millisecondsSinceEpoch}',
+        ),
+      );
+    } on RemoteSharedPackException catch (error) {
+      return RemotePocResult.failure(error.reason, error);
+    } catch (error) {
+      return RemotePocResult.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        error,
+      );
+    }
+  }
+
   Future<RemotePocResult<RemotePackSnapshot>> pullRemotePackSnapshot(
     String remotePackId,
   ) async {

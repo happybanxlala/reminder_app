@@ -11,7 +11,7 @@ Last aligned with repository contents on 2026-06-14.
 
 ## Supabase Remote Model
 
-Supabase remote data model, RLS policy draft, Phase 3A boundary, Phase 3B anonymous identity bridge, Phase 3C Remote Shared Pack Minimal POC, Phase 3D developer smoke-test surface, Phase 4A remote invite-code membership MVP, and Phase 4B developer-only Remote Pack Viewer MVP are documented in:
+Supabase remote data model, RLS policy draft, Phase 3A boundary, Phase 3B anonymous identity bridge, Phase 3C Remote Shared Pack Minimal POC, Phase 3D developer smoke-test surface, Phase 4A remote invite-code membership MVP, Phase 4B developer-only Remote Pack Viewer MVP, and Phase 4C remote member actions MVP are documented in:
 
 - `docs/core/06_supabase_remote_model_spec.md`
 
@@ -1278,6 +1278,23 @@ Phase 4B adds a developer-only Remote Pack Viewer MVP inside the Settings `Supab
 
 - 不新增 full sync、realtime、background sync、auto refresh、formal production remote pack UI、local merge、resource / stage remote sync 或 widget 行為變更。
 - 不修改 SQL schema、Drift schema 或 backup schema。
+
+### 2.21 Phase 4C：Remote Member Actions MVP
+
+Phase 4C adds developer-only remote member item actions inside the Remote Pack Snapshot viewer.
+
+#### 已實作行為
+
+- Active remote pack member 可在 viewer 選擇 remote item，並手動 complete selected item。
+- Active remote pack member 可 undo selected item 的 active completion；undo 不刪除 completion history，不覆寫 `completed_by`。
+- Remote completion 維持 first-write-wins；已完成 item 的再次 complete 回傳 already completed，不覆寫完成者。
+- Remote undo 寫入 `undone_by_user_id` / `undone_at`，並由 remote activity events 顯示 `item_undone`。
+- Viewer selected item state 是 volatile provider state；manual refresh 後 item 仍存在則保留選擇，若 item 消失則清空。
+- Remote complete / undo 不寫入 local DB，不建立 local pack、local item、local completion 或 `sync_mappings`。
+
+#### 非目標
+
+- 不新增 full sync、realtime、auto refresh、local merge、formal production item UI、resource / stage remote sync、member management、widget 行為變更、Drift schema change 或 backup schema change。
 
 ## 3. 跨 Domain 行為
 

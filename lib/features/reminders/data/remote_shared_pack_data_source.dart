@@ -18,6 +18,10 @@ abstract class RemoteSharedPackDataSource {
     required String itemId,
     String? clientMutationId,
   });
+  Future<RemoteItemUndoResult> undoPackItemCompletion({
+    required String itemId,
+    String? clientMutationId,
+  });
   Future<RemotePackSnapshot> fetchPackSnapshot(String remotePackId);
 }
 
@@ -66,6 +70,14 @@ class DisabledRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
 
   @override
   Future<RemoteItemCompletionResult> completePackItem({
+    required String itemId,
+    String? clientMutationId,
+  }) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<RemoteItemUndoResult> undoPackItemCompletion({
     required String itemId,
     String? clientMutationId,
   }) {
@@ -234,6 +246,38 @@ class SupabaseRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
         completionId: _requiredString(row, 'completion_id'),
         completedByUserId: _requiredString(row, 'completed_by_user_id'),
         completedAt: _requiredDate(row, 'completed_at'),
+      );
+    } catch (error) {
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+      );
+    }
+  }
+
+  @override
+  Future<RemoteItemUndoResult> undoPackItemCompletion({
+    required String itemId,
+    String? clientMutationId,
+  }) async {
+    try {
+      final result = await _client.rpc(
+        'undo_pack_item_completion',
+        params: {
+          'target_item_id': itemId,
+          'client_mutation_id': clientMutationId,
+        },
+      );
+      final row = _mapRpcResult(result);
+      final status = _requiredString(row, 'status');
+      return RemoteItemUndoResult(
+        status: status == 'already_not_completed'
+            ? RemoteItemUndoStatus.alreadyNotCompleted
+            : RemoteItemUndoStatus.undone,
+        itemId: _requiredString(row, 'item_id'),
+        completionId: _optionalString(row, 'completion_id'),
+        undoneByUserId: row['undone_by_user_id'] as String?,
+        undoneAt: _optionalDate(row, 'undone_at'),
       );
     } catch (error) {
       throw _mapError(
@@ -424,6 +468,14 @@ RemoteActivityEventSnapshot _activityEventFromRow(Map<String, Object?> row) {
     metadataJson: _jsonMap(row['metadata_json']),
     createdAt: _requiredDate(row, 'created_at'),
   );
+}
+
+String? _optionalString(Map<String, Object?> row, String key) {
+  final value = row[key];
+  if (value is String && value.isNotEmpty) {
+    return value;
+  }
+  return null;
 }
 
 String _requiredString(Map<String, Object?> row, String key) {
