@@ -1314,5 +1314,173 @@ Expected boundaries:
 
 ### Follow-Up Boundary
 
-- Phase 4D can explore realtime soft notifications or stronger remote action audit hardening.
+- Phase 4D adds developer-only realtime soft notification.
 - Phase 5 can design explicit local import / merge behavior if product scope requires it.
+
+## 20. Phase 4D Realtime Soft Notification POC
+
+Phase 4D adds developer-only realtime soft notification for the Remote Pack Snapshot viewer.
+
+It is advisory only:
+
+```text
+remote pack has activity event
+→ app receives realtime signal
+→ viewer shows remote changes available
+→ user manually refreshes snapshot
+```
+
+Realtime payload is not source of truth. Snapshot fetch remains the authoritative remote read path.
+
+### Product Scope
+
+- Listen for `activity_events` insert events for the current remote pack.
+- Show a soft notification in Settings developer UI.
+- Track volatile state: realtime status, target pack id, change count, last action, last actor, last received time, and error message.
+- Clear remote-change notification after successful manual snapshot refresh.
+- Keep all realtime state out of local DB and backup.
+
+### Realtime Strategy
+
+Phase 4D uses Supabase Postgres Changes on:
+
+```text
+public.activity_events
+event: INSERT
+filter: pack_id = current remote pack id
+```
+
+`activity_events` is used because it is the transparent shared-pack history surface. Complete, undo, invite, and member-join paths write activity events, so a single table is enough for soft notification.
+
+Phase 4D does not use Broadcast or Presence.
+
+### SQL / Setup Note
+
+Manual setup file:
+
+```text
+docs/core/sql/phase4d_supabase_realtime_soft_notification_poc.sql
+```
+
+Apply after Phase 3C, Phase 4A, and Phase 4C SQL. The file adds `public.activity_events` to the Supabase Realtime publication.
+
+Duplicate publication errors are safe to ignore in dev if the table is already enabled. Phase 4D listens to inserts only, so `REPLICA IDENTITY FULL` is intentionally not enabled.
+
+### Subscription Lifecycle
+
+- App startup does not subscribe.
+- User explicitly presses `開始監聽遠端變更 POC`.
+- No target means status remains disabled and no subscription is created.
+- Duplicate subscribe for the same target is a no-op.
+- Subscribe to a different target first removes the previous subscription.
+- User can press `停止監聽遠端變更 POC`.
+- Provider/controller dispose removes active subscription.
+- Subscription errors set realtime status to error/unavailable and do not crash.
+
+### Manual Refresh Rule
+
+Realtime signal does not pull snapshot.
+
+Successful `刷新遠端 Snapshot`:
+
+- fetches snapshot through the existing repository path
+- updates viewer snapshot state
+- clears `hasRemoteChanges`
+- resets change count
+- keeps the active subscription
+
+Refresh still does not merge local DB, create local pack/items, create completions, or create `sync_mappings`.
+
+### Security / RLS Notes
+
+- App uses only anon key.
+- No service role key is stored in Flutter app.
+- Realtime payload is advisory and should not be displayed as full JSON.
+- Non-members should not receive pack activity signals when RLS / Realtime authorization is correctly configured.
+- Even if a client receives a signal, snapshot read remains gated by RLS.
+- Tokens, sessions, invite codes, and secrets are not stored in backup or realtime state.
+
+### Phase 4D Manual Smoke Test
+
+Supabase setup:
+
+1. 啟用 Anonymous Sign-ins。
+2. Apply `docs/core/sql/phase3c_supabase_minimal_poc.sql`。
+3. Apply `docs/core/sql/phase4a_supabase_invite_membership_mvp.sql`。
+4. Apply `docs/core/sql/phase4c_supabase_remote_member_actions_mvp.sql`。
+5. Apply `docs/core/sql/phase4d_supabase_realtime_soft_notification_poc.sql`。
+6. 確認 `activity_events` 已啟用 Realtime。
+7. 確認 RLS enabled。
+8. 只使用 anon key。
+9. 不使用 service role key。
+
+Device A / host flow:
+
+1. 建立 anonymous remote identity。
+2. 建立 Remote Profile。
+3. 準備 local Shared Pack。
+4. 建立 remote pack POC。
+5. 推送 Minimal Items。
+6. 建立 Invite Code。
+7. 刷新 Remote Snapshot viewer。
+8. 按「開始監聽遠端變更 POC」。
+9. 確認 Realtime 狀態 = 已訂閱。
+
+Device B / member flow:
+
+1. Clean install / second simulator。
+2. 建立 anonymous remote identity。
+3. 建立 Remote Profile。
+4. 輸入 invite code。
+5. 加入 remote pack。
+6. 刷新 Remote Snapshot viewer。
+7. 選擇 remote item。
+8. Complete selected remote item。
+
+Expected Device A behavior:
+
+1. Device A 不自動更新 item state。
+2. Device A 顯示「遠端有新變更，請刷新 Snapshot」。
+3. `remoteChangeCount` 增加。
+4. Last action 顯示 `item_completed`。
+5. Device A 按「刷新遠端 Snapshot」後才看到 completed_by。
+6. Refresh 成功後 notification reset。
+
+Undo check:
+
+1. Device B undo selected remote item。
+2. Device A 再次顯示 remote changes available。
+3. Device A refresh 後看到 item 回到未完成。
+4. Activity 保留 `item_completed` / `item_undone`。
+
+Non-member RLS check:
+
+1. Device C 建立 anonymous remote identity。
+2. 不加入 invite。
+3. 嘗試 subscribe 同一 remote pack activity events。
+4. 預期不收到該 pack signal，或被 RLS / subscription error 擋下。
+5. 嘗試 pull snapshot，應被 RLS 擋下。
+
+Expected boundaries:
+
+- Realtime event 不自動 refresh。
+- Realtime event 不修改 local DB。
+- Realtime event 不修改 viewer item state。
+- 只有 manual refresh 重新拉 snapshot。
+- 沒有 local pack / item 自動建立。
+- Personal packs 不上傳。
+- Resources / stages 不上傳。
+- 沒有 background sync。
+
+### Known Limitations
+
+- Developer-only POC, not production realtime UI.
+- No reconnect/backoff UX beyond Supabase client behavior.
+- No unread activity inbox.
+- No local import / merge.
+- No resource or stage realtime signals.
+
+### Follow-Up Boundary
+
+- Phase 5 can decide whether remote snapshots ever become local imports.
+- Production realtime design should review RLS, Realtime authorization, audit semantics, and notification UX separately.

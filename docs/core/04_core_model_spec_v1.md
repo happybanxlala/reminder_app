@@ -11,7 +11,7 @@ Last aligned with repository contents on 2026-06-14.
 
 ## Supabase Remote Model
 
-Supabase remote data model, RLS policy draft, Phase 3A boundary, Phase 3B anonymous identity bridge, Phase 3C Remote Shared Pack Minimal POC, Phase 3D developer smoke-test surface, Phase 4A remote invite-code membership MVP, Phase 4B developer-only Remote Pack Viewer MVP, and Phase 4C remote member actions MVP are documented in:
+Supabase remote data model, RLS policy draft, Phase 3A boundary, Phase 3B anonymous identity bridge, Phase 3C Remote Shared Pack Minimal POC, Phase 3D developer smoke-test surface, Phase 4A remote invite-code membership MVP, Phase 4B developer-only Remote Pack Viewer MVP, Phase 4C remote member actions MVP, and Phase 4D realtime soft notification POC are documented in:
 
 - `docs/core/06_supabase_remote_model_spec.md`
 
@@ -1295,6 +1295,23 @@ Phase 4C adds developer-only remote member item actions inside the Remote Pack S
 #### 非目標
 
 - 不新增 full sync、realtime、auto refresh、local merge、formal production item UI、resource / stage remote sync、member management、widget 行為變更、Drift schema change 或 backup schema change。
+
+### 2.22 Phase 4D：Realtime Soft Notification POC
+
+Phase 4D adds developer-only realtime soft notification for the Remote Pack Snapshot viewer.
+
+#### 已實作行為
+
+- Realtime POC 監聽目前 remote pack 的 `activity_events` insert signal。
+- 收到 signal 後只更新 volatile UI state：顯示「遠端有新變更，請刷新 Snapshot」、change count、last action、last actor、last received time。
+- Realtime payload 是 advisory signal，不是 source of truth。
+- 成功手動 refresh snapshot 後會清除 `hasRemoteChanges` 並 reset change count。
+- Subscription 需要使用者手動開始；app startup 不自動 subscribe。
+- Unsubscribe / provider dispose 會清理 active subscription。
+
+#### 非目標
+
+- 不新增 auto refresh、full sync、background sync、local merge、production realtime UI、resource / stage remote sync、widget 行為變更、Drift schema change 或 backup schema change。
 
 ## 3. 跨 Domain 行為
 

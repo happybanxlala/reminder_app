@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/anonymous_remote_identity_service.dart';
@@ -5,6 +7,7 @@ import '../data/local/reminder_dao.dart';
 import '../data/remote_shared_pack_data_source.dart';
 import '../data/remote_shared_pack_models.dart';
 import '../data/remote_shared_pack_repository.dart';
+import '../data/remote_shared_pack_realtime_data_source.dart';
 import '../data/supabase_config.dart';
 import '../domain/item.dart';
 import '../domain/item_pack.dart';
@@ -38,6 +41,18 @@ final remoteSharedPackRepositoryProvider = Provider<RemoteSharedPackRepository>(
   },
 );
 
+final remoteSharedPackRealtimeDataSourceProvider =
+    Provider<RemoteSharedPackRealtimeDataSource>((ref) {
+      final runtime = ref.watch(supabaseRuntimeProvider);
+      if (runtime.isAvailable) {
+        return SupabaseRemoteSharedPackRealtimeDataSource(runtime);
+      }
+      final reason = runtime.status == SupabaseRuntimeStatus.missingConfig
+          ? RemoteSharedPackFailureReason.supabaseConfigMissing
+          : RemoteSharedPackFailureReason.remoteNetworkFailed;
+      return DisabledRemoteSharedPackRealtimeDataSource(reason);
+    });
+
 class RemotePocSnapshotSummary {
   const RemotePocSnapshotSummary({
     required this.membersCount,
@@ -53,6 +68,14 @@ class RemotePocSnapshotSummary {
 }
 
 enum RemotePocSnapshotTargetType { localMappedPack, joinedRemotePack }
+
+enum RemoteRealtimeStatus {
+  disabled,
+  unavailable,
+  connecting,
+  subscribed,
+  error,
+}
 
 class RemotePocSelectedItem {
   const RemotePocSelectedItem({
@@ -85,6 +108,14 @@ class RemotePocOperationState {
     this.lastRefreshAt,
     this.lastRefreshSucceeded,
     this.selectedRemoteItemId,
+    this.realtimeStatus = RemoteRealtimeStatus.disabled,
+    this.realtimeTargetRemotePackId,
+    this.hasRemoteChanges = false,
+    this.remoteChangeCount = 0,
+    this.lastRemoteChangeReceivedAt,
+    this.lastRemoteChangeAction,
+    this.lastRemoteChangeActorUserId,
+    this.lastRealtimeErrorMessage,
   });
 
   final bool isRunning;
@@ -104,6 +135,14 @@ class RemotePocOperationState {
   final DateTime? lastRefreshAt;
   final bool? lastRefreshSucceeded;
   final String? selectedRemoteItemId;
+  final RemoteRealtimeStatus realtimeStatus;
+  final String? realtimeTargetRemotePackId;
+  final bool hasRemoteChanges;
+  final int remoteChangeCount;
+  final DateTime? lastRemoteChangeReceivedAt;
+  final String? lastRemoteChangeAction;
+  final String? lastRemoteChangeActorUserId;
+  final String? lastRealtimeErrorMessage;
 
   RemoteItemSnapshot? get firstSnapshotItem {
     final snapshot = lastPulledRemoteSnapshot;
@@ -157,11 +196,22 @@ class RemotePocOperationState {
     DateTime? lastRefreshAt,
     bool? lastRefreshSucceeded,
     String? selectedRemoteItemId,
+    RemoteRealtimeStatus? realtimeStatus,
+    String? realtimeTargetRemotePackId,
+    bool? hasRemoteChanges,
+    int? remoteChangeCount,
+    DateTime? lastRemoteChangeReceivedAt,
+    String? lastRemoteChangeAction,
+    String? lastRemoteChangeActorUserId,
+    String? lastRealtimeErrorMessage,
     bool clearSnapshotSummary = false,
     bool clearInvite = false,
     bool clearJoinedRemotePackId = false,
     bool clearLastPulledRemoteSnapshot = false,
     bool clearSelectedRemoteItem = false,
+    bool clearRealtimeTarget = false,
+    bool clearRealtimeError = false,
+    bool clearRemoteChanges = false,
   }) {
     return RemotePocOperationState(
       isRunning: isRunning ?? this.isRunning,
@@ -202,6 +252,25 @@ class RemotePocOperationState {
           clearSelectedRemoteItem || clearLastPulledRemoteSnapshot
           ? null
           : selectedRemoteItemId ?? this.selectedRemoteItemId,
+      realtimeStatus: realtimeStatus ?? this.realtimeStatus,
+      realtimeTargetRemotePackId: clearRealtimeTarget
+          ? null
+          : realtimeTargetRemotePackId ?? this.realtimeTargetRemotePackId,
+      hasRemoteChanges: clearRemoteChanges
+          ? false
+          : hasRemoteChanges ?? this.hasRemoteChanges,
+      remoteChangeCount: clearRemoteChanges
+          ? 0
+          : remoteChangeCount ?? this.remoteChangeCount,
+      lastRemoteChangeReceivedAt:
+          lastRemoteChangeReceivedAt ?? this.lastRemoteChangeReceivedAt,
+      lastRemoteChangeAction:
+          lastRemoteChangeAction ?? this.lastRemoteChangeAction,
+      lastRemoteChangeActorUserId:
+          lastRemoteChangeActorUserId ?? this.lastRemoteChangeActorUserId,
+      lastRealtimeErrorMessage: clearRealtimeError
+          ? null
+          : lastRealtimeErrorMessage ?? this.lastRealtimeErrorMessage,
     );
   }
 }
@@ -210,6 +279,7 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
   RemotePocController(this._ref) : super(const RemotePocOperationState());
 
   final Ref _ref;
+  RemotePackChangeSubscription? _activeRealtimeSubscription;
 
   void updateInviteCodeInput(String value) {
     state = state.copyWith(inviteCodeInput: value);
@@ -217,6 +287,130 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
 
   void selectRemoteSnapshotItem(String itemId) {
     state = state.copyWith(selectedRemoteItemId: itemId);
+  }
+
+  Future<String> subscribeToRemoteChanges(String? remotePackId) async {
+    if (remotePackId == null) {
+      state = state.copyWith(
+        realtimeStatus: RemoteRealtimeStatus.disabled,
+        clearRealtimeTarget: true,
+        lastAction: '開始監聽遠端變更 POC',
+        lastSucceeded: false,
+        lastMessage: '尚未有可監聽的遠端 Pack',
+        lastAt: DateTime.now(),
+      );
+      return '尚未有可監聽的遠端 Pack';
+    }
+
+    final active = _activeRealtimeSubscription;
+    if (active != null &&
+        active.isActive &&
+        active.remotePackId == remotePackId &&
+        state.realtimeStatus == RemoteRealtimeStatus.subscribed) {
+      state = state.copyWith(
+        lastAction: '開始監聽遠端變更 POC',
+        lastSucceeded: true,
+        lastMessage: '已在監聽此遠端 Pack',
+        lastAt: DateTime.now(),
+      );
+      return '已在監聽此遠端 Pack';
+    }
+
+    if (active != null && active.isActive) {
+      await active.unsubscribe();
+      _activeRealtimeSubscription = null;
+    }
+
+    state = state.copyWith(
+      realtimeStatus: RemoteRealtimeStatus.connecting,
+      realtimeTargetRemotePackId: remotePackId,
+      clearRealtimeError: true,
+      lastAction: '開始監聽遠端變更 POC',
+      lastSucceeded: null,
+      lastMessage: 'Realtime 連線中',
+      lastAt: DateTime.now(),
+    );
+
+    final dataSource = _ref.read(remoteSharedPackRealtimeDataSourceProvider);
+    _activeRealtimeSubscription = dataSource.subscribeToRemotePackChanges(
+      remotePackId: remotePackId,
+      onSignal: _handleRealtimeSignal,
+      onError: _handleRealtimeError,
+      onSubscribed: () {
+        state = state.copyWith(
+          realtimeStatus: RemoteRealtimeStatus.subscribed,
+          realtimeTargetRemotePackId: remotePackId,
+          clearRealtimeError: true,
+          lastAction: '開始監聽遠端變更 POC',
+          lastSucceeded: true,
+          lastMessage: '已訂閱遠端變更',
+          lastAt: DateTime.now(),
+        );
+      },
+    );
+
+    return 'Realtime 連線中';
+  }
+
+  Future<String> unsubscribeRemoteChanges() async {
+    final active = _activeRealtimeSubscription;
+    if (active != null && active.isActive) {
+      await active.unsubscribe();
+    }
+    _activeRealtimeSubscription = null;
+    state = state.copyWith(
+      realtimeStatus: RemoteRealtimeStatus.disabled,
+      clearRealtimeTarget: true,
+      clearRealtimeError: true,
+      lastAction: '停止監聽遠端變更 POC',
+      lastSucceeded: true,
+      lastMessage: '已停止監聽遠端變更',
+      lastAt: DateTime.now(),
+    );
+    return '已停止監聽遠端變更';
+  }
+
+  void _handleRealtimeSignal(RemotePackChangeSignal signal) {
+    if (signal.remotePackId != state.realtimeTargetRemotePackId) {
+      return;
+    }
+    state = state.copyWith(
+      hasRemoteChanges: true,
+      remoteChangeCount: state.remoteChangeCount + 1,
+      lastRemoteChangeReceivedAt: signal.receivedAt,
+      lastRemoteChangeAction: signal.action,
+      lastRemoteChangeActorUserId: signal.actorUserId,
+      clearRealtimeError: true,
+    );
+  }
+
+  void _handleRealtimeError(Object error) {
+    final status =
+        error is RemoteSharedPackException &&
+            error.reason == RemoteSharedPackFailureReason.supabaseConfigMissing
+        ? RemoteRealtimeStatus.unavailable
+        : RemoteRealtimeStatus.error;
+    state = state.copyWith(
+      realtimeStatus: status,
+      lastRealtimeErrorMessage: _realtimeErrorMessage(error),
+      lastAction: '遠端變更監聽',
+      lastSucceeded: false,
+      lastMessage: _realtimeErrorMessage(error),
+      lastAt: DateTime.now(),
+    );
+  }
+
+  String _realtimeErrorMessage(Object error) {
+    if (error is RemoteSharedPackException) {
+      return switch (error.reason) {
+        RemoteSharedPackFailureReason.supabaseConfigMissing => 'Supabase 尚未設定',
+        RemoteSharedPackFailureReason.remoteAuthRequired => '請先建立匿名遠端身份',
+        RemoteSharedPackFailureReason.remoteRlsRejected => '遠端資料被 RLS 拒絕',
+        RemoteSharedPackFailureReason.remoteNetworkFailed => '網絡連線失敗',
+        _ => '遠端變更監聽失敗',
+      };
+    }
+    return '遠端變更監聽失敗';
   }
 
   Future<String> ensureAnonymousRemoteIdentity() {
@@ -551,6 +745,7 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
         refreshAttempted: true,
         selectedRemoteItemId: nextSelectedId,
         clearSelectedRemoteItem: nextSelectedId == null,
+        clearRemoteChanges: true,
       );
     });
   }
@@ -590,6 +785,7 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
       lastRefreshSucceeded: outcome.refreshAttempted ? outcome.succeeded : null,
       selectedRemoteItemId: outcome.selectedRemoteItemId,
       clearSelectedRemoteItem: outcome.clearSelectedRemoteItem,
+      clearRemoteChanges: outcome.clearRemoteChanges,
     );
     return outcome.message;
   }
@@ -636,6 +832,16 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
   String _shortId(String value) {
     return value.length <= 12 ? value : '${value.substring(0, 8)}...';
   }
+
+  @override
+  void dispose() {
+    final active = _activeRealtimeSubscription;
+    if (active != null && active.isActive) {
+      unawaited(active.unsubscribe());
+    }
+    _activeRealtimeSubscription = null;
+    super.dispose();
+  }
 }
 
 class _RemotePocOutcome {
@@ -650,6 +856,7 @@ class _RemotePocOutcome {
     this.refreshAttempted = false,
     this.selectedRemoteItemId,
     this.clearSelectedRemoteItem = false,
+    this.clearRemoteChanges = false,
   });
 
   final bool succeeded;
@@ -662,6 +869,7 @@ class _RemotePocOutcome {
   final bool refreshAttempted;
   final String? selectedRemoteItemId;
   final bool clearSelectedRemoteItem;
+  final bool clearRemoteChanges;
 }
 
 final remotePocControllerProvider =

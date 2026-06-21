@@ -48,6 +48,9 @@ class SettingsPage extends ConsumerWidget {
             : remotePocPackMapping != null
             ? RemotePocSnapshotTargetType.localMappedPack
             : null);
+    final remotePocTargetRemotePackId =
+        remotePocState.lastJoinedRemotePackId ??
+        remotePocPackMapping?.remoteEntityId;
 
     return ReminderEditorScaffold(
       title: ReminderUiText.settingsTitle,
@@ -434,11 +437,9 @@ class SettingsPage extends ConsumerWidget {
                 _SettingsActionRow(
                   key: const Key('settings-remote-poc-pull-snapshot-row'),
                   label: ReminderUiText.remotePocPullSnapshotLabel,
-                  value: remotePocState.lastJoinedRemotePackId != null
-                      ? _shortUserId(remotePocState.lastJoinedRemotePackId!)
-                      : remotePocPackMapping == null
+                  value: remotePocTargetRemotePackId == null
                       ? ReminderUiText.remotePocNoRemoteMapping
-                      : _shortUserId(remotePocPackMapping.remoteEntityId),
+                      : _shortUserId(remotePocTargetRemotePackId),
                   icon: Icons.cloud_download_outlined,
                   enabled: !remotePocState.isRunning,
                   onTap: () => _runRemotePocAction(
@@ -450,14 +451,106 @@ class SettingsPage extends ConsumerWidget {
                     ),
                   ),
                 ),
+                _SettingsReadOnlyRow(
+                  key: const Key('settings-remote-realtime-title-row'),
+                  label: ReminderUiText.remotePocRealtimeSectionTitle,
+                  value: remotePocState.hasRemoteChanges
+                      ? ReminderUiText.remotePocRealtimeChangeBanner
+                      : _remoteRealtimeStatusLabel(
+                          remotePocState.realtimeStatus,
+                        ),
+                ),
+                _SettingsReadOnlyRow(
+                  key: const Key('settings-remote-realtime-status-row'),
+                  label: ReminderUiText.remotePocRealtimeStatusLabel,
+                  value: _remoteRealtimeStatusLabel(
+                    remotePocState.realtimeStatus,
+                  ),
+                ),
+                _SettingsReadOnlyRow(
+                  key: const Key('settings-remote-realtime-target-row'),
+                  label: ReminderUiText.remotePocRealtimeTargetLabel,
+                  value: remotePocState.realtimeTargetRemotePackId == null
+                      ? ReminderUiText.remotePocRealtimeNoTarget
+                      : _shortUserId(
+                          remotePocState.realtimeTargetRemotePackId!,
+                        ),
+                ),
+                _SettingsReadOnlyRow(
+                  key: const Key('settings-remote-realtime-has-changes-row'),
+                  label: ReminderUiText.remotePocRealtimeHasChangesLabel,
+                  value: remotePocState.hasRemoteChanges ? '是' : '否',
+                ),
+                _SettingsReadOnlyRow(
+                  key: const Key('settings-remote-realtime-count-row'),
+                  label: ReminderUiText.remotePocRealtimeChangeCountLabel,
+                  value: '${remotePocState.remoteChangeCount}',
+                ),
+                _SettingsReadOnlyRow(
+                  key: const Key('settings-remote-realtime-last-action-row'),
+                  label: ReminderUiText.remotePocRealtimeLastActionLabel,
+                  value:
+                      remotePocState.lastRemoteChangeAction ??
+                      ReminderUiText.remotePocNotRun,
+                ),
+                _SettingsReadOnlyRow(
+                  key: const Key('settings-remote-realtime-last-actor-row'),
+                  label: ReminderUiText.remotePocRealtimeLastActorLabel,
+                  value: remotePocState.lastRemoteChangeActorUserId == null
+                      ? ReminderUiText.remotePocNotRun
+                      : _shortUserId(
+                          remotePocState.lastRemoteChangeActorUserId!,
+                        ),
+                ),
+                _SettingsReadOnlyRow(
+                  key: const Key('settings-remote-realtime-last-received-row'),
+                  label: ReminderUiText.remotePocRealtimeLastReceivedLabel,
+                  value: _remotePocDateTimeValue(
+                    remotePocState.lastRemoteChangeReceivedAt,
+                  ),
+                ),
+                if (remotePocState.lastRealtimeErrorMessage != null)
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-remote-realtime-error-row'),
+                    label: ReminderUiText.remotePocRealtimeErrorLabel,
+                    value: remotePocState.lastRealtimeErrorMessage!,
+                  ),
+                _SettingsActionRow(
+                  key: const Key('settings-remote-realtime-subscribe-row'),
+                  label: ReminderUiText.remotePocRealtimeSubscribeLabel,
+                  value: remotePocTargetRemotePackId == null
+                      ? ReminderUiText.remotePocRealtimeNoTarget
+                      : _shortUserId(remotePocTargetRemotePackId),
+                  icon: Icons.sensors_outlined,
+                  enabled: !remotePocState.isRunning,
+                  onTap: () => _runRemotePocAction(
+                    context,
+                    ref,
+                    (controller) => controller.subscribeToRemoteChanges(
+                      remotePocTargetRemotePackId,
+                    ),
+                  ),
+                ),
+                _SettingsActionRow(
+                  key: const Key('settings-remote-realtime-unsubscribe-row'),
+                  label: ReminderUiText.remotePocRealtimeUnsubscribeLabel,
+                  value: _remoteRealtimeStatusLabel(
+                    remotePocState.realtimeStatus,
+                  ),
+                  icon: Icons.sensors_off_outlined,
+                  enabled: !remotePocState.isRunning,
+                  onTap: () => _runRemotePocAction(
+                    context,
+                    ref,
+                    (controller) => controller.unsubscribeRemoteChanges(),
+                  ),
+                ),
                 _RemoteSnapshotViewer(
                   key: const Key('settings-remote-snapshot-viewer'),
                   snapshot: remotePocState.lastPulledRemoteSnapshot,
                   selectedItem: remotePocState.selectedSnapshotItem,
                   targetType: remotePocSnapshotTargetType,
-                  targetRemotePackId:
-                      remotePocState.lastJoinedRemotePackId ??
-                      remotePocPackMapping?.remoteEntityId,
+                  targetRemotePackId: remotePocTargetRemotePackId,
                   hasTarget:
                       remotePocState.lastJoinedRemotePackId != null ||
                       remotePocPackMapping != null,
@@ -547,6 +640,16 @@ class SettingsPage extends ConsumerWidget {
         ReminderUiText.supabaseConfigMissing,
       SupabaseRuntimeStatus.initializationFailed =>
         ReminderUiText.supabaseConfigInitializationFailed,
+    };
+  }
+
+  String _remoteRealtimeStatusLabel(RemoteRealtimeStatus status) {
+    return switch (status) {
+      RemoteRealtimeStatus.disabled => '未啟用',
+      RemoteRealtimeStatus.unavailable => '不可用',
+      RemoteRealtimeStatus.connecting => '連線中',
+      RemoteRealtimeStatus.subscribed => '已訂閱',
+      RemoteRealtimeStatus.error => '錯誤',
     };
   }
 

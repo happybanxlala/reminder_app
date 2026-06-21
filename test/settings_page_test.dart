@@ -15,6 +15,7 @@ import 'package:reminder_app/features/reminders/data/reminder_backup_service.dar
 import 'package:reminder_app/features/reminders/data/remote_shared_pack_data_source.dart';
 import 'package:reminder_app/features/reminders/data/remote_shared_pack_models.dart';
 import 'package:reminder_app/features/reminders/data/remote_shared_pack_repository.dart';
+import 'package:reminder_app/features/reminders/data/remote_shared_pack_realtime_data_source.dart';
 import 'package:reminder_app/features/reminders/data/shared_pack_repository.dart';
 import 'package:reminder_app/features/reminders/domain/app_settings.dart';
 import 'package:reminder_app/features/reminders/domain/attention_policy.dart';
@@ -474,6 +475,40 @@ void main() {
     expect(find.text(ReminderUiText.remotePocViewerNoSnapshot), findsOneWidget);
   });
 
+  testWidgets('developer remote realtime shows no target and fails gently', (
+    tester,
+  ) async {
+    final fakeRemote = _FakeRemoteSharedPackDataSource();
+    final fakeRealtime = _FakeRemoteSharedPackRealtimeDataSource();
+
+    await _pumpSettings(
+      tester,
+      developerVisible: true,
+      extraOverrides: [
+        authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+        remoteSharedPackDataSourceProvider.overrideWithValue(fakeRemote),
+        remoteSharedPackRealtimeDataSourceProvider.overrideWithValue(
+          fakeRealtime,
+        ),
+      ],
+    );
+
+    expect(
+      find.text(ReminderUiText.remotePocRealtimeSectionTitle),
+      findsWidgets,
+    );
+    expect(find.text(ReminderUiText.remotePocRealtimeNoTarget), findsWidgets);
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-realtime-subscribe-row'),
+    );
+
+    expect(fakeRealtime.subscribeCalls, 0);
+    expect(find.text('尚未有可監聽的遠端 Pack'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('developer remote POC actions run through fake remote source', (
     tester,
   ) async {
@@ -592,6 +627,166 @@ void main() {
       findsWidgets,
     );
     expect(find.textContaining('item_undone'), findsWidgets);
+  });
+
+  testWidgets(
+    'developer remote realtime signal is advisory until manual refresh',
+    (tester) async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final seed = await _seedSharedPackForRemotePoc(db);
+      final fakeRemote = _FakeRemoteSharedPackDataSource();
+      final fakeRealtime = _FakeRemoteSharedPackRealtimeDataSource();
+
+      await _pumpSettings(
+        tester,
+        developerVisible: true,
+        database: db,
+        extraOverrides: [
+          authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+          remoteSharedPackDataSourceProvider.overrideWithValue(fakeRemote),
+          remoteSharedPackRealtimeDataSourceProvider.overrideWithValue(
+            fakeRealtime,
+          ),
+        ],
+      );
+
+      await _tapSettingsRow(
+        tester,
+        const Key('settings-remote-poc-create-pack-row'),
+      );
+      await _tapSettingsRow(
+        tester,
+        const Key('settings-remote-poc-push-items-row'),
+      );
+      await _tapSettingsRow(
+        tester,
+        const Key('settings-remote-poc-pull-snapshot-row'),
+      );
+      expect(fakeRemote.snapshotCalls, 1);
+      expect(fakeRealtime.subscribeCalls, 0);
+
+      await _tapSettingsRow(
+        tester,
+        const Key('settings-remote-realtime-subscribe-row'),
+      );
+      expect(fakeRealtime.subscribeCalls, 1);
+      expect(find.text('已訂閱'), findsWidgets);
+
+      await _tapSettingsRow(
+        tester,
+        const Key('settings-remote-realtime-subscribe-row'),
+      );
+      expect(fakeRealtime.subscribeCalls, 1);
+      expect(find.text('已在監聽此遠端 Pack'), findsWidgets);
+
+      fakeRealtime.emit(
+        RemotePackChangeSignal(
+          remotePackId: 'rpack1',
+          activityEventId: 'event-realtime-1',
+          action: 'item_completed',
+          entityType: 'item',
+          actorUserId: 'profile2',
+          receivedAt: DateTime(2026, 6, 21, 10),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(ReminderUiText.remotePocRealtimeChangeBanner),
+        findsWidgets,
+      );
+      expect(find.text('item_completed'), findsWidgets);
+      expect(find.text('1'), findsWidgets);
+      expect(fakeRemote.snapshotCalls, 1);
+      expect(await db.reminderDao.listItemCompletions(seed.itemId), isEmpty);
+
+      await _tapSettingsRow(
+        tester,
+        const Key('settings-remote-poc-pull-snapshot-row'),
+      );
+
+      expect(fakeRemote.snapshotCalls, 2);
+      expect(
+        find.text(ReminderUiText.remotePocRealtimeChangeBanner),
+        findsNothing,
+      );
+      expect(find.text('0'), findsWidgets);
+      expect(await db.reminderDao.listItemCompletions(seed.itemId), isEmpty);
+    },
+  );
+
+  testWidgets('developer remote realtime retargets and disposes subscription', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    await _seedSharedPackForRemotePoc(db);
+    final fakeRemote = _FakeRemoteSharedPackDataSource();
+    final fakeRealtime = _FakeRemoteSharedPackRealtimeDataSource();
+
+    await _pumpSettings(
+      tester,
+      developerVisible: true,
+      database: db,
+      extraOverrides: [
+        authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+        remoteSharedPackDataSourceProvider.overrideWithValue(fakeRemote),
+        remoteSharedPackRealtimeDataSourceProvider.overrideWithValue(
+          fakeRealtime,
+        ),
+      ],
+    );
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-poc-create-pack-row'),
+    );
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-realtime-subscribe-row'),
+    );
+    expect(fakeRealtime.subscribeCalls, 1);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('settings-remote-poc-invite-input')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.enterText(
+      find.byKey(const Key('settings-remote-poc-invite-input')),
+      'ABCD-1234-EFGH',
+    );
+    await tester.pumpAndSettle();
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-poc-join-invite-row'),
+    );
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-realtime-subscribe-row'),
+    );
+
+    expect(fakeRealtime.subscribeCalls, 2);
+    expect(fakeRealtime.unsubscribeCalls, 1);
+    expect(find.textContaining('joined'), findsWidgets);
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-realtime-unsubscribe-row'),
+    );
+    expect(fakeRealtime.unsubscribeCalls, 2);
+    expect(find.text('未啟用'), findsWidgets);
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-realtime-subscribe-row'),
+    );
+    expect(fakeRealtime.subscribeCalls, 3);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+
+    expect(fakeRealtime.unsubscribeCalls, 3);
   });
 
   testWidgets('developer remote POC invite flow stays volatile', (
@@ -1146,6 +1341,67 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
           ),
       ],
     );
+  }
+}
+
+class _FakeRemoteSharedPackRealtimeDataSource
+    implements RemoteSharedPackRealtimeDataSource {
+  int subscribeCalls = 0;
+  int unsubscribeCalls = 0;
+  final subscriptions = <_FakeRemotePackChangeSubscription>[];
+  void Function(RemotePackChangeSignal signal)? _onSignal;
+  void Function(Object error)? _onError;
+
+  @override
+  RemotePackChangeSubscription subscribeToRemotePackChanges({
+    required String remotePackId,
+    required void Function(RemotePackChangeSignal signal) onSignal,
+    required void Function(Object error) onError,
+    required void Function() onSubscribed,
+  }) {
+    subscribeCalls += 1;
+    _onSignal = onSignal;
+    _onError = onError;
+    final subscription = _FakeRemotePackChangeSubscription(
+      remotePackId: remotePackId,
+      onUnsubscribe: () => unsubscribeCalls += 1,
+    );
+    subscriptions.add(subscription);
+    onSubscribed();
+    return subscription;
+  }
+
+  void emit(RemotePackChangeSignal signal) {
+    _onSignal?.call(signal);
+  }
+
+  void emitError(Object error) {
+    _onError?.call(error);
+  }
+}
+
+class _FakeRemotePackChangeSubscription
+    implements RemotePackChangeSubscription {
+  _FakeRemotePackChangeSubscription({
+    required this.remotePackId,
+    required this.onUnsubscribe,
+  });
+
+  @override
+  final String remotePackId;
+  final VoidCallback onUnsubscribe;
+  bool _isActive = true;
+
+  @override
+  bool get isActive => _isActive;
+
+  @override
+  Future<void> unsubscribe() async {
+    if (!_isActive) {
+      return;
+    }
+    _isActive = false;
+    onUnsubscribe();
   }
 }
 
