@@ -198,6 +198,15 @@ class ReminderUiText {
   static const remotePocPushItemsLabel = '推送 Minimal Items POC';
   static const remotePocCompleteItemLabel = '完成遠端 Item POC';
   static const remotePocPullSnapshotLabel = '拉取 Remote Snapshot POC';
+  static const remotePocInviteCodeLabel = 'Invite Code';
+  static const remotePocInviteExpiresLabel = 'Invite expires';
+  static const remotePocInviteMaxUsesLabel = 'Invite max uses';
+  static const remotePocJoinedPackLabel = 'Joined Remote Pack';
+  static const remotePocCreateInviteLabel = '建立 Invite Code POC';
+  static const remotePocInviteInputLabel = '輸入 Invite Code';
+  static const remotePocJoinInviteLabel = '加入遠端 Pack POC';
+  static const remotePocCompleteSnapshotItemLabel =
+      '完成 Snapshot 第一個 Remote Item POC';
   static const remoteProviderSupabaseAnonymous = 'supabase_anonymous';
   static const remoteProviderApple = 'apple';
   static const remoteProviderGoogle = 'google';

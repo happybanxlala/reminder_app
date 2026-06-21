@@ -274,6 +274,146 @@ void main() {
       RemoteSharedPackFailureReason.malformedRemoteData,
     );
   });
+
+  test(
+    'createRemotePackInvite returns invite without local persistence',
+    () async {
+      final harness = await _Harness.create();
+      addTearDown(harness.close);
+      final packId = await harness.createSharedPackAsCurrentUser('Cats');
+      final link = await harness.remoteRepository
+          .createRemoteSharedPackFromLocalPack(packId);
+
+      final result = await harness.remoteRepository.createRemotePackInvite(
+        link.value!.remotePackId,
+      );
+
+      expect(result.isSuccess, isTrue);
+      expect(result.value!.inviteId, 'invite_1');
+      expect(result.value!.inviteCode, 'ABCD-1234-EFGH');
+      expect(result.value!.maxUses, 10);
+      expect(harness.remoteDataSource.createdInviteCount, 1);
+      expect(await harness.db.reminderDao.listSyncMappings(), hasLength(1));
+    },
+  );
+
+  test('createRemotePackInvite maps host/RLS failures', () async {
+    final harness = await _Harness.create();
+    addTearDown(harness.close);
+    harness.remoteDataSource.rejectInviteCreate = true;
+
+    final result = await harness.remoteRepository.createRemotePackInvite(
+      'remote_pack_1',
+    );
+
+    expect(result.isSuccess, isFalse);
+    expect(
+      result.failureReason,
+      RemoteSharedPackFailureReason.remoteInviteNotHost,
+    );
+  });
+
+  test(
+    'joinRemotePackWithInvite joins without local pack or mapping',
+    () async {
+      final harness = await _Harness.create();
+      addTearDown(harness.close);
+
+      final result = await harness.remoteRepository.joinRemotePackWithInvite(
+        'ABCD-1234-EFGH',
+      );
+      harness.remoteDataSource.alreadyMemberOnJoin = true;
+      final alreadyMember = await harness.remoteRepository
+          .joinRemotePackWithInvite('ABCD-1234-EFGH');
+
+      expect(result.isSuccess, isTrue);
+      expect(result.value!.status, RemoteJoinPackStatus.joined);
+      expect(result.value!.remotePackId, 'joined_remote_pack');
+      expect(alreadyMember.isSuccess, isTrue);
+      expect(alreadyMember.value!.status, RemoteJoinPackStatus.alreadyMember);
+      expect(harness.remoteDataSource.joinInviteCount, 2);
+      expect(await harness.db.reminderDao.listSyncMappings(), isEmpty);
+      final packs = await harness.db.reminderDao.listItemPacks();
+      expect(
+        packs.where((pack) => pack.title == 'joined_remote_pack'),
+        isEmpty,
+      );
+    },
+  );
+
+  test('joinRemotePackWithInvite maps invite failures', () async {
+    final harness = await _Harness.create();
+    addTearDown(harness.close);
+
+    harness.remoteDataSource.joinFailure =
+        RemoteSharedPackFailureReason.remoteInviteInvalid;
+    var result = await harness.remoteRepository.joinRemotePackWithInvite('bad');
+    expect(
+      result.failureReason,
+      RemoteSharedPackFailureReason.remoteInviteInvalid,
+    );
+
+    harness.remoteDataSource.joinFailure =
+        RemoteSharedPackFailureReason.remoteInviteExpired;
+    result = await harness.remoteRepository.joinRemotePackWithInvite('old');
+    expect(
+      result.failureReason,
+      RemoteSharedPackFailureReason.remoteInviteExpired,
+    );
+
+    harness.remoteDataSource.joinFailure =
+        RemoteSharedPackFailureReason.remoteInviteMaxUsesReached;
+    result = await harness.remoteRepository.joinRemotePackWithInvite('full');
+    expect(
+      result.failureReason,
+      RemoteSharedPackFailureReason.remoteInviteMaxUsesReached,
+    );
+  });
+
+  test('revokeRemotePackInvite returns revoked and already revoked', () async {
+    final harness = await _Harness.create();
+    addTearDown(harness.close);
+
+    final revoked = await harness.remoteRepository.revokeRemotePackInvite(
+      'invite_1',
+    );
+    harness.remoteDataSource.alreadyRevoked = true;
+    final alreadyRevoked = await harness.remoteRepository
+        .revokeRemotePackInvite('invite_1');
+
+    expect(revoked.isSuccess, isTrue);
+    expect(revoked.value!.status, RemoteRevokeInviteStatus.revoked);
+    expect(alreadyRevoked.isSuccess, isTrue);
+    expect(
+      alreadyRevoked.value!.status,
+      RemoteRevokeInviteStatus.alreadyRevoked,
+    );
+  });
+
+  test(
+    'completeRemoteItemByRemoteId works without local mapping or history merge',
+    () async {
+      final harness = await _Harness.create();
+      addTearDown(harness.close);
+      final packId = await harness.createSharedPackAsCurrentUser('Cats');
+      final itemId = await harness.createStateItem(packId, 'Clean bowl');
+
+      final completed = await harness.remoteRepository
+          .completeRemoteItemByRemoteId('remote_snapshot_item_1');
+      final alreadyCompleted = await harness.remoteRepository
+          .completeRemoteItemByRemoteId('remote_snapshot_item_1');
+
+      expect(completed.isSuccess, isTrue);
+      expect(completed.value!.status, RemoteItemCompletionStatus.completed);
+      expect(alreadyCompleted.isSuccess, isFalse);
+      expect(
+        alreadyCompleted.failureReason,
+        RemoteSharedPackFailureReason.remoteItemAlreadyCompleted,
+      );
+      expect(await harness.db.reminderDao.listSyncMappings(), isEmpty);
+      expect(await harness.db.reminderDao.listItemCompletions(itemId), isEmpty);
+    },
+  );
 }
 
 class _Harness {
@@ -354,8 +494,14 @@ class _RemoteItemDraft {
 class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   int profileUpsertCount = 0;
   int createdPackCount = 0;
+  int createdInviteCount = 0;
+  int joinInviteCount = 0;
   bool rejectCompletion = false;
   bool malformedSnapshot = false;
+  bool rejectInviteCreate = false;
+  bool alreadyMemberOnJoin = false;
+  bool alreadyRevoked = false;
+  RemoteSharedPackFailureReason? joinFailure;
   final createdItems = <_RemoteItemDraft>[];
   final _packs = <String, String>{};
   final _packItems = <String, List<String>>{};
@@ -377,6 +523,53 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
     _packs[id] = name;
     _packItems[id] = <String>[];
     return id;
+  }
+
+  @override
+  Future<RemotePackInvite> createPackInvite({required String packId}) async {
+    if (rejectInviteCreate) {
+      throw const RemoteSharedPackException(
+        RemoteSharedPackFailureReason.remoteInviteNotHost,
+      );
+    }
+    createdInviteCount += 1;
+    return RemotePackInvite(
+      inviteId: 'invite_$createdInviteCount',
+      inviteCode: 'ABCD-1234-EFGH',
+      expiresAt: DateTime(2026, 6, 28, 10),
+      maxUses: 10,
+    );
+  }
+
+  @override
+  Future<RemoteJoinPackResult> joinPackWithInvite({
+    required String inviteCode,
+  }) async {
+    joinInviteCount += 1;
+    final failure = joinFailure;
+    if (failure != null) {
+      throw RemoteSharedPackException(failure);
+    }
+    return RemoteJoinPackResult(
+      status: alreadyMemberOnJoin
+          ? RemoteJoinPackStatus.alreadyMember
+          : RemoteJoinPackStatus.joined,
+      remotePackId: 'joined_remote_pack',
+      memberId: 'joined_member_1',
+      role: 'member',
+    );
+  }
+
+  @override
+  Future<RemoteRevokeInviteResult> revokePackInvite({
+    required String inviteId,
+  }) async {
+    return RemoteRevokeInviteResult(
+      status: alreadyRevoked
+          ? RemoteRevokeInviteStatus.alreadyRevoked
+          : RemoteRevokeInviteStatus.revoked,
+      inviteId: inviteId,
+    );
   }
 
   @override

@@ -205,6 +205,81 @@ class RemoteSharedPackRepository {
     );
   }
 
+  Future<RemotePocResult<RemotePackInvite>> createRemotePackInvite(
+    String remotePackId,
+  ) async {
+    final identityResult = await _ensureAnonymousIdentity();
+    if (!identityResult.isSuccess) {
+      return RemotePocResult.failure(
+        identityResult.failureReason,
+        identityResult.error,
+      );
+    }
+
+    try {
+      return RemotePocResult.success(
+        await _remoteDataSource.createPackInvite(packId: remotePackId),
+      );
+    } on RemoteSharedPackException catch (error) {
+      return RemotePocResult.failure(error.reason, error);
+    } catch (error) {
+      return RemotePocResult.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        error,
+      );
+    }
+  }
+
+  Future<RemotePocResult<RemoteJoinPackResult>> joinRemotePackWithInvite(
+    String inviteCode,
+  ) async {
+    final profileResult = await ensureRemoteProfile();
+    if (!profileResult.isSuccess) {
+      return RemotePocResult.failure(
+        profileResult.failureReason,
+        profileResult.error,
+      );
+    }
+
+    try {
+      return RemotePocResult.success(
+        await _remoteDataSource.joinPackWithInvite(inviteCode: inviteCode),
+      );
+    } on RemoteSharedPackException catch (error) {
+      return RemotePocResult.failure(error.reason, error);
+    } catch (error) {
+      return RemotePocResult.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        error,
+      );
+    }
+  }
+
+  Future<RemotePocResult<RemoteRevokeInviteResult>> revokeRemotePackInvite(
+    String inviteId,
+  ) async {
+    final identityResult = await _ensureAnonymousIdentity();
+    if (!identityResult.isSuccess) {
+      return RemotePocResult.failure(
+        identityResult.failureReason,
+        identityResult.error,
+      );
+    }
+
+    try {
+      return RemotePocResult.success(
+        await _remoteDataSource.revokePackInvite(inviteId: inviteId),
+      );
+    } on RemoteSharedPackException catch (error) {
+      return RemotePocResult.failure(error.reason, error);
+    } catch (error) {
+      return RemotePocResult.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        error,
+      );
+    }
+  }
+
   Future<RemotePocResult<RemoteItemCompletionResult>>
   completeRemoteItemForLocalItem(int localItemId) async {
     final itemMapping = await _dao.getSyncMapping(
@@ -244,6 +319,39 @@ class RemoteSharedPackRepository {
         itemId: itemMapping.remoteEntityId,
         clientMutationId:
             'local_item_${localItemId}_${_clock().millisecondsSinceEpoch}',
+      );
+      if (result.status == RemoteItemCompletionStatus.alreadyCompleted) {
+        return RemotePocResult.failure(
+          RemoteSharedPackFailureReason.remoteItemAlreadyCompleted,
+          result,
+        );
+      }
+      return RemotePocResult.success(result);
+    } on RemoteSharedPackException catch (error) {
+      return RemotePocResult.failure(error.reason, error);
+    } catch (error) {
+      return RemotePocResult.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        error,
+      );
+    }
+  }
+
+  Future<RemotePocResult<RemoteItemCompletionResult>>
+  completeRemoteItemByRemoteId(String remoteItemId) async {
+    final identityResult = await _ensureAnonymousIdentity();
+    if (!identityResult.isSuccess) {
+      return RemotePocResult.failure(
+        identityResult.failureReason,
+        identityResult.error,
+      );
+    }
+
+    try {
+      final result = await _remoteDataSource.completePackItem(
+        itemId: remoteItemId,
+        clientMutationId:
+            'remote_item_${remoteItemId}_${_clock().millisecondsSinceEpoch}',
       );
       if (result.status == RemoteItemCompletionStatus.alreadyCompleted) {
         return RemotePocResult.failure(

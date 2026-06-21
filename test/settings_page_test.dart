@@ -76,6 +76,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.byKey(const Key('feature-entry-settings')),
       240,
+      scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
     await tester.tap(find.text(ReminderUiText.settingsTitle).last);
@@ -270,11 +271,12 @@ void main() {
     expect(find.text(ReminderUiText.dateSourcePreview), findsWidgets);
 
     await tester.scrollUntilVisible(
-      find.byKey(const Key('reset-preview-date-button')),
+      find.byKey(const Key('reset-preview-date-button')).first,
       120,
+      scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('reset-preview-date-button')));
+    await tester.tap(find.byKey(const Key('reset-preview-date-button')).first);
     await tester.pumpAndSettle();
 
     expect(find.text('2026/05/28'), findsOneWidget);
@@ -345,12 +347,17 @@ void main() {
     await _pumpSettings(tester, developerVisible: true);
 
     await tester.scrollUntilVisible(
-      find.byKey(const Key('settings-create-anonymous-remote-identity-row')),
+      find
+          .byKey(const Key('settings-create-anonymous-remote-identity-row'))
+          .first,
       120,
+      scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
     await tester.tap(
-      find.byKey(const Key('settings-create-anonymous-remote-identity-row')),
+      find
+          .byKey(const Key('settings-create-anonymous-remote-identity-row'))
+          .first,
     );
     await tester.pumpAndSettle();
 
@@ -373,12 +380,17 @@ void main() {
       );
 
       await tester.scrollUntilVisible(
-        find.byKey(const Key('settings-create-anonymous-remote-identity-row')),
+        find
+            .byKey(const Key('settings-create-anonymous-remote-identity-row'))
+            .first,
         120,
+        scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
       await tester.tap(
-        find.byKey(const Key('settings-create-anonymous-remote-identity-row')),
+        find
+            .byKey(const Key('settings-create-anonymous-remote-identity-row'))
+            .first,
       );
       await tester.pumpAndSettle();
 
@@ -420,12 +432,13 @@ void main() {
       expect(fakeRemote.snapshotCalls, 0);
 
       await tester.scrollUntilVisible(
-        find.byKey(const Key('settings-remote-poc-create-pack-row')),
+        find.byKey(const Key('settings-remote-poc-create-pack-row')).first,
         120,
+        scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
       await tester.tap(
-        find.byKey(const Key('settings-remote-poc-create-pack-row')),
+        find.byKey(const Key('settings-remote-poc-create-pack-row')).first,
       );
       await tester.pumpAndSettle();
 
@@ -531,6 +544,87 @@ void main() {
     );
   });
 
+  testWidgets('developer remote POC invite flow stays volatile', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final seed = await _seedSharedPackForRemotePoc(db);
+    final fakeRemote = _FakeRemoteSharedPackDataSource();
+
+    await _pumpSettings(
+      tester,
+      developerVisible: true,
+      database: db,
+      extraOverrides: [
+        authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+        remoteSharedPackDataSourceProvider.overrideWithValue(fakeRemote),
+      ],
+    );
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-poc-create-invite-row'),
+    );
+    expect(find.text('請先建立遠端 Pack'), findsWidgets);
+    expect(fakeRemote.createdInviteCalls, 0);
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-poc-create-pack-row'),
+    );
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-poc-create-invite-row'),
+    );
+    expect(fakeRemote.createdInviteCalls, 1);
+    expect(find.textContaining('ABCD-1234-EFGH'), findsWidgets);
+    expect(find.text('10'), findsWidgets);
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-poc-join-invite-row'),
+    );
+    expect(find.text('請輸入 Invite Code'), findsWidgets);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('settings-remote-poc-invite-input')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.enterText(
+      find.byKey(const Key('settings-remote-poc-invite-input')),
+      'ABCD-1234-EFGH',
+    );
+    await tester.pumpAndSettle();
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-poc-join-invite-row'),
+    );
+    expect(fakeRemote.joinInviteCalls, 1);
+    expect(find.textContaining('加入遠端 Pack'), findsWidgets);
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-poc-pull-snapshot-row'),
+    );
+    expect(fakeRemote.snapshotCalls, 1);
+    expect(find.text('Remote POC Item'), findsWidgets);
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-poc-complete-snapshot-item-row'),
+    );
+    expect(fakeRemote.completionCalls, 1);
+    expect(find.text('Snapshot Remote Item 已完成'), findsWidgets);
+    expect(await db.reminderDao.listItemCompletions(seed.itemId), isEmpty);
+
+    final backup = await ReminderBackupService(
+      db.reminderDao,
+    ).exportJsonString(exportedAt: DateTime(2026, 6, 21));
+    expect(backup, isNot(contains('ABCD-1234-EFGH')));
+  });
+
   testWidgets(
     'developer settings compatibility route renders unified settings',
     (tester) async {
@@ -615,9 +709,13 @@ Future<AppDatabase> _pumpSettings(
 }
 
 Future<void> _tapSettingsRow(WidgetTester tester, Key key) async {
-  await tester.scrollUntilVisible(find.byKey(key), 120);
+  await tester.scrollUntilVisible(
+    find.byKey(key).first,
+    120,
+    scrollable: find.byType(Scrollable).first,
+  );
   await tester.pumpAndSettle();
-  await tester.tap(find.byKey(key));
+  await tester.tap(find.byKey(key).first);
   await tester.pumpAndSettle();
 }
 
@@ -656,6 +754,8 @@ Future<_RemotePocSeed> _seedSharedPackForRemotePoc(AppDatabase db) async {
 class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   int profileCalls = 0;
   int createdPackCalls = 0;
+  int createdInviteCalls = 0;
+  int joinInviteCalls = 0;
   int createdItemCalls = 0;
   int completionCalls = 0;
   int snapshotCalls = 0;
@@ -678,6 +778,41 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
     final id = 'rpack$createdPackCalls';
     _packItems[id] = <String>[];
     return id;
+  }
+
+  @override
+  Future<RemotePackInvite> createPackInvite({required String packId}) async {
+    createdInviteCalls += 1;
+    return RemotePackInvite(
+      inviteId: 'invite$createdInviteCalls',
+      inviteCode: 'ABCD-1234-EFGH',
+      expiresAt: DateTime(2026, 6, 28, 10),
+      maxUses: 10,
+    );
+  }
+
+  @override
+  Future<RemoteJoinPackResult> joinPackWithInvite({
+    required String inviteCode,
+  }) async {
+    joinInviteCalls += 1;
+    _packItems.putIfAbsent('joined-pack', () => <String>['joined-item']);
+    return const RemoteJoinPackResult(
+      status: RemoteJoinPackStatus.joined,
+      remotePackId: 'joined-pack',
+      memberId: 'joined-member',
+      role: 'member',
+    );
+  }
+
+  @override
+  Future<RemoteRevokeInviteResult> revokePackInvite({
+    required String inviteId,
+  }) async {
+    return RemoteRevokeInviteResult(
+      status: RemoteRevokeInviteStatus.revoked,
+      inviteId: inviteId,
+    );
   }
 
   @override

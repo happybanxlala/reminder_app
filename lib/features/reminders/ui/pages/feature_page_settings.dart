@@ -274,6 +274,32 @@ class SettingsPage extends ConsumerWidget {
                     remotePocState.snapshotSummary,
                   ),
                 ),
+                _SettingsReadOnlyRow(
+                  key: const Key('settings-remote-poc-invite-code'),
+                  label: ReminderUiText.remotePocInviteCodeLabel,
+                  value:
+                      remotePocState.lastCreatedInviteCode ??
+                      ReminderUiText.remotePocNotCreated,
+                ),
+                _SettingsReadOnlyRow(
+                  key: const Key('settings-remote-poc-invite-expires'),
+                  label: ReminderUiText.remotePocInviteExpiresLabel,
+                  value: _remotePocDateTimeValue(
+                    remotePocState.lastInviteExpiresAt,
+                  ),
+                ),
+                _SettingsReadOnlyRow(
+                  key: const Key('settings-remote-poc-invite-max-uses'),
+                  label: ReminderUiText.remotePocInviteMaxUsesLabel,
+                  value: remotePocState.lastInviteMaxUses?.toString() ?? '-',
+                ),
+                _SettingsReadOnlyRow(
+                  key: const Key('settings-remote-poc-joined-pack'),
+                  label: ReminderUiText.remotePocJoinedPackLabel,
+                  value: remotePocState.lastJoinedRemotePackId == null
+                      ? ReminderUiText.remotePocNoRemoteMapping
+                      : _shortUserId(remotePocState.lastJoinedRemotePackId!),
+                ),
                 _SettingsActionRow(
                   key: const Key(
                     'settings-create-anonymous-remote-identity-row',
@@ -327,6 +353,46 @@ class SettingsPage extends ConsumerWidget {
                   ),
                 ),
                 _SettingsActionRow(
+                  key: const Key('settings-remote-poc-create-invite-row'),
+                  label: ReminderUiText.remotePocCreateInviteLabel,
+                  value: remotePocPackMapping == null
+                      ? ReminderUiText.remotePocNoRemoteMapping
+                      : _shortUserId(remotePocPackMapping.remoteEntityId),
+                  icon: Icons.key_outlined,
+                  enabled: !remotePocState.isRunning,
+                  onTap: () => _runRemotePocAction(
+                    context,
+                    ref,
+                    (controller) => controller.createInviteCode(
+                      remotePocPackMapping?.remoteEntityId,
+                    ),
+                  ),
+                ),
+                _SettingsInputRow(
+                  key: const Key('settings-remote-poc-invite-input-row'),
+                  fieldKey: const Key('settings-remote-poc-invite-input'),
+                  label: ReminderUiText.remotePocInviteInputLabel,
+                  initialValue: remotePocState.inviteCodeInput,
+                  enabled: !remotePocState.isRunning,
+                  onChanged: ref
+                      .read(remotePocControllerProvider.notifier)
+                      .updateInviteCodeInput,
+                ),
+                _SettingsActionRow(
+                  key: const Key('settings-remote-poc-join-invite-row'),
+                  label: ReminderUiText.remotePocJoinInviteLabel,
+                  value: remotePocState.lastJoinedRemotePackId == null
+                      ? ReminderUiText.remotePocNoRemoteMapping
+                      : _shortUserId(remotePocState.lastJoinedRemotePackId!),
+                  icon: Icons.group_add_outlined,
+                  enabled: !remotePocState.isRunning,
+                  onTap: () => _runRemotePocAction(
+                    context,
+                    ref,
+                    (controller) => controller.joinWithInviteCode(),
+                  ),
+                ),
+                _SettingsActionRow(
                   key: const Key('settings-remote-poc-complete-item-row'),
                   label: ReminderUiText.remotePocCompleteItemLabel,
                   value: remotePocFirstMappedItem == null
@@ -343,9 +409,27 @@ class SettingsPage extends ConsumerWidget {
                   ),
                 ),
                 _SettingsActionRow(
+                  key: const Key(
+                    'settings-remote-poc-complete-snapshot-item-row',
+                  ),
+                  label: ReminderUiText.remotePocCompleteSnapshotItemLabel,
+                  value:
+                      remotePocState.firstSnapshotItem?.title ??
+                      ReminderUiText.remotePocNotCreated,
+                  icon: Icons.fact_check_outlined,
+                  enabled: !remotePocState.isRunning,
+                  onTap: () => _runRemotePocAction(
+                    context,
+                    ref,
+                    (controller) => controller.completeFirstSnapshotItem(),
+                  ),
+                ),
+                _SettingsActionRow(
                   key: const Key('settings-remote-poc-pull-snapshot-row'),
                   label: ReminderUiText.remotePocPullSnapshotLabel,
-                  value: remotePocPackMapping == null
+                  value: remotePocState.lastJoinedRemotePackId != null
+                      ? _shortUserId(remotePocState.lastJoinedRemotePackId!)
+                      : remotePocPackMapping == null
                       ? ReminderUiText.remotePocNoRemoteMapping
                       : _shortUserId(remotePocPackMapping.remoteEntityId),
                   icon: Icons.cloud_download_outlined,
@@ -432,6 +516,18 @@ class SettingsPage extends ConsumerWidget {
       return ReminderUiText.remotePocNotRun;
     }
     return 'members ${summary.membersCount}, items ${summary.itemsCount}, completions ${summary.activeCompletionsCount}, events ${summary.activityEventsCount}';
+  }
+
+  String _remotePocDateTimeValue(DateTime? value) {
+    if (value == null) {
+      return '-';
+    }
+    final local = value.toLocal();
+    final date =
+        '${local.year.toString().padLeft(4, '0')}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')}';
+    final time =
+        '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+    return '$date $time';
   }
 
   Future<void> _showReminderTonePicker(
@@ -895,6 +991,44 @@ class _SettingsActionRow extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SettingsInputRow extends StatelessWidget {
+  const _SettingsInputRow({
+    super.key,
+    required this.fieldKey,
+    required this.label,
+    required this.initialValue,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final Key fieldKey;
+  final String label;
+  final String initialValue;
+  final bool enabled;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.reminderPalette;
+    return TextFormField(
+      key: fieldKey,
+      initialValue: initialValue,
+      enabled: enabled,
+      textCapitalization: TextCapitalization.characters,
+      decoration: InputDecoration(
+        labelText: label,
+        isDense: true,
+        border: const OutlineInputBorder(),
+      ),
+      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+        color: enabled ? palette.textPrimary : palette.textMuted,
+        fontWeight: FontWeight.w700,
+      ),
+      onChanged: onChanged,
     );
   }
 }

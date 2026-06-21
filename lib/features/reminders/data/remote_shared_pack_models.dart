@@ -6,6 +6,11 @@ enum RemoteSharedPackFailureReason {
   remoteProfileFailed,
   remotePackAlreadyLinked,
   remotePackCreateFailed,
+  remoteInviteNotHost,
+  remoteInviteInvalid,
+  remoteInviteExpired,
+  remoteInviteMaxUsesReached,
+  remoteInviteAlreadyRevoked,
   localPackNotShared,
   localUserNotPackMember,
   remoteItemPushFailed,
@@ -77,6 +82,48 @@ class RemoteItemCompletionResult {
   final String completionId;
   final String completedByUserId;
   final DateTime completedAt;
+}
+
+class RemotePackInvite {
+  const RemotePackInvite({
+    required this.inviteId,
+    required this.inviteCode,
+    required this.expiresAt,
+    required this.maxUses,
+  });
+
+  final String inviteId;
+  final String inviteCode;
+  final DateTime expiresAt;
+  final int maxUses;
+}
+
+enum RemoteJoinPackStatus { joined, alreadyMember }
+
+class RemoteJoinPackResult {
+  const RemoteJoinPackResult({
+    required this.status,
+    required this.remotePackId,
+    required this.memberId,
+    required this.role,
+  });
+
+  final RemoteJoinPackStatus status;
+  final String remotePackId;
+  final String memberId;
+  final String role;
+}
+
+enum RemoteRevokeInviteStatus { revoked, alreadyRevoked }
+
+class RemoteRevokeInviteResult {
+  const RemoteRevokeInviteResult({
+    required this.status,
+    required this.inviteId,
+  });
+
+  final RemoteRevokeInviteStatus status;
+  final String inviteId;
 }
 
 class RemotePackSnapshot {

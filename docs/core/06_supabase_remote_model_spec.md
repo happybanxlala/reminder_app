@@ -862,3 +862,128 @@ If the app debug UI does not expose a non-member query action, use Supabase SQL 
 - POC actions are developer/debug only.
 
 Phase 4 boundary：formal sync UX, invite/member onboarding, realtime, resource/stage sync, and conflict resolution remain future work.
+
+## 17. Phase 4A Remote Invite Code & Membership MVP
+
+Phase 4A adds the first remote collaboration membership loop:
+
+```text
+host creates invite code
+→ member enters invite code
+→ member joins remote pack
+→ member pulls remote snapshot
+→ member completes remote item
+```
+
+It remains a developer/debug POC, not production invite UI or full sync.
+
+### Scope
+
+- Invite code first; no email invite, QR code, magic link, Apple / Google / email binding, or remote pack list.
+- Invite defaults are fixed: 7 days, max uses 10, role grant `member`.
+- Joined user becomes `member / active`.
+- Member can read remote pack snapshot and complete remote item through existing RLS/RPC boundaries.
+- No local pack, local item, sync mapping, or local merge is created when joining.
+
+### SQL Draft
+
+Apply after Phase 3C SQL:
+
+```text
+docs/core/sql/phase4a_supabase_invite_membership_mvp.sql
+```
+
+The Phase 4A SQL adds:
+
+- `pack_invites`
+- `create_pack_invite`
+- `join_pack_with_invite`
+- `revoke_pack_invite`
+- RLS policy draft for host-only invite listing/management
+
+Invite code is a temporary bearer secret. The RPC returns the invite code once to the host, but the database stores only `code_hash`. Activity events and local backups must not store the full invite code.
+
+Hash strategy:
+
+```text
+code_hash = sha256(normalized_invite_code || ':' || pack_id)
+```
+
+For join, the RPC scans active invite rows and compares the computed hash for each invite pack. This keeps the user-facing input to only the invite code for Phase 4A.
+
+### RPC Behavior
+
+- `create_pack_invite(target_pack_id, expires_in_days default 7, max_uses default 10)` requires `auth.uid()` to be active host of the pack, inserts invite metadata, writes `invite_created`, and returns `invite_id / invite_code / expires_at / max_uses`.
+- `join_pack_with_invite(invite_code)` validates active/unexpired/under-limit invite, requires current profile, creates or reactivates `pack_members` as `member / active`, increments `used_count`, writes `member_joined`, and returns `joined` or `already_member`.
+- `revoke_pack_invite(invite_id)` requires active host, marks invite revoked, writes `invite_revoked`, and never hard-deletes invite history.
+
+Security-definer functions must be reviewed before production. They must validate host or invite state before writing `pack_invites` or `pack_members`.
+
+### Developer UI
+
+Settings developer debug `Supabase 遠端 POC` adds:
+
+- `建立 Invite Code POC`
+- volatile invite code / expiry / max-use display
+- `輸入 Invite Code`
+- `加入遠端 Pack POC`
+- joined remote pack id display
+- snapshot pull using joined remote pack id when present, otherwise local shared pack mapping
+- `完成 Snapshot 第一個 Remote Item POC`
+
+The invite code, joined remote pack id, and latest snapshot are provider/UI memory only. They are cleared by app restart and are not written to backup.
+
+### Manual Smoke Test
+
+Supabase setup:
+
+1. 啟用 Anonymous Sign-ins。
+2. Apply `docs/core/sql/phase3c_supabase_minimal_poc.sql`。
+3. Apply `docs/core/sql/phase4a_supabase_invite_membership_mvp.sql`。
+4. 確認 RLS enabled。
+5. Flutter app 只使用 anon key；do not put privileged keys in the app.
+
+Host device:
+
+1. Device A / simulator A runs with `SUPABASE_URL` and `SUPABASE_ANON_KEY`.
+2. 建立匿名遠端身份。
+3. 建立 / 確認 Remote Profile。
+4. 準備 local Shared Pack。
+5. 建立遠端共同 Pack POC。
+6. 推送 Minimal Items POC。
+7. 建立 Invite Code POC。
+8. 記下 invite code。
+
+Member device:
+
+1. Device B / clean install uses the same Supabase dev project.
+2. 建立匿名遠端身份。
+3. 建立 / 確認 Remote Profile。
+4. 輸入 invite code。
+5. 按「加入遠端 Pack POC」。
+6. 拉取 Remote Snapshot。
+7. 應看到 remote pack / items / activity events。
+8. 完成 Snapshot 第一個 Remote Item POC。
+9. 再拉取 Snapshot。
+10. 應看到 item completion / activity event。
+
+RLS smoke test:
+
+1. 使用第三個 anonymous user。
+2. 不輸入 invite code。
+3. 嘗試讀取原 remote pack 或 complete 原 pack item。
+4. 預期被 RLS 擋下。
+
+Expected boundaries:
+
+- No local pack or item is auto-created.
+- Remote snapshot is not merged into local DB.
+- Personal packs are not uploaded.
+- Resources and stages are not uploaded.
+- No realtime, background sync, production invite UI, or conflict engine.
+
+### Follow-Up Boundary
+
+- Phase 4B: production-grade invite lifecycle and member management UX.
+- Phase 4C: remote pack listing and explicit local import/merge design.
+- Phase 4D: stronger RLS/RPC hardening, audit review, and invite abuse controls.

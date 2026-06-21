@@ -6,6 +6,9 @@ import 'supabase_config.dart';
 abstract class RemoteSharedPackDataSource {
   Future<String> upsertCurrentProfile({required String displayName});
   Future<String> createSharedPack({required String name, String? description});
+  Future<RemotePackInvite> createPackInvite({required String packId});
+  Future<RemoteJoinPackResult> joinPackWithInvite({required String inviteCode});
+  Future<RemoteRevokeInviteResult> revokePackInvite({required String inviteId});
   Future<String> createPackItem({
     required String packId,
     required String title,
@@ -30,6 +33,25 @@ class DisabledRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
 
   @override
   Future<String> createSharedPack({required String name, String? description}) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<RemotePackInvite> createPackInvite({required String packId}) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<RemoteJoinPackResult> joinPackWithInvite({
+    required String inviteCode,
+  }) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<RemoteRevokeInviteResult> revokePackInvite({
+    required String inviteId,
+  }) {
     throw RemoteSharedPackException(reason);
   }
 
@@ -101,6 +123,75 @@ class SupabaseRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
         error,
         RemoteSharedPackFailureReason.remotePackCreateFailed,
       );
+    }
+  }
+
+  @override
+  Future<RemotePackInvite> createPackInvite({required String packId}) async {
+    try {
+      final result = await _client.rpc(
+        'create_pack_invite',
+        params: {
+          'target_pack_id': packId,
+          'expires_in_days': 7,
+          'max_uses_limit': 10,
+        },
+      );
+      final row = _mapRpcResult(result);
+      return RemotePackInvite(
+        inviteId: _requiredString(row, 'invite_id'),
+        inviteCode: _requiredString(row, 'invite_code'),
+        expiresAt: _requiredDate(row, 'expires_at'),
+        maxUses: _requiredInt(row, 'max_uses'),
+      );
+    } catch (error) {
+      throw _mapError(error, RemoteSharedPackFailureReason.remoteInviteNotHost);
+    }
+  }
+
+  @override
+  Future<RemoteJoinPackResult> joinPackWithInvite({
+    required String inviteCode,
+  }) async {
+    try {
+      final result = await _client.rpc(
+        'join_pack_with_invite',
+        params: {'invite_code': inviteCode},
+      );
+      final row = _mapRpcResult(result);
+      final status = _requiredString(row, 'status');
+      return RemoteJoinPackResult(
+        status: status == 'already_member'
+            ? RemoteJoinPackStatus.alreadyMember
+            : RemoteJoinPackStatus.joined,
+        remotePackId: _requiredString(row, 'pack_id'),
+        memberId: _requiredString(row, 'member_id'),
+        role: _requiredString(row, 'role'),
+      );
+    } catch (error) {
+      throw _mapError(error, RemoteSharedPackFailureReason.remoteInviteInvalid);
+    }
+  }
+
+  @override
+  Future<RemoteRevokeInviteResult> revokePackInvite({
+    required String inviteId,
+  }) async {
+    try {
+      final result = await _client.rpc(
+        'revoke_pack_invite',
+        params: {'target_invite_id': inviteId},
+      );
+      final row = _mapRpcResult(result);
+      final status = _requiredString(row, 'status');
+      return RemoteRevokeInviteResult(
+        status: status == 'already_revoked'
+            ? RemoteRevokeInviteStatus.alreadyRevoked
+            : RemoteRevokeInviteStatus.revoked,
+        inviteId: _requiredString(row, 'invite_id'),
+      );
+    } catch (error) {
+      throw _mapError(error, RemoteSharedPackFailureReason.remoteInviteNotHost);
     }
   }
 
@@ -339,6 +430,19 @@ DateTime _requiredDate(Map<String, Object?> row, String key) {
   );
 }
 
+int _requiredInt(Map<String, Object?> row, String key) {
+  final value = row[key];
+  if (value is int) {
+    return value;
+  }
+  if (value is num) {
+    return value.toInt();
+  }
+  throw const RemoteSharedPackException(
+    RemoteSharedPackFailureReason.malformedRemoteData,
+  );
+}
+
 DateTime? _optionalDate(Map<String, Object?> row, String key) {
   final value = row[key];
   if (value == null) {
@@ -379,6 +483,37 @@ RemoteSharedPackException _mapError(
     if (status == '42501' || status == 'PGRST301') {
       return RemoteSharedPackException(
         RemoteSharedPackFailureReason.remoteRlsRejected,
+        error,
+      );
+    }
+    final message = error.message.toLowerCase();
+    if (message.contains('invite expired')) {
+      return RemoteSharedPackException(
+        RemoteSharedPackFailureReason.remoteInviteExpired,
+        error,
+      );
+    }
+    if (message.contains('invite max uses reached')) {
+      return RemoteSharedPackException(
+        RemoteSharedPackFailureReason.remoteInviteMaxUsesReached,
+        error,
+      );
+    }
+    if (message.contains('invite invalid')) {
+      return RemoteSharedPackException(
+        RemoteSharedPackFailureReason.remoteInviteInvalid,
+        error,
+      );
+    }
+    if (message.contains('already revoked')) {
+      return RemoteSharedPackException(
+        RemoteSharedPackFailureReason.remoteInviteAlreadyRevoked,
+        error,
+      );
+    }
+    if (message.contains('pack host required')) {
+      return RemoteSharedPackException(
+        RemoteSharedPackFailureReason.remoteInviteNotHost,
         error,
       );
     }

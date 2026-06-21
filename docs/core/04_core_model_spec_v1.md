@@ -11,7 +11,7 @@ Last aligned with repository contents on 2026-06-14.
 
 ## Supabase Remote Model
 
-Supabase remote data model, RLS policy draft, Phase 3A boundary, Phase 3B anonymous identity bridge, Phase 3C Remote Shared Pack Minimal POC, and Phase 3D developer smoke-test surface are documented in:
+Supabase remote data model, RLS policy draft, Phase 3A boundary, Phase 3B anonymous identity bridge, Phase 3C Remote Shared Pack Minimal POC, Phase 3D developer smoke-test surface, and Phase 4A remote invite-code membership MVP are documented in:
 
 - `docs/core/06_supabase_remote_model_spec.md`
 
@@ -1244,6 +1244,23 @@ Phase 3D adds a developer-only remote POC action surface for manual Supabase smo
 
 - 不新增正式 sync UI、invite、realtime、resource / stage remote sync、background sync、automatic upload 或 conflict resolution engine。
 - 不修改 Drift schema、backup schema、home widget 行為或 visual tokens。
+
+### 2.19 Phase 4A：Remote Invite Code & Membership MVP
+
+Phase 4A adds developer-only remote invite-code membership for the Remote Shared Pack POC.
+
+#### 已實作行為
+
+- Host 可在 Settings developer debug 的 `Supabase 遠端 POC` 區塊手動建立 Invite Code POC。
+- Invite code 是 temporary bearer secret，只保存在 volatile UI state；local DB、backup、activity event 不保存完整 invite code。
+- 第二個 anonymous remote user 可輸入 invite code，加入 remote shared pack 並成為 `member / active`。
+- Join 後可用 joined remote pack id 拉取 remote snapshot，且可完成 snapshot 第一個 remote item。
+- Join 不建立 local pack、local item、`sync_mappings`，也不 merge remote snapshot。
+
+#### 非目標
+
+- 不新增 full sync、realtime、正式 invite UI、remote pack list、local merge、automatic upload、resource / stage remote sync 或 widget 行為變更。
+- 不修改 Drift schema 或 backup schema。
 
 ## 3. 跨 Domain 行為
 

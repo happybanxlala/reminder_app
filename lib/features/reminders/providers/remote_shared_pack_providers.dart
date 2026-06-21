@@ -60,6 +60,13 @@ class RemotePocOperationState {
     this.lastMessage,
     this.lastAt,
     this.snapshotSummary,
+    this.lastCreatedInviteCode,
+    this.lastCreatedInviteId,
+    this.lastInviteExpiresAt,
+    this.lastInviteMaxUses,
+    this.inviteCodeInput = '',
+    this.lastJoinedRemotePackId,
+    this.lastPulledRemoteSnapshot,
   });
 
   final bool isRunning;
@@ -68,6 +75,21 @@ class RemotePocOperationState {
   final String? lastMessage;
   final DateTime? lastAt;
   final RemotePocSnapshotSummary? snapshotSummary;
+  final String? lastCreatedInviteCode;
+  final String? lastCreatedInviteId;
+  final DateTime? lastInviteExpiresAt;
+  final int? lastInviteMaxUses;
+  final String inviteCodeInput;
+  final String? lastJoinedRemotePackId;
+  final RemotePackSnapshot? lastPulledRemoteSnapshot;
+
+  RemoteItemSnapshot? get firstSnapshotItem {
+    final snapshot = lastPulledRemoteSnapshot;
+    if (snapshot == null || snapshot.items.isEmpty) {
+      return null;
+    }
+    return snapshot.items.first;
+  }
 
   RemotePocOperationState copyWith({
     bool? isRunning,
@@ -76,7 +98,17 @@ class RemotePocOperationState {
     String? lastMessage,
     DateTime? lastAt,
     RemotePocSnapshotSummary? snapshotSummary,
+    String? lastCreatedInviteCode,
+    String? lastCreatedInviteId,
+    DateTime? lastInviteExpiresAt,
+    int? lastInviteMaxUses,
+    String? inviteCodeInput,
+    String? lastJoinedRemotePackId,
+    RemotePackSnapshot? lastPulledRemoteSnapshot,
     bool clearSnapshotSummary = false,
+    bool clearInvite = false,
+    bool clearJoinedRemotePackId = false,
+    bool clearLastPulledRemoteSnapshot = false,
   }) {
     return RemotePocOperationState(
       isRunning: isRunning ?? this.isRunning,
@@ -87,6 +119,25 @@ class RemotePocOperationState {
       snapshotSummary: clearSnapshotSummary
           ? null
           : snapshotSummary ?? this.snapshotSummary,
+      lastCreatedInviteCode: clearInvite
+          ? null
+          : lastCreatedInviteCode ?? this.lastCreatedInviteCode,
+      lastCreatedInviteId: clearInvite
+          ? null
+          : lastCreatedInviteId ?? this.lastCreatedInviteId,
+      lastInviteExpiresAt: clearInvite
+          ? null
+          : lastInviteExpiresAt ?? this.lastInviteExpiresAt,
+      lastInviteMaxUses: clearInvite
+          ? null
+          : lastInviteMaxUses ?? this.lastInviteMaxUses,
+      inviteCodeInput: inviteCodeInput ?? this.inviteCodeInput,
+      lastJoinedRemotePackId: clearJoinedRemotePackId
+          ? null
+          : lastJoinedRemotePackId ?? this.lastJoinedRemotePackId,
+      lastPulledRemoteSnapshot: clearLastPulledRemoteSnapshot
+          ? null
+          : lastPulledRemoteSnapshot ?? this.lastPulledRemoteSnapshot,
     );
   }
 }
@@ -95,6 +146,10 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
   RemotePocController(this._ref) : super(const RemotePocOperationState());
 
   final Ref _ref;
+
+  void updateInviteCodeInput(String value) {
+    state = state.copyWith(inviteCodeInput: value);
+  }
 
   Future<String> ensureAnonymousRemoteIdentity() {
     return _run('建立匿名遠端身份', () async {
@@ -195,6 +250,58 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
     });
   }
 
+  Future<String> createInviteCode(String? remotePackId) {
+    return _run('建立 Invite Code POC', () async {
+      if (remotePackId == null) {
+        return const _RemotePocOutcome(
+          succeeded: false,
+          message: '請先建立遠端 Pack',
+        );
+      }
+      final result = await _ref
+          .read(remoteSharedPackRepositoryProvider)
+          .createRemotePackInvite(remotePackId);
+      if (!result.isSuccess) {
+        return _failureOutcome(result.failureReason);
+      }
+      final invite = result.value!;
+      return _RemotePocOutcome(
+        succeeded: true,
+        message: 'Invite Code 已建立：${invite.inviteCode}',
+        invite: invite,
+      );
+    });
+  }
+
+  Future<String> joinWithInviteCode() {
+    return _run('加入遠端 Pack POC', () async {
+      final inviteCode = state.inviteCodeInput.trim();
+      if (inviteCode.isEmpty) {
+        return const _RemotePocOutcome(
+          succeeded: false,
+          message: '請輸入 Invite Code',
+        );
+      }
+      final result = await _ref
+          .read(remoteSharedPackRepositoryProvider)
+          .joinRemotePackWithInvite(inviteCode);
+      _ref.invalidate(currentAppUserProvider);
+      _ref.invalidate(currentAppUserIdProvider);
+      if (!result.isSuccess) {
+        return _failureOutcome(result.failureReason);
+      }
+      final join = result.value!;
+      final status = join.status == RemoteJoinPackStatus.alreadyMember
+          ? 'already member'
+          : 'joined';
+      return _RemotePocOutcome(
+        succeeded: true,
+        message: '加入遠端 Pack：$status ${_shortId(join.remotePackId)}',
+        joinedRemotePackId: join.remotePackId,
+      );
+    });
+  }
+
   Future<String> completeFirstMappedItem(int? localPackId) {
     return _run('完成遠端 Item POC', () async {
       if (localPackId == null) {
@@ -229,18 +336,42 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
     });
   }
 
+  Future<String> completeFirstSnapshotItem() {
+    return _run('完成 Snapshot 第一個 Remote Item POC', () async {
+      final item = state.firstSnapshotItem;
+      if (item == null) {
+        return const _RemotePocOutcome(
+          succeeded: false,
+          message: '請先拉取 Remote Snapshot',
+        );
+      }
+      final result = await _ref
+          .read(remoteSharedPackRepositoryProvider)
+          .completeRemoteItemByRemoteId(item.id);
+      if (result.failureReason ==
+          RemoteSharedPackFailureReason.remoteItemAlreadyCompleted) {
+        return const _RemotePocOutcome(
+          succeeded: true,
+          message: 'Snapshot Remote Item 已經完成',
+        );
+      }
+      if (!result.isSuccess) {
+        return _failureOutcome(result.failureReason);
+      }
+      return const _RemotePocOutcome(
+        succeeded: true,
+        message: 'Snapshot Remote Item 已完成',
+      );
+    });
+  }
+
   Future<String> pullRemoteSnapshot({
     required int? localPackId,
     required String? remotePackId,
   }) {
     return _run('拉取 Remote Snapshot POC', () async {
-      if (localPackId == null) {
-        return const _RemotePocOutcome(
-          succeeded: false,
-          message: '請先建立 / 選擇 local shared pack',
-        );
-      }
-      if (remotePackId == null) {
+      final targetRemotePackId = state.lastJoinedRemotePackId ?? remotePackId;
+      if (targetRemotePackId == null) {
         return const _RemotePocOutcome(
           succeeded: false,
           message: '請先建立遠端 Pack',
@@ -248,7 +379,7 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
       }
       final result = await _ref
           .read(remoteSharedPackRepositoryProvider)
-          .pullRemotePackSnapshot(remotePackId);
+          .pullRemotePackSnapshot(targetRemotePackId);
       if (!result.isSuccess) {
         return _failureOutcome(result.failureReason);
       }
@@ -264,6 +395,7 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
         message:
             'Remote Snapshot：members ${summary.membersCount}, items ${summary.itemsCount}, completions ${summary.activeCompletionsCount}, events ${summary.activityEventsCount}',
         snapshotSummary: summary,
+        snapshot: snapshot,
       );
     });
   }
@@ -292,6 +424,12 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
       lastMessage: outcome.message,
       lastAt: DateTime.now(),
       snapshotSummary: outcome.snapshotSummary,
+      lastCreatedInviteCode: outcome.invite?.inviteCode,
+      lastCreatedInviteId: outcome.invite?.inviteId,
+      lastInviteExpiresAt: outcome.invite?.expiresAt,
+      lastInviteMaxUses: outcome.invite?.maxUses,
+      lastJoinedRemotePackId: outcome.joinedRemotePackId,
+      lastPulledRemoteSnapshot: outcome.snapshot,
     );
     return outcome.message;
   }
@@ -312,6 +450,14 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
       RemoteSharedPackFailureReason.remotePackAlreadyLinked =>
         '此 Pack 已有遠端 POC mapping',
       RemoteSharedPackFailureReason.remotePackCreateFailed => '請先建立遠端 Pack',
+      RemoteSharedPackFailureReason.remoteInviteNotHost =>
+        '只有 Host 可以建立或管理 Invite',
+      RemoteSharedPackFailureReason.remoteInviteInvalid => 'Invite Code 無效',
+      RemoteSharedPackFailureReason.remoteInviteExpired => 'Invite Code 已過期',
+      RemoteSharedPackFailureReason.remoteInviteMaxUsesReached =>
+        'Invite Code 使用次數已滿',
+      RemoteSharedPackFailureReason.remoteInviteAlreadyRevoked =>
+        'Invite Code 已撤銷',
       RemoteSharedPackFailureReason.localPackNotShared => '此 Pack 尚未轉為共同 Pack',
       RemoteSharedPackFailureReason.localUserNotPackMember =>
         '你不是此 Pack 的 active member',
@@ -337,11 +483,17 @@ class _RemotePocOutcome {
     required this.succeeded,
     required this.message,
     this.snapshotSummary,
+    this.invite,
+    this.joinedRemotePackId,
+    this.snapshot,
   });
 
   final bool succeeded;
   final String message;
   final RemotePocSnapshotSummary? snapshotSummary;
+  final RemotePackInvite? invite;
+  final String? joinedRemotePackId;
+  final RemotePackSnapshot? snapshot;
 }
 
 final remotePocControllerProvider =
