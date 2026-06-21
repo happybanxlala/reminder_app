@@ -11,7 +11,7 @@ Last aligned with repository contents on 2026-06-14.
 
 ## Supabase Remote Model
 
-Supabase remote data model, RLS policy draft, Phase 3A boundary, Phase 3B anonymous identity bridge, Phase 3C Remote Shared Pack Minimal POC, Phase 3D developer smoke-test surface, and Phase 4A remote invite-code membership MVP are documented in:
+Supabase remote data model, RLS policy draft, Phase 3A boundary, Phase 3B anonymous identity bridge, Phase 3C Remote Shared Pack Minimal POC, Phase 3D developer smoke-test surface, Phase 4A remote invite-code membership MVP, and Phase 4B developer-only Remote Pack Viewer MVP are documented in:
 
 - `docs/core/06_supabase_remote_model_spec.md`
 
@@ -1261,6 +1261,23 @@ Phase 4A adds developer-only remote invite-code membership for the Remote Shared
 
 - 不新增 full sync、realtime、正式 invite UI、remote pack list、local merge、automatic upload、resource / stage remote sync 或 widget 行為變更。
 - 不修改 Drift schema 或 backup schema。
+
+### 2.20 Phase 4B：Remote Pack Viewer MVP
+
+Phase 4B adds a developer-only Remote Pack Viewer MVP inside the Settings `Supabase 遠端 POC` section.
+
+#### 已實作行為
+
+- Viewer 只顯示已手動拉取的 remote snapshot，不自動 refresh。
+- Snapshot target 優先使用 joined remote pack id；若沒有 joined remote pack，才使用第一個 local Shared Pack 的 remote mapping。
+- Viewer 顯示 remote pack metadata、members、items、active completions、recent activity events、summary counts 與 last refresh timestamp。
+- Refresh action 只呼叫 `pullRemotePackSnapshot(remotePackId)` 並更新 volatile provider state。
+- Snapshot DTO 不 merge 回 local DB，不建立 local pack、local items、local completions 或 `sync_mappings`。
+
+#### 非目標
+
+- 不新增 full sync、realtime、background sync、auto refresh、formal production remote pack UI、local merge、resource / stage remote sync 或 widget 行為變更。
+- 不修改 SQL schema、Drift schema 或 backup schema。
 
 ## 3. 跨 Domain 行為
 

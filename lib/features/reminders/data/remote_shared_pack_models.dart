@@ -159,6 +159,7 @@ class RemotePackMemberSnapshot {
     required this.id,
     required this.packId,
     required this.userId,
+    this.displayName,
     required this.role,
     required this.status,
     required this.joinedAt,
@@ -167,6 +168,7 @@ class RemotePackMemberSnapshot {
   final String id;
   final String packId;
   final String userId;
+  final String? displayName;
   final String role;
   final String status;
   final DateTime joinedAt;

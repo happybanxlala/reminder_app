@@ -52,6 +52,8 @@ class RemotePocSnapshotSummary {
   final int activityEventsCount;
 }
 
+enum RemotePocSnapshotTargetType { localMappedPack, joinedRemotePack }
+
 class RemotePocOperationState {
   const RemotePocOperationState({
     this.isRunning = false,
@@ -67,6 +69,9 @@ class RemotePocOperationState {
     this.inviteCodeInput = '',
     this.lastJoinedRemotePackId,
     this.lastPulledRemoteSnapshot,
+    this.snapshotTargetType,
+    this.lastRefreshAt,
+    this.lastRefreshSucceeded,
   });
 
   final bool isRunning;
@@ -82,6 +87,9 @@ class RemotePocOperationState {
   final String inviteCodeInput;
   final String? lastJoinedRemotePackId;
   final RemotePackSnapshot? lastPulledRemoteSnapshot;
+  final RemotePocSnapshotTargetType? snapshotTargetType;
+  final DateTime? lastRefreshAt;
+  final bool? lastRefreshSucceeded;
 
   RemoteItemSnapshot? get firstSnapshotItem {
     final snapshot = lastPulledRemoteSnapshot;
@@ -105,6 +113,9 @@ class RemotePocOperationState {
     String? inviteCodeInput,
     String? lastJoinedRemotePackId,
     RemotePackSnapshot? lastPulledRemoteSnapshot,
+    RemotePocSnapshotTargetType? snapshotTargetType,
+    DateTime? lastRefreshAt,
+    bool? lastRefreshSucceeded,
     bool clearSnapshotSummary = false,
     bool clearInvite = false,
     bool clearJoinedRemotePackId = false,
@@ -138,6 +149,13 @@ class RemotePocOperationState {
       lastPulledRemoteSnapshot: clearLastPulledRemoteSnapshot
           ? null
           : lastPulledRemoteSnapshot ?? this.lastPulledRemoteSnapshot,
+      snapshotTargetType: clearLastPulledRemoteSnapshot
+          ? null
+          : snapshotTargetType ?? this.snapshotTargetType,
+      lastRefreshAt: clearLastPulledRemoteSnapshot
+          ? null
+          : lastRefreshAt ?? this.lastRefreshAt,
+      lastRefreshSucceeded: lastRefreshSucceeded ?? this.lastRefreshSucceeded,
     );
   }
 }
@@ -369,19 +387,28 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
     required int? localPackId,
     required String? remotePackId,
   }) {
-    return _run('拉取 Remote Snapshot POC', () async {
+    return _run('刷新遠端 Snapshot', () async {
       final targetRemotePackId = state.lastJoinedRemotePackId ?? remotePackId;
       if (targetRemotePackId == null) {
         return const _RemotePocOutcome(
           succeeded: false,
-          message: '請先建立遠端 Pack',
+          message: '尚未有可讀取的遠端 Pack。請先建立遠端 Pack 或加入 Invite Code。',
+          refreshAttempted: true,
         );
       }
+      final targetType = state.lastJoinedRemotePackId != null
+          ? RemotePocSnapshotTargetType.joinedRemotePack
+          : RemotePocSnapshotTargetType.localMappedPack;
       final result = await _ref
           .read(remoteSharedPackRepositoryProvider)
           .pullRemotePackSnapshot(targetRemotePackId);
       if (!result.isSuccess) {
-        return _failureOutcome(result.failureReason);
+        return _RemotePocOutcome(
+          succeeded: false,
+          message: _failureMessage(result.failureReason),
+          refreshAttempted: true,
+          snapshotTargetType: targetType,
+        );
       }
       final snapshot = result.value!;
       final summary = RemotePocSnapshotSummary(
@@ -396,6 +423,8 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
             'Remote Snapshot：members ${summary.membersCount}, items ${summary.itemsCount}, completions ${summary.activeCompletionsCount}, events ${summary.activityEventsCount}',
         snapshotSummary: summary,
         snapshot: snapshot,
+        snapshotTargetType: targetType,
+        refreshAttempted: true,
       );
     });
   }
@@ -430,6 +459,9 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
       lastInviteMaxUses: outcome.invite?.maxUses,
       lastJoinedRemotePackId: outcome.joinedRemotePackId,
       lastPulledRemoteSnapshot: outcome.snapshot,
+      snapshotTargetType: outcome.snapshotTargetType,
+      lastRefreshAt: outcome.refreshAttempted ? DateTime.now() : null,
+      lastRefreshSucceeded: outcome.refreshAttempted ? outcome.succeeded : null,
     );
     return outcome.message;
   }
@@ -486,6 +518,8 @@ class _RemotePocOutcome {
     this.invite,
     this.joinedRemotePackId,
     this.snapshot,
+    this.snapshotTargetType,
+    this.refreshAttempted = false,
   });
 
   final bool succeeded;
@@ -494,6 +528,8 @@ class _RemotePocOutcome {
   final RemotePackInvite? invite;
   final String? joinedRemotePackId;
   final RemotePackSnapshot? snapshot;
+  final RemotePocSnapshotTargetType? snapshotTargetType;
+  final bool refreshAttempted;
 }
 
 final remotePocControllerProvider =

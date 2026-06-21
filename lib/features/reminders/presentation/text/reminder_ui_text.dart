@@ -197,7 +197,7 @@ class ReminderUiText {
   static const remotePocCreatePackLabel = '建立遠端共同 Pack POC';
   static const remotePocPushItemsLabel = '推送 Minimal Items POC';
   static const remotePocCompleteItemLabel = '完成遠端 Item POC';
-  static const remotePocPullSnapshotLabel = '拉取 Remote Snapshot POC';
+  static const remotePocPullSnapshotLabel = '刷新遠端 Snapshot';
   static const remotePocInviteCodeLabel = 'Invite Code';
   static const remotePocInviteExpiresLabel = 'Invite expires';
   static const remotePocInviteMaxUsesLabel = 'Invite max uses';
@@ -207,6 +207,19 @@ class ReminderUiText {
   static const remotePocJoinInviteLabel = '加入遠端 Pack POC';
   static const remotePocCompleteSnapshotItemLabel =
       '完成 Snapshot 第一個 Remote Item POC';
+  static const remotePocViewerTitle = '遠端 Pack Snapshot';
+  static const remotePocViewerTargetLabel = 'Snapshot target';
+  static const remotePocViewerNoTarget =
+      '尚未有可讀取的遠端 Pack。請先建立遠端 Pack 或加入 Invite Code。';
+  static const remotePocViewerNoSnapshot = '尚未拉取遠端 Snapshot';
+  static const remotePocViewerPackLabel = 'Pack';
+  static const remotePocViewerMembersLabel = 'Members';
+  static const remotePocViewerItemsLabel = 'Items';
+  static const remotePocViewerActivityLabel = 'Activity';
+  static const remotePocViewerLastRefreshLabel = 'Last refreshed';
+  static const remotePocViewerLocalTarget = 'local mapped pack';
+  static const remotePocViewerJoinedTarget = 'joined remote pack';
+  static const remotePocViewerIncomplete = '未完成';
   static const remoteProviderSupabaseAnonymous = 'supabase_anonymous';
   static const remoteProviderApple = 'apple';
   static const remoteProviderGoogle = 'google';

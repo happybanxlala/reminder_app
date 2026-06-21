@@ -471,6 +471,7 @@ void main() {
 
     expect(find.textContaining('POC Pack'), findsWidgets);
     expect(find.text('remote1'), findsWidgets);
+    expect(find.text(ReminderUiText.remotePocViewerNoSnapshot), findsOneWidget);
   });
 
   testWidgets('developer remote POC actions run through fake remote source', (
@@ -539,9 +540,14 @@ void main() {
     );
     expect(fakeRemote.snapshotCalls, 1);
     expect(
-      find.text('members 1, items 1, completions 1, events 1'),
+      find.text('members 2, items 2, completions 1, events 3'),
       findsWidgets,
     );
+    expect(find.text('Remote POC Pack'), findsWidgets);
+    expect(find.textContaining('Host Device'), findsWidgets);
+    expect(find.textContaining('Remote POC Item'), findsWidgets);
+    expect(find.textContaining('completed by'), findsWidgets);
+    expect(find.textContaining('pack_created'), findsWidgets);
   });
 
   testWidgets('developer remote POC invite flow stays volatile', (
@@ -610,6 +616,7 @@ void main() {
     );
     expect(fakeRemote.snapshotCalls, 1);
     expect(find.text('Remote POC Item'), findsWidgets);
+    expect(find.textContaining('joined remote pack'), findsWidgets);
 
     await _tapSettingsRow(
       tester,
@@ -623,6 +630,46 @@ void main() {
       db.reminderDao,
     ).exportJsonString(exportedAt: DateTime(2026, 6, 21));
     expect(backup, isNot(contains('ABCD-1234-EFGH')));
+  });
+
+  testWidgets('developer remote viewer refresh failure is friendly', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final seed = await _seedSharedPackForRemotePoc(db);
+    await db.reminderDao.upsertSyncMapping(
+      SyncMappingsCompanion.insert(
+        localEntityType: RemoteSharedPackRepository.localEntityPack,
+        localEntityId: seed.packId,
+        remoteTable: RemoteSharedPackRepository.remoteTablePacks,
+        remoteEntityId: 'remote-failure-pack',
+        syncState: SyncMappingState.pushed.name,
+        createdAt: DateTime(2026, 6, 21).millisecondsSinceEpoch,
+        updatedAt: DateTime(2026, 6, 21).millisecondsSinceEpoch,
+      ),
+    );
+    final fakeRemote = _FakeRemoteSharedPackDataSource()..rejectSnapshot = true;
+
+    await _pumpSettings(
+      tester,
+      developerVisible: true,
+      database: db,
+      extraOverrides: [
+        authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+        remoteSharedPackDataSourceProvider.overrideWithValue(fakeRemote),
+      ],
+    );
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-poc-pull-snapshot-row'),
+    );
+
+    expect(fakeRemote.snapshotCalls, 1);
+    expect(find.text('遠端資料被 RLS 拒絕'), findsWidgets);
+    expect(find.textContaining('failed'), findsWidgets);
+    expect(await db.reminderDao.listItemCompletions(seed.itemId), isEmpty);
   });
 
   testWidgets(
@@ -759,6 +806,7 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   int createdItemCalls = 0;
   int completionCalls = 0;
   int snapshotCalls = 0;
+  bool rejectSnapshot = false;
 
   final _packItems = <String, List<String>>{};
   final _completedItems = <String, RemoteItemCompletionResult>{};
@@ -855,7 +903,15 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   @override
   Future<RemotePackSnapshot> fetchPackSnapshot(String remotePackId) async {
     snapshotCalls += 1;
+    if (rejectSnapshot) {
+      throw const RemoteSharedPackException(
+        RemoteSharedPackFailureReason.remoteRlsRejected,
+      );
+    }
     final itemIds = _packItems[remotePackId] ?? const <String>[];
+    final displayItemIds = itemIds.isEmpty
+        ? <String>['snapshot-item-1', 'snapshot-item-2']
+        : <String>[...itemIds, 'snapshot-extra-item'];
     return RemotePackSnapshot(
       id: remotePackId,
       name: 'Remote POC Pack',
@@ -868,18 +924,36 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
           id: 'member1',
           packId: remotePackId,
           userId: 'profile1',
+          displayName: 'Host Device',
           role: 'host',
+          status: 'active',
+          joinedAt: DateTime(2026, 6, 21),
+        ),
+        RemotePackMemberSnapshot(
+          id: 'member2',
+          packId: remotePackId,
+          userId: 'profile2',
+          role: 'member',
           status: 'active',
           joinedAt: DateTime(2026, 6, 21),
         ),
       ],
       items: [
-        for (final itemId in itemIds)
+        for (final itemId in displayItemIds)
           RemoteItemSnapshot(
             id: itemId,
             packId: remotePackId,
-            title: 'Remote POC Item',
+            title:
+                itemId == 'snapshot-extra-item' || itemId == 'snapshot-item-2'
+                ? 'Remote Extra Item'
+                : 'Remote POC Item',
+            note: itemId == 'snapshot-extra-item' || itemId == 'snapshot-item-2'
+                ? 'No completion yet'
+                : 'Snapshot viewer note',
             status: 'active',
+            assignedToUserId: itemId == 'snapshot-extra-item'
+                ? 'profile2'
+                : null,
             createdByUserId: 'profile1',
             updatedByUserId: 'profile1',
             createdAt: DateTime(2026, 6, 21),
@@ -888,7 +962,7 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
       ],
       completions: [
         for (final entry in _completedItems.entries)
-          if (itemIds.contains(entry.key))
+          if (displayItemIds.contains(entry.key))
             RemoteItemCompletionSnapshot(
               id: entry.value.completionId,
               packId: remotePackId,
@@ -907,6 +981,25 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
           entityId: remotePackId,
           action: 'pack_created',
           createdAt: DateTime(2026, 6, 21),
+        ),
+        RemoteActivityEventSnapshot(
+          id: 'event2',
+          packId: remotePackId,
+          actorUserId: 'profile1',
+          actorDisplayNameSnapshot: 'Host Device',
+          entityType: 'pack_invite',
+          entityId: 'invite1',
+          action: 'invite_created',
+          createdAt: DateTime(2026, 6, 21, 1),
+        ),
+        RemoteActivityEventSnapshot(
+          id: 'event3',
+          packId: remotePackId,
+          actorUserId: 'profile2',
+          entityType: 'item',
+          entityId: displayItemIds.first,
+          action: 'item_completed',
+          createdAt: DateTime(2026, 6, 21, 2),
         ),
       ],
     );

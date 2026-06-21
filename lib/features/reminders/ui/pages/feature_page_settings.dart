@@ -41,6 +41,13 @@ class SettingsPage extends ConsumerWidget {
       data: (bundle) => bundle,
       orElse: () => null,
     );
+    final remotePocSnapshotTargetType =
+        remotePocState.snapshotTargetType ??
+        (remotePocState.lastJoinedRemotePackId != null
+            ? RemotePocSnapshotTargetType.joinedRemotePack
+            : remotePocPackMapping != null
+            ? RemotePocSnapshotTargetType.localMappedPack
+            : null);
 
     return ReminderEditorScaffold(
       title: ReminderUiText.settingsTitle,
@@ -442,6 +449,22 @@ class SettingsPage extends ConsumerWidget {
                       remotePackId: remotePocPackMapping?.remoteEntityId,
                     ),
                   ),
+                ),
+                _RemoteSnapshotViewer(
+                  key: const Key('settings-remote-snapshot-viewer'),
+                  snapshot: remotePocState.lastPulledRemoteSnapshot,
+                  targetType: remotePocSnapshotTargetType,
+                  targetRemotePackId:
+                      remotePocState.lastJoinedRemotePackId ??
+                      remotePocPackMapping?.remoteEntityId,
+                  hasTarget:
+                      remotePocState.lastJoinedRemotePackId != null ||
+                      remotePocPackMapping != null,
+                  lastRefreshAt: remotePocState.lastRefreshAt,
+                  lastRefreshSucceeded: remotePocState.lastRefreshSucceeded,
+                  summary: remotePocState.snapshotSummary,
+                  shortId: _shortUserId,
+                  dateTimeValue: _remotePocDateTimeValue,
                 ),
                 _SettingsReadOnlyRow(
                   key: const Key('settings-debug-date-source'),
@@ -1029,6 +1052,311 @@ class _SettingsInputRow extends StatelessWidget {
         fontWeight: FontWeight.w700,
       ),
       onChanged: onChanged,
+    );
+  }
+}
+
+class _RemoteSnapshotViewer extends StatelessWidget {
+  const _RemoteSnapshotViewer({
+    super.key,
+    required this.snapshot,
+    required this.targetType,
+    required this.targetRemotePackId,
+    required this.hasTarget,
+    required this.lastRefreshAt,
+    required this.lastRefreshSucceeded,
+    required this.summary,
+    required this.shortId,
+    required this.dateTimeValue,
+  });
+
+  final RemotePackSnapshot? snapshot;
+  final RemotePocSnapshotTargetType? targetType;
+  final String? targetRemotePackId;
+  final bool hasTarget;
+  final DateTime? lastRefreshAt;
+  final bool? lastRefreshSucceeded;
+  final RemotePocSnapshotSummary? summary;
+  final String Function(String value) shortId;
+  final String Function(DateTime? value) dateTimeValue;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.reminderPalette;
+    final snapshot = this.snapshot;
+    return Container(
+      key: const Key('settings-remote-snapshot-viewer-container'),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      decoration: BoxDecoration(
+        border: Border.all(color: palette.borderSubtle),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            ReminderUiText.remotePocViewerTitle,
+            key: const Key('settings-remote-snapshot-viewer-title'),
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: palette.textSecondary,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _viewerLine(
+            context,
+            key: const Key('settings-remote-snapshot-target'),
+            label: ReminderUiText.remotePocViewerTargetLabel,
+            value: _targetValue(),
+          ),
+          _viewerLine(
+            context,
+            key: const Key('settings-remote-snapshot-last-refresh'),
+            label: ReminderUiText.remotePocViewerLastRefreshLabel,
+            value: _lastRefreshValue(),
+          ),
+          if (!hasTarget) ...[
+            const SizedBox(height: 8),
+            _viewerMutedText(
+              context,
+              ReminderUiText.remotePocViewerNoTarget,
+              key: const Key('settings-remote-snapshot-no-target'),
+            ),
+          ] else if (snapshot == null) ...[
+            const SizedBox(height: 8),
+            _viewerMutedText(
+              context,
+              ReminderUiText.remotePocViewerNoSnapshot,
+              key: const Key('settings-remote-snapshot-empty'),
+            ),
+          ] else ...[
+            const SizedBox(height: 10),
+            _viewerSectionTitle(
+              context,
+              ReminderUiText.remotePocViewerPackLabel,
+            ),
+            _viewerLine(
+              context,
+              key: const Key('settings-remote-snapshot-pack-name'),
+              label: 'name',
+              value: snapshot.name,
+            ),
+            _viewerLine(
+              context,
+              key: const Key('settings-remote-snapshot-pack-id'),
+              label: 'remote id',
+              value: shortId(snapshot.id),
+            ),
+            _viewerLine(
+              context,
+              key: const Key('settings-remote-snapshot-pack-host'),
+              label: 'host',
+              value: shortId(snapshot.hostUserId),
+            ),
+            _viewerLine(
+              context,
+              key: const Key('settings-remote-snapshot-pack-status'),
+              label: 'status',
+              value: snapshot.status,
+            ),
+            _viewerLine(
+              context,
+              key: const Key('settings-remote-snapshot-pack-updated'),
+              label: 'updated',
+              value: dateTimeValue(snapshot.updatedAt),
+            ),
+            if (summary != null)
+              _viewerLine(
+                context,
+                key: const Key('settings-remote-snapshot-summary-line'),
+                label: 'summary',
+                value:
+                    'members ${summary!.membersCount}, items ${summary!.itemsCount}, completions ${summary!.activeCompletionsCount}, events ${summary!.activityEventsCount}',
+              ),
+            const SizedBox(height: 10),
+            _viewerSectionTitle(
+              context,
+              ReminderUiText.remotePocViewerMembersLabel,
+            ),
+            for (final member in snapshot.members)
+              _viewerBullet(
+                context,
+                key: Key('settings-remote-snapshot-member-${member.id}'),
+                text:
+                    '${member.displayName?.trim().isNotEmpty == true ? member.displayName : shortId(member.userId)} | ${member.role} | ${member.status}',
+              ),
+            const SizedBox(height: 10),
+            _viewerSectionTitle(
+              context,
+              ReminderUiText.remotePocViewerItemsLabel,
+            ),
+            for (final item in snapshot.items)
+              _viewerBullet(
+                context,
+                key: Key('settings-remote-snapshot-item-${item.id}'),
+                text: _itemValue(snapshot, item),
+              ),
+            const SizedBox(height: 10),
+            _viewerSectionTitle(
+              context,
+              ReminderUiText.remotePocViewerActivityLabel,
+            ),
+            for (final event in snapshot.activityEvents.take(10))
+              _viewerBullet(
+                context,
+                key: Key('settings-remote-snapshot-event-${event.id}'),
+                text:
+                    '${event.action} | ${event.entityType} | ${_actorValue(event)} | ${dateTimeValue(event.createdAt)}',
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _targetValue() {
+    final remoteId = targetRemotePackId;
+    if (remoteId == null) {
+      return ReminderUiText.remotePocNoRemoteMapping;
+    }
+    final type = switch (targetType) {
+      RemotePocSnapshotTargetType.joinedRemotePack =>
+        ReminderUiText.remotePocViewerJoinedTarget,
+      RemotePocSnapshotTargetType.localMappedPack =>
+        ReminderUiText.remotePocViewerLocalTarget,
+      null =>
+        hasTarget
+            ? ReminderUiText.remotePocViewerLocalTarget
+            : ReminderUiText.remotePocNoRemoteMapping,
+    };
+    return '$type ${shortId(remoteId)}';
+  }
+
+  String _lastRefreshValue() {
+    if (lastRefreshAt == null) {
+      return ReminderUiText.remotePocNotRun;
+    }
+    final status = lastRefreshSucceeded == false ? 'failed' : 'success';
+    return '$status ${dateTimeValue(lastRefreshAt)}';
+  }
+
+  String _itemValue(RemotePackSnapshot snapshot, RemoteItemSnapshot item) {
+    RemoteItemCompletionSnapshot? completion;
+    for (final entry in snapshot.completions) {
+      if (entry.itemId == item.id && entry.undoneAt == null) {
+        completion = entry;
+        break;
+      }
+    }
+    final note = item.note == null || item.note!.trim().isEmpty
+        ? ''
+        : ' | ${_truncate(item.note!.trim())}';
+    final assigned = item.assignedToUserId == null
+        ? ''
+        : ' | assigned ${shortId(item.assignedToUserId!)}';
+    if (completion == null) {
+      return '${item.title}$note | ${item.status}$assigned | ${ReminderUiText.remotePocViewerIncomplete}';
+    }
+    return '${item.title}$note | ${item.status}$assigned | completed by ${shortId(completion.completedByUserId)} at ${dateTimeValue(completion.completedAt)}';
+  }
+
+  String _actorValue(RemoteActivityEventSnapshot event) {
+    final snapshot = event.actorDisplayNameSnapshot;
+    if (snapshot != null && snapshot.trim().isNotEmpty) {
+      return snapshot;
+    }
+    final actor = event.actorUserId;
+    return actor == null ? '-' : shortId(actor);
+  }
+
+  String _truncate(String value) {
+    return value.length <= 48 ? value : '${value.substring(0, 45)}...';
+  }
+
+  Widget _viewerSectionTitle(BuildContext context, String value) {
+    final palette = context.reminderPalette;
+    return Padding(
+      padding: const EdgeInsets.only(top: 2, bottom: 4),
+      child: Text(
+        value,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: palette.textSecondary,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+
+  Widget _viewerLine(
+    BuildContext context, {
+    required Key key,
+    required String label,
+    required String value,
+  }) {
+    final palette = context.reminderPalette;
+    return Padding(
+      key: key,
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 88,
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: palette.textMuted,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: palette.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _viewerBullet(
+    BuildContext context, {
+    required Key key,
+    required String text,
+  }) {
+    final palette = context.reminderPalette;
+    return Padding(
+      key: key,
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Text(
+        '- $text',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: palette.textPrimary,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Widget _viewerMutedText(
+    BuildContext context,
+    String text, {
+    required Key key,
+  }) {
+    final palette = context.reminderPalette;
+    return Text(
+      text,
+      key: key,
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+        color: palette.textMuted,
+        fontWeight: FontWeight.w700,
+      ),
     );
   }
 }

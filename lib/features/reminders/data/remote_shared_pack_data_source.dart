@@ -359,10 +359,26 @@ RemotePackMemberSnapshot _memberFromRow(Map<String, Object?> row) {
     id: _requiredString(row, 'id'),
     packId: _requiredString(row, 'pack_id'),
     userId: _requiredString(row, 'user_id'),
+    displayName: _optionalDisplayName(row),
     role: _requiredString(row, 'role'),
     status: _requiredString(row, 'status'),
     joinedAt: _requiredDate(row, 'joined_at'),
   );
+}
+
+String? _optionalDisplayName(Map<String, Object?> row) {
+  final direct = row['display_name'];
+  if (direct is String && direct.isNotEmpty) {
+    return direct;
+  }
+  final profile = row['profiles'];
+  if (profile is Map) {
+    final value = profile['display_name'];
+    if (value is String && value.isNotEmpty) {
+      return value;
+    }
+  }
+  return null;
 }
 
 RemoteItemSnapshot _itemFromRow(Map<String, Object?> row) {

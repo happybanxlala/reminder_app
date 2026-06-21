@@ -984,6 +984,165 @@ Expected boundaries:
 
 ### Follow-Up Boundary
 
-- Phase 4B: production-grade invite lifecycle and member management UX.
-- Phase 4C: remote pack listing and explicit local import/merge design.
-- Phase 4D: stronger RLS/RPC hardening, audit review, and invite abuse controls.
+- Phase 4B: developer-only remote snapshot viewer with manual refresh.
+- Phase 4C: remote member actions / local import boundary design.
+- Phase 4D: realtime soft notification or stronger remote collaboration hardening.
+
+## 18. Phase 4B Remote Pack Viewer MVP
+
+Phase 4B upgrades the Phase 4A snapshot summary into a developer-only Remote Pack Viewer inside Settings `Supabase 遠端 POC`.
+
+It is a viewer MVP, not remote sync. It never writes the pulled snapshot into the local Drift database.
+
+### Product Scope
+
+- Display the currently pulled remote pack snapshot in a readable form.
+- Support host flow through local Shared Pack mapping.
+- Support member flow through joined remote pack id from invite join.
+- Support manual refresh only.
+- Keep the surface inside developer/debug Settings; no production remote pack screen.
+
+### Target Strategy
+
+The viewer uses automatic target priority:
+
+1. `joinedRemotePackId` from Phase 4A invite join.
+2. First local active Shared Pack remote mapping (`sync_mappings(pack -> packs)`).
+
+The target state is volatile provider/UI state. It is not written to local DB or backup.
+
+### Displayed Snapshot Fields
+
+Pack:
+
+- name
+- remote pack id short code
+- host user id short code
+- status
+- created / updated timestamp
+
+Members:
+
+- display name when available
+- user id short code fallback
+- role
+- status
+
+Items:
+
+- title
+- short note summary
+- status
+- assigned user id short code when present
+- active completion state
+- completed by user id short code and completed timestamp when completed
+
+Activity:
+
+- recent activity events, capped in Settings to keep the debug surface compact
+- action
+- entity type
+- actor display snapshot or actor id short code
+- created timestamp
+
+The viewer does not show full JSON diffs, invite code values, tokens, credentials, or secrets.
+
+### Manual Refresh Only
+
+`刷新遠端 Snapshot` calls `pullRemotePackSnapshot(remotePackId)` and updates volatile provider state:
+
+- `lastPulledRemoteSnapshot`
+- target type
+- last refresh timestamp
+- last refresh success/failure
+
+Refresh does not:
+
+- create local pack
+- create local items
+- create `sync_mappings`
+- create local completions
+- merge remote completion facts into local history
+- schedule background refresh
+- subscribe to realtime
+
+### Error States
+
+Developer UI should map typed failures into gentle messages:
+
+- Supabase 尚未設定
+- 尚未建立匿名遠端身份
+- 尚未有可讀取的遠端 Pack
+- 遠端 Pack 不存在或你不是 member
+- 遠端資料被 RLS 拒絕
+- 網絡連線失敗
+- 拉取 Snapshot 失敗
+
+### Phase 4B Manual Smoke Test
+
+Supabase setup:
+
+1. 啟用 Anonymous Sign-ins。
+2. Apply `docs/core/sql/phase3c_supabase_minimal_poc.sql`。
+3. Apply `docs/core/sql/phase4a_supabase_invite_membership_mvp.sql`。
+4. 確認 RLS enabled。
+5. 只使用 anon key。
+6. 不使用 service role key。
+
+Host flow:
+
+1. 使用 Device A / simulator A。
+2. 建立 anonymous remote identity。
+3. 建立 Remote Profile。
+4. 準備 local Shared Pack。
+5. 建立 remote pack POC。
+6. 推送 Minimal Items。
+7. 建立 Invite Code。
+8. 按「刷新遠端 Snapshot」。
+9. Viewer 應顯示 pack / members / items / activity。
+
+Member flow:
+
+1. 使用 Device B / simulator B / clean install。
+2. 建立 anonymous remote identity。
+3. 建立 Remote Profile。
+4. 輸入 invite code。
+5. 加入 remote pack。
+6. 按「刷新遠端 Snapshot」。
+7. Viewer 應顯示 pack / members / items / activity。
+8. 完成 Snapshot 第一個 Remote Item POC。
+9. 再按「刷新遠端 Snapshot」。
+10. Viewer 應顯示 completion state / completed_by / completed_at / activity event。
+
+Non-member RLS check:
+
+1. 使用 Device C / clean install。
+2. 建立 anonymous remote identity。
+3. 不加入 invite。
+4. 嘗試用同一 remote pack id 拉 snapshot。
+5. 預期被 RLS 擋下。
+
+Expected boundaries:
+
+- 沒有 local pack 被自動建立。
+- 沒有 local item 被自動建立。
+- Remote snapshot 不 merge local DB。
+- Personal pack 不上傳。
+- Resources / stages 不上傳。
+- 沒有 realtime。
+- 沒有 background sync。
+- 只有手動 refresh。
+
+### Known Limitations
+
+- Viewer is a developer surface, not a production remote pack UI.
+- No remote pack list exists yet.
+- No manual remote pack id selector is implemented.
+- No member management is implemented.
+- No local import / merge policy is implemented.
+
+### Follow-Up Boundary
+
+- Phase 4C can define remote member actions and explicit local import/merge policy.
+- Phase 4D can explore realtime soft notification or stronger RLS/RPC audit hardening.
+- Production remote pack UX remains out of scope until sync and merge rules are designed.
