@@ -385,6 +385,11 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
   }
 
   void _handleRealtimeError(Object error) {
+    final active = _activeRealtimeSubscription;
+    if (active != null && active.isActive) {
+      unawaited(active.unsubscribe());
+    }
+    _activeRealtimeSubscription = null;
     final status =
         error is RemoteSharedPackException &&
             error.reason == RemoteSharedPackFailureReason.supabaseConfigMissing
@@ -392,6 +397,7 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
         : RemoteRealtimeStatus.error;
     state = state.copyWith(
       realtimeStatus: status,
+      clearRealtimeTarget: true,
       lastRealtimeErrorMessage: _realtimeErrorMessage(error),
       lastAction: '遠端變更監聽',
       lastSucceeded: false,

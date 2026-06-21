@@ -598,4 +598,5 @@ $$;
 -- 2. Apply this file manually in SQL editor or local Supabase CLI.
 -- 3. Confirm RLS is enabled on all exposed tables.
 -- 4. Use only the anon key in Flutter via --dart-define.
--- 5. Never place a service role key or secret key in the Flutter app.
+-- 5. Never place privileged backend credentials or server secrets in the
+--    Flutter app.

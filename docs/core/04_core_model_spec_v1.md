@@ -11,7 +11,7 @@ Last aligned with repository contents on 2026-06-14.
 
 ## Supabase Remote Model
 
-Supabase remote data model, RLS policy draft, Phase 3A boundary, Phase 3B anonymous identity bridge, Phase 3C Remote Shared Pack Minimal POC, Phase 3D developer smoke-test surface, Phase 4A remote invite-code membership MVP, Phase 4B developer-only Remote Pack Viewer MVP, Phase 4C remote member actions MVP, and Phase 4D realtime soft notification POC are documented in:
+Supabase remote data model, RLS policy draft, Phase 3A boundary, Phase 3B anonymous identity bridge, Phase 3C Remote Shared Pack Minimal POC, Phase 3D developer smoke-test surface, Phase 4A remote invite-code membership MVP, Phase 4B developer-only Remote Pack Viewer MVP, Phase 4C remote member actions MVP, Phase 4D realtime soft notification POC, and Phase 4E remote collaboration hardening are documented in:
 
 - `docs/core/06_supabase_remote_model_spec.md`
 
@@ -1312,6 +1312,20 @@ Phase 4D adds developer-only realtime soft notification for the Remote Pack Snap
 #### 非目標
 
 - 不新增 auto refresh、full sync、background sync、local merge、production realtime UI、resource / stage remote sync、widget 行為變更、Drift schema change 或 backup schema change。
+
+### 2.23 Phase 4E：Remote Collaboration Hardening
+
+Phase 4E hardens the developer-only remote collaboration POC.
+
+#### 已實作行為
+
+- Phase 4E reviews and documents SQL apply order for Phase 3C / 4A / 4C / 4D / 4E manual Supabase scripts.
+- Phase 4E tightens RPC / Dart contract mapping, RLS assumptions, invite-code secrecy, realtime advisory-only behavior, manual smoke test flow, and developer debug UI safety.
+- Phase 4E adds a manual smoke test log template for Device A host, Device B member, and Device C non-member RLS checks.
+
+#### 非目標
+
+- 不新增 full sync、realtime sync、auto refresh、local import、local merge、production remote UI、resource / stage remote sync、automatic upload、widget 行為變更、Drift schema change 或 backup schema change。
 
 ## 3. 跨 Domain 行為
 

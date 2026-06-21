@@ -716,6 +716,53 @@ void main() {
     },
   );
 
+  testWidgets('developer remote realtime error clears active subscription', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    await _seedSharedPackForRemotePoc(db);
+    final fakeRemote = _FakeRemoteSharedPackDataSource();
+    final fakeRealtime = _FakeRemoteSharedPackRealtimeDataSource();
+
+    await _pumpSettings(
+      tester,
+      developerVisible: true,
+      database: db,
+      extraOverrides: [
+        authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+        remoteSharedPackDataSourceProvider.overrideWithValue(fakeRemote),
+        remoteSharedPackRealtimeDataSourceProvider.overrideWithValue(
+          fakeRealtime,
+        ),
+      ],
+    );
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-poc-create-pack-row'),
+    );
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-realtime-subscribe-row'),
+    );
+    expect(fakeRealtime.subscribeCalls, 1);
+    expect(find.text('已訂閱'), findsWidgets);
+
+    fakeRealtime.emitError(
+      const RemoteSharedPackException(
+        RemoteSharedPackFailureReason.remoteNetworkFailed,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(fakeRealtime.unsubscribeCalls, 1);
+    expect(find.text('錯誤'), findsWidgets);
+    expect(find.text('網絡連線失敗'), findsWidgets);
+    expect(find.text(ReminderUiText.remotePocRealtimeNoTarget), findsWidgets);
+    expect(fakeRemote.snapshotCalls, 0);
+  });
+
   testWidgets('developer remote realtime retargets and disposes subscription', (
     tester,
   ) async {

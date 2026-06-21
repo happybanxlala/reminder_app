@@ -94,6 +94,12 @@ void main() {
     expect(source, isNot(contains('session')));
     expect(source, isNot(contains('service_role')));
     expect(source, isNot(contains('secret')));
+    expect(source, isNot(contains('ABCD-1234-EFGH')));
+    expect(source, isNot(contains('Invite Code')));
+    expect(source, isNot(contains('remoteChangeCount')));
+    expect(source, isNot(contains('hasRemoteChanges')));
+    expect(source, isNot(contains('realtimeStatus')));
+    expect(source, isNot(contains('lastRemoteChange')));
     expect(source, contains('supabase-user-backup'));
     expect(source, contains('supabase_anonymous'));
   });

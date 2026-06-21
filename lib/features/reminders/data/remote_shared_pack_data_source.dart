@@ -297,7 +297,7 @@ class SupabaseRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
           .single();
       final members = await _client
           .from('pack_members')
-          .select()
+          .select('*, profiles(display_name)')
           .eq('pack_id', remotePackId)
           .order('joined_at');
       final items = await _client
@@ -539,7 +539,7 @@ Map<String, Object?>? _jsonMap(Object? value) {
   );
 }
 
-RemoteSharedPackException _mapError(
+RemoteSharedPackException mapRemoteSharedPackError(
   Object error,
   RemoteSharedPackFailureReason fallback,
 ) {
@@ -555,6 +555,25 @@ RemoteSharedPackException _mapError(
       );
     }
     final message = error.message.toLowerCase();
+    if (message.contains('auth required')) {
+      return RemoteSharedPackException(
+        RemoteSharedPackFailureReason.remoteAuthRequired,
+        error,
+      );
+    }
+    if (message.contains('profile required')) {
+      return RemoteSharedPackException(
+        RemoteSharedPackFailureReason.remoteProfileFailed,
+        error,
+      );
+    }
+    if (message.contains('active pack member required') ||
+        message.contains('item not found')) {
+      return RemoteSharedPackException(
+        RemoteSharedPackFailureReason.remoteRlsRejected,
+        error,
+      );
+    }
     if (message.contains('invite expired')) {
       return RemoteSharedPackException(
         RemoteSharedPackFailureReason.remoteInviteExpired,
@@ -588,4 +607,11 @@ RemoteSharedPackException _mapError(
     return RemoteSharedPackException(fallback, error);
   }
   return RemoteSharedPackException(fallback, error);
+}
+
+RemoteSharedPackException _mapError(
+  Object error,
+  RemoteSharedPackFailureReason fallback,
+) {
+  return mapRemoteSharedPackError(error, fallback);
 }

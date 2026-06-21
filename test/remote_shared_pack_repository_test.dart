@@ -12,6 +12,7 @@ import 'package:reminder_app/features/reminders/data/shared_pack_repository.dart
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/shared_pack.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
   test(
@@ -458,6 +459,72 @@ void main() {
     expect(
       result.failureReason,
       RemoteSharedPackFailureReason.remoteRlsRejected,
+    );
+  });
+
+  test('PostgREST RPC errors map to typed remote failures', () {
+    expect(
+      mapRemoteSharedPackError(
+        const PostgrestException(message: 'auth required'),
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+      ).reason,
+      RemoteSharedPackFailureReason.remoteAuthRequired,
+    );
+    expect(
+      mapRemoteSharedPackError(
+        const PostgrestException(message: 'profile required'),
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+      ).reason,
+      RemoteSharedPackFailureReason.remoteProfileFailed,
+    );
+    expect(
+      mapRemoteSharedPackError(
+        const PostgrestException(message: 'active pack member required'),
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+      ).reason,
+      RemoteSharedPackFailureReason.remoteRlsRejected,
+    );
+    expect(
+      mapRemoteSharedPackError(
+        const PostgrestException(message: 'invite invalid'),
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+      ).reason,
+      RemoteSharedPackFailureReason.remoteInviteInvalid,
+    );
+    expect(
+      mapRemoteSharedPackError(
+        const PostgrestException(message: 'invite expired'),
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+      ).reason,
+      RemoteSharedPackFailureReason.remoteInviteExpired,
+    );
+    expect(
+      mapRemoteSharedPackError(
+        const PostgrestException(message: 'invite max uses reached'),
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+      ).reason,
+      RemoteSharedPackFailureReason.remoteInviteMaxUsesReached,
+    );
+    expect(
+      mapRemoteSharedPackError(
+        const PostgrestException(message: 'pack host required'),
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+      ).reason,
+      RemoteSharedPackFailureReason.remoteInviteNotHost,
+    );
+    expect(
+      mapRemoteSharedPackError(
+        const PostgrestException(message: 'permission denied', code: '42501'),
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+      ).reason,
+      RemoteSharedPackFailureReason.remoteRlsRejected,
+    );
+    expect(
+      mapRemoteSharedPackError(
+        const PostgrestException(message: 'unexpected remote failure'),
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+      ).reason,
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
     );
   });
 }

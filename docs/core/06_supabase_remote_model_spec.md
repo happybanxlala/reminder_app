@@ -1484,3 +1484,178 @@ Expected boundaries:
 
 - Phase 5 can decide whether remote snapshots ever become local imports.
 - Production realtime design should review RLS, Realtime authorization, audit semantics, and notification UX separately.
+
+## 21. Phase 4E Remote Collaboration Hardening
+
+Phase 4E hardens the developer-only remote collaboration POC. It does not add new collaboration features.
+
+Goal:
+
+```text
+Make the existing remote collaboration POC reliable.
+```
+
+### Product Scope
+
+- Review Supabase SQL apply order and idempotency.
+- Align RPC return shape with Flutter DTO parsing.
+- Document RLS boundaries for members, non-members, removed members, invites, item completion, undo, and realtime activity signals.
+- Harden realtime soft notification as advisory state only.
+- Tighten developer debug UI friendly failure states.
+- Provide an integrated manual smoke test and result log template.
+
+### SQL Apply Order
+
+Manual apply order for a Supabase dev project:
+
+1. `docs/core/sql/phase3c_supabase_minimal_poc.sql`
+2. `docs/core/sql/phase4a_supabase_invite_membership_mvp.sql`
+3. `docs/core/sql/phase4c_supabase_remote_member_actions_mvp.sql`
+4. `docs/core/sql/phase4d_supabase_realtime_soft_notification_poc.sql`
+5. `docs/core/sql/phase4e_supabase_remote_collaboration_hardening.sql`
+
+Phase 4E adds an idempotent Realtime publication setup guard for `public.activity_events`. It does not create new tables, resource sync, stage sync, local import, or production UI.
+
+### RPC Contract Checklist
+
+- `upsert_current_profile` uses `auth.uid()` and returns the current remote profile id.
+- `create_shared_pack` uses `auth.uid()` as host and writes `pack_created`.
+- `create_pack_item` verifies active membership, uses `auth.uid()` for creator/updater, and writes `item_created`.
+- `complete_pack_item` verifies active membership, uses `auth.uid()` as `completed_by_user_id`, returns `completed / already_completed`, writes `item_completed`, and relies on the active-completion unique index.
+- `undo_pack_item_completion` verifies active membership, returns `undone / already_not_completed`, writes `undone_by_user_id` / `undone_at`, writes `item_undone`, and does not delete completion history.
+- `create_pack_invite` is host-only and returns plaintext invite code once; database stores only `code_hash`.
+- `join_pack_with_invite` returns `joined / already_member`; a removed member can rejoin only through a valid active invite.
+- `revoke_pack_invite` returns `revoked / already_revoked`.
+- RPCs must not accept client-supplied actor ids.
+
+### RLS Checklist
+
+- `profiles`: user can read/write self; active pack members can read active co-members.
+- `packs`: active members can read; host can update/archive; no hard delete policy.
+- `pack_members`: active members can read same pack; host manages members; join goes through invite RPC.
+- `items`: active members can read/create/update allowed fields; completion permission is not limited by `assigned_to_user_id`.
+- `item_completions`: active members can read; complete/undo are RPC-controlled; no hard delete policy.
+- `pack_invites`: host can select/manage; plaintext invite code is never stored; join goes through RPC.
+- `activity_events`: active members can read; POC inserts require active membership and `actor_user_id = auth.uid()`; long-term production should move shared writes behind stricter RPC/trigger paths.
+
+Removed members are not active members and must not read or mutate pack data. A removed member may become active again only by successfully using a valid invite through `join_pack_with_invite`.
+
+### Realtime Advisory Checklist
+
+- App startup does not subscribe.
+- User explicitly starts and stops realtime in developer Settings.
+- Duplicate subscribe for the same target is a no-op.
+- Retargeting removes the old subscription before creating a new one.
+- Provider/controller dispose removes active subscription.
+- Incoming signal only updates volatile advisory state: change flag, count, last action, actor, and received time.
+- Incoming signal does not pull snapshot, mutate viewer items, write local DB, create `sync_mappings`, or enter backup.
+- Successful manual snapshot refresh clears the advisory change flag and count.
+- Snapshot fetch remains the source of truth and remains RLS-gated.
+
+### Phase 4E Integrated Manual Smoke Test
+
+Supabase setup:
+
+1. 建立 Supabase dev project。
+2. 啟用 Anonymous Sign-ins。
+3. Apply `docs/core/sql/phase3c_supabase_minimal_poc.sql`。
+4. Apply `docs/core/sql/phase4a_supabase_invite_membership_mvp.sql`。
+5. Apply `docs/core/sql/phase4c_supabase_remote_member_actions_mvp.sql`。
+6. Apply `docs/core/sql/phase4d_supabase_realtime_soft_notification_poc.sql`。
+7. Apply `docs/core/sql/phase4e_supabase_remote_collaboration_hardening.sql`。
+8. 確認 RLS enabled。
+9. 確認 `activity_events` Realtime publication enabled。
+10. Flutter app 只使用 `SUPABASE_URL` / `SUPABASE_ANON_KEY`。
+11. 不使用 service role key。
+
+Device A / Host flow:
+
+1. 使用 Device A / simulator A。
+2. `flutter run --dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=...`。
+3. 建立 anonymous remote identity。
+4. 建立 Remote Profile。
+5. 準備一個 local Shared Pack。
+6. 建立 remote shared pack POC。
+7. 推送 Minimal Items POC。
+8. 建立 Invite Code POC。
+9. 刷新 Remote Snapshot viewer。
+10. 確認 viewer 顯示 pack / members / items / activity。
+11. 開始監聽遠端變更 POC。
+12. 確認 realtime status = subscribed。
+
+Device B / Member flow:
+
+1. 使用 Device B / simulator B / clean install。
+2. 使用同一 Supabase dev project。
+3. 建立 anonymous remote identity。
+4. 建立 Remote Profile。
+5. 輸入 Device A 的 invite code。
+6. 加入遠端 Pack POC。
+7. 刷新 Remote Snapshot viewer。
+8. 確認 viewer 顯示同一個 pack / items / members。
+9. 選擇一個未完成 remote item。
+10. 完成選擇的 Remote Item。
+11. 刷新 viewer。
+12. 確認 item `completed_by` = Device B remote user。
+13. 復原選擇的 Remote Item。
+14. 刷新 viewer。
+15. 確認 item 回到未完成。
+16. 確認 activity 有 `item_completed` / `item_undone`。
+
+Device A verification:
+
+1. Device B complete item 後，Device A 應收到「遠端有新變更」。
+2. Device A 不應自動改 item state。
+3. Device A 手動刷新 Snapshot。
+4. Device A 應看到 Device B `completed_by`。
+5. Device B undo 後，Device A 應再次收到「遠端有新變更」。
+6. Device A 手動刷新後 item 回到未完成。
+7. Activity history 保留 completed / undone events。
+
+Device C / Non-member RLS test:
+
+1. 使用 Device C / simulator C / clean install。
+2. 建立 anonymous remote identity。
+3. 建立 Remote Profile。
+4. 不輸入 invite code。
+5. 嘗試拉 Device A remote pack snapshot。
+6. 預期被 RLS 擋下。
+7. 嘗試 complete Device A remote item。
+8. 預期被 RLS 擋下。
+9. 嘗試 undo Device A remote item。
+10. 預期被 RLS 擋下。
+11. 嘗試 subscribe Device A pack activity events。
+12. 預期不應收到 signal，或 subscription/query 被 RLS 擋下。
+
+Expected boundaries:
+
+- Personal pack 不自動上傳。
+- Local pack 不自動建立。
+- Local items 不自動建立。
+- Remote snapshot 不 merge local DB。
+- Remote complete / undo 不改 local completion history。
+- Realtime signal 不 auto refresh。
+- Realtime signal 不改 viewer state。
+- 只有 manual refresh 會重新拉 snapshot。
+- Backup 不包含 token/session/credential/invite code/realtime volatile state。
+- Resources / stages 不上傳。
+- Widget 行為不變。
+
+### Smoke Test Log Template
+
+Manual test results should be recorded in:
+
+```text
+docs/core/manual_tests/phase4e_remote_collaboration_smoke_test.md
+```
+
+### Known Limitations
+
+- Supabase SQL remains manually applied and must be verified in SQL editor or local Supabase CLI.
+- RLS and Realtime authorization behavior require real Supabase smoke testing.
+- Developer Settings remains a POC surface, not production remote collaboration UI.
+- No local import, automatic merge, background sync, formal invite UI, resource sync, or stage sync exists.
+
+### Phase 5 Boundary
+
+Phase 5 may decide whether remote snapshots become local imports, whether activity writes move fully behind RPC/trigger paths, and whether realtime becomes production notification UX. Those decisions are intentionally outside Phase 4E.
