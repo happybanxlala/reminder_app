@@ -8,6 +8,7 @@ import 'package:reminder_app/features/reminders/data/identity_repository.dart';
 import 'package:reminder_app/features/reminders/data/item_repository.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/pack_template_repository.dart';
+import 'package:reminder_app/features/reminders/data/remote_sync_repository.dart';
 import 'package:reminder_app/features/reminders/data/reminder_backup_service.dart';
 import 'package:reminder_app/features/reminders/data/resource_repository.dart';
 import 'package:reminder_app/features/reminders/data/shared_pack_repository.dart';
@@ -15,6 +16,7 @@ import 'package:reminder_app/features/reminders/data/stage_tracker_models.dart';
 import 'package:reminder_app/features/reminders/data/stage_tracker_repository.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
+import 'package:reminder_app/features/reminders/domain/remote_sync.dart';
 import 'package:reminder_app/features/reminders/domain/resource.dart';
 import 'package:reminder_app/features/reminders/domain/shared_pack.dart';
 import 'package:reminder_app/features/reminders/domain/stage_occurrence.dart';
@@ -100,6 +102,12 @@ void main() {
     expect(source, isNot(contains('hasRemoteChanges')));
     expect(source, isNot(contains('realtimeStatus')));
     expect(source, isNot(contains('lastRemoteChange')));
+    expect(source, isNot(contains('remote_pack_sync_metadata')));
+    expect(source, isNot(contains('remote_item_sync_metadata')));
+    expect(source, isNot(contains('remote_completion_sync_metadata')));
+    expect(source, isNot(contains('sync_outbox')));
+    expect(source, isNot(contains('phase5b-pending-mutation')));
+    expect(source, isNot(contains('remote-pack-phase5b')));
     expect(source, contains('supabase-user-backup'));
     expect(source, contains('supabase_anonymous'));
   });
@@ -272,6 +280,19 @@ void main() {
     expect(identity.remoteUserId, 'supabase-user-restore-reference');
     expect(identity.remoteProvider, AuthProviderType.supabaseAnonymous);
     expect(installations, isNotEmpty);
+    expect(
+      await targetDb.select(targetDb.remotePackSyncMetadata).get(),
+      isEmpty,
+    );
+    expect(
+      await targetDb.select(targetDb.remoteItemSyncMetadata).get(),
+      isEmpty,
+    );
+    expect(
+      await targetDb.select(targetDb.remoteCompletionSyncMetadata).get(),
+      isEmpty,
+    );
+    expect(await targetDb.select(targetDb.syncOutbox).get(), isEmpty);
   });
 
   test('import accepts v1 backup without shared pack metadata', () async {
@@ -321,6 +342,10 @@ void main() {
       (await db.reminderDao.getAppSettings()).notificationReminderTime,
       '09:00',
     );
+    expect(await db.select(db.remotePackSyncMetadata).get(), isEmpty);
+    expect(await db.select(db.remoteItemSyncMetadata).get(), isEmpty);
+    expect(await db.select(db.remoteCompletionSyncMetadata).get(), isEmpty);
+    expect(await db.select(db.syncOutbox).get(), isEmpty);
   });
 }
 
@@ -366,6 +391,43 @@ Future<void> _seedUserData(AppDatabase db) async {
     itemId,
     doneAt: DateTime(2026, 6, 4),
     actorUserId: AppDatabase.defaultMemberUserId,
+  );
+  final completion = (await db.reminderDao.listItemCompletions(itemId)).single;
+  final remoteSyncRepository = RemoteSyncRepository(
+    db.reminderDao,
+    clock: () => DateTime(2026, 6, 4),
+  );
+  await remoteSyncRepository.createRemoteBackedPackMetadata(
+    localPackId: packId,
+    remotePackId: 'remote-pack-phase5b',
+    currentUserRemoteRole: RemoteUserRole.host,
+    currentUserRemoteStatus: RemoteUserStatus.active,
+  );
+  await remoteSyncRepository.createRemoteItemMetadata(
+    localItemId: itemId,
+    localPackId: packId,
+    remoteItemId: 'remote-item-phase5b',
+    remotePackId: 'remote-pack-phase5b',
+  );
+  await remoteSyncRepository.createCompletionSyncMetadata(
+    localCompletionId: completion.id,
+    localItemId: itemId,
+    localPackId: packId,
+    remoteItemId: 'remote-item-phase5b',
+    remotePackId: 'remote-pack-phase5b',
+    clientMutationId: 'phase5b-completion-metadata',
+  );
+  await remoteSyncRepository.enqueuePendingMutation(
+    localPackId: packId,
+    remotePackId: 'remote-pack-phase5b',
+    localEntityType: 'item',
+    localEntityId: itemId,
+    remoteEntityId: 'remote-item-phase5b',
+    actionType: SyncOutboxActionType.completeItem,
+    payloadJson: '{"action":"complete"}',
+    clientMutationId: 'phase5b-pending-mutation',
+    actorLocalUserId: AppDatabase.defaultMemberUserId,
+    actorRemoteUserId: 'supabase-user-backup',
   );
   final resourceId = await resourceRepository.createResource(
     ResourceInput(

@@ -402,6 +402,126 @@ class SyncMappings extends Table {
   ];
 }
 
+@DataClassName('RemotePackSyncMetadataRow')
+class RemotePackSyncMetadata extends Table {
+  @override
+  String get tableName => 'remote_pack_sync_metadata';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get localPackId => integer().references(ItemPacks, #id)();
+  TextColumn get remotePackId => text()();
+  TextColumn get syncKind => text()();
+  TextColumn get syncState => text()();
+  TextColumn get currentUserRemoteRole => text().nullable()();
+  TextColumn get currentUserRemoteStatus => text().nullable()();
+  IntColumn get lastRemoteSnapshotAt => integer().nullable()();
+  IntColumn get lastSuccessfulSyncAt => integer().nullable()();
+  TextColumn get lastSyncError => text().nullable()();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+  IntColumn get removedAt => integer().nullable()();
+  IntColumn get accessLostAt => integer().nullable()();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+    {localPackId},
+    {remotePackId},
+  ];
+}
+
+@DataClassName('RemoteItemSyncMetadataRow')
+class RemoteItemSyncMetadata extends Table {
+  @override
+  String get tableName => 'remote_item_sync_metadata';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get localItemId => integer().references(Items, #id)();
+  IntColumn get localPackId => integer().references(ItemPacks, #id)();
+  TextColumn get remoteItemId => text()();
+  TextColumn get remotePackId => text()();
+  TextColumn get syncState => text()();
+  TextColumn get remoteStatus => text().nullable()();
+  IntColumn get remoteUpdatedAt => integer().nullable()();
+  IntColumn get lastPulledAt => integer().nullable()();
+  IntColumn get lastPushedAt => integer().nullable()();
+  TextColumn get lastSyncError => text().nullable()();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+  IntColumn get archivedAt => integer().nullable()();
+  IntColumn get deletedAt => integer().nullable()();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+    {localItemId},
+    {remoteItemId},
+  ];
+}
+
+@DataClassName('RemoteCompletionSyncMetadataRow')
+class RemoteCompletionSyncMetadata extends Table {
+  @override
+  String get tableName => 'remote_completion_sync_metadata';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get localCompletionId =>
+      integer().nullable().references(ItemCompletions, #id)();
+  IntColumn get localItemId => integer().references(Items, #id)();
+  IntColumn get localPackId => integer().references(ItemPacks, #id)();
+  TextColumn get remoteCompletionId => text().nullable()();
+  TextColumn get remoteItemId => text()();
+  TextColumn get remotePackId => text()();
+  TextColumn get syncState => text()();
+  TextColumn get completionState => text()();
+  TextColumn get clientMutationId => text().nullable()();
+  TextColumn get remoteCompletedByUserId => text().nullable()();
+  IntColumn get remoteCompletedAt => integer().nullable()();
+  TextColumn get remoteUndoneByUserId => text().nullable()();
+  IntColumn get remoteUndoneAt => integer().nullable()();
+  IntColumn get lastPulledAt => integer().nullable()();
+  IntColumn get lastPushedAt => integer().nullable()();
+  TextColumn get lastSyncError => text().nullable()();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+    {localCompletionId},
+    {remoteCompletionId},
+  ];
+}
+
+@DataClassName('SyncOutboxRow')
+class SyncOutbox extends Table {
+  @override
+  String get tableName => 'sync_outbox';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get localPackId => integer().references(ItemPacks, #id)();
+  TextColumn get remotePackId => text().nullable()();
+  TextColumn get localEntityType => text()();
+  IntColumn get localEntityId => integer().nullable()();
+  TextColumn get remoteEntityId => text().nullable()();
+  TextColumn get actionType => text()();
+  TextColumn get payloadJson => text()();
+  TextColumn get clientMutationId => text()();
+  TextColumn get actorLocalUserId => text().references(LocalUsers, #id)();
+  TextColumn get actorRemoteUserId => text().nullable()();
+  TextColumn get baseRemoteVersion => text().nullable()();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+  TextColumn get status => text()();
+  IntColumn get retryCount => integer().withDefault(const Constant(0))();
+  IntColumn get lastAttemptAt => integer().nullable()();
+  TextColumn get lastError => text().nullable()();
+  IntColumn get resolvedAt => integer().nullable()();
+  IntColumn get cancelledAt => integer().nullable()();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+    {clientMutationId},
+  ];
+}
+
 @DataClassName('AppSettingsRow')
 class AppSettingsEntries extends Table {
   @override

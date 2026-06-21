@@ -31,6 +31,13 @@ mixin _$ReminderDaoMixin on DatabaseAccessor<AppDatabase> {
       attachedDatabase.stageAcknowledgements;
   $ActivityEventsTable get activityEvents => attachedDatabase.activityEvents;
   $SyncMappingsTable get syncMappings => attachedDatabase.syncMappings;
+  $RemotePackSyncMetadataTable get remotePackSyncMetadata =>
+      attachedDatabase.remotePackSyncMetadata;
+  $RemoteItemSyncMetadataTable get remoteItemSyncMetadata =>
+      attachedDatabase.remoteItemSyncMetadata;
+  $RemoteCompletionSyncMetadataTable get remoteCompletionSyncMetadata =>
+      attachedDatabase.remoteCompletionSyncMetadata;
+  $SyncOutboxTable get syncOutbox => attachedDatabase.syncOutbox;
   $AppSettingsEntriesTable get appSettingsEntries =>
       attachedDatabase.appSettingsEntries;
   ReminderDaoManager get managers => ReminderDaoManager(this);
@@ -109,6 +116,24 @@ class ReminderDaoManager {
       );
   $$SyncMappingsTableTableManager get syncMappings =>
       $$SyncMappingsTableTableManager(_db.attachedDatabase, _db.syncMappings);
+  $$RemotePackSyncMetadataTableTableManager get remotePackSyncMetadata =>
+      $$RemotePackSyncMetadataTableTableManager(
+        _db.attachedDatabase,
+        _db.remotePackSyncMetadata,
+      );
+  $$RemoteItemSyncMetadataTableTableManager get remoteItemSyncMetadata =>
+      $$RemoteItemSyncMetadataTableTableManager(
+        _db.attachedDatabase,
+        _db.remoteItemSyncMetadata,
+      );
+  $$RemoteCompletionSyncMetadataTableTableManager
+  get remoteCompletionSyncMetadata =>
+      $$RemoteCompletionSyncMetadataTableTableManager(
+        _db.attachedDatabase,
+        _db.remoteCompletionSyncMetadata,
+      );
+  $$SyncOutboxTableTableManager get syncOutbox =>
+      $$SyncOutboxTableTableManager(_db.attachedDatabase, _db.syncOutbox);
   $$AppSettingsEntriesTableTableManager get appSettingsEntries =>
       $$AppSettingsEntriesTableTableManager(
         _db.attachedDatabase,

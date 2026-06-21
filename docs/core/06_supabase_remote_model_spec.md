@@ -1659,3 +1659,5 @@ docs/core/manual_tests/phase4e_remote_collaboration_smoke_test.md
 ### Phase 5 Boundary
 
 Phase 5 may decide whether remote snapshots become local imports, whether activity writes move fully behind RPC/trigger paths, and whether realtime becomes production notification UX. Those decisions are intentionally outside Phase 4E.
+
+Phase 3C-4E define remote POC and collaboration primitives. Phase 5A moves toward remote-backed shared packs as app-level local-first data. Detailed local mirror / outbox / conflict / widget / notification / backup strategy lives in `docs/core/07_remote_backed_shared_pack_sync_spec.md`.

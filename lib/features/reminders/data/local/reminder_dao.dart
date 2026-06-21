@@ -13,6 +13,7 @@ import '../../domain/stage_record.dart';
 import '../../domain/stage_related_item.dart';
 import '../../domain/stage_rule.dart';
 import '../../domain/stage_tracker.dart';
+import '../../domain/remote_sync.dart';
 import 'app_database.dart';
 import 'tables.dart';
 
@@ -192,6 +193,10 @@ class StageRelatedItemEntry {
     StageAcknowledgements,
     ActivityEvents,
     SyncMappings,
+    RemotePackSyncMetadata,
+    RemoteItemSyncMetadata,
+    RemoteCompletionSyncMetadata,
+    SyncOutbox,
     AppSettingsEntries,
   ],
 )
@@ -370,6 +375,148 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
       syncMappings,
     )..where((t) => t.id.equals(existing.id))).write(entry);
     return existing.id;
+  }
+
+  Future<int> insertRemotePackSyncMetadata(
+    RemotePackSyncMetadataCompanion entry,
+  ) {
+    return into(remotePackSyncMetadata).insert(entry);
+  }
+
+  Future<RemotePackSyncMetadataEntry?> getRemotePackSyncMetadataForLocalPack(
+    int localPackId,
+  ) async {
+    final row = await (select(
+      remotePackSyncMetadata,
+    )..where((t) => t.localPackId.equals(localPackId))).getSingleOrNull();
+    return row == null ? null : _toRemotePackSyncMetadata(row);
+  }
+
+  Future<RemotePackSyncMetadataEntry?> getRemotePackSyncMetadataForRemotePack(
+    String remotePackId,
+  ) async {
+    final row = await (select(
+      remotePackSyncMetadata,
+    )..where((t) => t.remotePackId.equals(remotePackId))).getSingleOrNull();
+    return row == null ? null : _toRemotePackSyncMetadata(row);
+  }
+
+  Stream<RemotePackSyncMetadataEntry?> watchRemotePackSyncMetadataForLocalPack(
+    int localPackId,
+  ) {
+    return (select(remotePackSyncMetadata)
+          ..where((t) => t.localPackId.equals(localPackId)))
+        .watchSingleOrNull()
+        .map((row) => row == null ? null : _toRemotePackSyncMetadata(row));
+  }
+
+  Future<bool> updateRemotePackSyncMetadata(
+    int id,
+    RemotePackSyncMetadataCompanion entry,
+  ) async {
+    return (await (update(
+          remotePackSyncMetadata,
+        )..where((t) => t.id.equals(id))).write(entry)) >
+        0;
+  }
+
+  Future<int> insertRemoteItemSyncMetadata(
+    RemoteItemSyncMetadataCompanion entry,
+  ) {
+    return into(remoteItemSyncMetadata).insert(entry);
+  }
+
+  Future<RemoteItemSyncMetadataEntry?> getRemoteItemSyncMetadataForLocalItem(
+    int localItemId,
+  ) async {
+    final row = await (select(
+      remoteItemSyncMetadata,
+    )..where((t) => t.localItemId.equals(localItemId))).getSingleOrNull();
+    return row == null ? null : _toRemoteItemSyncMetadata(row);
+  }
+
+  Future<RemoteItemSyncMetadataEntry?> getRemoteItemSyncMetadataForRemoteItem(
+    String remoteItemId,
+  ) async {
+    final row = await (select(
+      remoteItemSyncMetadata,
+    )..where((t) => t.remoteItemId.equals(remoteItemId))).getSingleOrNull();
+    return row == null ? null : _toRemoteItemSyncMetadata(row);
+  }
+
+  Future<bool> updateRemoteItemSyncMetadata(
+    int id,
+    RemoteItemSyncMetadataCompanion entry,
+  ) async {
+    return (await (update(
+          remoteItemSyncMetadata,
+        )..where((t) => t.id.equals(id))).write(entry)) >
+        0;
+  }
+
+  Future<int> insertRemoteCompletionSyncMetadata(
+    RemoteCompletionSyncMetadataCompanion entry,
+  ) {
+    return into(remoteCompletionSyncMetadata).insert(entry);
+  }
+
+  Future<RemoteCompletionSyncMetadataEntry?>
+  getRemoteCompletionSyncMetadataById(int id) async {
+    final row = await (select(
+      remoteCompletionSyncMetadata,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _toRemoteCompletionSyncMetadata(row);
+  }
+
+  Future<bool> updateRemoteCompletionSyncMetadata(
+    int id,
+    RemoteCompletionSyncMetadataCompanion entry,
+  ) async {
+    return (await (update(
+          remoteCompletionSyncMetadata,
+        )..where((t) => t.id.equals(id))).write(entry)) >
+        0;
+  }
+
+  Future<int> insertSyncOutbox(SyncOutboxCompanion entry) {
+    return into(syncOutbox).insert(entry);
+  }
+
+  Future<List<SyncOutboxEntry>> listPendingSyncOutboxEntries() async {
+    final rows =
+        await (select(syncOutbox)
+              ..where(
+                (t) => t.status.equals(SyncOutboxStatus.pending.storageValue),
+              )
+              ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+            .get();
+    return rows.map(_toSyncOutboxEntry).toList(growable: false);
+  }
+
+  Stream<List<SyncOutboxEntry>> watchSyncOutboxEntriesForPack(int localPackId) {
+    return (select(syncOutbox)
+          ..where(
+            (t) =>
+                t.localPackId.equals(localPackId) &
+                t.status.equals(SyncOutboxStatus.pending.storageValue),
+          )
+          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+        .watch()
+        .map((rows) => rows.map(_toSyncOutboxEntry).toList(growable: false));
+  }
+
+  Future<SyncOutboxEntry?> getSyncOutboxEntryById(int id) async {
+    final row = await (select(
+      syncOutbox,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _toSyncOutboxEntry(row);
+  }
+
+  Future<bool> updateSyncOutboxEntry(int id, SyncOutboxCompanion entry) async {
+    return (await (update(
+          syncOutbox,
+        )..where((t) => t.id.equals(id))).write(entry)) >
+        0;
   }
 
   Future<BackupData> exportBackupData() async {
@@ -2523,6 +2670,10 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
   ];
 
   Future<void> _clearUserData() async {
+    await customStatement('DELETE FROM sync_outbox');
+    await customStatement('DELETE FROM remote_completion_sync_metadata');
+    await customStatement('DELETE FROM remote_item_sync_metadata');
+    await customStatement('DELETE FROM remote_pack_sync_metadata');
     await customStatement('DELETE FROM sync_mappings');
     await customStatement('DELETE FROM activity_events');
     await customStatement('DELETE FROM stage_acknowledgements');
@@ -3078,6 +3229,108 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
       createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
     );
+  }
+
+  RemotePackSyncMetadataEntry _toRemotePackSyncMetadata(
+    RemotePackSyncMetadataRow row,
+  ) {
+    return RemotePackSyncMetadataEntry(
+      id: row.id,
+      localPackId: row.localPackId,
+      remotePackId: row.remotePackId,
+      syncKind: RemotePackSyncKindStorage.parse(row.syncKind),
+      syncState: RemotePackSyncStateStorage.parse(row.syncState),
+      currentUserRemoteRole: row.currentUserRemoteRole == null
+          ? null
+          : RemoteUserRoleStorage.parse(row.currentUserRemoteRole!),
+      currentUserRemoteStatus: row.currentUserRemoteStatus == null
+          ? null
+          : RemoteUserStatusStorage.parse(row.currentUserRemoteStatus!),
+      lastRemoteSnapshotAt: _dateFromMillis(row.lastRemoteSnapshotAt),
+      lastSuccessfulSyncAt: _dateFromMillis(row.lastSuccessfulSyncAt),
+      lastSyncError: row.lastSyncError,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
+      removedAt: _dateFromMillis(row.removedAt),
+      accessLostAt: _dateFromMillis(row.accessLostAt),
+    );
+  }
+
+  RemoteItemSyncMetadataEntry _toRemoteItemSyncMetadata(
+    RemoteItemSyncMetadataRow row,
+  ) {
+    return RemoteItemSyncMetadataEntry(
+      id: row.id,
+      localItemId: row.localItemId,
+      localPackId: row.localPackId,
+      remoteItemId: row.remoteItemId,
+      remotePackId: row.remotePackId,
+      syncState: RemoteItemSyncStateStorage.parse(row.syncState),
+      remoteStatus: row.remoteStatus,
+      remoteUpdatedAt: _dateFromMillis(row.remoteUpdatedAt),
+      lastPulledAt: _dateFromMillis(row.lastPulledAt),
+      lastPushedAt: _dateFromMillis(row.lastPushedAt),
+      lastSyncError: row.lastSyncError,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
+      archivedAt: _dateFromMillis(row.archivedAt),
+      deletedAt: _dateFromMillis(row.deletedAt),
+    );
+  }
+
+  RemoteCompletionSyncMetadataEntry _toRemoteCompletionSyncMetadata(
+    RemoteCompletionSyncMetadataRow row,
+  ) {
+    return RemoteCompletionSyncMetadataEntry(
+      id: row.id,
+      localCompletionId: row.localCompletionId,
+      localItemId: row.localItemId,
+      localPackId: row.localPackId,
+      remoteCompletionId: row.remoteCompletionId,
+      remoteItemId: row.remoteItemId,
+      remotePackId: row.remotePackId,
+      syncState: RemoteCompletionSyncStateStorage.parse(row.syncState),
+      completionState: RemoteCompletionStateStorage.parse(row.completionState),
+      clientMutationId: row.clientMutationId,
+      remoteCompletedByUserId: row.remoteCompletedByUserId,
+      remoteCompletedAt: _dateFromMillis(row.remoteCompletedAt),
+      remoteUndoneByUserId: row.remoteUndoneByUserId,
+      remoteUndoneAt: _dateFromMillis(row.remoteUndoneAt),
+      lastPulledAt: _dateFromMillis(row.lastPulledAt),
+      lastPushedAt: _dateFromMillis(row.lastPushedAt),
+      lastSyncError: row.lastSyncError,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
+    );
+  }
+
+  SyncOutboxEntry _toSyncOutboxEntry(SyncOutboxRow row) {
+    return SyncOutboxEntry(
+      id: row.id,
+      localPackId: row.localPackId,
+      remotePackId: row.remotePackId,
+      localEntityType: row.localEntityType,
+      localEntityId: row.localEntityId,
+      remoteEntityId: row.remoteEntityId,
+      actionType: SyncOutboxActionTypeStorage.parse(row.actionType),
+      payloadJson: row.payloadJson,
+      clientMutationId: row.clientMutationId,
+      actorLocalUserId: row.actorLocalUserId,
+      actorRemoteUserId: row.actorRemoteUserId,
+      baseRemoteVersion: row.baseRemoteVersion,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
+      status: SyncOutboxStatusStorage.parse(row.status),
+      retryCount: row.retryCount,
+      lastAttemptAt: _dateFromMillis(row.lastAttemptAt),
+      lastError: row.lastError,
+      resolvedAt: _dateFromMillis(row.resolvedAt),
+      cancelledAt: _dateFromMillis(row.cancelledAt),
+    );
+  }
+
+  DateTime? _dateFromMillis(int? value) {
+    return value == null ? null : DateTime.fromMillisecondsSinceEpoch(value);
   }
 
   ItemPack _toItemPack(ItemPackRow row) {

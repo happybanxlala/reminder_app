@@ -2,13 +2,14 @@ import 'package:drift/native.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
+import 'package:reminder_app/features/reminders/domain/remote_sync.dart';
 
 void main() {
-  test('database uses schema version 8 and core tables are writable', () async {
+  test('database uses schema version 9 and core tables are writable', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
 
-    expect(db.schemaVersion, 8);
+    expect(db.schemaVersion, 9);
 
     final appInstallationId = await db
         .into(db.appInstallations)
@@ -246,6 +247,71 @@ void main() {
             updatedAt: DateTime(2026, 4, 10).millisecondsSinceEpoch,
           ),
         );
+    final remotePackMetadataId = await db
+        .into(db.remotePackSyncMetadata)
+        .insert(
+          RemotePackSyncMetadataCompanion.insert(
+            localPackId: packId,
+            remotePackId: '11111111-1111-4111-8111-333333333333',
+            syncKind: RemotePackSyncKind.remoteBacked.storageValue,
+            syncState: RemotePackSyncState.linked.storageValue,
+            currentUserRemoteRole: const Value('host'),
+            currentUserRemoteStatus: const Value('active'),
+            createdAt: DateTime(2026, 4, 10).millisecondsSinceEpoch,
+            updatedAt: DateTime(2026, 4, 10).millisecondsSinceEpoch,
+          ),
+        );
+    final remoteItemMetadataId = await db
+        .into(db.remoteItemSyncMetadata)
+        .insert(
+          RemoteItemSyncMetadataCompanion.insert(
+            localItemId: itemId,
+            localPackId: packId,
+            remoteItemId: '22222222-2222-4222-8222-111111111111',
+            remotePackId: '11111111-1111-4111-8111-333333333333',
+            syncState: RemoteItemSyncState.linked.storageValue,
+            remoteStatus: const Value('active'),
+            createdAt: DateTime(2026, 4, 10).millisecondsSinceEpoch,
+            updatedAt: DateTime(2026, 4, 10).millisecondsSinceEpoch,
+          ),
+        );
+    final remoteCompletionMetadataId = await db
+        .into(db.remoteCompletionSyncMetadata)
+        .insert(
+          RemoteCompletionSyncMetadataCompanion.insert(
+            localCompletionId: Value(completionId),
+            localItemId: itemId,
+            localPackId: packId,
+            remoteCompletionId: const Value(
+              '33333333-3333-4333-8333-111111111111',
+            ),
+            remoteItemId: '22222222-2222-4222-8222-111111111111',
+            remotePackId: '11111111-1111-4111-8111-333333333333',
+            syncState: RemoteCompletionSyncState.synced.storageValue,
+            completionState: RemoteCompletionState.confirmedRemote.storageValue,
+            createdAt: DateTime(2026, 4, 10).millisecondsSinceEpoch,
+            updatedAt: DateTime(2026, 4, 10).millisecondsSinceEpoch,
+          ),
+        );
+    final syncOutboxId = await db
+        .into(db.syncOutbox)
+        .insert(
+          SyncOutboxCompanion.insert(
+            localPackId: packId,
+            remotePackId: const Value('11111111-1111-4111-8111-333333333333'),
+            localEntityType: 'item',
+            localEntityId: Value(itemId),
+            remoteEntityId: const Value('22222222-2222-4222-8222-111111111111'),
+            actionType: SyncOutboxActionType.completeItem.storageValue,
+            payloadJson: '{"source":"migration_test"}',
+            clientMutationId: 'migration-test-mutation',
+            actorLocalUserId: AppDatabase.defaultHostUserId,
+            actorRemoteUserId: const Value('remote-user-host'),
+            createdAt: DateTime(2026, 4, 10).millisecondsSinceEpoch,
+            updatedAt: DateTime(2026, 4, 10).millisecondsSinceEpoch,
+            status: SyncOutboxStatus.pending.storageValue,
+          ),
+        );
 
     expect(packId, greaterThan(0));
     expect(appInstallationId, greaterThan(0));
@@ -263,6 +329,10 @@ void main() {
     expect(stageAcknowledgementId, greaterThan(0));
     expect(activityEventId, greaterThan(0));
     expect(syncMappingId, greaterThan(0));
+    expect(remotePackMetadataId, greaterThan(0));
+    expect(remoteItemMetadataId, greaterThan(0));
+    expect(remoteCompletionMetadataId, greaterThan(0));
+    expect(syncOutboxId, greaterThan(0));
 
     await db
         .into(db.appSettingsEntries)
@@ -288,6 +358,12 @@ void main() {
     final templates = await db.select(db.packTemplates).get();
     final templateItems = await db.select(db.packTemplateItems).get();
     final syncMappings = await db.select(db.syncMappings).get();
+    final remotePackMetadata = await db.select(db.remotePackSyncMetadata).get();
+    final remoteItemMetadata = await db.select(db.remoteItemSyncMetadata).get();
+    final remoteCompletionMetadata = await db
+        .select(db.remoteCompletionSyncMetadata)
+        .get();
+    final syncOutbox = await db.select(db.syncOutbox).get();
     expect(defaultPacks, hasLength(1));
     expect(localUsers.first.identityKind, 'local');
     expect(localUsers.first.remoteUserId, null);
@@ -314,5 +390,13 @@ void main() {
     expect(syncMappings.single.localEntityType, 'pack');
     expect(syncMappings.single.remoteTable, 'packs');
     expect(syncMappings.single.syncState, 'pushed');
+    expect(remotePackMetadata.single.localPackId, packId);
+    expect(remotePackMetadata.single.syncKind, 'remote_backed');
+    expect(remoteItemMetadata.single.localItemId, itemId);
+    expect(remoteItemMetadata.single.remoteStatus, 'active');
+    expect(remoteCompletionMetadata.single.localCompletionId, completionId);
+    expect(remoteCompletionMetadata.single.completionState, 'confirmed_remote');
+    expect(syncOutbox.single.actionType, 'complete_item');
+    expect(syncOutbox.single.status, 'pending');
   });
 }

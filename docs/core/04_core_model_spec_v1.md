@@ -15,6 +15,12 @@ Supabase remote data model, RLS policy draft, Phase 3A boundary, Phase 3B anonym
 
 - `docs/core/06_supabase_remote_model_spec.md`
 
+Phase 5A defines the remote-backed shared pack sync model. Remote packs will become app-level Shared Packs with local records, local item mirrors, local completion / activity history, future main screen / widget / notification integration, offline pending actions, and account-binding-based recovery. Detailed model lives in:
+
+- `docs/core/07_remote_backed_shared_pack_sync_spec.md`
+
+Phase 5B adds local schema foundation for remote-backed shared packs, including sync metadata and sync outbox tables. It does not implement remote import, sync engine, UI, widget, notification, or account binding.
+
 ## 1. 總覽
 
 ### 1.1 產品北極星
@@ -79,6 +85,10 @@ Domain 必須保持分離。Home 可以在 presentation layer 聚合 `Item`、`R
 - `StageAcknowledgement`
 - `ActivityEvent`
 - `SyncMapping`
+- `RemotePackSyncMetadata`
+- `RemoteItemSyncMetadata`
+- `RemoteCompletionSyncMetadata`
+- `SyncOutbox`
 
 ### 1.4 已實作 enum 清單
 
@@ -107,6 +117,15 @@ Domain 必須保持分離。Home 可以在 presentation layer 聚合 `Item`、`R
 - `PackMemberStatus { active, removed }`
 - `ResourceEventChangeType { adjust, increment, decrement }`
 - `SyncMappingState { linked, pushed, failed }`
+- `RemotePackSyncKind { localOnly, remoteBacked }`
+- `RemotePackSyncState { linked, pendingImport, importing, synced, stale, failed, conflict, accessLost, removed }`
+- `RemoteUserRole { host, member, viewer }`
+- `RemoteUserStatus { active, removed, pending, unknown }`
+- `RemoteItemSyncState { linked, pendingImport, importing, synced, stale, failed, conflict, archived, deleted }`
+- `RemoteCompletionSyncState { pendingPush, syncing, synced, failed, conflict, noOp }`
+- `RemoteCompletionState { pendingLocal, confirmedRemote, remoteImported, undoneRemote, noOp, conflict, failed }`
+- `SyncOutboxActionType { completeItem, undoItem }`
+- `SyncOutboxStatus { pending, syncing, synced, failed, conflict, cancelled, noOp }`
 
 ## 2. 已實作模型
 
@@ -1553,7 +1572,7 @@ Pack 管理 route：`/feature/item-packs-management`，route name：`item-packs-
 
 ## 5. Drift Schema
 
-目前 schema version：`8`。
+目前 schema version：`9`。
 
 ### 5.0 local_users
 
@@ -1859,6 +1878,129 @@ Unique key：
 
 ```text
 localEntityType + localEntityId + remoteTable
+```
+
+### 5.10.4 remote_pack_sync_metadata
+
+Phase 5B 新增。保存 remote-backed pack 的 typed sync metadata，不取代 `sync_mappings`。
+
+```text
+id
+localPackId
+remotePackId
+syncKind
+syncState
+currentUserRemoteRole
+currentUserRemoteStatus
+lastRemoteSnapshotAt
+lastSuccessfulSyncAt
+lastSyncError
+createdAt
+updatedAt
+removedAt
+accessLostAt
+```
+
+Unique keys：
+
+```text
+localPackId
+remotePackId
+```
+
+### 5.10.5 remote_item_sync_metadata
+
+Phase 5B 新增。保存 remote item 與 local item mirror 的 typed sync metadata。
+
+```text
+id
+localItemId
+localPackId
+remoteItemId
+remotePackId
+syncState
+remoteStatus
+remoteUpdatedAt
+lastPulledAt
+lastPushedAt
+lastSyncError
+createdAt
+updatedAt
+archivedAt
+deletedAt
+```
+
+Unique keys：
+
+```text
+localItemId
+remoteItemId
+```
+
+### 5.10.6 remote_completion_sync_metadata
+
+Phase 5B 新增。保存 remote completion 與 local completion / pending activity 的 typed sync metadata。
+
+```text
+id
+localCompletionId
+localItemId
+localPackId
+remoteCompletionId
+remoteItemId
+remotePackId
+syncState
+completionState
+clientMutationId
+remoteCompletedByUserId
+remoteCompletedAt
+remoteUndoneByUserId
+remoteUndoneAt
+lastPulledAt
+lastPushedAt
+lastSyncError
+createdAt
+updatedAt
+```
+
+Unique keys：
+
+```text
+localCompletionId
+remoteCompletionId
+```
+
+### 5.10.7 sync_outbox
+
+Phase 5B 新增。保存 local pending mutations；不會在 Phase 5B 自動送到 Supabase。
+
+```text
+id
+localPackId
+remotePackId
+localEntityType
+localEntityId
+remoteEntityId
+actionType
+payloadJson
+clientMutationId
+actorLocalUserId
+actorRemoteUserId
+baseRemoteVersion
+createdAt
+updatedAt
+status
+retryCount
+lastAttemptAt
+lastError
+resolvedAt
+cancelledAt
+```
+
+Unique key：
+
+```text
+clientMutationId
 ```
 
 ### 5.11 app_settings

@@ -33,6 +33,10 @@ part 'app_database.g.dart';
     StageAcknowledgements,
     ActivityEvents,
     SyncMappings,
+    RemotePackSyncMetadata,
+    RemoteItemSyncMetadata,
+    RemoteCompletionSyncMetadata,
+    SyncOutbox,
     AppSettingsEntries,
   ],
   daos: [ReminderDao],
@@ -54,7 +58,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -80,6 +84,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 8) {
         await _upgradeToV8(m);
+      }
+      if (from < 9) {
+        await _upgradeToV9(m);
       }
     },
     beforeOpen: (details) async {
@@ -235,6 +242,13 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> _upgradeToV8(Migrator m) async {
     await m.createTable(syncMappings);
+  }
+
+  Future<void> _upgradeToV9(Migrator m) async {
+    await m.createTable(remotePackSyncMetadata);
+    await m.createTable(remoteItemSyncMetadata);
+    await m.createTable(remoteCompletionSyncMetadata);
+    await m.createTable(syncOutbox);
   }
 
   Future<void> _ensureLocalUsers() async {
