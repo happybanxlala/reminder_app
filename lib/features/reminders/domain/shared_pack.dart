@@ -6,6 +6,8 @@ enum PackMemberStatus { active, removed }
 
 enum ResourceEventChangeType { adjust, increment, decrement }
 
+enum SyncMappingState { linked, pushed, failed }
+
 enum LocalUserIdentityKind {
   local,
   anonymousRemote,
@@ -215,4 +217,30 @@ class ActivityEvent {
   final String? afterJson;
   final String? metadataJson;
   final DateTime createdAt;
+}
+
+class SyncMapping {
+  const SyncMapping({
+    required this.id,
+    required this.localEntityType,
+    required this.localEntityId,
+    required this.remoteTable,
+    required this.remoteEntityId,
+    required this.syncState,
+    this.lastPushedAt,
+    this.lastPulledAt,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  final int id;
+  final String localEntityType;
+  final int localEntityId;
+  final String remoteTable;
+  final String remoteEntityId;
+  final SyncMappingState syncState;
+  final DateTime? lastPushedAt;
+  final DateTime? lastPulledAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 }

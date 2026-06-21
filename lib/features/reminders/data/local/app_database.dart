@@ -32,6 +32,7 @@ part 'app_database.g.dart';
     StageRelatedItems,
     StageAcknowledgements,
     ActivityEvents,
+    SyncMappings,
     AppSettingsEntries,
   ],
   daos: [ReminderDao],
@@ -53,7 +54,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -76,6 +77,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 7) {
         await _upgradeToV7(m);
+      }
+      if (from < 8) {
+        await _upgradeToV8(m);
       }
     },
     beforeOpen: (details) async {
@@ -227,6 +231,10 @@ class AppDatabase extends _$AppDatabase {
           END
       ''');
     await _ensureAppInstallation();
+  }
+
+  Future<void> _upgradeToV8(Migrator m) async {
+    await m.createTable(syncMappings);
   }
 
   Future<void> _ensureLocalUsers() async {

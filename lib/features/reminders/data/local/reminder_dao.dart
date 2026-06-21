@@ -191,6 +191,7 @@ class StageRelatedItemEntry {
     StageRelatedItems,
     StageAcknowledgements,
     ActivityEvents,
+    SyncMappings,
     AppSettingsEntries,
   ],
 )
@@ -326,6 +327,51 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     return rows.map(_toActivityEvent).toList(growable: false);
   }
 
+  Future<SyncMapping?> getSyncMapping({
+    required String localEntityType,
+    required int localEntityId,
+    required String remoteTable,
+  }) async {
+    final row =
+        await (select(syncMappings)..where(
+              (t) =>
+                  t.localEntityType.equals(localEntityType) &
+                  t.localEntityId.equals(localEntityId) &
+                  t.remoteTable.equals(remoteTable),
+            ))
+            .getSingleOrNull();
+    return row == null ? null : _toSyncMapping(row);
+  }
+
+  Future<List<SyncMapping>> listSyncMappings() async {
+    final rows =
+        await (select(syncMappings)..orderBy([
+              (t) => OrderingTerm.asc(t.localEntityType),
+              (t) => OrderingTerm.asc(t.localEntityId),
+              (t) => OrderingTerm.asc(t.remoteTable),
+            ]))
+            .get();
+    return rows.map(_toSyncMapping).toList(growable: false);
+  }
+
+  Future<int> upsertSyncMapping(SyncMappingsCompanion entry) async {
+    final existing =
+        await (select(syncMappings)..where(
+              (t) =>
+                  t.localEntityType.equals(entry.localEntityType.value) &
+                  t.localEntityId.equals(entry.localEntityId.value) &
+                  t.remoteTable.equals(entry.remoteTable.value),
+            ))
+            .getSingleOrNull();
+    if (existing == null) {
+      return into(syncMappings).insert(entry);
+    }
+    await (update(
+      syncMappings,
+    )..where((t) => t.id.equals(existing.id))).write(entry);
+    return existing.id;
+  }
+
   Future<BackupData> exportBackupData() async {
     final defaultPack = await getSystemDefaultPack();
     final defaultPackId = defaultPack?.id;
@@ -420,6 +466,9 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     final activityEventRows = await (select(
       activityEvents,
     )..orderBy([(t) => OrderingTerm.asc(t.id)])).get();
+    final syncMappingRows = await (select(
+      syncMappings,
+    )..orderBy([(t) => OrderingTerm.asc(t.id)])).get();
     final templateItemRows =
         await (select(packTemplateItems)..orderBy([
               (t) => OrderingTerm.asc(t.templateId),
@@ -475,6 +524,8 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
             'relationType': 'stageRelatedItem',
             ..._stageRelatedItemBackupJson(row),
           },
+        for (final row in syncMappingRows)
+          {'relationType': 'syncMapping', ..._syncMappingBackupJson(row)},
       ],
       activityLogs: [
         for (final row in itemActionRows)
@@ -611,6 +662,8 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
           );
         } else if (row['relationType'] == 'packMember') {
           await _insertMap('pack_members', _packMemberColumns, row);
+        } else if (row['relationType'] == 'syncMapping') {
+          await _insertMap('sync_mappings', _syncMappingColumns, row);
         }
       }
       for (final row in data.activityLogs) {
@@ -2426,6 +2479,18 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     'metadata_json',
     'created_at',
   ];
+  static const _syncMappingColumns = [
+    'id',
+    'local_entity_type',
+    'local_entity_id',
+    'remote_table',
+    'remote_entity_id',
+    'sync_state',
+    'last_pushed_at',
+    'last_pulled_at',
+    'created_at',
+    'updated_at',
+  ];
   static const _packTemplateColumns = [
     'id',
     'template_name',
@@ -2458,6 +2523,7 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
   ];
 
   Future<void> _clearUserData() async {
+    await customStatement('DELETE FROM sync_mappings');
     await customStatement('DELETE FROM activity_events');
     await customStatement('DELETE FROM stage_acknowledgements');
     await customStatement('DELETE FROM resource_events');
@@ -2572,6 +2638,12 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
       case 'stage_trackers':
         copy['is_system_default'] ??= copy['isSystemDefault'] ?? false;
         copy['system_key'] ??= copy['systemKey'];
+        break;
+      case 'sync_mappings':
+        final now = DateTime.now().millisecondsSinceEpoch;
+        copy['sync_state'] ??= SyncMappingState.linked.name;
+        copy['created_at'] ??= now;
+        copy['updated_at'] ??= copy['created_at'];
         break;
       default:
         break;
@@ -2806,6 +2878,19 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     'created_at': _dateJson(row.createdAt),
   };
 
+  Map<String, Object?> _syncMappingBackupJson(SyncMappingRow row) => {
+    'id': row.id,
+    'local_entity_type': row.localEntityType,
+    'local_entity_id': row.localEntityId,
+    'remote_table': row.remoteTable,
+    'remote_entity_id': row.remoteEntityId,
+    'sync_state': row.syncState,
+    'last_pushed_at': _dateJson(row.lastPushedAt),
+    'last_pulled_at': _dateJson(row.lastPulledAt),
+    'created_at': _dateJson(row.createdAt),
+    'updated_at': _dateJson(row.updatedAt),
+  };
+
   Map<String, Object?> _stageTrackerBackupJson(StageTrackerRow row) => {
     'id': row.id,
     'pack_id': row.packId,
@@ -2973,6 +3058,25 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
       afterJson: row.afterJson,
       metadataJson: row.metadataJson,
       createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
+    );
+  }
+
+  SyncMapping _toSyncMapping(SyncMappingRow row) {
+    return SyncMapping(
+      id: row.id,
+      localEntityType: row.localEntityType,
+      localEntityId: row.localEntityId,
+      remoteTable: row.remoteTable,
+      remoteEntityId: row.remoteEntityId,
+      syncState: SyncMappingState.values.byName(row.syncState),
+      lastPushedAt: row.lastPushedAt == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(row.lastPushedAt!),
+      lastPulledAt: row.lastPulledAt == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(row.lastPulledAt!),
+      createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
     );
   }
 

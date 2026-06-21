@@ -4,11 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 
 void main() {
-  test('database uses schema version 7 and core tables are writable', () async {
+  test('database uses schema version 8 and core tables are writable', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
 
-    expect(db.schemaVersion, 7);
+    expect(db.schemaVersion, 8);
 
     final appInstallationId = await db
         .into(db.appInstallations)
@@ -232,6 +232,20 @@ void main() {
             createdAt: DateTime(2026, 4, 10).millisecondsSinceEpoch,
           ),
         );
+    final syncMappingId = await db
+        .into(db.syncMappings)
+        .insert(
+          SyncMappingsCompanion.insert(
+            localEntityType: 'pack',
+            localEntityId: packId,
+            remoteTable: 'packs',
+            remoteEntityId: '11111111-1111-4111-8111-222222222222',
+            syncState: 'pushed',
+            lastPushedAt: Value(DateTime(2026, 4, 10).millisecondsSinceEpoch),
+            createdAt: DateTime(2026, 4, 10).millisecondsSinceEpoch,
+            updatedAt: DateTime(2026, 4, 10).millisecondsSinceEpoch,
+          ),
+        );
 
     expect(packId, greaterThan(0));
     expect(appInstallationId, greaterThan(0));
@@ -248,6 +262,7 @@ void main() {
     expect(resourceEventId, greaterThan(0));
     expect(stageAcknowledgementId, greaterThan(0));
     expect(activityEventId, greaterThan(0));
+    expect(syncMappingId, greaterThan(0));
 
     await db
         .into(db.appSettingsEntries)
@@ -272,6 +287,7 @@ void main() {
     final settings = await db.select(db.appSettingsEntries).get();
     final templates = await db.select(db.packTemplates).get();
     final templateItems = await db.select(db.packTemplateItems).get();
+    final syncMappings = await db.select(db.syncMappings).get();
     expect(defaultPacks, hasLength(1));
     expect(localUsers.first.identityKind, 'local');
     expect(localUsers.first.remoteUserId, null);
@@ -295,5 +311,8 @@ void main() {
     expect(settings.single.notificationReminderTime, '20:30');
     expect(templates.single.templateName, '家務');
     expect(templateItems.single.title, '倒垃圾');
+    expect(syncMappings.single.localEntityType, 'pack');
+    expect(syncMappings.single.remoteTable, 'packs');
+    expect(syncMappings.single.syncState, 'pushed');
   });
 }

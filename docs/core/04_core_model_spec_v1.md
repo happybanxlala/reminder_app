@@ -11,7 +11,7 @@ Last aligned with repository contents on 2026-06-14.
 
 ## Supabase Remote Model
 
-Supabase remote data model, RLS policy draft, and Phase 3A POC boundary are documented in:
+Supabase remote data model, RLS policy draft, Phase 3A boundary, Phase 3B anonymous identity bridge, and Phase 3C Remote Shared Pack Minimal POC are documented in:
 
 - `docs/core/06_supabase_remote_model_spec.md`
 
@@ -78,6 +78,7 @@ Domain 必須保持分離。Home 可以在 presentation layer 聚合 `Item`、`R
 - `ResourceEvent`
 - `StageAcknowledgement`
 - `ActivityEvent`
+- `SyncMapping`
 
 ### 1.4 已實作 enum 清單
 
@@ -105,6 +106,7 @@ Domain 必須保持分離。Home 可以在 presentation layer 聚合 `Item`、`R
 - `PackMemberRole { host, member }`
 - `PackMemberStatus { active, removed }`
 - `ResourceEventChangeType { adjust, increment, decrement }`
+- `SyncMappingState { linked, pushed, failed }`
 
 ## 2. 已實作模型
 
@@ -907,7 +909,7 @@ Drift table `app_settings` 另有固定 `id = 1`、`createdAt`、`updatedAt`。
 - `AppDatabase.beforeOpen` 會確保 `app_settings` 有 `id = 1` 的 row。
 - 設定頁 route 已實作：`/feature/settings`，route name 是 `settings`。
 - 設定頁一般設定暴露 `reminderTone` 與 notification reminder time；system StageTracker 顯示開關仍保留底層設定 / repository 行為，但不出現在一般 UAT UI。
-- 設定頁資料管理提供 JSON backup / import / reset。Backup payload 使用 `app = reminder_app`、`schemaVersion = 3`、`exportedAt` ISO-8601 與 `data` keys：`packs/items/resources/stages/stageTrackers/customTemplates/relations/activityLogs`。
+- 設定頁資料管理提供 JSON backup / import / reset。Backup payload 使用 `app = reminder_app`、`schemaVersion = 4`、`exportedAt` ISO-8601 與 `data` keys：`packs/items/resources/stages/stageTrackers/customTemplates/relations/activityLogs`。
 - Backup 包含 user-created Pack、Item、Resource、user-created StageTracker、StageRule、StageRecord、StageRelatedItem、ResourceConsumptionRule、自訂 PackTemplate、ItemActionRecord 與 ResourceActionRecord；不包含 system StageTracker、debug-only setting、temporary UI state 或 app settings。
 - Import 採 replace all user data，不做 merge；匯入前檢查 `app` 與 `schemaVersion`，失敗時不改動現有資料。匯入時 system default Pack 會以目前資料庫 seed 重建 / 保留，backup 中指向舊 system default Pack 的 `packId` 會 remap 到目前 system default Pack。
 - Reset database 會清空 user data，並保留或重建 system default Pack、`app_settings` 與 system default StageTracker。
@@ -1164,6 +1166,66 @@ Phase 3B adds Supabase anonymous remote identity link. It does not implement rem
 - 不實作 Apple / Google / Email binding、magic link、OTP 或 email login。
 - 不 apply `docs/core/sql/phase3a_supabase_schema_draft.sql`。
 
+### 2.17 Phase 3C：Supabase Remote Shared Pack Minimal POC
+
+Phase 3C adds the first explicit developer-triggered remote Shared Pack loop. It is a minimal POC, not full sync.
+
+#### 已實作資料模型
+
+```ts
+SyncMapping {
+  id: number
+  localEntityType: string
+  localEntityId: number
+  remoteTable: string
+  remoteEntityId: string
+  syncState: "linked" | "pushed" | "failed"
+  lastPushedAt?: DateTime
+  lastPulledAt?: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+```
+
+`sync_mappings` 是本機 sync layer mapping，不是 Supabase remote table。Phase 3C 只使用：
+
+```text
+pack -> packs
+item -> items
+```
+
+Profile mapping 不使用 `sync_mappings`，因為 `local_users.remoteUserId` 已保存 Supabase Auth user id reference。
+
+#### 已實作行為
+
+- `RemoteSharedPackRepository.ensureRemoteProfile()` 會先確保 anonymous remote identity，再呼叫 remote RPC `upsert_current_profile`；它不建立 pack、不自動上傳資料。
+- `createRemoteSharedPackFromLocalPack(localPackId)` 只接受 local Shared Pack，且 current local user 必須是該 pack active member；成功後建立 `sync_mappings(pack -> packs)`。
+- 已有 pack mapping 時，重複建立 remote pack 會回傳 already linked，不建立 duplicate remote pack。
+- `pushMinimalItems(localPackId)` 只推送指定 mapped shared pack 的 unmapped active / paused items，並建立 `sync_mappings(item -> items)`。
+- Phase 3C 不推送 Personal Pack、Resources、Stages 或 local completion history。
+- `completeRemoteItemForLocalItem(localItemId)` 只呼叫 remote RPC `complete_pack_item`；remote `already_completed` 不覆寫本機 `completedByUserId`，也不自動 merge 回 local completion history。
+- `pullRemotePackSnapshot(remotePackId)` 只解析 remote DTO snapshot，不寫入 local DB，不建立 local items。
+- Missing Supabase config 會回傳 typed failure；Personal Pack、本機 Shared Pack、widget 與 backup flow 不依賴 Supabase configured。
+- Production remote data source 使用 Supabase RPC / query；tests 使用 fake data source，不依賴真 Supabase project。
+
+#### SQL / RLS
+
+- Phase 3C SQL draft 位於 `docs/core/sql/phase3c_supabase_minimal_poc.sql`。
+- SQL draft 只包含 `profiles / packs / pack_members / items / item_completions / activity_events`，並定義 RLS、`is_pack_member`、`is_pack_host` 與 Phase 3C RPC。
+- SQL draft 需手動在 Supabase SQL editor 或 local Supabase CLI apply；app 不會自動 apply SQL，不會使用 service role key。
+
+#### Backup / Restore
+
+- Backup schema v4 可包含 `syncMapping` relation，作為 remote reference。
+- Restore 後 `sync_mappings` 不代表目前裝置已有 remote access，也不觸發 automatic pull / push。
+- Backup 不包含 Supabase access token、refresh token、session JSON、OAuth credential、service role key 或 secret key。
+
+#### 非目標
+
+- 不做 full two-way sync、realtime、invite、resource remote sync、stage remote sync、background sync、conflict resolution engine 或正式同步 UI。
+- 不在 app startup 自動建立 remote pack，不自動上傳所有 Personal Pack 或 Shared Pack。
+- 不修改 iOS / Android home widget 行為。
+
 ## 3. 跨 Domain 行為
 
 ### 3.1 完成 Item 並消耗 Resource
@@ -1390,7 +1452,7 @@ Pack 管理 route：`/feature/item-packs-management`，route name：`item-packs-
 
 ## 5. Drift Schema
 
-目前 schema version：`7`。
+目前 schema version：`8`。
 
 ### 5.0 local_users
 
@@ -1675,6 +1737,27 @@ beforeJson
 afterJson
 metadataJson
 createdAt
+```
+
+### 5.10.3 sync_mappings
+
+```text
+id
+localEntityType
+localEntityId
+remoteTable
+remoteEntityId
+syncState
+lastPushedAt
+lastPulledAt
+createdAt
+updatedAt
+```
+
+Unique key：
+
+```text
+localEntityType + localEntityId + remoteTable
 ```
 
 ### 5.11 app_settings

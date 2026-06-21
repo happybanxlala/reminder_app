@@ -277,7 +277,7 @@ void main() {
 
       expect(find.text(ReminderUiText.debugInfoSectionTitle), findsOneWidget);
       expect(find.text(ReminderUiText.databaseVersionLabel), findsOneWidget);
-      expect(find.text('7'), findsOneWidget);
+      expect(find.text('8'), findsOneWidget);
       expect(
         find.byKey(const Key('settings-debug-device-data-label')),
         findsOneWidget,

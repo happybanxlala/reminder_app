@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/backup_models.dart';
@@ -69,6 +70,7 @@ void main() {
         'localUser',
         'appInstallation',
         'packMember',
+        'syncMapping',
         'resourceConsumptionRule',
       ]),
     );
@@ -233,6 +235,9 @@ void main() {
       await targetDb.reminderDao.listActivityEventsForPack(sharedPack.id),
       isNotEmpty,
     );
+    final syncMappings = await targetDb.reminderDao.listSyncMappings();
+    expect(syncMappings, isNotEmpty);
+    expect(syncMappings.single.remoteEntityId, 'remote-pack-housework');
     final cleanSink = items.firstWhere(
       (item) => item.item.title == 'Clean sink',
     );
@@ -324,6 +329,18 @@ Future<void> _seedUserData(AppDatabase db) async {
   );
   await sharedRepository.convertPackToShared(packId);
   await sharedRepository.addLocalMember(packId);
+  await db.reminderDao.upsertSyncMapping(
+    SyncMappingsCompanion.insert(
+      localEntityType: 'pack',
+      localEntityId: packId,
+      remoteTable: 'packs',
+      remoteEntityId: 'remote-pack-housework',
+      syncState: SyncMappingState.pushed.name,
+      lastPushedAt: Value(DateTime(2026, 6, 4).millisecondsSinceEpoch),
+      createdAt: DateTime(2026, 6, 4).millisecondsSinceEpoch,
+      updatedAt: DateTime(2026, 6, 4).millisecondsSinceEpoch,
+    ),
+  );
   final itemId = await itemRepository.createItem(
     ItemInput(
       title: 'Clean sink',

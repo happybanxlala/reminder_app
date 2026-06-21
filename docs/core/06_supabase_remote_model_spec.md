@@ -665,3 +665,107 @@ Security reminder：
 請勿把 service role key 放入 Flutter app。
 只可使用 anon key。
 ```
+
+## 14. Phase 3C Implementation Notes
+
+Phase 3C implements a Remote Shared Pack Minimal POC. It is developer-triggered repository behavior, not automatic sync.
+
+Scope：
+
+```text
+local shared pack
+-> ensure anonymous remote identity
+-> ensure remote profile
+-> create remote shared pack
+-> create host pack member
+-> push minimal items
+-> complete remote item
+-> pull remote pack snapshot
+```
+
+SQL draft：
+
+- `docs/core/sql/phase3c_supabase_minimal_poc.sql`
+- This file narrows the Phase 3A draft to `profiles / packs / pack_members / items / item_completions / activity_events` only.
+- It includes RLS enable statements, `is_pack_member`, `is_pack_host`, and the Phase 3C RPC functions.
+- It intentionally does not create runtime dependencies on `resources`, `resource_events`, `stages`, or `stage_acknowledgements`.
+
+Runtime repository boundary：
+
+- `RemoteSharedPackRepository.ensureRemoteProfile()` uses `ensureAnonymousRemoteIdentity()` and RPC `upsert_current_profile`.
+- `createRemoteSharedPackFromLocalPack(localPackId)` requires a local Shared Pack and active local pack membership, then calls RPC `create_shared_pack`.
+- `pushMinimalItems(localPackId)` only pushes unmapped active / paused local items in the mapped pack through RPC `create_pack_item`.
+- `completeRemoteItemForLocalItem(localItemId)` calls RPC `complete_pack_item`; remote `already_completed` is surfaced as a typed result and does not overwrite local completion history.
+- `pullRemotePackSnapshot(remotePackId)` reads remote pack, members, items, active completions, and activity events into DTOs only; it does not merge into local DB.
+
+Local mapping strategy：
+
+- Phase 3C implements local `sync_mappings` instead of adding `remote_id` to every local table.
+- Used mappings:
+  - `pack -> packs`
+  - `item -> items`
+- `profiles` are not mapped through `sync_mappings`; `local_users.remoteUserId` stores the Supabase Auth user id reference.
+- Backup schema v4 may include `syncMapping` relation rows as references only. Restore does not prove remote access and must not auto pull or push.
+
+Explicit exclusions：
+
+- No full two-way sync.
+- No realtime / Postgres Changes.
+- No invite code, invite link, or QR invite.
+- No resource or stage remote sync.
+- No background sync.
+- No startup auto-upload.
+- No automatic personal pack upload.
+- No formal sync UI or pack selector UI.
+- No access token, refresh token, session JSON, OAuth credential, service role key, or secret key in backup.
+
+## 15. Phase 3C Manual Setup And Smoke Test
+
+Manual setup：
+
+1. Enable anonymous sign-ins in the Supabase project.
+2. Manually apply `docs/core/sql/phase3c_supabase_minimal_poc.sql` in the Supabase SQL editor or local Supabase CLI.
+3. Confirm RLS is enabled on `profiles`, `packs`, `pack_members`, `items`, `item_completions`, and `activity_events`.
+4. Run Flutter with anon key only:
+
+```bash
+flutter run \
+  --dart-define=SUPABASE_URL=... \
+  --dart-define=SUPABASE_ANON_KEY=...
+```
+
+Security reminders：
+
+- Do not use service role key in Flutter.
+- Do not hardcode Supabase URL or anon key.
+- Do not auto-apply SQL to production.
+
+Manual POC flow：
+
+1. 打開 app。
+2. Settings developer debug 區建立匿名遠端身份。
+3. 使用 repository / developer harness 確認 remote profile。
+4. 選一個 local Shared Pack。
+5. 執行 create remote shared pack POC。
+6. 執行 push minimal items POC。
+7. 在 Supabase dashboard 確認 `packs / pack_members / items / activity_events`。
+8. 對其中一個 remote item 執行 complete remote item POC。
+9. 確認 `item_completions` 有 active completion。
+10. 再次 complete 同一 item，應回傳 `already_completed`，且不覆寫 `completed_by_user_id`。
+11. 拉取 remote pack snapshot。
+12. 確認沒有 resource / stage 被上傳。
+13. 確認沒有 personal pack 被自動上傳。
+
+RLS smoke test：
+
+1. 使用另一個 anonymous user、clean install 或 second test device。
+2. 嘗試讀取不是 member 的 remote pack id。
+3. 應被 RLS 擋下。
+4. 嘗試 complete 不是 member 的 item。
+5. 應被 RLS 擋下。
+
+Known risks / open questions：
+
+- Phase 3C SQL is still a draft and must be manually verified before production use.
+- Activity event writes are repository/RPC controlled for POC; long term should prefer stricter RPC/trigger-only shared mutation paths.
+- Remote undo, invite/member onboarding, resource sync, stage acknowledgement sync, and full conflict handling remain later phases.

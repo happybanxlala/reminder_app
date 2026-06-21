@@ -30,6 +30,7 @@ mixin _$ReminderDaoMixin on DatabaseAccessor<AppDatabase> {
   $StageAcknowledgementsTable get stageAcknowledgements =>
       attachedDatabase.stageAcknowledgements;
   $ActivityEventsTable get activityEvents => attachedDatabase.activityEvents;
+  $SyncMappingsTable get syncMappings => attachedDatabase.syncMappings;
   $AppSettingsEntriesTable get appSettingsEntries =>
       attachedDatabase.appSettingsEntries;
   ReminderDaoManager get managers => ReminderDaoManager(this);
@@ -106,6 +107,8 @@ class ReminderDaoManager {
         _db.attachedDatabase,
         _db.activityEvents,
       );
+  $$SyncMappingsTableTableManager get syncMappings =>
+      $$SyncMappingsTableTableManager(_db.attachedDatabase, _db.syncMappings);
   $$AppSettingsEntriesTableTableManager get appSettingsEntries =>
       $$AppSettingsEntriesTableTableManager(
         _db.attachedDatabase,

@@ -380,6 +380,28 @@ class ActivityEvents extends Table {
   IntColumn get createdAt => integer()();
 }
 
+@DataClassName('SyncMappingRow')
+class SyncMappings extends Table {
+  @override
+  String get tableName => 'sync_mappings';
+
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get localEntityType => text()();
+  IntColumn get localEntityId => integer()();
+  TextColumn get remoteTable => text()();
+  TextColumn get remoteEntityId => text()();
+  TextColumn get syncState => text()();
+  IntColumn get lastPushedAt => integer().nullable()();
+  IntColumn get lastPulledAt => integer().nullable()();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+    {localEntityType, localEntityId, remoteTable},
+  ];
+}
+
 @DataClassName('AppSettingsRow')
 class AppSettingsEntries extends Table {
   @override

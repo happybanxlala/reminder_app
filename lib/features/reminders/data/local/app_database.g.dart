@@ -13482,6 +13482,640 @@ class ActivityEventsCompanion extends UpdateCompanion<ActivityEventRow> {
   }
 }
 
+class $SyncMappingsTable extends SyncMappings
+    with TableInfo<$SyncMappingsTable, SyncMappingRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncMappingsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _localEntityTypeMeta = const VerificationMeta(
+    'localEntityType',
+  );
+  @override
+  late final GeneratedColumn<String> localEntityType = GeneratedColumn<String>(
+    'local_entity_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _localEntityIdMeta = const VerificationMeta(
+    'localEntityId',
+  );
+  @override
+  late final GeneratedColumn<int> localEntityId = GeneratedColumn<int>(
+    'local_entity_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _remoteTableMeta = const VerificationMeta(
+    'remoteTable',
+  );
+  @override
+  late final GeneratedColumn<String> remoteTable = GeneratedColumn<String>(
+    'remote_table',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _remoteEntityIdMeta = const VerificationMeta(
+    'remoteEntityId',
+  );
+  @override
+  late final GeneratedColumn<String> remoteEntityId = GeneratedColumn<String>(
+    'remote_entity_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _syncStateMeta = const VerificationMeta(
+    'syncState',
+  );
+  @override
+  late final GeneratedColumn<String> syncState = GeneratedColumn<String>(
+    'sync_state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastPushedAtMeta = const VerificationMeta(
+    'lastPushedAt',
+  );
+  @override
+  late final GeneratedColumn<int> lastPushedAt = GeneratedColumn<int>(
+    'last_pushed_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastPulledAtMeta = const VerificationMeta(
+    'lastPulledAt',
+  );
+  @override
+  late final GeneratedColumn<int> lastPulledAt = GeneratedColumn<int>(
+    'last_pulled_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    localEntityType,
+    localEntityId,
+    remoteTable,
+    remoteEntityId,
+    syncState,
+    lastPushedAt,
+    lastPulledAt,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_mappings';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SyncMappingRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('local_entity_type')) {
+      context.handle(
+        _localEntityTypeMeta,
+        localEntityType.isAcceptableOrUnknown(
+          data['local_entity_type']!,
+          _localEntityTypeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_localEntityTypeMeta);
+    }
+    if (data.containsKey('local_entity_id')) {
+      context.handle(
+        _localEntityIdMeta,
+        localEntityId.isAcceptableOrUnknown(
+          data['local_entity_id']!,
+          _localEntityIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_localEntityIdMeta);
+    }
+    if (data.containsKey('remote_table')) {
+      context.handle(
+        _remoteTableMeta,
+        remoteTable.isAcceptableOrUnknown(
+          data['remote_table']!,
+          _remoteTableMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_remoteTableMeta);
+    }
+    if (data.containsKey('remote_entity_id')) {
+      context.handle(
+        _remoteEntityIdMeta,
+        remoteEntityId.isAcceptableOrUnknown(
+          data['remote_entity_id']!,
+          _remoteEntityIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_remoteEntityIdMeta);
+    }
+    if (data.containsKey('sync_state')) {
+      context.handle(
+        _syncStateMeta,
+        syncState.isAcceptableOrUnknown(data['sync_state']!, _syncStateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_syncStateMeta);
+    }
+    if (data.containsKey('last_pushed_at')) {
+      context.handle(
+        _lastPushedAtMeta,
+        lastPushedAt.isAcceptableOrUnknown(
+          data['last_pushed_at']!,
+          _lastPushedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_pulled_at')) {
+      context.handle(
+        _lastPulledAtMeta,
+        lastPulledAt.isAcceptableOrUnknown(
+          data['last_pulled_at']!,
+          _lastPulledAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {localEntityType, localEntityId, remoteTable},
+  ];
+  @override
+  SyncMappingRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncMappingRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      localEntityType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}local_entity_type'],
+      )!,
+      localEntityId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}local_entity_id'],
+      )!,
+      remoteTable: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_table'],
+      )!,
+      remoteEntityId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_entity_id'],
+      )!,
+      syncState: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_state'],
+      )!,
+      lastPushedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_pushed_at'],
+      ),
+      lastPulledAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_pulled_at'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SyncMappingsTable createAlias(String alias) {
+    return $SyncMappingsTable(attachedDatabase, alias);
+  }
+}
+
+class SyncMappingRow extends DataClass implements Insertable<SyncMappingRow> {
+  final int id;
+  final String localEntityType;
+  final int localEntityId;
+  final String remoteTable;
+  final String remoteEntityId;
+  final String syncState;
+  final int? lastPushedAt;
+  final int? lastPulledAt;
+  final int createdAt;
+  final int updatedAt;
+  const SyncMappingRow({
+    required this.id,
+    required this.localEntityType,
+    required this.localEntityId,
+    required this.remoteTable,
+    required this.remoteEntityId,
+    required this.syncState,
+    this.lastPushedAt,
+    this.lastPulledAt,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['local_entity_type'] = Variable<String>(localEntityType);
+    map['local_entity_id'] = Variable<int>(localEntityId);
+    map['remote_table'] = Variable<String>(remoteTable);
+    map['remote_entity_id'] = Variable<String>(remoteEntityId);
+    map['sync_state'] = Variable<String>(syncState);
+    if (!nullToAbsent || lastPushedAt != null) {
+      map['last_pushed_at'] = Variable<int>(lastPushedAt);
+    }
+    if (!nullToAbsent || lastPulledAt != null) {
+      map['last_pulled_at'] = Variable<int>(lastPulledAt);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  SyncMappingsCompanion toCompanion(bool nullToAbsent) {
+    return SyncMappingsCompanion(
+      id: Value(id),
+      localEntityType: Value(localEntityType),
+      localEntityId: Value(localEntityId),
+      remoteTable: Value(remoteTable),
+      remoteEntityId: Value(remoteEntityId),
+      syncState: Value(syncState),
+      lastPushedAt: lastPushedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastPushedAt),
+      lastPulledAt: lastPulledAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastPulledAt),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory SyncMappingRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncMappingRow(
+      id: serializer.fromJson<int>(json['id']),
+      localEntityType: serializer.fromJson<String>(json['localEntityType']),
+      localEntityId: serializer.fromJson<int>(json['localEntityId']),
+      remoteTable: serializer.fromJson<String>(json['remoteTable']),
+      remoteEntityId: serializer.fromJson<String>(json['remoteEntityId']),
+      syncState: serializer.fromJson<String>(json['syncState']),
+      lastPushedAt: serializer.fromJson<int?>(json['lastPushedAt']),
+      lastPulledAt: serializer.fromJson<int?>(json['lastPulledAt']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'localEntityType': serializer.toJson<String>(localEntityType),
+      'localEntityId': serializer.toJson<int>(localEntityId),
+      'remoteTable': serializer.toJson<String>(remoteTable),
+      'remoteEntityId': serializer.toJson<String>(remoteEntityId),
+      'syncState': serializer.toJson<String>(syncState),
+      'lastPushedAt': serializer.toJson<int?>(lastPushedAt),
+      'lastPulledAt': serializer.toJson<int?>(lastPulledAt),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  SyncMappingRow copyWith({
+    int? id,
+    String? localEntityType,
+    int? localEntityId,
+    String? remoteTable,
+    String? remoteEntityId,
+    String? syncState,
+    Value<int?> lastPushedAt = const Value.absent(),
+    Value<int?> lastPulledAt = const Value.absent(),
+    int? createdAt,
+    int? updatedAt,
+  }) => SyncMappingRow(
+    id: id ?? this.id,
+    localEntityType: localEntityType ?? this.localEntityType,
+    localEntityId: localEntityId ?? this.localEntityId,
+    remoteTable: remoteTable ?? this.remoteTable,
+    remoteEntityId: remoteEntityId ?? this.remoteEntityId,
+    syncState: syncState ?? this.syncState,
+    lastPushedAt: lastPushedAt.present ? lastPushedAt.value : this.lastPushedAt,
+    lastPulledAt: lastPulledAt.present ? lastPulledAt.value : this.lastPulledAt,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  SyncMappingRow copyWithCompanion(SyncMappingsCompanion data) {
+    return SyncMappingRow(
+      id: data.id.present ? data.id.value : this.id,
+      localEntityType: data.localEntityType.present
+          ? data.localEntityType.value
+          : this.localEntityType,
+      localEntityId: data.localEntityId.present
+          ? data.localEntityId.value
+          : this.localEntityId,
+      remoteTable: data.remoteTable.present
+          ? data.remoteTable.value
+          : this.remoteTable,
+      remoteEntityId: data.remoteEntityId.present
+          ? data.remoteEntityId.value
+          : this.remoteEntityId,
+      syncState: data.syncState.present ? data.syncState.value : this.syncState,
+      lastPushedAt: data.lastPushedAt.present
+          ? data.lastPushedAt.value
+          : this.lastPushedAt,
+      lastPulledAt: data.lastPulledAt.present
+          ? data.lastPulledAt.value
+          : this.lastPulledAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncMappingRow(')
+          ..write('id: $id, ')
+          ..write('localEntityType: $localEntityType, ')
+          ..write('localEntityId: $localEntityId, ')
+          ..write('remoteTable: $remoteTable, ')
+          ..write('remoteEntityId: $remoteEntityId, ')
+          ..write('syncState: $syncState, ')
+          ..write('lastPushedAt: $lastPushedAt, ')
+          ..write('lastPulledAt: $lastPulledAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    localEntityType,
+    localEntityId,
+    remoteTable,
+    remoteEntityId,
+    syncState,
+    lastPushedAt,
+    lastPulledAt,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncMappingRow &&
+          other.id == this.id &&
+          other.localEntityType == this.localEntityType &&
+          other.localEntityId == this.localEntityId &&
+          other.remoteTable == this.remoteTable &&
+          other.remoteEntityId == this.remoteEntityId &&
+          other.syncState == this.syncState &&
+          other.lastPushedAt == this.lastPushedAt &&
+          other.lastPulledAt == this.lastPulledAt &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class SyncMappingsCompanion extends UpdateCompanion<SyncMappingRow> {
+  final Value<int> id;
+  final Value<String> localEntityType;
+  final Value<int> localEntityId;
+  final Value<String> remoteTable;
+  final Value<String> remoteEntityId;
+  final Value<String> syncState;
+  final Value<int?> lastPushedAt;
+  final Value<int?> lastPulledAt;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  const SyncMappingsCompanion({
+    this.id = const Value.absent(),
+    this.localEntityType = const Value.absent(),
+    this.localEntityId = const Value.absent(),
+    this.remoteTable = const Value.absent(),
+    this.remoteEntityId = const Value.absent(),
+    this.syncState = const Value.absent(),
+    this.lastPushedAt = const Value.absent(),
+    this.lastPulledAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  SyncMappingsCompanion.insert({
+    this.id = const Value.absent(),
+    required String localEntityType,
+    required int localEntityId,
+    required String remoteTable,
+    required String remoteEntityId,
+    required String syncState,
+    this.lastPushedAt = const Value.absent(),
+    this.lastPulledAt = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+  }) : localEntityType = Value(localEntityType),
+       localEntityId = Value(localEntityId),
+       remoteTable = Value(remoteTable),
+       remoteEntityId = Value(remoteEntityId),
+       syncState = Value(syncState),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<SyncMappingRow> custom({
+    Expression<int>? id,
+    Expression<String>? localEntityType,
+    Expression<int>? localEntityId,
+    Expression<String>? remoteTable,
+    Expression<String>? remoteEntityId,
+    Expression<String>? syncState,
+    Expression<int>? lastPushedAt,
+    Expression<int>? lastPulledAt,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (localEntityType != null) 'local_entity_type': localEntityType,
+      if (localEntityId != null) 'local_entity_id': localEntityId,
+      if (remoteTable != null) 'remote_table': remoteTable,
+      if (remoteEntityId != null) 'remote_entity_id': remoteEntityId,
+      if (syncState != null) 'sync_state': syncState,
+      if (lastPushedAt != null) 'last_pushed_at': lastPushedAt,
+      if (lastPulledAt != null) 'last_pulled_at': lastPulledAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  SyncMappingsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? localEntityType,
+    Value<int>? localEntityId,
+    Value<String>? remoteTable,
+    Value<String>? remoteEntityId,
+    Value<String>? syncState,
+    Value<int?>? lastPushedAt,
+    Value<int?>? lastPulledAt,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+  }) {
+    return SyncMappingsCompanion(
+      id: id ?? this.id,
+      localEntityType: localEntityType ?? this.localEntityType,
+      localEntityId: localEntityId ?? this.localEntityId,
+      remoteTable: remoteTable ?? this.remoteTable,
+      remoteEntityId: remoteEntityId ?? this.remoteEntityId,
+      syncState: syncState ?? this.syncState,
+      lastPushedAt: lastPushedAt ?? this.lastPushedAt,
+      lastPulledAt: lastPulledAt ?? this.lastPulledAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (localEntityType.present) {
+      map['local_entity_type'] = Variable<String>(localEntityType.value);
+    }
+    if (localEntityId.present) {
+      map['local_entity_id'] = Variable<int>(localEntityId.value);
+    }
+    if (remoteTable.present) {
+      map['remote_table'] = Variable<String>(remoteTable.value);
+    }
+    if (remoteEntityId.present) {
+      map['remote_entity_id'] = Variable<String>(remoteEntityId.value);
+    }
+    if (syncState.present) {
+      map['sync_state'] = Variable<String>(syncState.value);
+    }
+    if (lastPushedAt.present) {
+      map['last_pushed_at'] = Variable<int>(lastPushedAt.value);
+    }
+    if (lastPulledAt.present) {
+      map['last_pulled_at'] = Variable<int>(lastPulledAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncMappingsCompanion(')
+          ..write('id: $id, ')
+          ..write('localEntityType: $localEntityType, ')
+          ..write('localEntityId: $localEntityId, ')
+          ..write('remoteTable: $remoteTable, ')
+          ..write('remoteEntityId: $remoteEntityId, ')
+          ..write('syncState: $syncState, ')
+          ..write('lastPushedAt: $lastPushedAt, ')
+          ..write('lastPulledAt: $lastPulledAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $AppSettingsEntriesTable extends AppSettingsEntries
     with TableInfo<$AppSettingsEntriesTable, AppSettingsRow> {
   @override
@@ -13886,6 +14520,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $StageAcknowledgementsTable stageAcknowledgements =
       $StageAcknowledgementsTable(this);
   late final $ActivityEventsTable activityEvents = $ActivityEventsTable(this);
+  late final $SyncMappingsTable syncMappings = $SyncMappingsTable(this);
   late final $AppSettingsEntriesTable appSettingsEntries =
       $AppSettingsEntriesTable(this);
   late final ReminderDao reminderDao = ReminderDao(this as AppDatabase);
@@ -13913,6 +14548,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     stageRelatedItems,
     stageAcknowledgements,
     activityEvents,
+    syncMappings,
     appSettingsEntries,
   ];
 }
@@ -26676,6 +27312,307 @@ typedef $$ActivityEventsTableProcessedTableManager =
       ActivityEventRow,
       PrefetchHooks Function({bool packId, bool actorUserId})
     >;
+typedef $$SyncMappingsTableCreateCompanionBuilder =
+    SyncMappingsCompanion Function({
+      Value<int> id,
+      required String localEntityType,
+      required int localEntityId,
+      required String remoteTable,
+      required String remoteEntityId,
+      required String syncState,
+      Value<int?> lastPushedAt,
+      Value<int?> lastPulledAt,
+      required int createdAt,
+      required int updatedAt,
+    });
+typedef $$SyncMappingsTableUpdateCompanionBuilder =
+    SyncMappingsCompanion Function({
+      Value<int> id,
+      Value<String> localEntityType,
+      Value<int> localEntityId,
+      Value<String> remoteTable,
+      Value<String> remoteEntityId,
+      Value<String> syncState,
+      Value<int?> lastPushedAt,
+      Value<int?> lastPulledAt,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+    });
+
+class $$SyncMappingsTableFilterComposer
+    extends Composer<_$AppDatabase, $SyncMappingsTable> {
+  $$SyncMappingsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get localEntityType => $composableBuilder(
+    column: $table.localEntityType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get localEntityId => $composableBuilder(
+    column: $table.localEntityId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remoteTable => $composableBuilder(
+    column: $table.remoteTable,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remoteEntityId => $composableBuilder(
+    column: $table.remoteEntityId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncState => $composableBuilder(
+    column: $table.syncState,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastPushedAt => $composableBuilder(
+    column: $table.lastPushedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastPulledAt => $composableBuilder(
+    column: $table.lastPulledAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SyncMappingsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SyncMappingsTable> {
+  $$SyncMappingsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get localEntityType => $composableBuilder(
+    column: $table.localEntityType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get localEntityId => $composableBuilder(
+    column: $table.localEntityId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get remoteTable => $composableBuilder(
+    column: $table.remoteTable,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get remoteEntityId => $composableBuilder(
+    column: $table.remoteEntityId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncState => $composableBuilder(
+    column: $table.syncState,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastPushedAt => $composableBuilder(
+    column: $table.lastPushedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastPulledAt => $composableBuilder(
+    column: $table.lastPulledAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SyncMappingsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SyncMappingsTable> {
+  $$SyncMappingsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get localEntityType => $composableBuilder(
+    column: $table.localEntityType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get localEntityId => $composableBuilder(
+    column: $table.localEntityId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get remoteTable => $composableBuilder(
+    column: $table.remoteTable,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get remoteEntityId => $composableBuilder(
+    column: $table.remoteEntityId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get syncState =>
+      $composableBuilder(column: $table.syncState, builder: (column) => column);
+
+  GeneratedColumn<int> get lastPushedAt => $composableBuilder(
+    column: $table.lastPushedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastPulledAt => $composableBuilder(
+    column: $table.lastPulledAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$SyncMappingsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SyncMappingsTable,
+          SyncMappingRow,
+          $$SyncMappingsTableFilterComposer,
+          $$SyncMappingsTableOrderingComposer,
+          $$SyncMappingsTableAnnotationComposer,
+          $$SyncMappingsTableCreateCompanionBuilder,
+          $$SyncMappingsTableUpdateCompanionBuilder,
+          (
+            SyncMappingRow,
+            BaseReferences<_$AppDatabase, $SyncMappingsTable, SyncMappingRow>,
+          ),
+          SyncMappingRow,
+          PrefetchHooks Function()
+        > {
+  $$SyncMappingsTableTableManager(_$AppDatabase db, $SyncMappingsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncMappingsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncMappingsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncMappingsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> localEntityType = const Value.absent(),
+                Value<int> localEntityId = const Value.absent(),
+                Value<String> remoteTable = const Value.absent(),
+                Value<String> remoteEntityId = const Value.absent(),
+                Value<String> syncState = const Value.absent(),
+                Value<int?> lastPushedAt = const Value.absent(),
+                Value<int?> lastPulledAt = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+              }) => SyncMappingsCompanion(
+                id: id,
+                localEntityType: localEntityType,
+                localEntityId: localEntityId,
+                remoteTable: remoteTable,
+                remoteEntityId: remoteEntityId,
+                syncState: syncState,
+                lastPushedAt: lastPushedAt,
+                lastPulledAt: lastPulledAt,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String localEntityType,
+                required int localEntityId,
+                required String remoteTable,
+                required String remoteEntityId,
+                required String syncState,
+                Value<int?> lastPushedAt = const Value.absent(),
+                Value<int?> lastPulledAt = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+              }) => SyncMappingsCompanion.insert(
+                id: id,
+                localEntityType: localEntityType,
+                localEntityId: localEntityId,
+                remoteTable: remoteTable,
+                remoteEntityId: remoteEntityId,
+                syncState: syncState,
+                lastPushedAt: lastPushedAt,
+                lastPulledAt: lastPulledAt,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SyncMappingsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SyncMappingsTable,
+      SyncMappingRow,
+      $$SyncMappingsTableFilterComposer,
+      $$SyncMappingsTableOrderingComposer,
+      $$SyncMappingsTableAnnotationComposer,
+      $$SyncMappingsTableCreateCompanionBuilder,
+      $$SyncMappingsTableUpdateCompanionBuilder,
+      (
+        SyncMappingRow,
+        BaseReferences<_$AppDatabase, $SyncMappingsTable, SyncMappingRow>,
+      ),
+      SyncMappingRow,
+      PrefetchHooks Function()
+    >;
 typedef $$AppSettingsEntriesTableCreateCompanionBuilder =
     AppSettingsEntriesCompanion Function({
       Value<int> id,
@@ -26928,6 +27865,8 @@ class $AppDatabaseManager {
       $$StageAcknowledgementsTableTableManager(_db, _db.stageAcknowledgements);
   $$ActivityEventsTableTableManager get activityEvents =>
       $$ActivityEventsTableTableManager(_db, _db.activityEvents);
+  $$SyncMappingsTableTableManager get syncMappings =>
+      $$SyncMappingsTableTableManager(_db, _db.syncMappings);
   $$AppSettingsEntriesTableTableManager get appSettingsEntries =>
       $$AppSettingsEntriesTableTableManager(_db, _db.appSettingsEntries);
 }
