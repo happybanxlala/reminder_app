@@ -198,6 +198,8 @@ class ReminderUiText {
   static const remotePocPushItemsLabel = '推送 Minimal Items POC';
   static const remotePocCompleteItemLabel = '完成遠端 Item POC';
   static const remotePocPullSnapshotLabel = '刷新遠端 Snapshot';
+  static const remotePocImportSnapshotMirrorLabel =
+      '匯入 Remote Snapshot 到本機 Mirror POC';
   static const remotePocInviteCodeLabel = 'Invite Code';
   static const remotePocInviteExpiresLabel = 'Invite expires';
   static const remotePocInviteMaxUsesLabel = 'Invite max uses';

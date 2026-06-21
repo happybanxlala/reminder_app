@@ -402,6 +402,32 @@ Phase 5B implementation note:
 
 Phase 5C is the next boundary for intentionally creating local mirror records from remote snapshots. Phase 5B schema must not infer product remote-backed state from old POC `sync_mappings`.
 
+Phase 5C implementation note:
+
+- Adds `RemoteSnapshotImportService.importRemotePackSnapshot(snapshot, source)` for manual import of an already-fetched `RemotePackSnapshot`.
+- Does not call Supabase, refresh snapshots, process `sync_outbox`, auto pull, auto push, touch widget cache, schedule notifications, or change Supabase SQL.
+- Reuses Drift schema version 9; no migration or generated schema bump is required.
+- Finds an existing local mirror through `sync_mappings(pack -> packs)` or `remote_pack_sync_metadata.remote_pack_id`; otherwise creates a local `ItemPack` with `packType = shared`.
+- Creates/reuses `local_users` for remote members. The current local user is reused when its `remote_user_id` matches; unknown remote users become placeholder local users with display-name snapshots when available.
+- Upserts `pack_members` with mirrored role/status. Remote roles unsupported by the local enum are represented as local `member` until a richer local role model exists.
+- Imports remote items as local `items`; local integer IDs never equal remote UUIDs. Mapping remains in `sync_mappings` and `remote_item_sync_metadata`.
+- Uses `stateBased` schedule defaults with no due schedule when the Phase 3C/4 snapshot does not include enough schedule fields. This avoids inventing local notification or widget timing.
+- Imports remote completions as local `ItemActionRecord(done)` plus `ItemCompletion`, preserving the actual remote `completed_by` in `remote_completion_sync_metadata`. Imported completions do not create pending completions, current-user completions, or outbox rows.
+- Imports activity only when the remote entity can be mapped to a local integer entity id (`pack`, `item`, or `item_completion`). Unmappable activity is skipped with warnings.
+- Adds repository-level read-only guards: `ItemRepository.markDone` and `undoDone` return `false` for packs whose metadata has `syncKind = remote_backed`.
+- Manual backup remains legacy. Imported remote-backed mirror packs and their dependent item, completion, activity, member, placeholder-user, and mirror `sync_mappings` records are excluded from backup export. Typed metadata and `sync_outbox` remain excluded.
+- Restore/reset continues to avoid replaying pending mutations, pulling, pushing, or granting remote access.
+
+Phase 5C UI note:
+
+- The existing developer-only Supabase Remote POC section may import the currently stored `lastPulledRemoteSnapshot` through a compact manual action.
+- The import action must not refresh the snapshot or call a remote data source.
+
+Phase 5C boundary:
+
+- Imported active items may naturally appear in local queries, but user mutation is blocked until Phase 5D.
+- Widget and notification integrations remain future work. If imported items appear in existing read paths, widget actions and notification actions still must not complete/undo remote-backed items locally until outbox behavior exists.
+
 ### Phase 5D：Complete / Undo Outbox
 
 - Local complete / undo remote-backed item

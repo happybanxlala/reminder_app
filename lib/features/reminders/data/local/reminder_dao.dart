@@ -240,6 +240,18 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     return row == null ? null : _toLocalUser(row);
   }
 
+  Future<LocalUser?> getLocalUserByRemoteUserId(String remoteUserId) async {
+    final row =
+        await (select(localUsers)
+              ..where(
+                (t) =>
+                    t.remoteUserId.equals(remoteUserId) & t.deletedAt.isNull(),
+              )
+              ..limit(1))
+            .getSingleOrNull();
+    return row == null ? null : _toLocalUser(row);
+  }
+
   Future<void> insertLocalUser(LocalUsersCompanion entry) {
     return into(localUsers).insert(entry);
   }
@@ -348,6 +360,22 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     return row == null ? null : _toSyncMapping(row);
   }
 
+  Future<SyncMapping?> getSyncMappingByRemote({
+    required String localEntityType,
+    required String remoteTable,
+    required String remoteEntityId,
+  }) async {
+    final row =
+        await (select(syncMappings)..where(
+              (t) =>
+                  t.localEntityType.equals(localEntityType) &
+                  t.remoteTable.equals(remoteTable) &
+                  t.remoteEntityId.equals(remoteEntityId),
+            ))
+            .getSingleOrNull();
+    return row == null ? null : _toSyncMapping(row);
+  }
+
   Future<List<SyncMapping>> listSyncMappings() async {
     final rows =
         await (select(syncMappings)..orderBy([
@@ -360,7 +388,7 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
   }
 
   Future<int> upsertSyncMapping(SyncMappingsCompanion entry) async {
-    final existing =
+    var existing =
         await (select(syncMappings)..where(
               (t) =>
                   t.localEntityType.equals(entry.localEntityType.value) &
@@ -368,13 +396,22 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
                   t.remoteTable.equals(entry.remoteTable.value),
             ))
             .getSingleOrNull();
+    existing ??=
+        await (select(syncMappings)..where(
+              (t) =>
+                  t.localEntityType.equals(entry.localEntityType.value) &
+                  t.remoteTable.equals(entry.remoteTable.value) &
+                  t.remoteEntityId.equals(entry.remoteEntityId.value),
+            ))
+            .getSingleOrNull();
     if (existing == null) {
       return into(syncMappings).insert(entry);
     }
+    final existingMapping = existing;
     await (update(
       syncMappings,
-    )..where((t) => t.id.equals(existing.id))).write(entry);
-    return existing.id;
+    )..where((t) => t.id.equals(existingMapping.id))).write(entry);
+    return existingMapping.id;
   }
 
   Future<int> insertRemotePackSyncMetadata(
@@ -399,6 +436,11 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
       remotePackSyncMetadata,
     )..where((t) => t.remotePackId.equals(remotePackId))).getSingleOrNull();
     return row == null ? null : _toRemotePackSyncMetadata(row);
+  }
+
+  Future<bool> isRemoteBackedPack(int localPackId) async {
+    final metadata = await getRemotePackSyncMetadataForLocalPack(localPackId);
+    return metadata?.syncKind == RemotePackSyncKind.remoteBacked;
   }
 
   Stream<RemotePackSyncMetadataEntry?> watchRemotePackSyncMetadataForLocalPack(
@@ -465,6 +507,17 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     final row = await (select(
       remoteCompletionSyncMetadata,
     )..where((t) => t.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _toRemoteCompletionSyncMetadata(row);
+  }
+
+  Future<RemoteCompletionSyncMetadataEntry?>
+  getRemoteCompletionSyncMetadataForRemoteCompletion(
+    String remoteCompletionId,
+  ) async {
+    final row =
+        await (select(remoteCompletionSyncMetadata)
+              ..where((t) => t.remoteCompletionId.equals(remoteCompletionId)))
+            .getSingleOrNull();
     return row == null ? null : _toRemoteCompletionSyncMetadata(row);
   }
 
@@ -616,6 +669,82 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     final syncMappingRows = await (select(
       syncMappings,
     )..orderBy([(t) => OrderingTerm.asc(t.id)])).get();
+    final remoteBackedPackRows =
+        await (select(remotePackSyncMetadata)..where(
+              (t) => t.syncKind.equals(
+                RemotePackSyncKind.remoteBacked.storageValue,
+              ),
+            ))
+            .get();
+    final remoteBackedPackIds = remoteBackedPackRows
+        .where(
+          (row) => row.syncState != RemotePackSyncState.linked.storageValue,
+        )
+        .map((row) => row.localPackId)
+        .toSet();
+    final remoteBackedItemIds = itemRows
+        .where((row) => remoteBackedPackIds.contains(row.packId))
+        .map((row) => row.id)
+        .toSet();
+    final remoteBackedCompletionIds = itemCompletionRows
+        .where(
+          (row) =>
+              remoteBackedPackIds.contains(row.packId) ||
+              remoteBackedItemIds.contains(row.itemId),
+        )
+        .map((row) => row.id)
+        .toSet();
+    final remoteBackedActivityIds = activityEventRows
+        .where((row) => remoteBackedPackIds.contains(row.packId))
+        .map((row) => row.id)
+        .toSet();
+    final remoteBackedPackMemberUserIds = packMemberRows
+        .where((row) => remoteBackedPackIds.contains(row.packId))
+        .map((row) => row.userId)
+        .toSet();
+    final exportedPackRows = packRows
+        .where((row) => !remoteBackedPackIds.contains(row.id))
+        .toList(growable: false);
+    final exportedItemRows = itemRows
+        .where((row) => !remoteBackedPackIds.contains(row.packId))
+        .toList(growable: false);
+    final exportedLocalUserRows = localUserRows
+        .where(
+          (row) =>
+              !remoteBackedPackMemberUserIds.contains(row.id) ||
+              row.identityKind !=
+                  LocalUserIdentityKind.placeholder.storageValue,
+        )
+        .toList(growable: false);
+    final exportedPackMemberRows = packMemberRows
+        .where((row) => !remoteBackedPackIds.contains(row.packId))
+        .toList(growable: false);
+    final exportedItemActionRows = itemActionRows
+        .where((row) => !remoteBackedItemIds.contains(row.itemId))
+        .toList(growable: false);
+    final exportedItemCompletionRows = itemCompletionRows
+        .where(
+          (row) =>
+              !remoteBackedPackIds.contains(row.packId) &&
+              !remoteBackedItemIds.contains(row.itemId),
+        )
+        .toList(growable: false);
+    final exportedActivityEventRows = activityEventRows
+        .where((row) => !remoteBackedPackIds.contains(row.packId))
+        .toList(growable: false);
+    final exportedSyncMappingRows = syncMappingRows
+        .where(
+          (row) =>
+              !(row.localEntityType == 'pack' &&
+                  remoteBackedPackIds.contains(row.localEntityId)) &&
+              !(row.localEntityType == 'item' &&
+                  remoteBackedItemIds.contains(row.localEntityId)) &&
+              !(row.localEntityType == 'item_completion' &&
+                  remoteBackedCompletionIds.contains(row.localEntityId)) &&
+              !(row.localEntityType == 'activity_event' &&
+                  remoteBackedActivityIds.contains(row.localEntityId)),
+        )
+        .toList(growable: false);
     final templateItemRows =
         await (select(packTemplateItems)..orderBy([
               (t) => OrderingTerm.asc(t.templateId),
@@ -629,8 +758,8 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     }
 
     return BackupData(
-      packs: packRows.map(_itemPackBackupJson).toList(growable: false),
-      items: itemRows.map(_itemBackupJson).toList(growable: false),
+      packs: exportedPackRows.map(_itemPackBackupJson).toList(growable: false),
+      items: exportedItemRows.map(_itemBackupJson).toList(growable: false),
       resources: resourceRows.map(_resourceBackupJson).toList(growable: false),
       stages: [
         for (final row in stageRuleRows)
@@ -652,14 +781,14 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
           },
       ],
       relations: [
-        for (final row in localUserRows)
+        for (final row in exportedLocalUserRows)
           {'relationType': 'localUser', ..._localUserBackupJson(row)},
         for (final row in appInstallationRows)
           {
             'relationType': 'appInstallation',
             ..._appInstallationBackupJson(row),
           },
-        for (final row in packMemberRows)
+        for (final row in exportedPackMemberRows)
           {'relationType': 'packMember', ..._packMemberBackupJson(row)},
         for (final row in consumptionRuleRows)
           {
@@ -671,15 +800,15 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
             'relationType': 'stageRelatedItem',
             ..._stageRelatedItemBackupJson(row),
           },
-        for (final row in syncMappingRows)
+        for (final row in exportedSyncMappingRows)
           {'relationType': 'syncMapping', ..._syncMappingBackupJson(row)},
       ],
       activityLogs: [
-        for (final row in itemActionRows)
+        for (final row in exportedItemActionRows)
           {'logType': 'itemAction', ..._itemActionBackupJson(row)},
         for (final row in resourceActionRows)
           {'logType': 'resourceAction', ..._resourceActionBackupJson(row)},
-        for (final row in itemCompletionRows)
+        for (final row in exportedItemCompletionRows)
           {'logType': 'itemCompletion', ..._itemCompletionBackupJson(row)},
         for (final row in resourceEventRows)
           {'logType': 'resourceEvent', ..._resourceEventBackupJson(row)},
@@ -688,7 +817,7 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
             'logType': 'stageAcknowledgement',
             ..._stageAcknowledgementBackupJson(row),
           },
-        for (final row in activityEventRows)
+        for (final row in exportedActivityEventRows)
           {'logType': 'activityEvent', ..._activityEventBackupJson(row)},
       ],
     );

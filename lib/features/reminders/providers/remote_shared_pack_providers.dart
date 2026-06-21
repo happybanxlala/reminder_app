@@ -8,6 +8,7 @@ import '../data/remote_shared_pack_data_source.dart';
 import '../data/remote_shared_pack_models.dart';
 import '../data/remote_shared_pack_repository.dart';
 import '../data/remote_shared_pack_realtime_data_source.dart';
+import '../data/remote_snapshot_import_service.dart';
 import '../data/supabase_config.dart';
 import '../domain/item.dart';
 import '../domain/item_pack.dart';
@@ -40,6 +41,14 @@ final remoteSharedPackRepositoryProvider = Provider<RemoteSharedPackRepository>(
     );
   },
 );
+
+final remoteSnapshotImportServiceProvider =
+    Provider<RemoteSnapshotImportService>((ref) {
+      return RemoteSnapshotImportService(
+        dao: ref.watch(appDatabaseProvider).reminderDao,
+        identityRepository: ref.watch(identityRepositoryProvider),
+      );
+    });
 
 final remoteSharedPackRealtimeDataSourceProvider =
     Provider<RemoteSharedPackRealtimeDataSource>((ref) {
@@ -756,6 +765,37 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
     });
   }
 
+  Future<String> importLastPulledSnapshot() {
+    return _run('匯入 Remote Snapshot 到本機 Mirror POC', () async {
+      final snapshot = state.lastPulledRemoteSnapshot;
+      if (snapshot == null) {
+        return const _RemotePocOutcome(
+          succeeded: false,
+          message: '請先拉取 Remote Snapshot',
+        );
+      }
+      final targetType = state.snapshotTargetType;
+      final source = switch (targetType) {
+        RemotePocSnapshotTargetType.joinedRemotePack =>
+          RemoteSnapshotImportSource.joinedRemotePack,
+        RemotePocSnapshotTargetType.localMappedPack =>
+          RemoteSnapshotImportSource.localMappedPack,
+        null => RemoteSnapshotImportSource.manualDeveloperImport,
+      };
+      final result = await _ref
+          .read(remoteSnapshotImportServiceProvider)
+          .importRemotePackSnapshot(snapshot: snapshot, source: source);
+      return _RemotePocOutcome(
+        succeeded: result.succeeded,
+        message:
+            'Mirror import：${_importStatusLabel(result.status)}，items +${result.itemsCreated}/${result.itemsUpdated}，completions +${result.completionsCreated}/${result.completionsUpdated}，events +${result.activityCreated}/${result.activityUpdated}，skipped ${result.skipped}',
+        snapshot: snapshot,
+        snapshotSummary: state.snapshotSummary,
+        snapshotTargetType: targetType,
+      );
+    });
+  }
+
   Future<String> _run(
     String action,
     Future<_RemotePocOutcome> Function() operation,
@@ -837,6 +877,17 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
 
   String _shortId(String value) {
     return value.length <= 12 ? value : '${value.substring(0, 8)}...';
+  }
+
+  String _importStatusLabel(RemoteSnapshotImportStatus status) {
+    return switch (status) {
+      RemoteSnapshotImportStatus.success => 'success',
+      RemoteSnapshotImportStatus.alreadyImported => 'already imported',
+      RemoteSnapshotImportStatus.updatedExistingMirror => 'updated',
+      RemoteSnapshotImportStatus.partialImport => 'partial',
+      RemoteSnapshotImportStatus.failed => 'failed',
+      RemoteSnapshotImportStatus.conflict => 'conflict',
+    };
   }
 
   @override

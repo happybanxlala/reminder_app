@@ -416,6 +416,9 @@ class ItemRepository {
     if (existing == null) {
       return false;
     }
+    if (await _dao.isRemoteBackedPack(existing.pack.id)) {
+      return false;
+    }
     final actor = await _resolveActorId(actorUserId);
     if (!await _canActOnPack(existing.pack, actor)) {
       return false;
@@ -493,6 +496,9 @@ class ItemRepository {
     }
     final existing = await getItemById(doneRecord.itemId);
     if (existing == null) {
+      return false;
+    }
+    if (await _dao.isRemoteBackedPack(existing.pack.id)) {
       return false;
     }
 

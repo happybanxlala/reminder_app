@@ -21,6 +21,8 @@ Phase 5A defines the remote-backed shared pack sync model. Remote packs will bec
 
 Phase 5B adds local schema foundation for remote-backed shared packs, including sync metadata and sync outbox tables. It does not implement remote import, sync engine, UI, widget, notification, or account binding.
 
+Phase 5C adds a manual read-only import from an already-fetched `RemotePackSnapshot` into local mirror records. It reuses schema version 9, writes local shared pack/member/user/item/completion/activity mirrors plus `sync_mappings` and typed sync metadata, blocks local-only complete/undo on remote-backed items until Phase 5D, and excludes imported remote-backed mirrors from legacy manual backup.
+
 ## 1. 總覽
 
 ### 1.1 產品北極星

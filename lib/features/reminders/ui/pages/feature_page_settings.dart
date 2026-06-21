@@ -451,6 +451,24 @@ class SettingsPage extends ConsumerWidget {
                     ),
                   ),
                 ),
+                _SettingsActionRow(
+                  key: const Key('settings-remote-poc-import-snapshot-row'),
+                  label: ReminderUiText.remotePocImportSnapshotMirrorLabel,
+                  value: remotePocState.lastPulledRemoteSnapshot == null
+                      ? ReminderUiText.remotePocNotRun
+                      : ReminderUiText.remotePocSnapshotLabel,
+                  icon: Icons.download_done_outlined,
+                  enabled:
+                      !remotePocState.isRunning &&
+                      remotePocState.lastPulledRemoteSnapshot != null,
+                  onTap: remotePocState.lastPulledRemoteSnapshot == null
+                      ? null
+                      : () => _runRemotePocAction(
+                          context,
+                          ref,
+                          (controller) => controller.importLastPulledSnapshot(),
+                        ),
+                ),
                 _SettingsReadOnlyRow(
                   key: const Key('settings-remote-realtime-title-row'),
                   label: ReminderUiText.remotePocRealtimeSectionTitle,
