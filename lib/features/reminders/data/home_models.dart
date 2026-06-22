@@ -1,5 +1,6 @@
 import '../domain/item.dart';
 import '../domain/item_action_record.dart';
+import '../domain/remote_sync.dart';
 import '../domain/resource.dart';
 import '../domain/stage_occurrence.dart';
 import '../domain/stage_record.dart';
@@ -14,11 +15,58 @@ class ItemHomeEntry extends HomeEntry {
     required this.bundle,
     required this.status,
     this.elapsed,
+    this.syncStatus = HomeItemSyncStatus.localOnly,
   });
 
   final ItemBundle bundle;
   final ItemStatus status;
   final Duration? elapsed;
+  final HomeItemSyncStatus syncStatus;
+}
+
+class HomeItemSyncStatus {
+  const HomeItemSyncStatus({
+    required this.isRemoteBacked,
+    this.remotePackSyncState,
+    this.remoteItemSyncState,
+    this.pendingMutationAction,
+    this.pendingMutationStatus,
+    this.lastSyncError,
+  });
+
+  static const localOnly = HomeItemSyncStatus(isRemoteBacked: false);
+
+  final bool isRemoteBacked;
+  final RemotePackSyncState? remotePackSyncState;
+  final RemoteItemSyncState? remoteItemSyncState;
+  final SyncOutboxActionType? pendingMutationAction;
+  final SyncOutboxStatus? pendingMutationStatus;
+  final String? lastSyncError;
+
+  bool get hasPendingMutation =>
+      pendingMutationStatus == SyncOutboxStatus.pending ||
+      pendingMutationStatus == SyncOutboxStatus.syncing;
+
+  bool get hasFailedMutation =>
+      pendingMutationStatus == SyncOutboxStatus.failed ||
+      pendingMutationStatus == SyncOutboxStatus.conflict;
+
+  bool get isStale =>
+      remotePackSyncState == RemotePackSyncState.stale ||
+      remoteItemSyncState == RemoteItemSyncState.stale ||
+      pendingMutationStatus == SyncOutboxStatus.noOp;
+
+  bool get isAccessLost =>
+      remotePackSyncState == RemotePackSyncState.accessLost ||
+      remotePackSyncState == RemotePackSyncState.removed;
+
+  bool get hasVisibleStatus =>
+      isRemoteBacked &&
+      (hasPendingMutation ||
+          hasFailedMutation ||
+          isStale ||
+          isAccessLost ||
+          (lastSyncError?.trim().isNotEmpty ?? false));
 }
 
 enum HomeAttentionEntryType { item, resource }
@@ -134,9 +182,13 @@ class TodayCompletedEntry extends HomeEntry {
     this.itemActionEntry,
     this.resourceActionEntry,
     this.stageActionEntry,
+    this.itemSyncStatus = HomeItemSyncStatus.localOnly,
   });
 
-  factory TodayCompletedEntry.itemDone(ItemActionEntry entry) {
+  factory TodayCompletedEntry.itemDone(
+    ItemActionEntry entry, {
+    HomeItemSyncStatus syncStatus = HomeItemSyncStatus.localOnly,
+  }) {
     return TodayCompletedEntry._(
       type: TodayCompletedEntryType.itemDone,
       stableKey: 'completed-item-${entry.record.id}',
@@ -144,6 +196,7 @@ class TodayCompletedEntry extends HomeEntry {
       title: entry.item.title,
       actionDate: entry.record.actionDate,
       itemActionEntry: entry,
+      itemSyncStatus: syncStatus,
     );
   }
 
@@ -181,6 +234,7 @@ class TodayCompletedEntry extends HomeEntry {
   final ItemActionEntry? itemActionEntry;
   final ResourceActionEntry? resourceActionEntry;
   final StageActionEntry? stageActionEntry;
+  final HomeItemSyncStatus itemSyncStatus;
 
   ItemActionRecord? get itemActionRecord => itemActionEntry?.record;
 

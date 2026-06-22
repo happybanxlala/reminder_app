@@ -70,37 +70,13 @@ class HomeRepository implements HomeAttentionSource {
   @override
   Stream<List<ItemHomeEntry>> watchDangerItems({DateTime? now}) {
     final current = now ?? DateTime.now();
-    return _itemRepository
-        .watchItemsByStatus(ItemStatus.danger, now: current)
-        .map(
-          (items) => items
-              .map(
-                (item) => ItemHomeEntry(
-                  bundle: item,
-                  status: ItemStatus.danger,
-                  elapsed: _itemRepository.elapsedFor(item.item, now: current),
-                ),
-              )
-              .toList(growable: false),
-        );
+    return _watchItemsByStatus(ItemStatus.danger, now: current);
   }
 
   @override
   Stream<List<ItemHomeEntry>> watchWarningItems({DateTime? now}) {
     final current = now ?? DateTime.now();
-    return _itemRepository
-        .watchItemsByStatus(ItemStatus.warning, now: current)
-        .map(
-          (items) => items
-              .map(
-                (item) => ItemHomeEntry(
-                  bundle: item,
-                  status: ItemStatus.warning,
-                  elapsed: _itemRepository.elapsedFor(item.item, now: current),
-                ),
-              )
-              .toList(growable: false),
-        );
+    return _watchItemsByStatus(ItemStatus.warning, now: current);
   }
 
   @override
@@ -128,21 +104,51 @@ class HomeRepository implements HomeAttentionSource {
     DateTime? now,
   }) {
     final current = _normalizeDate(now ?? DateTime.now());
-    return _combineLatest3(
-      _itemRepository.watchDoneActionEntriesForDate(current),
-      _resourceRepository.watchCompletedActionEntriesForDate(current),
-      _stageTrackerRepository.watchAcknowledgedActionEntriesForDate(current),
-      (itemActions, resourceActions, stageActions) {
+    return _combineLatest(
+      _combineLatest3(
+        _itemRepository.watchDoneActionEntriesForDate(current),
+        _resourceRepository.watchCompletedActionEntriesForDate(current),
+        _stageTrackerRepository.watchAcknowledgedActionEntriesForDate(current),
+        (itemActions, resourceActions, stageActions) =>
+            (itemActions, resourceActions, stageActions),
+      ),
+      _itemRepository.watchHomeItemSyncStatuses(),
+      (tuple, syncStatuses) {
         final entries = <TodayCompletedEntry>[
-          for (final entry in itemActions) TodayCompletedEntry.itemDone(entry),
-          for (final entry in resourceActions)
-            TodayCompletedEntry.resource(entry),
-          for (final entry in stageActions)
+          for (final entry in tuple.$1)
+            TodayCompletedEntry.itemDone(
+              entry,
+              syncStatus:
+                  syncStatuses[entry.item.id] ?? HomeItemSyncStatus.localOnly,
+            ),
+          for (final entry in tuple.$2) TodayCompletedEntry.resource(entry),
+          for (final entry in tuple.$3)
             TodayCompletedEntry.stageAcknowledged(entry),
         ];
         entries.sort(_compareTodayCompletedEntries);
         return entries;
       },
+    );
+  }
+
+  Stream<List<ItemHomeEntry>> _watchItemsByStatus(
+    ItemStatus status, {
+    required DateTime now,
+  }) {
+    return _combineLatest(
+      _itemRepository.watchItemsByStatus(status, now: now),
+      _itemRepository.watchHomeItemSyncStatuses(),
+      (items, syncStatuses) => items
+          .map(
+            (item) => ItemHomeEntry(
+              bundle: item,
+              status: status,
+              elapsed: _itemRepository.elapsedFor(item.item, now: now),
+              syncStatus:
+                  syncStatuses[item.item.id] ?? HomeItemSyncStatus.localOnly,
+            ),
+          )
+          .toList(growable: false),
     );
   }
 

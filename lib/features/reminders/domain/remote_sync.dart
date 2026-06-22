@@ -59,6 +59,74 @@ enum SyncOutboxStatus {
   noOp,
 }
 
+enum RemoteBackedItemLocalActionStatus {
+  completedPendingSync,
+  undoPendingSync,
+  alreadyLocallyCompleted,
+  alreadyLocallyNotCompleted,
+  notRemoteBacked,
+  missingRemoteMapping,
+  remoteAccessLost,
+  unsupported,
+  failed,
+}
+
+enum RemoteBackedMutationResolution {
+  synced,
+  alreadyCompletedRemote,
+  alreadyNotCompletedRemote,
+  permissionRevoked,
+  remoteAccessLost,
+  networkFailed,
+  remoteAuthRequired,
+  configMissing,
+  failed,
+}
+
+class RemoteBackedItemLocalActionResult {
+  const RemoteBackedItemLocalActionResult({
+    required this.status,
+    this.localPackId,
+    this.localItemId,
+    this.localCompletionId,
+    this.outboxId,
+    this.clientMutationId,
+    this.message,
+  });
+
+  final RemoteBackedItemLocalActionStatus status;
+  final int? localPackId;
+  final int? localItemId;
+  final int? localCompletionId;
+  final int? outboxId;
+  final String? clientMutationId;
+  final String? message;
+
+  bool get queued =>
+      status == RemoteBackedItemLocalActionStatus.completedPendingSync ||
+      status == RemoteBackedItemLocalActionStatus.undoPendingSync;
+}
+
+class RemoteBackedOutboxFlushResult {
+  const RemoteBackedOutboxFlushResult({
+    required this.processed,
+    required this.synced,
+    required this.noOp,
+    required this.conflict,
+    required this.failed,
+    this.lastResolution,
+    this.message,
+  });
+
+  final int processed;
+  final int synced;
+  final int noOp;
+  final int conflict;
+  final int failed;
+  final RemoteBackedMutationResolution? lastResolution;
+  final String? message;
+}
+
 extension RemotePackSyncKindStorage on RemotePackSyncKind {
   String get storageValue {
     return switch (this) {

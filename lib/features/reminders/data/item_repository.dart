@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
@@ -13,10 +14,13 @@ import '../domain/item_status_service.dart';
 import '../domain/pack_template.dart';
 import '../domain/resource.dart';
 import '../domain/resource_refill_service.dart';
+import '../domain/remote_sync.dart';
 import '../domain/shared_pack.dart';
 import '../domain/stage_tracker.dart';
+import 'home_models.dart';
 import 'local/app_database.dart';
 import 'local/reminder_dao.dart';
+import 'remote_backed_item_action_service.dart';
 import 'resource_repository.dart';
 
 class ItemInput {
@@ -114,6 +118,7 @@ class ItemRepository {
     ItemStatusService? statusService,
     ItemActionService? actionService,
     ItemSnapshotUpdateService? snapshotUpdateService,
+    RemoteBackedItemActionService? remoteBackedItemActionService,
     DateTime Function()? clock,
     Future<String> Function()? currentActorId,
   }) : _statusService = statusService ?? const ItemStatusService(),
@@ -121,6 +126,7 @@ class ItemRepository {
        _snapshotUpdateService =
            snapshotUpdateService ??
            ItemSnapshotUpdateService(statusService: statusService),
+       _remoteBackedItemActionService = remoteBackedItemActionService,
        _clock = clock ?? DateTime.now,
        _currentActorId = currentActorId;
 
@@ -138,6 +144,7 @@ class ItemRepository {
   final ItemStatusService _statusService;
   final ItemActionService _actionService;
   final ItemSnapshotUpdateService _snapshotUpdateService;
+  final RemoteBackedItemActionService? _remoteBackedItemActionService;
   final FixedScheduleValidator _fixedScheduleValidator =
       const FixedScheduleValidator();
   final DateTime Function() _clock;
@@ -164,6 +171,23 @@ class ItemRepository {
                 _statusService.classify(item.item, now: current) == status,
           )
           .toList(growable: false),
+    );
+  }
+
+  Stream<Map<int, HomeItemSyncStatus>> watchHomeItemSyncStatuses() {
+    return _combineLatest3(
+      _dao.watchRemotePackSyncMetadataEntries(),
+      _dao.watchRemoteItemSyncMetadataEntries(),
+      _dao.watchSyncOutboxEntries(
+        statuses: const {
+          SyncOutboxStatus.pending,
+          SyncOutboxStatus.syncing,
+          SyncOutboxStatus.failed,
+          SyncOutboxStatus.conflict,
+          SyncOutboxStatus.noOp,
+        },
+      ),
+      _buildHomeItemSyncStatuses,
     );
   }
 
@@ -218,6 +242,14 @@ class ItemRepository {
   Future<ItemBundle?> getItemById(int id) => _dao.getItemBundleById(id);
 
   Future<ItemPack?> getPackById(int id) => _dao.getItemPackById(id);
+
+  Future<bool> isRemoteBackedItem(int itemId) async {
+    final bundle = await getItemById(itemId);
+    if (bundle == null) {
+      return false;
+    }
+    return _dao.isRemoteBackedPack(bundle.pack.id);
+  }
 
   Future<int> createItem(
     ItemInput input, {
@@ -417,7 +449,17 @@ class ItemRepository {
       return false;
     }
     if (await _dao.isRemoteBackedPack(existing.pack.id)) {
-      return false;
+      final service = _remoteBackedItemActionService;
+      if (service == null) {
+        return false;
+      }
+      final actor = actorUserId ?? await _resolveActorId(null);
+      final result = await service.completeRemoteBackedItemLocally(
+        id,
+        actorLocalUserId: actor,
+        doneAt: doneAt,
+      );
+      return result.queued;
     }
     final actor = await _resolveActorId(actorUserId);
     if (!await _canActOnPack(existing.pack, actor)) {
@@ -490,15 +532,26 @@ class ItemRepository {
         doneRecord.isReverted) {
       return false;
     }
-    final snapshot = _undoSnapshotFromPayload(doneRecord.payload);
-    if (snapshot == null) {
-      return false;
-    }
     final existing = await getItemById(doneRecord.itemId);
     if (existing == null) {
       return false;
     }
     if (await _dao.isRemoteBackedPack(existing.pack.id)) {
+      final service = _remoteBackedItemActionService;
+      if (service == null) {
+        return false;
+      }
+      final actor = actorUserId ?? await _resolveActorId(null);
+      final result = await service.undoRemoteBackedItemLocally(
+        doneRecord.itemId,
+        actorLocalUserId: actor,
+        undoneAt: revertedAt,
+      );
+      return result.queued;
+    }
+
+    final snapshot = _undoSnapshotFromPayload(doneRecord.payload);
+    if (snapshot == null) {
       return false;
     }
 
@@ -1938,6 +1991,148 @@ class ItemRepository {
     }
     return '個';
   }
+
+  Map<int, HomeItemSyncStatus> _buildHomeItemSyncStatuses(
+    List<RemotePackSyncMetadataEntry> packMetadataEntries,
+    List<RemoteItemSyncMetadataEntry> itemMetadataEntries,
+    List<SyncOutboxEntry> outboxEntries,
+  ) {
+    final remoteBackedPacks = {
+      for (final entry in packMetadataEntries)
+        if (entry.syncKind == RemotePackSyncKind.remoteBacked)
+          entry.localPackId: entry,
+    };
+    if (remoteBackedPacks.isEmpty) {
+      return const <int, HomeItemSyncStatus>{};
+    }
+
+    final outboxByItemId = <int, SyncOutboxEntry>{};
+    for (final entry in outboxEntries) {
+      final localItemId = _localItemIdFromOutbox(entry);
+      if (localItemId == null) {
+        continue;
+      }
+      final current = outboxByItemId[localItemId];
+      if (current == null ||
+          _outboxPriority(entry) > _outboxPriority(current)) {
+        outboxByItemId[localItemId] = entry;
+      }
+    }
+
+    final result = <int, HomeItemSyncStatus>{};
+    for (final itemMetadata in itemMetadataEntries) {
+      final packMetadata = remoteBackedPacks[itemMetadata.localPackId];
+      if (packMetadata == null) {
+        continue;
+      }
+      final outbox = outboxByItemId[itemMetadata.localItemId];
+      result[itemMetadata.localItemId] = HomeItemSyncStatus(
+        isRemoteBacked: true,
+        remotePackSyncState: packMetadata.syncState,
+        remoteItemSyncState: itemMetadata.syncState,
+        pendingMutationAction: outbox?.actionType,
+        pendingMutationStatus: outbox?.status,
+        lastSyncError: _firstNonEmpty([
+          outbox?.lastError,
+          itemMetadata.lastSyncError,
+          packMetadata.lastSyncError,
+        ]),
+      );
+    }
+    return result;
+  }
+
+  int? _localItemIdFromOutbox(SyncOutboxEntry entry) {
+    try {
+      final payload = jsonDecode(entry.payloadJson);
+      if (payload is Map<String, Object?>) {
+        final value = payload['localItemId'];
+        if (value is int) {
+          return value;
+        }
+        if (value is String) {
+          return int.tryParse(value);
+        }
+      }
+    } catch (_) {
+      return null;
+    }
+    return null;
+  }
+
+  int _outboxPriority(SyncOutboxEntry entry) {
+    final statusPriority = switch (entry.status) {
+      SyncOutboxStatus.syncing => 60,
+      SyncOutboxStatus.pending => 50,
+      SyncOutboxStatus.failed => 40,
+      SyncOutboxStatus.conflict => 40,
+      SyncOutboxStatus.noOp => 30,
+      SyncOutboxStatus.cancelled => 0,
+      SyncOutboxStatus.synced => 0,
+    };
+    return statusPriority * 1000000 +
+        entry.updatedAt.millisecondsSinceEpoch.remainder(1000000);
+  }
+
+  String? _firstNonEmpty(Iterable<String?> values) {
+    for (final value in values) {
+      final trimmed = value?.trim();
+      if (trimmed != null && trimmed.isNotEmpty) {
+        return trimmed;
+      }
+    }
+    return null;
+  }
+}
+
+Stream<T> _combineLatest3<A, B, C, T>(
+  Stream<A> streamA,
+  Stream<B> streamB,
+  Stream<C> streamC,
+  T Function(A a, B b, C c) combine,
+) {
+  late StreamController<T> controller;
+  StreamSubscription<A>? subA;
+  StreamSubscription<B>? subB;
+  StreamSubscription<C>? subC;
+  A? latestA;
+  B? latestB;
+  C? latestC;
+  var streamAReady = false;
+  var streamBReady = false;
+  var streamCReady = false;
+
+  void emitIfReady() {
+    if (streamAReady && streamBReady && streamCReady) {
+      controller.add(combine(latestA as A, latestB as B, latestC as C));
+    }
+  }
+
+  controller = StreamController<T>.broadcast(
+    onListen: () {
+      subA = streamA.listen((value) {
+        latestA = value;
+        streamAReady = true;
+        emitIfReady();
+      }, onError: controller.addError);
+      subB = streamB.listen((value) {
+        latestB = value;
+        streamBReady = true;
+        emitIfReady();
+      }, onError: controller.addError);
+      subC = streamC.listen((value) {
+        latestC = value;
+        streamCReady = true;
+        emitIfReady();
+      }, onError: controller.addError);
+    },
+    onCancel: () async {
+      await subA?.cancel();
+      await subB?.cancel();
+      await subC?.cancel();
+    },
+  );
+  return controller.stream;
 }
 
 class _ResourceImpactSource {

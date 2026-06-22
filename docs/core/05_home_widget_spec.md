@@ -158,6 +158,8 @@ Native widget code may only read a Flutter-generated widget snapshot.
 
 Future remote-backed boundary: remote-backed items may be eligible for widget display only after Phase 5 local mirror and sync outbox are implemented. Widget must never call Supabase directly. Widget actions for remote-backed items must write local pending actions / outbox.
 
+Phase 5E boundary: even though remote-backed item mirrors can appear on the app Home screen, generated widget snapshots must still exclude remote-backed item attention / completed rows, and stale widget actions targeting remote-backed items must fail closed. Widget display/action support for remote-backed items remains Phase 5F work.
+
 ### 5.1 Snapshot Storage
 
 Flutter-side boundary implementation writes a small JSON snapshot through `HomeWidgetSnapshotStore`.

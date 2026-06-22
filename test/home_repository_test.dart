@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/home_models.dart';
@@ -10,6 +13,7 @@ import 'package:reminder_app/features/reminders/data/stage_tracker_repository.da
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_action_record.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
+import 'package:reminder_app/features/reminders/domain/remote_sync.dart';
 import 'package:reminder_app/features/reminders/domain/resource.dart';
 
 void main() {
@@ -275,6 +279,175 @@ void main() {
 
       expect(entries, isEmpty);
     },
+  );
+
+  test(
+    'remote-backed warning and danger items appear with sync overlay',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repositories = _repositories(db);
+      final packId = await repositories.item.createPack(
+        const ItemPackInput(title: 'Shared', iconEmoji: '🤝'),
+      );
+
+      final itemId = await repositories.item.createItem(
+        ItemInput(
+          title: 'Remote litter box',
+          type: ItemType.stateBased,
+          config: StateBasedItemConfig(
+            anchorDate: DateTime(2026, 5, 1),
+            warningAfter: const Duration(days: 1),
+            dangerAfter: const Duration(days: 2),
+          ),
+          packId: packId,
+        ),
+      );
+      await _markRemoteBacked(
+        db,
+        localPackId: packId,
+        localItemId: itemId,
+        packState: RemotePackSyncState.stale,
+        itemState: RemoteItemSyncState.synced,
+      );
+
+      final entries = await repositories.home
+          .watchDangerItems(now: DateTime(2026, 5, 2))
+          .first;
+
+      expect(entries.map((entry) => entry.bundle.item.title), [
+        'Remote litter box',
+      ]);
+      expect(entries.single.syncStatus.isRemoteBacked, isTrue);
+      expect(entries.single.syncStatus.isStale, isTrue);
+    },
+  );
+
+  test('remote-backed item overlay includes pending outbox mutation', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repositories = _repositories(db);
+    final packId = await repositories.item.createPack(
+      const ItemPackInput(title: 'Shared', iconEmoji: '🤝'),
+    );
+    final itemId = await repositories.item.createItem(
+      ItemInput(
+        title: 'Remote litter box',
+        type: ItemType.stateBased,
+        config: StateBasedItemConfig(
+          anchorDate: DateTime(2026, 5, 1),
+          warningAfter: const Duration(days: 1),
+          dangerAfter: const Duration(days: 2),
+        ),
+        packId: packId,
+      ),
+    );
+    await _markRemoteBacked(db, localPackId: packId, localItemId: itemId);
+    final now = DateTime(2026, 5, 2).millisecondsSinceEpoch;
+    await db.reminderDao.insertSyncOutbox(
+      SyncOutboxCompanion.insert(
+        localPackId: packId,
+        remotePackId: Value('remote-pack-$packId'),
+        localEntityType: 'item_completion',
+        localEntityId: const Value(10),
+        remoteEntityId: Value('remote-item-$itemId'),
+        actionType: SyncOutboxActionType.completeItem.storageValue,
+        payloadJson: jsonEncode({
+          'localItemId': itemId,
+          'localPackId': packId,
+          'remoteItemId': 'remote-item-$itemId',
+          'remotePackId': 'remote-pack-$packId',
+        }),
+        clientMutationId: 'mutation-$itemId',
+        actorLocalUserId: AppDatabase.defaultHostUserId,
+        createdAt: now,
+        updatedAt: now,
+        status: SyncOutboxStatus.pending.storageValue,
+      ),
+    );
+
+    final entry =
+        (await repositories.home
+                .watchDangerItems(now: DateTime(2026, 5, 2))
+                .first)
+            .single;
+
+    expect(entry.syncStatus.hasPendingMutation, isTrue);
+    expect(
+      entry.syncStatus.pendingMutationAction,
+      SyncOutboxActionType.completeItem,
+    );
+  });
+
+  test(
+    'unscheduled remote-backed mirror is not forced into attention',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repositories = _repositories(db);
+      final packId = await repositories.item.createPack(
+        const ItemPackInput(title: 'Shared', iconEmoji: '🤝'),
+      );
+
+      final itemId = await repositories.item.createItem(
+        const ItemInput(
+          title: 'Remote unscheduled',
+          type: ItemType.stateBased,
+          config: StateBasedItemConfig(
+            warningAfter: Duration(days: 1),
+            dangerAfter: Duration(days: 2),
+          ),
+          packId: null,
+        ),
+      );
+      await repositories.item.moveItemToPack(
+        itemId,
+        targetPackId: packId,
+        moveLinkedResources: false,
+      );
+      await _markRemoteBacked(db, localPackId: packId, localItemId: itemId);
+
+      final danger = await repositories.home
+          .watchDangerItems(now: DateTime(2026, 5, 2))
+          .first;
+      final warning = await repositories.home
+          .watchWarningItems(now: DateTime(2026, 5, 2))
+          .first;
+
+      expect(danger, isEmpty);
+      expect(warning, isEmpty);
+    },
+  );
+}
+
+Future<void> _markRemoteBacked(
+  AppDatabase db, {
+  required int localPackId,
+  required int localItemId,
+  RemotePackSyncState packState = RemotePackSyncState.synced,
+  RemoteItemSyncState itemState = RemoteItemSyncState.synced,
+}) async {
+  final now = DateTime(2026, 5, 2).millisecondsSinceEpoch;
+  await db.reminderDao.insertRemotePackSyncMetadata(
+    RemotePackSyncMetadataCompanion.insert(
+      localPackId: localPackId,
+      remotePackId: 'remote-pack-$localPackId',
+      syncKind: RemotePackSyncKind.remoteBacked.storageValue,
+      syncState: packState.storageValue,
+      createdAt: now,
+      updatedAt: now,
+    ),
+  );
+  await db.reminderDao.insertRemoteItemSyncMetadata(
+    RemoteItemSyncMetadataCompanion.insert(
+      localItemId: localItemId,
+      localPackId: localPackId,
+      remoteItemId: 'remote-item-$localItemId',
+      remotePackId: 'remote-pack-$localPackId',
+      syncState: itemState.storageValue,
+      createdAt: now,
+      updatedAt: now,
+    ),
   );
 }
 

@@ -3,6 +3,7 @@ import '../../domain/item.dart';
 import '../../domain/item_status_service.dart';
 import '../../domain/stage_occurrence.dart';
 import '../formatters/reminder_formatters.dart';
+import '../text/reminder_ui_text.dart';
 
 enum ItemCardDisplayState {
   notStarted,
@@ -27,6 +28,8 @@ class ItemCardViewModel {
     this.anchorDateLabel,
     this.dueDateLabel,
     this.overduePolicyLabel,
+    this.syncStatusLabel,
+    this.isRemoteBacked = false,
     this.isExpanded = false,
   });
 
@@ -77,9 +80,13 @@ class ItemCardViewModel {
         ),
         _ => null,
       },
+      syncStatusLabel: _syncStatusLabel(entry.syncStatus),
+      isRemoteBacked: entry.syncStatus.isRemoteBacked,
       displayState: displayState,
-      canComplete: displayState != ItemCardDisplayState.notStarted,
-      canSkip: true,
+      canComplete:
+          displayState != ItemCardDisplayState.notStarted &&
+          !entry.syncStatus.isAccessLost,
+      canSkip: !entry.syncStatus.isRemoteBacked,
     );
   }
 
@@ -92,6 +99,8 @@ class ItemCardViewModel {
   final String? anchorDateLabel;
   final String? dueDateLabel;
   final String? overduePolicyLabel;
+  final String? syncStatusLabel;
+  final bool isRemoteBacked;
   final ItemCardDisplayState displayState;
   final bool isExpanded;
   final bool canComplete;
@@ -108,6 +117,8 @@ class ItemCardViewModel {
       anchorDateLabel: anchorDateLabel,
       dueDateLabel: dueDateLabel,
       overduePolicyLabel: overduePolicyLabel,
+      syncStatusLabel: syncStatusLabel,
+      isRemoteBacked: isRemoteBacked,
       displayState: displayState,
       isExpanded: isExpanded ?? this.isExpanded,
       canComplete: canComplete,
@@ -198,6 +209,26 @@ class ItemCardViewModel {
         return null;
       }
       return '已持續$dayIndex日';
+    }
+    return null;
+  }
+
+  static String? _syncStatusLabel(HomeItemSyncStatus status) {
+    if (!status.isRemoteBacked) {
+      return null;
+    }
+    if (status.isAccessLost) {
+      return ReminderUiText.syncAccessLostLabel;
+    }
+    if (status.hasFailedMutation ||
+        (status.lastSyncError?.trim().isNotEmpty ?? false)) {
+      return ReminderUiText.syncFailedLabel;
+    }
+    if (status.hasPendingMutation) {
+      return ReminderUiText.syncPendingLabel;
+    }
+    if (status.isStale) {
+      return ReminderUiText.syncStaleLabel;
     }
     return null;
   }

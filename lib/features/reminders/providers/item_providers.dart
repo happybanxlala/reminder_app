@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/item_action_record.dart';
 import '../data/item_repository.dart';
 import '../data/local/reminder_dao.dart';
+import '../data/remote_backed_item_action_service.dart';
 import '../domain/item_pack.dart';
 import 'developer_settings_providers.dart';
 import 'database_providers.dart';
@@ -22,9 +23,20 @@ class ItemManagementGroup {
 final itemRepositoryProvider = Provider<ItemRepository>((ref) {
   return ItemRepository(
     ref.watch(appDatabaseProvider).reminderDao,
+    remoteBackedItemActionService: ref.watch(
+      remoteBackedItemActionServiceProvider,
+    ),
     currentActorId: () => currentActorId(ref),
   );
 });
+
+final remoteBackedItemActionServiceProvider =
+    Provider<RemoteBackedItemActionService>((ref) {
+      return RemoteBackedItemActionService(
+        dao: ref.watch(appDatabaseProvider).reminderDao,
+        identityRepository: ref.watch(identityRepositoryProvider),
+      );
+    });
 
 final itemPacksProvider = StreamProvider<List<ItemPack>>((ref) {
   return ref.watch(itemRepositoryProvider).watchPacks(includeArchived: true);

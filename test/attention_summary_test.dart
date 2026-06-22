@@ -5,6 +5,7 @@ import 'package:reminder_app/features/reminders/data/home_repository.dart';
 import 'package:reminder_app/features/reminders/data/local/reminder_dao.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
+import 'package:reminder_app/features/reminders/domain/remote_sync.dart';
 import 'package:reminder_app/features/reminders/domain/resource.dart';
 import 'package:reminder_app/features/reminders/domain/stage_occurrence.dart';
 import 'package:reminder_app/features/reminders/domain/stage_record.dart';
@@ -89,9 +90,47 @@ void main() {
     expect(summary.stageUpcomingCount, 1);
     expect(summary.totalCount, 4);
   });
+
+  test('notification summary can exclude remote-backed item entries', () async {
+    final repository = AttentionSummaryRepository(
+      homeRepository: _FakeHomeAttentionSource(
+        dangerEntries: [
+          _itemEntry(title: 'Local litter box'),
+          _itemEntry(
+            id: 2,
+            title: 'Remote litter box',
+            syncStatus: const HomeItemSyncStatus(
+              isRemoteBacked: true,
+              remotePackSyncState: RemotePackSyncState.synced,
+            ),
+          ),
+          _resourceEntry(
+            id: 3,
+            title: 'Water filter',
+            severity: HomeAttentionSeverity.danger,
+          ),
+        ],
+      ),
+    );
+
+    final appSummary = await repository.getSummary(now: DateTime(2026, 5, 1));
+    final notificationSummary = await repository.getSummary(
+      now: DateTime(2026, 5, 1),
+      excludeRemoteBackedItems: true,
+    );
+
+    expect(appSummary.dangerItemCount, 2);
+    expect(appSummary.totalCount, 3);
+    expect(notificationSummary.dangerItemCount, 1);
+    expect(notificationSummary.totalCount, 2);
+  });
 }
 
-HomeAttentionEntry _itemEntry({int id = 1, required String title}) {
+HomeAttentionEntry _itemEntry({
+  int id = 1,
+  required String title,
+  HomeItemSyncStatus syncStatus = HomeItemSyncStatus.localOnly,
+}) {
   final pack = _pack();
   return HomeAttentionEntry.item(
     entry: ItemHomeEntry(
@@ -112,6 +151,7 @@ HomeAttentionEntry _itemEntry({int id = 1, required String title}) {
         pack: pack,
       ),
       status: ItemStatus.danger,
+      syncStatus: syncStatus,
     ),
     severity: HomeAttentionSeverity.danger,
     urgencyDate: DateTime(2026, 4, 14),

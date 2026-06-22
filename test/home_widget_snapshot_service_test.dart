@@ -10,6 +10,7 @@ import 'package:reminder_app/features/reminders/data/resource_repository.dart';
 import 'package:reminder_app/features/reminders/data/stage_tracker_repository.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
+import 'package:reminder_app/features/reminders/domain/remote_sync.dart';
 import 'package:reminder_app/features/reminders/domain/resource.dart';
 import 'package:reminder_app/features/reminders/data/stage_tracker_models.dart';
 
@@ -174,10 +175,84 @@ void main() {
       }
     }
   });
+
+  test('snapshot excludes remote-backed item rows in Phase 5E', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repositories = _repositories(db);
+    final now = DateTime(2026, 5, 2);
+    final packId = await repositories.item.createPack(
+      const ItemPackInput(title: 'Shared', iconEmoji: '🤝'),
+    );
+    final remoteItemId = await repositories.item.createItem(
+      ItemInput(
+        title: 'Remote litter box',
+        type: ItemType.stateBased,
+        config: StateBasedItemConfig(
+          anchorDate: DateTime(2026, 5, 1),
+          warningAfter: const Duration(days: 1),
+          dangerAfter: const Duration(days: 2),
+        ),
+        packId: packId,
+      ),
+    );
+    await _markRemoteBacked(db, localPackId: packId, localItemId: remoteItemId);
+    await repositories.item.createItem(
+      ItemInput(
+        title: 'Local litter box',
+        type: ItemType.stateBased,
+        config: StateBasedItemConfig(
+          anchorDate: DateTime(2026, 5, 1),
+          warningAfter: const Duration(days: 1),
+          dangerAfter: const Duration(days: 2),
+        ),
+        packId: packId,
+      ),
+    );
+
+    final snapshot = await HomeWidgetSnapshotService(
+      homeRepository: repositories.home,
+      currentDate: now,
+    ).buildSnapshot();
+
+    final needsHandling = _tab(snapshot.tabs, HomeWidgetTabId.needsHandling);
+    expect(needsHandling.entries.map((entry) => entry.title), [
+      'Local litter box',
+    ]);
+  });
 }
 
 HomeWidgetTab _tab(List<HomeWidgetTab> tabs, HomeWidgetTabId id) {
   return tabs.firstWhere((tab) => tab.id == id);
+}
+
+Future<void> _markRemoteBacked(
+  AppDatabase db, {
+  required int localPackId,
+  required int localItemId,
+}) async {
+  final now = DateTime(2026, 5, 2).millisecondsSinceEpoch;
+  await db.reminderDao.insertRemotePackSyncMetadata(
+    RemotePackSyncMetadataCompanion.insert(
+      localPackId: localPackId,
+      remotePackId: 'remote-pack-$localPackId',
+      syncKind: RemotePackSyncKind.remoteBacked.storageValue,
+      syncState: RemotePackSyncState.synced.storageValue,
+      createdAt: now,
+      updatedAt: now,
+    ),
+  );
+  await db.reminderDao.insertRemoteItemSyncMetadata(
+    RemoteItemSyncMetadataCompanion.insert(
+      localItemId: localItemId,
+      localPackId: localPackId,
+      remoteItemId: 'remote-item-$localItemId',
+      remotePackId: 'remote-pack-$localPackId',
+      syncState: RemoteItemSyncState.synced.storageValue,
+      createdAt: now,
+      updatedAt: now,
+    ),
+  );
 }
 
 _RepositorySet _repositories(AppDatabase db) {

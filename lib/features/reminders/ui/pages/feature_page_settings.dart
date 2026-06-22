@@ -51,6 +51,13 @@ class SettingsPage extends ConsumerWidget {
     final remotePocTargetRemotePackId =
         remotePocState.lastJoinedRemotePackId ??
         remotePocPackMapping?.remoteEntityId;
+    final remoteBackedOutboxSummary = ref.watch(
+      remoteBackedOutboxSummaryProvider,
+    );
+    final outboxSummary = remoteBackedOutboxSummary.maybeWhen(
+      data: (summary) => summary,
+      orElse: () => null,
+    );
 
     return ReminderEditorScaffold(
       title: ReminderUiText.settingsTitle,
@@ -470,6 +477,31 @@ class SettingsPage extends ConsumerWidget {
                         ),
                 ),
                 _SettingsReadOnlyRow(
+                  key: const Key('settings-remote-backed-outbox-row'),
+                  label: ReminderUiText.remotePocOutboxLabel,
+                  value: outboxSummary == null
+                      ? ReminderUiText.remotePocNotRun
+                      : 'pending ${outboxSummary.pendingCount}, syncing ${outboxSummary.syncingCount}, failed ${outboxSummary.failedCount}, conflict/no-op ${outboxSummary.conflictOrNoOpCount}',
+                ),
+                _SettingsActionRow(
+                  key: const Key('settings-remote-backed-flush-outbox-row'),
+                  label: ReminderUiText.remotePocFlushOutboxLabel,
+                  value: outboxSummary == null
+                      ? ReminderUiText.remotePocNotRun
+                      : '${outboxSummary.pendingCount} pending',
+                  icon: Icons.sync_outlined,
+                  enabled:
+                      !remotePocState.isRunning &&
+                      (outboxSummary?.pendingCount ?? 0) > 0,
+                  onTap: (outboxSummary?.pendingCount ?? 0) == 0
+                      ? null
+                      : () => _runRemotePocAction(
+                          context,
+                          ref,
+                          (controller) => controller.flushRemoteBackedOutbox(),
+                        ),
+                ),
+                _SettingsReadOnlyRow(
                   key: const Key('settings-remote-realtime-title-row'),
                   label: ReminderUiText.remotePocRealtimeSectionTitle,
                   value: remotePocState.hasRemoteChanges
@@ -882,6 +914,7 @@ class SettingsPage extends ConsumerWidget {
     );
     ref.invalidate(currentAppUserProvider);
     ref.invalidate(currentAppUserIdProvider);
+    ref.invalidate(remoteBackedOutboxSummaryProvider);
     if (!context.mounted) {
       return;
     }

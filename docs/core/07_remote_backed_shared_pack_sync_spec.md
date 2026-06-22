@@ -435,10 +435,44 @@ Phase 5C boundary:
 - Sync to Supabase RPC
 - Resolve `completed` / `alreadyCompleted` / `undone` / `alreadyNotCompleted`
 
+Phase 5D implementation note:
+
+- Reuses Drift schema version 9; no migration is required.
+- Replaces the Phase 5C fail-closed app route with `RemoteBackedItemActionService` for app-wired `ItemRepository.markDone` / `undoDone`.
+- Local-only packs keep the existing local-only completion / undo behavior.
+- Remote-backed complete creates an optimistic local `ItemActionRecord(done)`, `ItemCompletion`, `remote_completion_sync_metadata(completionState = pendingLocal, syncState = pendingPush)`, and `sync_outbox(actionType = complete_item)`.
+- Remote-backed undo preserves the original completion history, marks the local completion undone optimistically, sets completion metadata back to `pendingLocal`, and creates `sync_outbox(actionType = undo_item)`.
+- `sync_outbox.payloadJson` stores `remotePackId`, `remoteItemId`, `localPackId`, `localItemId`, `localCompletionId`, `clientMutationId`, action timestamp, and actor ids.
+- Local complete / undo does not call Supabase, refresh/import snapshots, update widget cache, schedule notifications, or enqueue resource/stage sync.
+- `RemoteBackedOutboxFlushService` is manual only. It processes pending `complete_item` / `undo_item`, marks rows `syncing`, calls existing Supabase RPC wrappers, then marks rows `synced`, `no_op`, or `failed`.
+- `completed` maps to outbox `synced` and completion metadata `confirmedRemote`.
+- `alreadyCompleted` maps to outbox `no_op`, completion metadata `noOp`, and stale pack/item metadata. It must not overwrite remote `completed_by`.
+- `undone` maps to outbox `synced` and completion metadata `undoneRemote`, preserving original `completed_by`.
+- `alreadyNotCompleted` maps to outbox `no_op`, completion metadata `noOp`, and stale pack/item metadata.
+- RLS / removed-member style failures mark the outbox `failed` and mark pack metadata `accessLost` when appropriate.
+- Network/config/auth failures mark the outbox `failed`; Phase 5D does not auto retry.
+- Developer-only Settings POC may show outbox counts and expose a manual flush button. This is not production sync UI.
+- Backup remains legacy and non-replayable: `sync_outbox`, typed remote metadata, retry state, and imported remote-backed mirror rows remain excluded from manual backup.
+- Restore/reset must not replay, flush, pull, push, resume realtime, or grant remote access.
+- Widget and notification behavior are unchanged in Phase 5D.
+
 ### Phase 5E：Main Screen Integration
 
 - Remote-backed items in today / upcoming / warning / danger
 - Pending / stale / sync status display rules
+
+Phase 5E implementation note:
+
+- Reuses Drift schema version 9; no migration or generated Drift changes are required.
+- Home continues to derive section membership from local mirror records and existing `ItemStatusService` classification. Phase 5E does not invent schedule / due data when the remote snapshot did not provide enough local schedule fields.
+- Imported remote-backed active items can appear in Home warning / danger sections when their local mirror data classifies into those sections.
+- `ItemHomeEntry` / item card read models carry a local sync overlay derived from `remote_pack_sync_metadata`, `remote_item_sync_metadata`, and `sync_outbox`.
+- Home card labels are intentionally compact: `等待同步`, `同步失敗`, `遠端狀態可能已更新`, and `已失去遠端存取權`.
+- App-wired Home complete / today-completed undo keep using `ItemRepository.markDone` / `undoDone`; remote-backed rows route to the Phase 5D local outbox path and do not call Supabase immediately.
+- Local-only actions that do not yet have remote-backed semantics, such as skip/edit/delete/archive entry points on Home cards, remain hidden or disabled for remote-backed rows.
+- Widget integration remains deferred. Phase 5E filters remote-backed item rows out of generated widget snapshots and rejects stale widget actions for remote-backed items.
+- Notification integration remains deferred. Daily attention notification summaries exclude remote-backed item rows, while in-app Home summaries can include them.
+- Backup remains legacy and unchanged: remote-backed mirror rows, typed sync metadata, and `sync_outbox` are not exported or replayed.
 
 ### Phase 5F：Widget / Notification Integration
 

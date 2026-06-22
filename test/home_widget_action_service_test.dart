@@ -13,6 +13,8 @@ import 'package:reminder_app/features/reminders/data/resource_repository.dart';
 import 'package:reminder_app/features/reminders/data/stage_tracker_repository.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_action_record.dart';
+import 'package:reminder_app/features/reminders/domain/item_pack.dart';
+import 'package:reminder_app/features/reminders/domain/remote_sync.dart';
 
 void main() {
   test(
@@ -68,6 +70,56 @@ void main() {
       );
     },
   );
+
+  test('completeEntry rejects stale remote-backed widget rows', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repositories = _repositories(db);
+    final packId = await repositories.item.createPack(
+      const ItemPackInput(title: 'Shared', iconEmoji: '🤝'),
+    );
+    final itemId = await repositories.item.createItem(
+      ItemInput(
+        title: 'Remote litter box',
+        type: ItemType.stateBased,
+        config: StateBasedItemConfig(
+          anchorDate: DateTime(2026, 5, 1),
+          warningAfter: const Duration(days: 1),
+          dangerAfter: const Duration(days: 2),
+        ),
+        packId: packId,
+      ),
+    );
+    await _markRemoteBacked(db, localPackId: packId, localItemId: itemId);
+    final store = _MemoryHomeWidgetSnapshotStore();
+    store.snapshot = HomeWidgetSnapshot(
+      schemaVersion: HomeWidgetSnapshot.currentSchemaVersion,
+      updatedAt: DateTime(2026, 6, 10, 9),
+      selectedTab: HomeWidgetTabId.needsHandling,
+      tabs: [
+        HomeWidgetTab(
+          id: HomeWidgetTabId.needsHandling,
+          label: '需要處理',
+          count: 1,
+          entries: [
+            HomeWidgetEntry(
+              entryId: 'item-$itemId',
+              type: HomeWidgetEntryType.itemAttention,
+              targetId: itemId,
+              title: 'Remote litter box',
+              statusText: '已持續2日',
+              action: HomeWidgetEntryAction.complete,
+              canAct: true,
+            ),
+          ],
+        ),
+      ],
+    );
+    final service = _actionService(repositories, store);
+
+    expect(await service.completeEntry('item-$itemId'), isFalse);
+    expect(await repositories.item.listActionHistory(itemId), hasLength(1));
+  });
 
   test(
     'undoCompletedEntry delegates to item repository only for undo rows',
@@ -271,4 +323,33 @@ class _MemoryHomeWidgetSnapshotStore implements HomeWidgetSnapshotStore {
   Future<void> writeSnapshot(HomeWidgetSnapshot snapshot) async {
     this.snapshot = snapshot;
   }
+}
+
+Future<void> _markRemoteBacked(
+  AppDatabase db, {
+  required int localPackId,
+  required int localItemId,
+}) async {
+  final now = DateTime(2026, 5, 2).millisecondsSinceEpoch;
+  await db.reminderDao.insertRemotePackSyncMetadata(
+    RemotePackSyncMetadataCompanion.insert(
+      localPackId: localPackId,
+      remotePackId: 'remote-pack-$localPackId',
+      syncKind: RemotePackSyncKind.remoteBacked.storageValue,
+      syncState: RemotePackSyncState.synced.storageValue,
+      createdAt: now,
+      updatedAt: now,
+    ),
+  );
+  await db.reminderDao.insertRemoteItemSyncMetadata(
+    RemoteItemSyncMetadataCompanion.insert(
+      localItemId: localItemId,
+      localPackId: localPackId,
+      remoteItemId: 'remote-item-$localItemId',
+      remotePackId: 'remote-pack-$localPackId',
+      syncState: RemoteItemSyncState.synced.storageValue,
+      createdAt: now,
+      updatedAt: now,
+    ),
+  );
 }

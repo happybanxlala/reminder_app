@@ -23,6 +23,10 @@ Phase 5B adds local schema foundation for remote-backed shared packs, including 
 
 Phase 5C adds a manual read-only import from an already-fetched `RemotePackSnapshot` into local mirror records. It reuses schema version 9, writes local shared pack/member/user/item/completion/activity mirrors plus `sync_mappings` and typed sync metadata, blocks local-only complete/undo on remote-backed items until Phase 5D, and excludes imported remote-backed mirrors from legacy manual backup.
 
+Phase 5D adds remote-backed complete/undo outbox MVP. Remote-backed item complete/undo now creates pending local state and `sync_outbox` mutations, with developer-only manual flush to existing Supabase RPC wrappers. It does not implement background sync, automatic retry, full two-way sync, widget/notification integration, Supabase SQL changes, or account binding.
+
+Phase 5E adds main-screen integration for remote-backed item mirrors. Home warning / danger / today completed read models can show remote-backed items when local mirror schedule data supports existing status classification, and item cards show basic pending / failed / stale / access-lost sync labels. Widget snapshots and daily notification scheduling still exclude remote-backed item rows until Phase 5F.
+
 ## 1. 總覽
 
 ### 1.1 產品北極星
@@ -1470,6 +1474,7 @@ Home 已實作：
 - Pack filter。
 - danger attention section：混合顯示 danger Item 與 danger Resource。
 - warning attention section：混合顯示 warning Item 與 warning Resource。
+- remote-backed item mirror 若本機 schedule / status data 足以被既有 `ItemStatusService` 判定為 warning / danger，會進入 Home item sections；Home card 會顯示基本 sync label（等待同步 / 同步失敗 / 遠端狀態可能已更新 / 已失去遠端存取權）。
 - upcoming stage section。
 - StageTracker 本身不進入 danger / warning；StageOccurrence 保留在 upcoming stage section。
 - Stage Home card 的「知道了」 action。

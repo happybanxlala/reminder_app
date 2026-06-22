@@ -3,6 +3,7 @@ import 'package:reminder_app/features/reminders/data/home_models.dart';
 import 'package:reminder_app/features/reminders/data/local/reminder_dao.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
+import 'package:reminder_app/features/reminders/domain/remote_sync.dart';
 import 'package:reminder_app/features/reminders/presentation/view_models/item_card_view_model.dart';
 
 void main() {
@@ -236,13 +237,89 @@ void main() {
 
     expect(viewModel.trailingLabel, '已持續8日');
   });
+
+  test('item card view model exposes remote-backed sync labels', () {
+    final pending = ItemCardViewModel.fromEntry(
+      _entry(
+        status: ItemStatus.warning,
+        item: _stateItem(),
+        syncStatus: const HomeItemSyncStatus(
+          isRemoteBacked: true,
+          pendingMutationAction: SyncOutboxActionType.completeItem,
+          pendingMutationStatus: SyncOutboxStatus.pending,
+        ),
+      ),
+      now: DateTime(2026, 4, 8),
+    );
+    final failed = ItemCardViewModel.fromEntry(
+      _entry(
+        status: ItemStatus.warning,
+        item: _stateItem(id: 14),
+        syncStatus: const HomeItemSyncStatus(
+          isRemoteBacked: true,
+          pendingMutationStatus: SyncOutboxStatus.failed,
+        ),
+      ),
+      now: DateTime(2026, 4, 8),
+    );
+    final stale = ItemCardViewModel.fromEntry(
+      _entry(
+        status: ItemStatus.warning,
+        item: _stateItem(id: 15),
+        syncStatus: const HomeItemSyncStatus(
+          isRemoteBacked: true,
+          remotePackSyncState: RemotePackSyncState.stale,
+        ),
+      ),
+      now: DateTime(2026, 4, 8),
+    );
+    final accessLost = ItemCardViewModel.fromEntry(
+      _entry(
+        status: ItemStatus.warning,
+        item: _stateItem(id: 16),
+        syncStatus: const HomeItemSyncStatus(
+          isRemoteBacked: true,
+          remotePackSyncState: RemotePackSyncState.accessLost,
+        ),
+      ),
+      now: DateTime(2026, 4, 8),
+    );
+
+    expect(pending.syncStatusLabel, '等待同步');
+    expect(pending.canSkip, isFalse);
+    expect(failed.syncStatusLabel, '同步失敗');
+    expect(stale.syncStatusLabel, '遠端狀態可能已更新');
+    expect(accessLost.syncStatusLabel, '已失去遠端存取權');
+    expect(accessLost.canComplete, isFalse);
+  });
 }
 
-ItemHomeEntry _entry({required ItemStatus status, required Item item}) {
+ItemHomeEntry _entry({
+  required ItemStatus status,
+  required Item item,
+  HomeItemSyncStatus syncStatus = HomeItemSyncStatus.localOnly,
+}) {
   return ItemHomeEntry(
     bundle: ItemBundle(item: item, pack: _defaultPack()),
     status: status,
     elapsed: null,
+    syncStatus: syncStatus,
+  );
+}
+
+Item _stateItem({int id = 13}) {
+  return Item(
+    id: id,
+    packId: 1,
+    title: 'Cat food',
+    type: ItemType.stateBased,
+    config: StateBasedItemConfig(
+      anchorDate: DateTime(2026, 4, 1),
+      warningAfter: Duration(days: 2),
+      dangerAfter: Duration(days: 4),
+    ),
+    createdAt: DateTime(2026, 4, 1),
+    updatedAt: DateTime(2026, 4, 1),
   );
 }
 

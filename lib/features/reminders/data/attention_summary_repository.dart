@@ -11,7 +11,10 @@ class AttentionSummaryRepository {
 
   final HomeAttentionSource _homeRepository;
 
-  Future<AttentionSummary> getSummary({DateTime? now}) async {
+  Future<AttentionSummary> getSummary({
+    DateTime? now,
+    bool excludeRemoteBackedItems = false,
+  }) async {
     final current = now ?? DateTime.now();
     final results = await Future.wait<Object>([
       _homeRepository.watchDangerAttentionEntries(now: current).first,
@@ -22,6 +25,7 @@ class AttentionSummaryRepository {
       dangerEntries: results[0] as List<HomeAttentionEntry>,
       warningEntries: results[1] as List<HomeAttentionEntry>,
       stages: results[2] as List<StageOccurrence>,
+      excludeRemoteBackedItems: excludeRemoteBackedItems,
     );
   }
 
@@ -43,22 +47,34 @@ class AttentionSummaryRepository {
     required List<HomeAttentionEntry> dangerEntries,
     required List<HomeAttentionEntry> warningEntries,
     required List<StageOccurrence> stages,
+    bool excludeRemoteBackedItems = false,
   }) {
+    final visibleDangerEntries = excludeRemoteBackedItems
+        ? dangerEntries.where(_isNotRemoteBackedItem)
+        : dangerEntries;
+    final visibleWarningEntries = excludeRemoteBackedItems
+        ? warningEntries.where(_isNotRemoteBackedItem)
+        : warningEntries;
     return AttentionSummary(
-      dangerItemCount: dangerEntries
+      dangerItemCount: visibleDangerEntries
           .where((entry) => entry.type == HomeAttentionEntryType.item)
           .length,
-      warningItemCount: warningEntries
+      warningItemCount: visibleWarningEntries
           .where((entry) => entry.type == HomeAttentionEntryType.item)
           .length,
-      dangerResourceCount: dangerEntries
+      dangerResourceCount: visibleDangerEntries
           .where((entry) => entry.type == HomeAttentionEntryType.resource)
           .length,
-      warningResourceCount: warningEntries
+      warningResourceCount: visibleWarningEntries
           .where((entry) => entry.type == HomeAttentionEntryType.resource)
           .length,
       stageUpcomingCount: stages.length,
     );
+  }
+
+  bool _isNotRemoteBackedItem(HomeAttentionEntry entry) {
+    final itemEntry = entry.itemEntry;
+    return itemEntry == null || !itemEntry.syncStatus.isRemoteBacked;
   }
 
   Stream<T> _combineLatest3<A, B, C, T>(

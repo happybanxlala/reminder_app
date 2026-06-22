@@ -14,6 +14,7 @@ import 'package:reminder_app/features/reminders/domain/attention_summary.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_action_record.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
+import 'package:reminder_app/features/reminders/domain/remote_sync.dart';
 import 'package:reminder_app/features/reminders/domain/resource.dart';
 import 'package:reminder_app/features/reminders/domain/stage_occurrence.dart';
 import 'package:reminder_app/features/reminders/domain/stage_tracker.dart';
@@ -73,6 +74,22 @@ void main() {
     expect(find.byKey(const Key('item-content-21')), findsNothing);
     expect(find.byKey(const Key('item-content-22')), findsOneWidget);
     expect(find.byKey(const Key('item-content-21')), findsNothing);
+  });
+
+  testWidgets('remote-backed home card shows sync status label', (
+    tester,
+  ) async {
+    await _pumpHome(
+      tester,
+      firstItemSyncStatus: const HomeItemSyncStatus(
+        isRemoteBacked: true,
+        pendingMutationAction: SyncOutboxActionType.completeItem,
+        pendingMutationStatus: SyncOutboxStatus.pending,
+      ),
+    );
+
+    expect(find.byKey(const Key('item-sync-status-21')), findsOneWidget);
+    expect(find.text('等待同步'), findsOneWidget);
   });
 
   testWidgets('complete icon does not expand item card', (tester) async {
@@ -160,6 +177,7 @@ Future<_HomeFixture> _pumpHome(
   WidgetTester tester, {
   StreamController<List<TodayCompletedEntry>>? completedController,
   ValueChanged<DateTime?>? onUndo,
+  HomeItemSyncStatus firstItemSyncStatus = HomeItemSyncStatus.localOnly,
 }) async {
   final db = AppDatabase.forTesting(NativeDatabase.memory());
   addTearDown(db.close);
@@ -176,7 +194,12 @@ Future<_HomeFixture> _pumpHome(
     title: 'Dish soap',
   );
   final entries = [
-    _itemEntry(id: 21, pack: catPack, title: 'Clean litter box'),
+    _itemEntry(
+      id: 21,
+      pack: catPack,
+      title: 'Clean litter box',
+      syncStatus: firstItemSyncStatus,
+    ),
     _itemEntry(id: 22, pack: homePack, title: 'Pay electricity bill'),
     HomeAttentionEntry.resource(
       bundle: catResource,
@@ -316,6 +339,7 @@ HomeAttentionEntry _itemEntry({
   required int id,
   required ItemPack pack,
   required String title,
+  HomeItemSyncStatus syncStatus = HomeItemSyncStatus.localOnly,
 }) {
   return HomeAttentionEntry.item(
     entry: ItemHomeEntry(
@@ -336,6 +360,7 @@ HomeAttentionEntry _itemEntry({
         pack: pack,
       ),
       status: ItemStatus.danger,
+      syncStatus: syncStatus,
     ),
     severity: HomeAttentionSeverity.danger,
     urgencyDate: DateTime(2026, 5, 2),

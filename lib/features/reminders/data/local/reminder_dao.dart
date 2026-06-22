@@ -452,6 +452,13 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
         .map((row) => row == null ? null : _toRemotePackSyncMetadata(row));
   }
 
+  Stream<List<RemotePackSyncMetadataEntry>>
+  watchRemotePackSyncMetadataEntries() {
+    return select(remotePackSyncMetadata).watch().map(
+      (rows) => rows.map(_toRemotePackSyncMetadata).toList(growable: false),
+    );
+  }
+
   Future<bool> updateRemotePackSyncMetadata(
     int id,
     RemotePackSyncMetadataCompanion entry,
@@ -496,6 +503,13 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
         0;
   }
 
+  Stream<List<RemoteItemSyncMetadataEntry>>
+  watchRemoteItemSyncMetadataEntries() {
+    return select(remoteItemSyncMetadata).watch().map(
+      (rows) => rows.map(_toRemoteItemSyncMetadata).toList(growable: false),
+    );
+  }
+
   Future<int> insertRemoteCompletionSyncMetadata(
     RemoteCompletionSyncMetadataCompanion entry,
   ) {
@@ -517,6 +531,17 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     final row =
         await (select(remoteCompletionSyncMetadata)
               ..where((t) => t.remoteCompletionId.equals(remoteCompletionId)))
+            .getSingleOrNull();
+    return row == null ? null : _toRemoteCompletionSyncMetadata(row);
+  }
+
+  Future<RemoteCompletionSyncMetadataEntry?>
+  getRemoteCompletionSyncMetadataForLocalCompletion(
+    int localCompletionId,
+  ) async {
+    final row =
+        await (select(remoteCompletionSyncMetadata)
+              ..where((t) => t.localCompletionId.equals(localCompletionId)))
             .getSingleOrNull();
     return row == null ? null : _toRemoteCompletionSyncMetadata(row);
   }
@@ -544,6 +569,31 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
               ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
             .get();
     return rows.map(_toSyncOutboxEntry).toList(growable: false);
+  }
+
+  Future<List<SyncOutboxEntry>> listSyncOutboxEntries({
+    Set<SyncOutboxStatus>? statuses,
+  }) async {
+    final query = select(syncOutbox)
+      ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]);
+    if (statuses != null) {
+      query.where((t) => t.status.isIn(statuses.map((s) => s.storageValue)));
+    }
+    final rows = await query.get();
+    return rows.map(_toSyncOutboxEntry).toList(growable: false);
+  }
+
+  Stream<List<SyncOutboxEntry>> watchSyncOutboxEntries({
+    Set<SyncOutboxStatus>? statuses,
+  }) {
+    final query = select(syncOutbox)
+      ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]);
+    if (statuses != null) {
+      query.where((t) => t.status.isIn(statuses.map((s) => s.storageValue)));
+    }
+    return query.watch().map(
+      (rows) => rows.map(_toSyncOutboxEntry).toList(growable: false),
+    );
   }
 
   Stream<List<SyncOutboxEntry>> watchSyncOutboxEntriesForPack(int localPackId) {
@@ -1053,6 +1103,16 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
               ..limit(1))
             .getSingleOrNull();
     return row == null ? null : _toItemCompletion(row);
+  }
+
+  Future<bool> updateItemCompletionFields(
+    int id,
+    ItemCompletionsCompanion entry,
+  ) async {
+    return (await (update(
+          itemCompletions,
+        )..where((t) => t.id.equals(id))).write(entry)) >
+        0;
   }
 
   Future<bool> markItemCompletionUndone({

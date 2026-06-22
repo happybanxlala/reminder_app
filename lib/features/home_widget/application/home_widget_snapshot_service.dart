@@ -57,7 +57,10 @@ class HomeWidgetSnapshotService {
     required HomeWidgetTabId id,
     required List<HomeAttentionEntry> entries,
   }) {
-    final rows = entries.map(_attentionEntry).toList(growable: false);
+    final rows = entries
+        .where(_isWidgetEligibleAttentionEntry)
+        .map(_attentionEntry)
+        .toList(growable: false);
     return HomeWidgetTab(
       id: id,
       label: id.label,
@@ -113,7 +116,10 @@ class HomeWidgetSnapshotService {
   }
 
   HomeWidgetTab _completedTab(List<TodayCompletedEntry> entries) {
-    final rows = entries.map(_completedEntry).toList(growable: false);
+    final rows = entries
+        .where(_isWidgetEligibleCompletedEntry)
+        .map(_completedEntry)
+        .toList(growable: false);
     return HomeWidgetTab(
       id: HomeWidgetTabId.todayCompleted,
       label: HomeWidgetTabId.todayCompleted.label,
@@ -174,5 +180,15 @@ class HomeWidgetSnapshotService {
       statusText: statusText,
       canAct: false,
     );
+  }
+
+  bool _isWidgetEligibleAttentionEntry(HomeAttentionEntry entry) {
+    final itemEntry = entry.itemEntry;
+    return itemEntry == null || !itemEntry.syncStatus.isRemoteBacked;
+  }
+
+  bool _isWidgetEligibleCompletedEntry(TodayCompletedEntry entry) {
+    return entry.type != TodayCompletedEntryType.itemDone ||
+        !entry.itemSyncStatus.isRemoteBacked;
   }
 }

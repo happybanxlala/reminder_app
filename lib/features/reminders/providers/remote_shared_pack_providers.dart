@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/anonymous_remote_identity_service.dart';
 import '../data/local/reminder_dao.dart';
+import '../data/remote_backed_outbox_flush_service.dart';
 import '../data/remote_shared_pack_data_source.dart';
 import '../data/remote_shared_pack_models.dart';
 import '../data/remote_shared_pack_repository.dart';
@@ -12,6 +13,7 @@ import '../data/remote_snapshot_import_service.dart';
 import '../data/supabase_config.dart';
 import '../domain/item.dart';
 import '../domain/item_pack.dart';
+import '../domain/remote_sync.dart';
 import '../domain/shared_pack.dart';
 import 'database_providers.dart';
 import 'identity_providers.dart';
@@ -50,6 +52,16 @@ final remoteSnapshotImportServiceProvider =
       );
     });
 
+final remoteBackedOutboxFlushServiceProvider =
+    Provider<RemoteBackedOutboxFlushService>((ref) {
+      return RemoteBackedOutboxFlushService(
+        dao: ref.watch(appDatabaseProvider).reminderDao,
+        remoteClient: RemoteSharedPackOutboxRemoteClient(
+          ref.watch(remoteSharedPackRepositoryProvider),
+        ),
+      );
+    });
+
 final remoteSharedPackRealtimeDataSourceProvider =
     Provider<RemoteSharedPackRealtimeDataSource>((ref) {
       final runtime = ref.watch(supabaseRuntimeProvider);
@@ -74,6 +86,23 @@ class RemotePocSnapshotSummary {
   final int itemsCount;
   final int activeCompletionsCount;
   final int activityEventsCount;
+}
+
+class RemoteBackedOutboxSummary {
+  const RemoteBackedOutboxSummary({
+    required this.pendingCount,
+    required this.syncingCount,
+    required this.failedCount,
+    required this.conflictOrNoOpCount,
+  });
+
+  final int pendingCount;
+  final int syncingCount;
+  final int failedCount;
+  final int conflictOrNoOpCount;
+
+  int get total =>
+      pendingCount + syncingCount + failedCount + conflictOrNoOpCount;
 }
 
 enum RemotePocSnapshotTargetType { localMappedPack, joinedRemotePack }
@@ -796,6 +825,22 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
     });
   }
 
+  Future<String> flushRemoteBackedOutbox() {
+    return _run('Flush Pending Remote-backed Mutations POC', () async {
+      final result = await _ref
+          .read(remoteBackedOutboxFlushServiceProvider)
+          .flushPendingRemoteBackedMutations();
+      return _RemotePocOutcome(
+        succeeded: result.failed == 0,
+        message:
+            'Outbox flush：processed ${result.processed}, synced ${result.synced}, no-op ${result.noOp}, failed ${result.failed}. 請手動刷新 Remote Snapshot 後再匯入 mirror。',
+        snapshot: state.lastPulledRemoteSnapshot,
+        snapshotSummary: state.snapshotSummary,
+        snapshotTargetType: state.snapshotTargetType,
+      );
+    });
+  }
+
   Future<String> _run(
     String action,
     Future<_RemotePocOutcome> Function() operation,
@@ -962,6 +1007,38 @@ final remotePocPackMappingProvider = FutureProvider.family<SyncMapping?, int>((
         remoteTable: RemoteSharedPackRepository.remoteTablePacks,
       );
 });
+
+final remoteBackedOutboxSummaryProvider =
+    FutureProvider<RemoteBackedOutboxSummary>((ref) async {
+      final entries = await ref
+          .watch(appDatabaseProvider)
+          .reminderDao
+          .listSyncOutboxEntries();
+      var pending = 0;
+      var syncing = 0;
+      var failed = 0;
+      var conflictOrNoOp = 0;
+      for (final entry in entries) {
+        switch (entry.status) {
+          case SyncOutboxStatus.pending:
+            pending++;
+          case SyncOutboxStatus.syncing:
+            syncing++;
+          case SyncOutboxStatus.failed:
+            failed++;
+          case SyncOutboxStatus.conflict || SyncOutboxStatus.noOp:
+            conflictOrNoOp++;
+          case SyncOutboxStatus.synced || SyncOutboxStatus.cancelled:
+            break;
+        }
+      }
+      return RemoteBackedOutboxSummary(
+        pendingCount: pending,
+        syncingCount: syncing,
+        failedCount: failed,
+        conflictOrNoOpCount: conflictOrNoOp,
+      );
+    });
 
 final remotePocFirstMappedItemProvider =
     FutureProvider.family<ItemBundle?, int>((ref, packId) async {

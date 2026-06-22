@@ -86,6 +86,11 @@ class ReminderUiText {
   static const noStageHistory = '目前沒有階段紀錄。';
   static const noResourceHistory = '目前沒有資源變動紀錄。';
   static const noItems = '目前沒有要照顧的事。';
+  static const syncPendingLabel = '等待同步';
+  static const syncFailedLabel = '同步失敗';
+  static const syncStaleLabel = '遠端狀態可能已更新';
+  static const syncAccessLostLabel = '已失去遠端存取權';
+  static const remoteBackedUnsupportedAction = '遠端共享事項暫不支援此操作。';
   static const noItemPacks = '目前沒有生活場景。';
   static const noStageTrackers = '目前沒有階段追蹤。';
   static const noDefaultItemPack = '目前沒有生活場景。';
@@ -200,6 +205,9 @@ class ReminderUiText {
   static const remotePocPullSnapshotLabel = '刷新遠端 Snapshot';
   static const remotePocImportSnapshotMirrorLabel =
       '匯入 Remote Snapshot 到本機 Mirror POC';
+  static const remotePocOutboxLabel = 'Remote-backed Outbox';
+  static const remotePocFlushOutboxLabel =
+      'Flush Pending Remote-backed Mutations POC';
   static const remotePocInviteCodeLabel = 'Invite Code';
   static const remotePocInviteExpiresLabel = 'Invite expires';
   static const remotePocInviteMaxUsesLabel = 'Invite max uses';

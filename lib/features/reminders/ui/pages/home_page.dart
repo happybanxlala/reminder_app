@@ -582,6 +582,24 @@ class _ItemCard extends ConsumerWidget {
               ),
             ],
           ),
+          if (viewModel.syncStatusLabel != null) ...[
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.only(
+                left: _HomeDensity.packChipSize + 8,
+              ),
+              child: Text(
+                viewModel.syncStatusLabel!,
+                key: Key('item-sync-status-${viewModel.id}'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: palette.textMuted,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
           AnimatedSize(
             duration: const Duration(milliseconds: 160),
             child: viewModel.isExpanded
@@ -1184,6 +1202,19 @@ class _TodayCompletedRow extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
+                if (_syncStatusLabel() != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    _syncStatusLabel()!,
+                    key: Key('today-completed-sync-${entry.stableKey}'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: palette.textMuted,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -1229,6 +1260,27 @@ class _TodayCompletedRow extends ConsumerWidget {
         ReminderUiText.acknowledgedAction,
     };
     return '${ReminderFormatters.date(entry.actionDate)} $action';
+  }
+
+  String? _syncStatusLabel() {
+    final status = entry.itemSyncStatus;
+    if (!status.isRemoteBacked) {
+      return null;
+    }
+    if (status.isAccessLost) {
+      return ReminderUiText.syncAccessLostLabel;
+    }
+    if (status.hasFailedMutation ||
+        (status.lastSyncError?.trim().isNotEmpty ?? false)) {
+      return ReminderUiText.syncFailedLabel;
+    }
+    if (status.hasPendingMutation) {
+      return ReminderUiText.syncPendingLabel;
+    }
+    if (status.isStale) {
+      return ReminderUiText.syncStaleLabel;
+    }
+    return null;
   }
 
   Future<void> _undoDone(BuildContext context, WidgetRef ref) async {
