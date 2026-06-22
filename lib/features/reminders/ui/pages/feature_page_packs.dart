@@ -36,14 +36,23 @@ class PackManagementContent extends ConsumerWidget {
             onTap: () => _showPackTemplatePicker(context, ref),
           ),
           const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: FilledButton.icon(
-              key: const Key('pack-management-add'),
-              onPressed: () => _showPackDialog(context, ref),
-              icon: const Icon(Icons.add),
-              label: const Text(ReminderUiText.addItemPack),
-            ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                key: const Key('pack-management-add'),
+                onPressed: () => _showPackDialog(context, ref),
+                icon: const Icon(Icons.add),
+                label: const Text(ReminderUiText.addItemPack),
+              ),
+              OutlinedButton.icon(
+                key: const Key('pack-management-join'),
+                onPressed: () => _showJoinPackDialog(context, ref),
+                icon: const Icon(Icons.group_add_outlined),
+                label: const Text(ReminderUiText.packCareJoinAction),
+              ),
+            ],
           ),
           const SizedBox(height: ReminderSpacing.section),
           packsAsync.when(
@@ -106,6 +115,96 @@ class PackManagementContent extends ConsumerWidget {
       await repository.updatePack(pack.id, input);
     }
   }
+
+  Future<void> _showJoinPackDialog(BuildContext context, WidgetRef ref) async {
+    final controller = TextEditingController();
+    var isJoining = false;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) {
+          Future<void> join() async {
+            if (isJoining) {
+              return;
+            }
+            setState(() => isJoining = true);
+            final result = await ref
+                .read(sharedPackCareControllerProvider)
+                .joinWithInviteCode(controller.text);
+            if (!context.mounted) {
+              return;
+            }
+            setState(() => isJoining = false);
+            if (!result.succeeded) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    result.errorMessage ??
+                        ReminderUiText.packCareRemoteUnavailable,
+                  ),
+                ),
+              );
+              return;
+            }
+            Navigator.of(dialogContext).pop();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  ReminderUiText.packCareJoinSuccess(result.packTitle!),
+                ),
+              ),
+            );
+          }
+
+          return AlertDialog(
+            title: const Text(ReminderUiText.packCareJoinTitle),
+            content: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('輸入對方提供的邀請碼。'),
+                  const SizedBox(height: 12),
+                  TextField(
+                    key: const Key('pack-care-join-code-input'),
+                    controller: controller,
+                    enabled: !isJoining,
+                    textInputAction: TextInputAction.done,
+                    decoration: const InputDecoration(
+                      labelText: ReminderUiText.packCareJoinInputLabel,
+                    ),
+                    onSubmitted: (_) => join(),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: isJoining
+                    ? null
+                    : () => Navigator.of(dialogContext).pop(),
+                child: Text(
+                  MaterialLocalizations.of(dialogContext).cancelButtonLabel,
+                ),
+              ),
+              FilledButton(
+                key: const Key('pack-care-join-submit'),
+                onPressed: isJoining ? null : join,
+                child: isJoining
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text(ReminderUiText.packCareJoinButton),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    controller.dispose();
+  }
 }
 
 class _PackManagementTile extends ConsumerWidget {
@@ -118,6 +217,15 @@ class _PackManagementTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final customIndex = customPacks.indexWhere((item) => item.id == pack.id);
     final isSystemDefault = pack.isSystemDefault;
+    final careAsync = ref.watch(packCareViewModelProvider(pack));
+    final statusLabel = careAsync.maybeWhen(
+      data: (viewModel) => viewModel.rowStatusLabel,
+      orElse: () => isSystemDefault
+          ? ReminderUiText.systemDefaultPackLabel
+          : pack.packType == ItemPackType.shared
+          ? ReminderUiText.packCareMembersLabel(1)
+          : ReminderUiText.packCareLocalOnlyLabel,
+    );
     return Card(
       margin: EdgeInsets.zero,
       child: ListTile(
@@ -127,9 +235,7 @@ class _PackManagementTile extends ConsumerWidget {
           style: Theme.of(context).textTheme.titleLarge,
         ),
         title: Text(pack.title),
-        subtitle: Text(
-          isSystemDefault ? ReminderUiText.systemDefaultPackLabel : '自訂生活場景',
-        ),
+        subtitle: Text(statusLabel),
         trailing: isSystemDefault
             ? null
             : Wrap(
@@ -163,6 +269,10 @@ class _PackManagementTile extends ConsumerWidget {
                         _handleMenuAction(context, ref, action),
                     itemBuilder: (menuContext) => [
                       const PopupMenuItem(
+                        value: _PackManagementMenuAction.care,
+                        child: Text(ReminderUiText.packCareAction),
+                      ),
+                      const PopupMenuItem(
                         value: _PackManagementMenuAction.edit,
                         child: Text(ReminderUiText.editAction),
                       ),
@@ -193,6 +303,9 @@ class _PackManagementTile extends ConsumerWidget {
     _PackManagementMenuAction action,
   ) async {
     switch (action) {
+      case _PackManagementMenuAction.care:
+        await _showPackCareSheet(context, ref);
+        return;
       case _PackManagementMenuAction.edit:
         await _showEditDialog(context, ref);
         return;
@@ -266,11 +379,315 @@ class _PackManagementTile extends ConsumerWidget {
         return;
     }
   }
+
+  Future<void> _showPackCareSheet(BuildContext context, WidgetRef ref) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => Consumer(
+        builder: (context, ref, child) {
+          final careAsync = ref.watch(packCareViewModelProvider(pack));
+          return careAsync.when(
+            data: (viewModel) => _PackCareSheet(
+              viewModel: viewModel,
+              onCreateInvite: () =>
+                  _showCreateInviteDialog(sheetContext, ref, viewModel.pack),
+            ),
+            error: (error, stack) => Padding(
+              padding: const EdgeInsets.all(ReminderSpacing.page),
+              child: Text('讀取失敗: $error'),
+            ),
+            loading: () => const Padding(
+              padding: EdgeInsets.all(ReminderSpacing.page),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          );
+        },
+      ),
+    );
+  }
 }
 
 enum _ArchivePackAction { archive, move, cancel }
 
-enum _PackManagementMenuAction { edit, saveAsTemplate, archive }
+enum _PackManagementMenuAction { care, edit, saveAsTemplate, archive }
+
+class _PackCareSheet extends StatelessWidget {
+  const _PackCareSheet({required this.viewModel, required this.onCreateInvite});
+
+  final PackCareViewModel viewModel;
+  final VoidCallback onCreateInvite;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.reminderPalette;
+    final pack = viewModel.pack;
+    final isAccessLost = viewModel.isAccessLost;
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(
+          ReminderSpacing.page,
+          0,
+          ReminderSpacing.page,
+          ReminderSpacing.page,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isAccessLost
+                  ? ReminderUiText.packCareAccessLostTitle(pack.title)
+                  : ReminderUiText.packCareSheetTitle(pack.title),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 12),
+            if (viewModel.bannerText != null) ...[
+              _PackCareStatusBanner(message: viewModel.bannerText!),
+              const SizedBox(height: 12),
+            ],
+            if (isAccessLost) ...[
+              const Text(ReminderUiText.packCareAccessLostReason),
+              const SizedBox(height: 8),
+              const Text(ReminderUiText.packCareAccessLostGuard),
+              const SizedBox(height: 18),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('知道了'),
+                ),
+              ),
+            ] else if (!viewModel.isShared) ...[
+              Text(ReminderUiText.packCarePersonalOnlyBody(pack.title)),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                key: Key('pack-care-invite-${pack.id}'),
+                onPressed: onCreateInvite,
+                icon: const Icon(Icons.person_add_alt_1_outlined),
+                label: const Text(ReminderUiText.packCareInviteAction),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                ReminderUiText.packCareDataProtectionNote,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: palette.textSecondary),
+              ),
+            ] else ...[
+              Text(
+                ReminderUiText.packCareSharedActiveBody(
+                  viewModel.activeMemberCount,
+                ),
+              ),
+              if (viewModel.members.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                for (final member in viewModel.members)
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.person_outline),
+                    title: Text(member.displayName),
+                    subtitle: Text(member.roleLabel),
+                  ),
+              ],
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                key: Key('pack-care-invite-more-${pack.id}'),
+                onPressed: onCreateInvite,
+                icon: const Icon(Icons.person_add_alt_1_outlined),
+                label: const Text(ReminderUiText.packCareInviteMoreAction),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PackCareStatusBanner extends StatelessWidget {
+  const _PackCareStatusBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.reminderPalette;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: palette.statusWarningContainer,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: palette.borderSubtle),
+      ),
+      child: Text(
+        message,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: palette.textPrimary,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> _showCreateInviteDialog(
+  BuildContext context,
+  WidgetRef ref,
+  ItemPack pack,
+) async {
+  var isCreating = false;
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setState) {
+        Future<void> createInvite() async {
+          if (isCreating) {
+            return;
+          }
+          setState(() => isCreating = true);
+          final result = await ref
+              .read(sharedPackCareControllerProvider)
+              .createInvite(pack);
+          if (!context.mounted) {
+            return;
+          }
+          setState(() => isCreating = false);
+          if (!result.succeeded) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  result.errorMessage ??
+                      ReminderUiText.packCareRemoteUnavailable,
+                ),
+              ),
+            );
+            return;
+          }
+          Navigator.of(dialogContext).pop();
+          await _showInviteCreatedDialog(
+            context,
+            pack: pack,
+            invite: result.invite!,
+            warningMessage: result.warningMessage,
+          );
+        }
+
+        return AlertDialog(
+          title: const Text(ReminderUiText.packCareCreateInviteTitle),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(ReminderUiText.packCareCreateInviteBody(pack.title)),
+                if (isCreating) ...[
+                  const SizedBox(height: 16),
+                  const Row(
+                    children: [
+                      SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      SizedBox(width: 10),
+                      Text(ReminderUiText.packCarePreparingIdentity),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isCreating
+                  ? null
+                  : () => Navigator.of(dialogContext).pop(),
+              child: Text(
+                MaterialLocalizations.of(dialogContext).cancelButtonLabel,
+              ),
+            ),
+            FilledButton(
+              key: const Key('pack-care-create-invite-submit'),
+              onPressed: isCreating ? null : createInvite,
+              child: const Text(ReminderUiText.packCareCreateInviteButton),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+}
+
+Future<void> _showInviteCreatedDialog(
+  BuildContext context, {
+  required ItemPack pack,
+  required RemotePackInvite invite,
+  String? warningMessage,
+}) async {
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text(ReminderUiText.packCareInviteCreatedTitle),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(ReminderUiText.packCareInviteCreatedBody(pack.title)),
+            const SizedBox(height: 16),
+            Center(
+              child: SelectableText(
+                invite.inviteCode,
+                key: const Key('pack-care-invite-code'),
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1,
+                ),
+              ),
+            ),
+            if (warningMessage != null) ...[
+              const SizedBox(height: 12),
+              Text(warningMessage),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          key: const Key('pack-care-share-invite-code'),
+          onPressed: () {
+            SharePlus.instance.share(ShareParams(text: invite.inviteCode));
+          },
+          child: const Text(ReminderUiText.packCareShareInviteCode),
+        ),
+        TextButton(
+          key: const Key('pack-care-copy-invite-code'),
+          onPressed: () async {
+            await Clipboard.setData(ClipboardData(text: invite.inviteCode));
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(ReminderUiText.packCareCopiedInviteCode),
+                ),
+              );
+            }
+          },
+          child: const Text(ReminderUiText.packCareCopyInviteCode),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          child: const Text(ReminderUiText.packCareDone),
+        ),
+      ],
+    ),
+  );
+}
 
 class _PackTemplateEntryCard extends StatelessWidget {
   const _PackTemplateEntryCard({required this.onTap});

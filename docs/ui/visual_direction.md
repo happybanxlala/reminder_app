@@ -1060,3 +1060,12 @@ flutter test
 - Android large Home Widget mirrors the same compact Home pattern through RemoteViews: warm cream shell, rounded tab chips, paper-card rows, left status rails, pack emoji chip, and icon-only action buttons.
 - Android widget drawable colors intentionally duplicate `ReminderPalette.light` because AppWidget rendering cannot depend on Flutter runtime resources.
 - Widget action transport remains unchanged: native UI reads the Flutter snapshot and sends existing pending actions; Android still does not read Drift or calculate Home status.
+
+### 19.24 Shared Pack UIUX v1 2026-06-22
+
+- Shared / collaborative Pack UX stays inside `生活場景管理`; it does not add bottom navigation, shared-only Home sections, dashboards, or Pack detail pages.
+- Pack rows keep the existing emoji + title structure and use a subtle subtitle for care / sync status: `只在此裝置`, `N 人一起照顧`, `等待同步`, `同步失敗`, `有更新，點下拉同步`, or `已無法存取`.
+- Non-system Pack overflow starts with `一起照顧`, followed by edit, save as template, and archive. The system default Pack does not expose shared-care actions.
+- The `一起照顧` bottom sheet uses progressive disclosure: personal explanation and invite action, shared member summary/list, compact sync banners, or access-lost guard copy.
+- Invite and join flows use dialogs with production product language (`邀請一起照顧`, `加入生活場景`) and hide developer terms such as Supabase, remote-backed, POC, and sync metadata.
+- Home remains mixed: personal and shared items continue to appear in the existing danger / warning / today completed sections with compact sync labels only when needed.

@@ -90,6 +90,33 @@ class ReminderUiText {
   static const syncFailedLabel = '同步失敗';
   static const syncStaleLabel = '遠端狀態可能已更新';
   static const syncAccessLostLabel = '已失去遠端存取權';
+  static const packCareAction = '一起照顧';
+  static const packCareInviteAction = '邀請一起照顧';
+  static const packCareInviteMoreAction = '邀請更多人';
+  static const packCareJoinAction = '加入生活場景';
+  static const packCareLocalOnlyLabel = '只在此裝置';
+  static const packCarePreparingIdentity = '正在準備共享身份……';
+  static const packCareCreateInviteTitle = '建立邀請';
+  static const packCareCreateInviteButton = '建立邀請';
+  static const packCareInviteCreatedTitle = '邀請碼已建立';
+  static const packCareShareInviteCode = '分享邀請碼';
+  static const packCareCopyInviteCode = '複製';
+  static const packCareDone = '完成';
+  static const packCareCopiedInviteCode = '邀請碼已複製';
+  static const packCareJoinTitle = '加入生活場景';
+  static const packCareJoinInputLabel = '邀請碼';
+  static const packCareJoinButton = '加入';
+  static const packCareRemoteUnavailable = '目前無法建立共享，請稍後再試。';
+  static const packCareInviteInvalid = '邀請碼無效，請確認後再試。';
+  static const packCareInviteExpired = '邀請碼已過期，請對方重新建立邀請。';
+  static const packCareInviteMaxUsesReached = '這組邀請碼已達使用次數上限。';
+  static const packCareSyncWaitingBanner = '有些變更還未同步。';
+  static const packCareSyncFailedBanner = '同步失敗，請稍後再試。';
+  static const packCareSyncStaleBanner = '可能有新的更新，下拉重新整理後會顯示最新狀態。';
+  static const packCareAccessLostReason = '你可能已被移出這個生活場景，或目前無法確認共享權限。';
+  static const packCareAccessLostGuard = '為了避免資料錯亂，暫時不能完成或復原這裡的提醒。';
+  static const packCareDataProtectionNote =
+      '之後可以綁定 Apple / Google / Email 來保護共享資料。';
   static const remoteBackedUnsupportedAction = '遠端共享事項暫不支援此操作。';
   static const noItemPacks = '目前沒有生活場景。';
   static const noStageTrackers = '目前沒有階段追蹤。';
@@ -598,4 +625,25 @@ class ReminderUiText {
   static const pauseItemConfirmMessage = '確定要暫停這項提醒嗎？';
   static const archiveItemConfirmTitle = '刪除要照顧的事';
   static const archiveItemConfirmMessage = '刪除後會從列表隱藏，既有歷史資料會保留。確定要刪除嗎？';
+
+  static String packCareMembersLabel(int count) => '$count 人一起照顧';
+
+  static String packCareSheetTitle(String packTitle) => '一起照顧「$packTitle」';
+
+  static String packCarePersonalOnlyBody(String packTitle) =>
+      '目前只有你可以看到這個生活場景。\n你可以邀請家人或朋友一起查看提醒、完成項目，並留下處理紀錄。';
+
+  static String packCareSharedActiveBody(int memberCount) =>
+      '$memberCount 人正在一起照顧這個生活場景。';
+
+  static String packCareAccessLostTitle(String packTitle) =>
+      '已無法存取「$packTitle」';
+
+  static String packCareCreateInviteBody(String packTitle) =>
+      '讓其他人一起照顧「$packTitle」。\n對方加入後，可以看到這個生活場景裡的提醒，並一起完成項目。';
+
+  static String packCareInviteCreatedBody(String packTitle) =>
+      '把這個邀請碼傳給對方。對方可以在「生活場景」中選擇「加入生活場景」。';
+
+  static String packCareJoinSuccess(String packTitle) => '已加入「$packTitle」';
 }

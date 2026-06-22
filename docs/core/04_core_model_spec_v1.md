@@ -27,6 +27,8 @@ Phase 5D adds remote-backed complete/undo outbox MVP. Remote-backed item complet
 
 Phase 5E adds main-screen integration for remote-backed item mirrors. Home warning / danger / today completed read models can show remote-backed items when local mirror schedule data supports existing status classification, and item cards show basic pending / failed / stale / access-lost sync labels. Widget snapshots and daily notification scheduling still exclude remote-backed item rows until Phase 5F.
 
+Shared Pack UIUX v1 adds production-facing shared-care entry points inside `生活場景管理`: pack rows show compact care/sync status, non-system packs expose `一起照顧`, users can create invite codes, and users can join by invite code. The flow reuses existing anonymous identity, remote pack/invite, minimal item push, snapshot pull, and local mirror import services. It does not add background sync, full two-way sync, shared-only navigation, resource/stage remote sync, widget behavior changes, or user-facing developer POC UI.
+
 ## 1. 總覽
 
 ### 1.1 產品北極星
@@ -1352,6 +1354,26 @@ Phase 4E hardens the developer-only remote collaboration POC.
 
 - 不新增 full sync、realtime sync、auto refresh、local import、local merge、production remote UI、resource / stage remote sync、automatic upload、widget 行為變更、Drift schema change 或 backup schema change。
 
+### 2.24 Shared Pack UIUX v1：生活場景一起照顧
+
+Shared Pack UIUX v1 makes collaboration visible through normal `生活場景管理` instead of a separate product area.
+
+#### 已實作行為
+
+- Pack 管理列表每個 Pack row 顯示 compact care / sync status：system default 顯示既有「一般」文案、personal pack 顯示「只在此裝置」、shared active pack 顯示「N 人一起照顧」、remote-backed pending / failed / stale / access-lost 顯示對應短文案。
+- 非 system default Pack overflow menu 第一項是「一起照顧」；system default pack 不顯示此 action。
+- 「一起照顧」bottom sheet 依 Pack 狀態顯示 personal、shared active、pending / failed / stale banner、access-lost copy。Shared active state 可顯示 active member list 與 role label（建立者 / 成員）。
+- Personal Pack 建立邀請前會先轉為 local Shared Pack，再建立 / 重用 remote pack mapping，推送 active / paused minimal items，最後建立 invite code。
+- Invite code 只存在當次 UI result；不寫入 local DB、backup、activity event 或 sync metadata。
+- 「加入生活場景」在 Pack 管理頁提供 invite code entry。Join 成功後會拉取 remote snapshot 並匯入 local mirror，刷新 active packs 與管理頁資料。
+- User-facing copy 使用「一起照顧 / 邀請一起照顧 / 照顧成員 / 加入生活場景 / 只在此裝置」等產品語言，不顯示 Supabase、remote-backed、POC、sync metadata、token 或 service role key。
+
+#### 非目標
+
+- 不新增底部導航、Shared Pack dashboard、remote / Supabase dashboard、shared-only Home section、Pack detail page。
+- 不實作 background sync、automatic retry、full two-way sync、resource / stage remote sync、account binding UI、widget / notification 行為變更。
+- 不把 Settings developer POC UI 暴露給一般使用者。
+
 ## 3. 跨 Domain 行為
 
 ### 3.1 完成 Item 並消耗 Resource
@@ -1571,6 +1593,9 @@ Pack 管理 route：`/feature/item-packs-management`，route name：`item-packs-
 - 新增自訂 Pack。
 - 從預設 / 自訂模版建立 Pack + Items。
 - 從既有 active Pack 儲存自訂模版。
+- Pack row 顯示 compact care / sync status：「只在此裝置」、「N 人一起照顧」、「等待同步」、「同步失敗」、「有更新，點下拉同步」、「已無法存取」。
+- 非 system default Pack overflow menu 提供「一起照顧」，並置於編輯、儲存為範本、封存之前。
+- Pack 管理頁提供「加入生活場景」入口，可輸入 invite code 加入 remote shared pack 並匯入 local mirror。
 - 編輯自訂 Pack 名稱、description、emoji。
 - 系統依 Pack 名稱推薦 emoji，使用者可手動選擇。
 - 對自訂 Pack 使用「上」「下」調整排序。
