@@ -7,8 +7,10 @@ import 'package:reminder_app/features/home_widget/data/home_widget_snapshot.dart
 import 'package:reminder_app/features/home_widget/data/home_widget_snapshot_store.dart';
 import 'package:reminder_app/features/home_widget/data/home_widget_tab.dart';
 import 'package:reminder_app/features/reminders/data/home_repository.dart';
+import 'package:reminder_app/features/reminders/data/identity_repository.dart';
 import 'package:reminder_app/features/reminders/data/item_repository.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
+import 'package:reminder_app/features/reminders/data/remote_backed_item_action_service.dart';
 import 'package:reminder_app/features/reminders/data/resource_repository.dart';
 import 'package:reminder_app/features/reminders/data/stage_tracker_repository.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
@@ -71,7 +73,7 @@ void main() {
     },
   );
 
-  test('completeEntry rejects stale remote-backed widget rows', () async {
+  test('completeEntry routes remote-backed widget rows to outbox', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
     final repositories = _repositories(db);
@@ -117,8 +119,141 @@ void main() {
     );
     final service = _actionService(repositories, store);
 
+    expect(await service.completeEntry('item-$itemId'), isTrue);
+    final outbox = await db.reminderDao.listPendingSyncOutboxEntries();
+    expect(outbox, hasLength(1));
+    expect(outbox.single.actionType, SyncOutboxActionType.completeItem);
+  });
+
+  test(
+    'undoCompletedEntry routes remote-backed widget rows to outbox',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repositories = _repositories(db);
+      final packId = await repositories.item.createPack(
+        const ItemPackInput(title: 'Shared', iconEmoji: '🤝'),
+      );
+      final itemId = await repositories.item.createItem(
+        const ItemInput(
+          title: 'Remote clean bowl',
+          type: ItemType.stateBased,
+          config: StateBasedItemConfig(
+            warningAfter: Duration(days: 1),
+            dangerAfter: Duration(days: 2),
+          ),
+          packId: null,
+        ),
+      );
+      await repositories.item.moveItemToPack(
+        itemId,
+        targetPackId: packId,
+        moveLinkedResources: false,
+      );
+      await repositories.item.markDone(itemId, doneAt: DateTime(2026, 5, 2));
+      final doneRecord = (await repositories.item.listActionHistory(
+        itemId,
+      )).firstWhere((record) => record.actionType == ItemActionType.done);
+      await _markRemoteBacked(db, localPackId: packId, localItemId: itemId);
+      final store = _MemoryHomeWidgetSnapshotStore();
+      store.snapshot = HomeWidgetSnapshot(
+        schemaVersion: HomeWidgetSnapshot.currentSchemaVersion,
+        updatedAt: DateTime(2026, 6, 10, 9),
+        selectedTab: HomeWidgetTabId.todayCompleted,
+        tabs: [
+          HomeWidgetTab(
+            id: HomeWidgetTabId.todayCompleted,
+            label: '今天已完成',
+            count: 1,
+            entries: [
+              HomeWidgetEntry(
+                entryId: 'completed-item-${doneRecord.id}',
+                type: HomeWidgetEntryType.completedItem,
+                targetId: itemId,
+                actionRecordId: doneRecord.id,
+                title: 'Remote clean bowl',
+                statusText: '完成',
+                action: HomeWidgetEntryAction.undo,
+                canAct: true,
+              ),
+            ],
+          ),
+        ],
+      );
+      final service = _actionService(repositories, store);
+
+      expect(
+        await service.undoCompletedEntry('completed-item-${doneRecord.id}'),
+        isTrue,
+      );
+      final outbox = await db.reminderDao.listPendingSyncOutboxEntries();
+      expect(outbox, hasLength(1));
+      expect(outbox.single.actionType, SyncOutboxActionType.undoItem);
+    },
+  );
+
+  test(
+    'remote-backed widget action fails closed without remote mapping',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repositories = _repositories(db);
+      final packId = await repositories.item.createPack(
+        const ItemPackInput(title: 'Shared', iconEmoji: '🤝'),
+      );
+      final itemId = await repositories.item.createItem(
+        ItemInput(
+          title: 'Remote litter box',
+          type: ItemType.stateBased,
+          config: StateBasedItemConfig(
+            anchorDate: DateTime(2026, 5, 1),
+            warningAfter: const Duration(days: 1),
+            dangerAfter: const Duration(days: 2),
+          ),
+          packId: packId,
+        ),
+      );
+      await _markRemoteBackedPackOnly(db, localPackId: packId);
+      final store = _MemoryHomeWidgetSnapshotStore();
+      store.snapshot = _completeSnapshot(itemId);
+      final service = _actionService(repositories, store);
+
+      expect(await service.completeEntry('item-$itemId'), isFalse);
+      expect(await db.reminderDao.listPendingSyncOutboxEntries(), isEmpty);
+    },
+  );
+
+  test('access-lost remote-backed widget action fails closed', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repositories = _repositories(db);
+    final packId = await repositories.item.createPack(
+      const ItemPackInput(title: 'Shared', iconEmoji: '🤝'),
+    );
+    final itemId = await repositories.item.createItem(
+      ItemInput(
+        title: 'Remote litter box',
+        type: ItemType.stateBased,
+        config: StateBasedItemConfig(
+          anchorDate: DateTime(2026, 5, 1),
+          warningAfter: const Duration(days: 1),
+          dangerAfter: const Duration(days: 2),
+        ),
+        packId: packId,
+      ),
+    );
+    await _markRemoteBacked(
+      db,
+      localPackId: packId,
+      localItemId: itemId,
+      packState: RemotePackSyncState.accessLost,
+    );
+    final store = _MemoryHomeWidgetSnapshotStore();
+    store.snapshot = _completeSnapshot(itemId);
+    final service = _actionService(repositories, store);
+
     expect(await service.completeEntry('item-$itemId'), isFalse);
-    expect(await repositories.item.listActionHistory(itemId), hasLength(1));
+    expect(await db.reminderDao.listPendingSyncOutboxEntries(), isEmpty);
   });
 
   test(
@@ -293,7 +428,15 @@ HomeWidgetActionService _actionService(
 }
 
 _RepositorySet _repositories(AppDatabase db) {
-  final item = ItemRepository(db.reminderDao);
+  final identityRepository = IdentityRepository(db.reminderDao);
+  final remoteBackedItemActionService = RemoteBackedItemActionService(
+    dao: db.reminderDao,
+    identityRepository: identityRepository,
+  );
+  final item = ItemRepository(
+    db.reminderDao,
+    remoteBackedItemActionService: remoteBackedItemActionService,
+  );
   final resource = ResourceRepository(db.reminderDao);
   final stage = StageTrackerRepository(db.reminderDao);
   return _RepositorySet(
@@ -329,6 +472,7 @@ Future<void> _markRemoteBacked(
   AppDatabase db, {
   required int localPackId,
   required int localItemId,
+  RemotePackSyncState packState = RemotePackSyncState.synced,
 }) async {
   final now = DateTime(2026, 5, 2).millisecondsSinceEpoch;
   await db.reminderDao.insertRemotePackSyncMetadata(
@@ -336,7 +480,7 @@ Future<void> _markRemoteBacked(
       localPackId: localPackId,
       remotePackId: 'remote-pack-$localPackId',
       syncKind: RemotePackSyncKind.remoteBacked.storageValue,
-      syncState: RemotePackSyncState.synced.storageValue,
+      syncState: packState.storageValue,
       createdAt: now,
       updatedAt: now,
     ),
@@ -351,5 +495,48 @@ Future<void> _markRemoteBacked(
       createdAt: now,
       updatedAt: now,
     ),
+  );
+}
+
+Future<void> _markRemoteBackedPackOnly(
+  AppDatabase db, {
+  required int localPackId,
+}) async {
+  final now = DateTime(2026, 5, 2).millisecondsSinceEpoch;
+  await db.reminderDao.insertRemotePackSyncMetadata(
+    RemotePackSyncMetadataCompanion.insert(
+      localPackId: localPackId,
+      remotePackId: 'remote-pack-$localPackId',
+      syncKind: RemotePackSyncKind.remoteBacked.storageValue,
+      syncState: RemotePackSyncState.synced.storageValue,
+      createdAt: now,
+      updatedAt: now,
+    ),
+  );
+}
+
+HomeWidgetSnapshot _completeSnapshot(int itemId) {
+  return HomeWidgetSnapshot(
+    schemaVersion: HomeWidgetSnapshot.currentSchemaVersion,
+    updatedAt: DateTime(2026, 6, 10, 9),
+    selectedTab: HomeWidgetTabId.needsHandling,
+    tabs: [
+      HomeWidgetTab(
+        id: HomeWidgetTabId.needsHandling,
+        label: '需要處理',
+        count: 1,
+        entries: [
+          HomeWidgetEntry(
+            entryId: 'item-$itemId',
+            type: HomeWidgetEntryType.itemAttention,
+            targetId: itemId,
+            title: 'Remote litter box',
+            statusText: '已持續2日',
+            action: HomeWidgetEntryAction.complete,
+            canAct: true,
+          ),
+        ],
+      ),
+    ],
   );
 }

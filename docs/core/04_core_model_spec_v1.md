@@ -27,6 +27,8 @@ Phase 5D adds remote-backed complete/undo outbox MVP. Remote-backed item complet
 
 Phase 5E adds main-screen integration for remote-backed item mirrors. Home warning / danger / today completed read models can show remote-backed items when local mirror schedule data supports existing status classification, and item cards show basic pending / failed / stale / access-lost sync labels. Widget snapshots and daily notification scheduling still exclude remote-backed item rows until Phase 5F.
 
+Phase 5F integrates remote-backed local mirror items into Home Widget snapshots and widget complete/undo action flow. Widget reads local mirror/cache only, never calls Supabase, and remote-backed widget actions route through the Phase 5D outbox path. It does not implement notification integration, background sync, automatic retry, full sync, or account binding.
+
 Shared Pack UIUX v1 adds production-facing shared-care entry points inside `生活場景管理`: pack rows show compact care/sync status, non-system packs expose `一起照顧`, users can create, reopen, share, copy, and refresh active invite codes, and users can join by normalized invite code. The flow reuses existing anonymous identity, remote pack/invite, minimal item push, snapshot pull, and local mirror import services. It does not add background sync, full two-way sync, shared-only navigation, resource/stage remote sync, widget behavior changes, or user-facing developer POC UI.
 
 ## 1. 總覽

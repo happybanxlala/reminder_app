@@ -476,11 +476,16 @@ Phase 5E implementation note:
 - Notification integration remains deferred. Daily attention notification summaries exclude remote-backed item rows, while in-app Home summaries can include them.
 - Backup remains legacy and unchanged: remote-backed mirror rows, typed sync metadata, and `sync_outbox` are not exported or replayed.
 
-### Phase 5F：Widget / Notification Integration
+### Phase 5F：Remote-backed Home Widget Integration
 
-- Widget reads remote-backed local mirror
-- Widget action writes outbox
-- Notification schedule based on local mirror
+- Widget reads remote-backed local mirror rows only through the Flutter-generated widget snapshot/cache.
+- Widget danger / warning / today-completed tabs may include remote-backed item rows when existing local HomeRepository classification already includes them.
+- Widget row snapshots carry compact sync state: `等待同步`, `同步失敗`, `遠端狀態可能已更新`, and `已失去遠端存取權`.
+- Widget complete / undo actions delegate back to `ItemRepository.markDone` / `undoDone`, which routes remote-backed rows to the Phase 5D local outbox path and writes `sync_outbox`.
+- Widget never calls Supabase, flushes outbox, imports remote snapshots, processes realtime payloads, stores credentials, or schedules notifications.
+- Access-lost or missing-mapping remote-backed widget actions fail closed. Access-lost rows may remain visible as disabled/read-only rows.
+- Backup remains legacy and unchanged: widget cache is not a remote source of truth, and `sync_outbox`, typed sync metadata, credentials, sessions, tokens, plaintext invite codes, and remote-backed mirror rows are not exported for replay.
+- Notification integration remains deferred to a later phase; Phase 5F keeps daily notification summaries excluding remote-backed item rows.
 
 ### Phase 5G：Account Binding / Backup Legacy Transition
 

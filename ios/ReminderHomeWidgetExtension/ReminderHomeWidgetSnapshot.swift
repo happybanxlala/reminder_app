@@ -47,6 +47,51 @@ struct ReminderHomeWidgetEntry: Decodable, Identifiable {
   let buttonText: String?
   let action: String?
   let canAct: Bool
+  let isRemoteBacked: Bool
+  let syncLabel: String?
+  let syncStatus: String
+  let hasPendingMutation: Bool
+  let pendingAction: String?
+  let actionDisabledReason: String?
+
+  enum CodingKeys: String, CodingKey {
+    case entryId
+    case type
+    case targetId
+    case actionRecordId
+    case title
+    case statusText
+    case displayIcon
+    case buttonText
+    case action
+    case canAct
+    case isRemoteBacked
+    case syncLabel
+    case syncStatus
+    case hasPendingMutation
+    case pendingAction
+    case actionDisabledReason
+  }
+
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    entryId = try container.decodeIfPresent(String.self, forKey: .entryId) ?? ""
+    type = try container.decodeIfPresent(String.self, forKey: .type) ?? ""
+    targetId = try container.decodeIfPresent(Int.self, forKey: .targetId)
+    actionRecordId = try container.decodeIfPresent(Int.self, forKey: .actionRecordId)
+    title = try container.decodeIfPresent(String.self, forKey: .title) ?? ""
+    statusText = try container.decodeIfPresent(String.self, forKey: .statusText) ?? ""
+    displayIcon = try container.decodeIfPresent(String.self, forKey: .displayIcon)
+    buttonText = try container.decodeIfPresent(String.self, forKey: .buttonText)
+    action = try container.decodeIfPresent(String.self, forKey: .action)
+    canAct = try container.decodeIfPresent(Bool.self, forKey: .canAct) ?? false
+    isRemoteBacked = try container.decodeIfPresent(Bool.self, forKey: .isRemoteBacked) ?? false
+    syncLabel = try container.decodeIfPresent(String.self, forKey: .syncLabel)
+    syncStatus = try container.decodeIfPresent(String.self, forKey: .syncStatus) ?? "none"
+    hasPendingMutation = try container.decodeIfPresent(Bool.self, forKey: .hasPendingMutation) ?? false
+    pendingAction = try container.decodeIfPresent(String.self, forKey: .pendingAction)
+    actionDisabledReason = try container.decodeIfPresent(String.self, forKey: .actionDisabledReason)
+  }
 }
 
 enum ReminderHomeWidgetSnapshotState {

@@ -67,9 +67,6 @@ class HomeWidgetActionService implements HomeWidgetActionExecutor {
         entry.targetId == null) {
       return false;
     }
-    if (await _itemRepository.isRemoteBackedItem(entry.targetId!)) {
-      return false;
-    }
 
     final completed = await _itemRepository.markDone(
       entry.targetId!,
@@ -92,9 +89,6 @@ class HomeWidgetActionService implements HomeWidgetActionExecutor {
         entry.type != HomeWidgetEntryType.completedItem ||
         entry.actionRecordId == null ||
         entry.targetId == null) {
-      return false;
-    }
-    if (await _itemRepository.isRemoteBackedItem(entry.targetId!)) {
       return false;
     }
 

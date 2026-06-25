@@ -233,7 +233,7 @@ private struct WidgetEntryCard: View {
             .foregroundStyle(HomeWidgetDesignTokens.textPrimary)
             .lineLimit(1)
             .minimumScaleFactor(0.82)
-          Text(entry.statusText)
+          Text(statusLine)
             .font(.system(size: 11.5, weight: .medium))
             .foregroundStyle(HomeWidgetDesignTokens.textSecondary)
             .lineLimit(1)
@@ -308,6 +308,13 @@ private struct WidgetEntryCard: View {
     default:
       return HomeWidgetDesignTokens.primaryWarm
     }
+  }
+
+  private var statusLine: String {
+    guard let syncLabel = entry.syncLabel, !syncLabel.isEmpty else {
+      return entry.statusText
+    }
+    return "\(entry.statusText) · \(syncLabel)"
   }
 }
 

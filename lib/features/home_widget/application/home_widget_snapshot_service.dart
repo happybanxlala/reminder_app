@@ -1,5 +1,6 @@
 import '../../reminders/data/home_models.dart';
 import '../../reminders/data/home_repository.dart';
+import '../../reminders/domain/remote_sync.dart';
 import '../../reminders/domain/resource.dart';
 import '../../reminders/presentation/formatters/reminder_formatters.dart';
 import '../../reminders/presentation/text/reminder_ui_text.dart';
@@ -79,6 +80,8 @@ class HomeWidgetSnapshotService {
   HomeWidgetEntry _itemAttentionEntry(HomeAttentionEntry entry) {
     final itemEntry = entry.itemEntry!;
     final viewModel = ItemCardViewModel.fromEntry(itemEntry, now: _currentDate);
+    final sync = _widgetSyncState(itemEntry.syncStatus);
+    final canAct = viewModel.canComplete && !itemEntry.syncStatus.isAccessLost;
     return HomeWidgetEntry(
       entryId: entry.stableKey,
       type: HomeWidgetEntryType.itemAttention,
@@ -90,7 +93,15 @@ class HomeWidgetSnapshotService {
       displayIcon: itemEntry.bundle.pack.iconEmoji,
       buttonText: ReminderUiText.completeAction,
       action: HomeWidgetEntryAction.complete,
-      canAct: viewModel.canComplete,
+      canAct: canAct,
+      isRemoteBacked: itemEntry.syncStatus.isRemoteBacked,
+      syncLabel: sync.label,
+      syncStatus: sync.status,
+      hasPendingMutation: itemEntry.syncStatus.hasPendingMutation,
+      pendingAction: itemEntry.syncStatus.pendingMutationAction?.storageValue,
+      actionDisabledReason: !canAct && itemEntry.syncStatus.isAccessLost
+          ? _accessLostLabel
+          : null,
     );
   }
 
@@ -152,7 +163,9 @@ class HomeWidgetSnapshotService {
 
   HomeWidgetEntry _completedItemEntry(TodayCompletedEntry entry) {
     final record = entry.itemActionRecord;
-    final canUndo = entry.canUndo && record != null;
+    final canUndo =
+        entry.canUndo && record != null && !entry.itemSyncStatus.isAccessLost;
+    final sync = _widgetSyncState(entry.itemSyncStatus);
     return HomeWidgetEntry(
       entryId: entry.stableKey,
       type: HomeWidgetEntryType.completedItem,
@@ -163,6 +176,14 @@ class HomeWidgetSnapshotService {
       buttonText: canUndo ? '復原' : null,
       action: canUndo ? HomeWidgetEntryAction.undo : null,
       canAct: canUndo,
+      isRemoteBacked: entry.itemSyncStatus.isRemoteBacked,
+      syncLabel: sync.label,
+      syncStatus: sync.status,
+      hasPendingMutation: entry.itemSyncStatus.hasPendingMutation,
+      pendingAction: entry.itemSyncStatus.pendingMutationAction?.storageValue,
+      actionDisabledReason: !canUndo && entry.itemSyncStatus.isAccessLost
+          ? _accessLostLabel
+          : null,
     );
   }
 
@@ -183,12 +204,50 @@ class HomeWidgetSnapshotService {
   }
 
   bool _isWidgetEligibleAttentionEntry(HomeAttentionEntry entry) {
-    final itemEntry = entry.itemEntry;
-    return itemEntry == null || !itemEntry.syncStatus.isRemoteBacked;
+    return true;
   }
 
   bool _isWidgetEligibleCompletedEntry(TodayCompletedEntry entry) {
-    return entry.type != TodayCompletedEntryType.itemDone ||
-        !entry.itemSyncStatus.isRemoteBacked;
+    return true;
   }
+
+  _WidgetSyncState _widgetSyncState(HomeItemSyncStatus syncStatus) {
+    if (!syncStatus.isRemoteBacked) {
+      return const _WidgetSyncState(status: HomeWidgetEntrySyncStatus.none);
+    }
+    if (syncStatus.isAccessLost) {
+      return const _WidgetSyncState(
+        status: HomeWidgetEntrySyncStatus.accessLost,
+        label: _accessLostLabel,
+      );
+    }
+    if (syncStatus.hasPendingMutation) {
+      return const _WidgetSyncState(
+        status: HomeWidgetEntrySyncStatus.pending,
+        label: '等待同步',
+      );
+    }
+    if (syncStatus.hasFailedMutation) {
+      return const _WidgetSyncState(
+        status: HomeWidgetEntrySyncStatus.failed,
+        label: '同步失敗',
+      );
+    }
+    if (syncStatus.isStale) {
+      return const _WidgetSyncState(
+        status: HomeWidgetEntrySyncStatus.stale,
+        label: '遠端狀態可能已更新',
+      );
+    }
+    return const _WidgetSyncState(status: HomeWidgetEntrySyncStatus.none);
+  }
+
+  static const _accessLostLabel = '已失去遠端存取權';
+}
+
+class _WidgetSyncState {
+  const _WidgetSyncState({required this.status, this.label});
+
+  final HomeWidgetEntrySyncStatus status;
+  final String? label;
 }

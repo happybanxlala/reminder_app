@@ -200,7 +200,7 @@ class ReminderHomeWidgetProvider : AppWidgetProvider() {
         ): RemoteViews {
             val row = RemoteViews(context.packageName, R.layout.reminder_home_widget_row)
             row.setTextViewText(R.id.widget_row_title, entry.title)
-            row.setTextViewText(R.id.widget_row_status, entry.statusText)
+            row.setTextViewText(R.id.widget_row_status, entry.statusLine())
             row.setInt(
                 R.id.widget_row_accent,
                 "setBackgroundResource",
@@ -257,6 +257,15 @@ class ReminderHomeWidgetProvider : AppWidgetProvider() {
                 }
             } else {
                 row.setViewVisibility(R.id.widget_row_action, View.GONE)
+            }
+        }
+
+        private fun ReminderHomeWidgetEntry.statusLine(): String {
+            val sync = syncLabel?.takeIf { it.isNotBlank() }
+            return if (sync == null) {
+                statusText
+            } else {
+                "$statusText · $sync"
             }
         }
 

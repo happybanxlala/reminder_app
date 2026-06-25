@@ -37,6 +37,27 @@ enum HomeWidgetEntryAction {
   }
 }
 
+enum HomeWidgetEntrySyncStatus {
+  none('none'),
+  pending('pending'),
+  failed('failed'),
+  stale('stale'),
+  accessLost('accessLost');
+
+  const HomeWidgetEntrySyncStatus(this.wireName);
+
+  final String wireName;
+
+  static HomeWidgetEntrySyncStatus tryParse(String? value) {
+    for (final status in HomeWidgetEntrySyncStatus.values) {
+      if (status.wireName == value) {
+        return status;
+      }
+    }
+    return HomeWidgetEntrySyncStatus.none;
+  }
+}
+
 class HomeWidgetEntry {
   const HomeWidgetEntry({
     required this.entryId,
@@ -49,6 +70,12 @@ class HomeWidgetEntry {
     this.buttonText,
     this.action,
     required this.canAct,
+    this.isRemoteBacked = false,
+    this.syncLabel,
+    this.syncStatus = HomeWidgetEntrySyncStatus.none,
+    this.hasPendingMutation = false,
+    this.pendingAction,
+    this.actionDisabledReason,
   });
 
   factory HomeWidgetEntry.fromJson(Map<String, Object?> json) {
@@ -65,6 +92,14 @@ class HomeWidgetEntry {
       buttonText: json['buttonText'] as String?,
       action: HomeWidgetEntryAction.tryParse(json['action'] as String?),
       canAct: json['canAct'] as bool? ?? false,
+      isRemoteBacked: json['isRemoteBacked'] as bool? ?? false,
+      syncLabel: json['syncLabel'] as String?,
+      syncStatus: HomeWidgetEntrySyncStatus.tryParse(
+        json['syncStatus'] as String?,
+      ),
+      hasPendingMutation: json['hasPendingMutation'] as bool? ?? false,
+      pendingAction: json['pendingAction'] as String?,
+      actionDisabledReason: json['actionDisabledReason'] as String?,
     );
   }
 
@@ -78,6 +113,12 @@ class HomeWidgetEntry {
   final String? buttonText;
   final HomeWidgetEntryAction? action;
   final bool canAct;
+  final bool isRemoteBacked;
+  final String? syncLabel;
+  final HomeWidgetEntrySyncStatus syncStatus;
+  final bool hasPendingMutation;
+  final String? pendingAction;
+  final String? actionDisabledReason;
 
   Map<String, Object?> toJson() {
     return {
@@ -91,6 +132,12 @@ class HomeWidgetEntry {
       'buttonText': buttonText,
       'action': action?.wireName,
       'canAct': canAct,
+      'isRemoteBacked': isRemoteBacked,
+      'syncLabel': syncLabel,
+      'syncStatus': syncStatus.wireName,
+      'hasPendingMutation': hasPendingMutation,
+      'pendingAction': pendingAction,
+      'actionDisabledReason': actionDisabledReason,
     };
   }
 }

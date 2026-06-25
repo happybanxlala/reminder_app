@@ -37,6 +37,12 @@ data class ReminderHomeWidgetEntry(
     val buttonText: String?,
     val action: String?,
     val canAct: Boolean,
+    val isRemoteBacked: Boolean,
+    val syncLabel: String?,
+    val syncStatus: String,
+    val hasPendingMutation: Boolean,
+    val pendingAction: String?,
+    val actionDisabledReason: String?,
 )
 
 sealed class ReminderHomeWidgetSnapshotResult {
@@ -131,6 +137,12 @@ object ReminderHomeWidgetSnapshotReader {
                         buttonText = entryJson.optionalString("buttonText"),
                         action = entryJson.optionalString("action"),
                         canAct = entryJson.optBoolean("canAct", false),
+                        isRemoteBacked = entryJson.optBoolean("isRemoteBacked", false),
+                        syncLabel = entryJson.optionalString("syncLabel"),
+                        syncStatus = entryJson.optString("syncStatus", "none"),
+                        hasPendingMutation = entryJson.optBoolean("hasPendingMutation", false),
+                        pendingAction = entryJson.optionalString("pendingAction"),
+                        actionDisabledReason = entryJson.optionalString("actionDisabledReason"),
                     ),
                 )
             }
