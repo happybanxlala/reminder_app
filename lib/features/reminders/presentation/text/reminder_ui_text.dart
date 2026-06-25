@@ -95,21 +95,28 @@ class ReminderUiText {
   static const packCareInviteMoreAction = '邀請更多人';
   static const packCareJoinAction = '加入生活場景';
   static const packCareLocalOnlyLabel = '只在此裝置';
+  static const packCareInviteActiveLabel = '邀請碼有效中';
   static const packCarePreparingIdentity = '正在準備共享身份……';
   static const packCareCreateInviteTitle = '建立邀請';
   static const packCareCreateInviteButton = '建立邀請';
   static const packCareInviteCreatedTitle = '邀請碼已建立';
   static const packCareShareInviteCode = '分享邀請碼';
   static const packCareCopyInviteCode = '複製';
+  static const packCareRefreshInviteCode = '刷新邀請碼';
+  static const packCareRecreateInviteCode = '重新建立邀請碼';
   static const packCareDone = '完成';
   static const packCareCopiedInviteCode = '邀請碼已複製';
   static const packCareJoinTitle = '加入生活場景';
   static const packCareJoinInputLabel = '邀請碼';
   static const packCareJoinButton = '加入';
   static const packCareRemoteUnavailable = '目前無法建立共享，請稍後再試。';
-  static const packCareInviteInvalid = '邀請碼無效，請確認後再試。';
-  static const packCareInviteExpired = '邀請碼已過期，請對方重新建立邀請。';
+  static const packCareInviteInvalid = '找不到這個邀請碼，請確認後再試。';
+  static const packCareInviteExpired = '這個邀請碼已過期，請向對方索取新的邀請碼。';
   static const packCareInviteMaxUsesReached = '這組邀請碼已達使用次數上限。';
+  static const packCareInviteRefreshTitle = '刷新邀請碼？';
+  static const packCareInviteRefreshBody =
+      '刷新後，之前分享出去的邀請碼將無法使用。\n需要重新把新的邀請碼傳給對方。';
+  static const packCareInviteExpiredBody = '之前的邀請碼已過期。\n你可以重新建立邀請碼，邀請其他人加入。';
   static const packCareSyncWaitingBanner = '有些變更還未同步。';
   static const packCareSyncFailedBanner = '同步失敗，請稍後再試。';
   static const packCareSyncStaleBanner = '可能有新的更新，下拉重新整理後會顯示最新狀態。';
@@ -632,6 +639,13 @@ class ReminderUiText {
 
   static String packCarePersonalOnlyBody(String packTitle) =>
       '目前只有你可以看到這個生活場景。\n你可以邀請家人或朋友一起查看提醒、完成項目，並留下處理紀錄。';
+
+  static const packCareOnlyHostBody = '目前只有你可以看到這個生活場景。';
+
+  static const packCareInviteIntroBody = '你可以邀請家人或朋友一起查看提醒、完成項目，並留下處理紀錄。';
+
+  static String packCareInviteExpiresAt(String expiresAtText) =>
+      '邀請碼有效至 $expiresAtText。';
 
   static String packCareSharedActiveBody(int memberCount) =>
       '$memberCount 人正在一起照顧這個生活場景。';

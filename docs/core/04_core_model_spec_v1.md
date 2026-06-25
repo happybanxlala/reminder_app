@@ -27,7 +27,7 @@ Phase 5D adds remote-backed complete/undo outbox MVP. Remote-backed item complet
 
 Phase 5E adds main-screen integration for remote-backed item mirrors. Home warning / danger / today completed read models can show remote-backed items when local mirror schedule data supports existing status classification, and item cards show basic pending / failed / stale / access-lost sync labels. Widget snapshots and daily notification scheduling still exclude remote-backed item rows until Phase 5F.
 
-Shared Pack UIUX v1 adds production-facing shared-care entry points inside `生活場景管理`: pack rows show compact care/sync status, non-system packs expose `一起照顧`, users can create invite codes, and users can join by invite code. The flow reuses existing anonymous identity, remote pack/invite, minimal item push, snapshot pull, and local mirror import services. It does not add background sync, full two-way sync, shared-only navigation, resource/stage remote sync, widget behavior changes, or user-facing developer POC UI.
+Shared Pack UIUX v1 adds production-facing shared-care entry points inside `生活場景管理`: pack rows show compact care/sync status, non-system packs expose `一起照顧`, users can create, reopen, share, copy, and refresh active invite codes, and users can join by normalized invite code. The flow reuses existing anonymous identity, remote pack/invite, minimal item push, snapshot pull, and local mirror import services. It does not add background sync, full two-way sync, shared-only navigation, resource/stage remote sync, widget behavior changes, or user-facing developer POC UI.
 
 ## 1. 總覽
 
@@ -1283,7 +1283,8 @@ Phase 4A adds developer-only remote invite-code membership for the Remote Shared
 #### 已實作行為
 
 - Host 可在 Settings developer debug 的 `Supabase 遠端 POC` 區塊手動建立 Invite Code POC。
-- Invite code 是 temporary bearer secret，只保存在 volatile UI state；local DB、backup、activity event 不保存完整 invite code。
+- Invite code 是 6 字元 temporary bearer secret，使用 `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`，避免 `0 / O / 1 / I / L`。
+- Remote `pack_invites` 保存 host 可讀回的 active invite code 與 `code_hash`；local DB、backup、sync metadata、activity event 不保存完整 invite code。
 - 第二個 anonymous remote user 可輸入 invite code，加入 remote shared pack 並成為 `member / active`。
 - Join 後可用 joined remote pack id 拉取 remote snapshot，且可完成 snapshot 第一個 remote item。
 - Join 不建立 local pack、local item、`sync_mappings`，也不 merge remote snapshot。
@@ -1367,10 +1368,13 @@ Shared Pack UIUX v1 makes collaboration visible through normal `生活場景管�
 - Pack 管理列表每個 Pack row 顯示 compact care / sync status：system default 顯示既有「一般」文案、personal pack 顯示「只在此裝置」、shared active pack 顯示「N 人一起照顧」、remote-backed pending / failed / stale / access-lost 顯示對應短文案。
 - 非 system default Pack overflow menu 第一項是「一起照顧」；system default pack 不顯示此 action。
 - 「一起照顧」bottom sheet 依 Pack 狀態顯示 personal、shared active、pending / failed / stale banner、access-lost copy。Shared active state 可顯示 active member list 與 role label（建立者 / 成員）。
-- Personal Pack 建立邀請前會先轉為 local Shared Pack，再建立 / 重用 remote pack mapping，推送 active / paused minimal items，最後建立 invite code。
+- Personal Pack 建立邀請前會先轉為 local Shared Pack，再建立 / 重用 remote pack mapping，推送 active / paused minimal items，最後 ensure active invite code。
 - 建立邀請若在 `ensureRemoteProfile()` / `upsert_current_profile` 或 `create_shared_pack` 階段遭 Supabase `403 / 42501` 或 RLS / grant 拒絕，流程會停止，不會繼續建立 invite code。
-- Invite code 只存在當次 UI result；不寫入 local DB、backup、activity event 或 sync metadata。
-- 「加入生活場景」在 Pack 管理頁提供 invite code entry。Join 成功後會拉取 remote snapshot 並匯入 local mirror，刷新 active packs 與管理頁資料。
+- 每個 remote Pack 同時間最多一個 active invite。Host 再次建立邀請時若仍有 active invite，會回傳同一組 invite；只有無 active invite、active invite 已過期，或 host 明確「刷新邀請碼」時才建立新 invite。
+- 「一起照顧」bottom sheet 顯示 active invite card：`邀請碼有效至 {expiresAtText}`、分組顯示碼（例如 `K7M 4Q9`）、`分享邀請碼`、`複製`、`刷新邀請碼`。刷新前必須確認，刷新後舊碼 revoked/invalid。
+- Invite code 不寫入 local DB、backup、activity event 或 sync metadata。Remote plaintext invite code 僅供 host 透過 host-only RPC/RLS 讀回。
+- 「加入生活場景」在 Pack 管理頁提供 invite code entry。Join 會 trim、uppercase，並移除空白與 hyphen-like separators 後提交。Join 成功後會拉取 remote snapshot 並匯入 local mirror，刷新 active packs 與管理頁資料。
+- 只有 host active 時，shared-care copy 顯示「目前只有你可以看到這個生活場景。」；member list 目前使用者顯示「你 / 建立者」，不以「此裝置資料」作為主要名稱。
 - User-facing copy 使用「一起照顧 / 邀請一起照顧 / 照顧成員 / 加入生活場景 / 只在此裝置」等產品語言，不顯示 Supabase、remote-backed、POC、sync metadata、token 或 service role key。
 - User-facing shared-care failure copy 會把 Supabase permission / RLS / grant rejection 分類為遠端資料庫權限不足；debug-safe diagnostics 可保留 RPC name 與 PostgREST code，但不得包含 token、session、anon key 或 invite secret。
 

@@ -2,8 +2,9 @@
 -- Manual incremental draft only. Apply after phase3c_supabase_minimal_poc.sql.
 -- Do not auto-apply to production.
 -- REVIEW: Validate in Supabase SQL editor or local Supabase CLI before use.
--- Invite code is a temporary bearer secret. Only code_hash is stored.
--- Activity events and local backups must never store the full invite code.
+-- Invite code is a temporary bearer secret. Hosts can recover active codes
+-- through host-only RLS/RPC; activity events and local backups must never
+-- store the full invite code.
 
 create extension if not exists pgcrypto;
 -- REVIEW: Supabase SQL editor must allow pgcrypto. This SQL is manually
@@ -16,6 +17,7 @@ create extension if not exists pgcrypto;
 create table if not exists public.pack_invites (
   id uuid primary key default gen_random_uuid(),
   pack_id uuid not null references public.packs(id) on delete cascade,
+  invite_code text null,
   code_hash text not null,
   created_by_user_id uuid not null references public.profiles(id),
   role_to_grant text not null default 'member'
@@ -32,6 +34,42 @@ create table if not exists public.pack_invites (
   check (used_count <= max_uses)
 );
 
+alter table public.pack_invites
+  add column if not exists invite_code text null;
+
+-- Existing Phase 4A rows may have multiple active invites per pack and may not
+-- have recoverable plaintext invite_code values. Normalize old data before
+-- adding the one-active-invite partial unique index.
+update public.pack_invites
+set status = 'expired'
+where status = 'active'
+  and public.pack_invites.expires_at <= now();
+
+update public.pack_invites
+set status = 'revoked',
+    revoked_at = coalesce(revoked_at, now())
+where status = 'active'
+  and public.pack_invites.invite_code is null;
+
+with ranked_active_invites as (
+  select
+    id,
+    row_number() over (
+      partition by pack_id
+      order by created_at desc, id desc
+    ) as active_rank
+  from public.pack_invites
+  where status = 'active'
+)
+update public.pack_invites
+set status = 'revoked',
+    revoked_at = coalesce(revoked_at, now())
+where id in (
+  select id
+  from ranked_active_invites
+  where active_rank > 1
+);
+
 create index if not exists pack_invites_pack_id_idx
   on public.pack_invites(pack_id);
 
@@ -40,6 +78,10 @@ create unique index if not exists pack_invites_code_hash_unique_idx
 
 create index if not exists pack_invites_status_expires_idx
   on public.pack_invites(status, expires_at);
+
+create unique index if not exists pack_invites_one_active_per_pack_idx
+  on public.pack_invites(pack_id)
+  where status = 'active';
 
 -- ---------------------------------------------------------------------------
 -- RLS
@@ -95,7 +137,7 @@ as $$
   select encode(
     extensions.digest(
       (
-        upper(regexp_replace(invite_code, '[[:space:]]+', '', 'g'))
+        upper(regexp_replace(invite_code, '[[:space:]\\-‐‑‒–—―−]+', '', 'g'))
         || ':'
         || target_pack_id::text
       )::text,
@@ -112,12 +154,16 @@ security invoker
 set search_path = public
 as $$
 declare
-  raw_code text;
+  alphabet constant text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  raw_code text := '';
+  byte_value integer;
+  i integer;
 begin
-  raw_code := upper(encode(extensions.gen_random_bytes(6), 'hex'));
-  return substring(raw_code from 1 for 4) || '-' ||
-         substring(raw_code from 5 for 4) || '-' ||
-         substring(raw_code from 9 for 4);
+  for i in 0..5 loop
+    byte_value := get_byte(extensions.gen_random_bytes(1), 0);
+    raw_code := raw_code || substr(alphabet, (byte_value % length(alphabet)) + 1, 1);
+  end loop;
+  return raw_code;
 end;
 $$;
 
@@ -127,7 +173,7 @@ $$;
 
 -- REVIEW: security definer is used so the RPC can insert invite rows while
 -- direct client inserts remain blocked. The function validates host membership.
-create or replace function public.create_pack_invite(
+create or replace function public.ensure_active_pack_invite(
   target_pack_id uuid,
   expires_in_days integer default 7,
   max_uses_limit integer default 10
@@ -148,6 +194,7 @@ declare
   generated_hash text;
   created_invite_id uuid;
   created_expires_at timestamptz;
+  existing_invite public.pack_invites%rowtype;
   resolved_max_uses integer;
   attempts integer := 0;
 begin
@@ -168,6 +215,58 @@ begin
     resolved_max_uses := 10;
   end if;
 
+  update public.pack_invites
+  set status = 'expired'
+  where pack_id = target_pack_id
+    and status = 'active'
+    and public.pack_invites.expires_at <= now();
+
+  update public.pack_invites
+  set status = 'revoked',
+      revoked_at = coalesce(revoked_at, now())
+  where pack_id = target_pack_id
+    and status = 'active'
+    and public.pack_invites.invite_code is null;
+
+  with ranked_active_invites as (
+    select
+      id,
+      row_number() over (
+        partition by pack_id
+        order by created_at desc, id desc
+      ) as active_rank
+    from public.pack_invites
+    where pack_id = target_pack_id
+      and status = 'active'
+  )
+  update public.pack_invites
+  set status = 'revoked',
+      revoked_at = coalesce(revoked_at, now())
+  where id in (
+    select id
+    from ranked_active_invites
+    where active_rank > 1
+  );
+
+  select pi.*
+  into existing_invite
+  from public.pack_invites pi
+  where pi.pack_id = target_pack_id
+    and pi.status = 'active'
+    and pi.expires_at > now()
+    and pi.invite_code is not null
+  order by pi.created_at desc
+  limit 1;
+
+  if existing_invite.id is not null then
+    return query select
+      existing_invite.id::uuid,
+      existing_invite.invite_code::text,
+      existing_invite.expires_at::timestamptz,
+      existing_invite.max_uses::integer;
+    return;
+  end if;
+
   loop
     attempts := attempts + 1;
     generated_code := public.generate_pack_invite_code();
@@ -175,6 +274,7 @@ begin
     begin
       insert into public.pack_invites (
         pack_id,
+        invite_code,
         code_hash,
         created_by_user_id,
         role_to_grant,
@@ -186,6 +286,7 @@ begin
       )
       values (
         target_pack_id,
+        generated_code,
         generated_hash,
         current_user_id,
         'member',
@@ -199,6 +300,25 @@ begin
       into created_invite_id, created_expires_at;
       exit;
     exception when unique_violation then
+      select pi.*
+      into existing_invite
+      from public.pack_invites pi
+      where pi.pack_id = target_pack_id
+        and pi.status = 'active'
+        and pi.expires_at > now()
+        and pi.invite_code is not null
+      order by pi.created_at desc
+      limit 1;
+
+      if existing_invite.id is not null then
+        return query select
+          existing_invite.id::uuid,
+          existing_invite.invite_code::text,
+          existing_invite.expires_at::timestamptz,
+          existing_invite.max_uses::integer;
+        return;
+      end if;
+
       if attempts >= 5 then
         raise;
       end if;
@@ -223,10 +343,182 @@ begin
   );
 
   return query select
-    created_invite_id,
-    generated_code,
-    created_expires_at,
-    resolved_max_uses;
+    created_invite_id::uuid,
+    generated_code::text,
+    created_expires_at::timestamptz,
+    resolved_max_uses::integer;
+end;
+$$;
+
+create or replace function public.create_pack_invite(
+  target_pack_id uuid,
+  expires_in_days integer default 7,
+  max_uses_limit integer default 10
+)
+returns table (
+  invite_id uuid,
+  invite_code text,
+  expires_at timestamptz,
+  max_uses integer
+)
+language sql
+security definer
+set search_path = public
+as $$
+  select * from public.ensure_active_pack_invite(
+    target_pack_id,
+    expires_in_days,
+    max_uses_limit
+  );
+$$;
+
+create or replace function public.fetch_pack_invite_state(target_pack_id uuid)
+returns table (
+  invite_id uuid,
+  invite_code text,
+  expires_at timestamptz,
+  max_uses integer,
+  latest_invite_expired boolean
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_user_id uuid := auth.uid();
+  active_invite public.pack_invites%rowtype;
+  latest_invite public.pack_invites%rowtype;
+begin
+  if current_user_id is null then
+    raise exception 'auth required';
+  end if;
+
+  if not public.is_pack_host(target_pack_id) then
+    raise exception 'pack host required';
+  end if;
+
+  update public.pack_invites
+  set status = 'expired'
+  where pack_id = target_pack_id
+    and status = 'active'
+    and public.pack_invites.expires_at <= now();
+
+  update public.pack_invites
+  set status = 'revoked',
+      revoked_at = coalesce(revoked_at, now())
+  where pack_id = target_pack_id
+    and status = 'active'
+    and public.pack_invites.invite_code is null;
+
+  with ranked_active_invites as (
+    select
+      id,
+      row_number() over (
+        partition by pack_id
+        order by created_at desc, id desc
+      ) as active_rank
+    from public.pack_invites
+    where pack_id = target_pack_id
+      and status = 'active'
+  )
+  update public.pack_invites
+  set status = 'revoked',
+      revoked_at = coalesce(revoked_at, now())
+  where id in (
+    select id
+    from ranked_active_invites
+    where active_rank > 1
+  );
+
+  select pi.*
+  into active_invite
+  from public.pack_invites pi
+  where pi.pack_id = target_pack_id
+    and pi.status = 'active'
+    and pi.expires_at > now()
+    and pi.invite_code is not null
+  order by pi.created_at desc
+  limit 1;
+
+  select pi.*
+  into latest_invite
+  from public.pack_invites pi
+  where pi.pack_id = target_pack_id
+  order by pi.created_at desc
+  limit 1;
+
+  return query select
+    active_invite.id::uuid,
+    active_invite.invite_code::text,
+    active_invite.expires_at::timestamptz,
+    active_invite.max_uses::integer,
+    coalesce(latest_invite.status = 'expired', false)::boolean;
+end;
+$$;
+
+create or replace function public.refresh_pack_invite(
+  target_pack_id uuid,
+  expires_in_days integer default 7,
+  max_uses_limit integer default 10
+)
+returns table (
+  invite_id uuid,
+  invite_code text,
+  expires_at timestamptz,
+  max_uses integer
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_user_id uuid := auth.uid();
+  revoked_invite public.pack_invites%rowtype;
+begin
+  if current_user_id is null then
+    raise exception 'auth required';
+  end if;
+
+  if not public.is_pack_host(target_pack_id) then
+    raise exception 'pack host required';
+  end if;
+
+  select pi.*
+  into revoked_invite
+  from public.pack_invites pi
+  where pi.pack_id = target_pack_id
+    and pi.status = 'active'
+  order by pi.created_at desc
+  limit 1;
+
+  update public.pack_invites
+  set status = 'revoked',
+      revoked_at = now()
+  where pack_id = target_pack_id
+    and status = 'active';
+
+  if revoked_invite.id is not null then
+    insert into public.activity_events (
+      pack_id,
+      actor_user_id,
+      entity_type,
+      entity_id,
+      action
+    )
+    values (
+      target_pack_id,
+      current_user_id,
+      'pack_invite',
+      revoked_invite.id,
+      'invite_revoked'
+    );
+  end if;
+
+  return query select * from public.ensure_active_pack_invite(
+    target_pack_id,
+    expires_in_days,
+    max_uses_limit
+  );
 end;
 $$;
 
@@ -254,7 +546,9 @@ begin
     raise exception 'auth required';
   end if;
 
-  normalized_code := upper(regexp_replace(coalesce(invite_code, ''), '[[:space:]]+', '', 'g'));
+  normalized_code := upper(
+    regexp_replace(coalesce(invite_code, ''), '[[:space:]\\-‐‑‒–—―−]+', '', 'g')
+  );
   if normalized_code = '' then
     raise exception 'invite invalid';
   end if;

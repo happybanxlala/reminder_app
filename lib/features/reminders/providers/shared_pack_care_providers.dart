@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/local/reminder_dao.dart';
+import '../data/remote_shared_pack_repository.dart';
 import '../data/remote_shared_pack_models.dart';
 import '../data/remote_snapshot_import_service.dart';
 import '../domain/item_pack.dart';
@@ -28,11 +29,13 @@ class PackCareViewModel {
     required this.pack,
     required this.metadata,
     required this.members,
+    required this.inviteState,
   });
 
   final ItemPack pack;
   final RemotePackSyncMetadataEntry? metadata;
   final List<PackCareMemberView> members;
+  final RemotePackInviteState inviteState;
 
   bool get isAccessLost =>
       metadata?.syncState == RemotePackSyncState.accessLost ||
@@ -42,6 +45,10 @@ class PackCareViewModel {
   bool get isShared => pack.packType == ItemPackType.shared;
 
   int get activeMemberCount => members.length;
+
+  RemotePackInvite? get activeInvite => inviteState.activeInvite;
+
+  bool get hasActiveInvite => inviteState.hasActiveInvite;
 
   String get rowStatusLabel {
     if (pack.isSystemDefault) {
@@ -61,6 +68,9 @@ class PackCareViewModel {
     }
     if (syncState == RemotePackSyncState.stale) {
       return '有更新，點下拉同步';
+    }
+    if (hasActiveInvite) {
+      return ReminderUiText.packCareInviteActiveLabel;
     }
     if (isShared) {
       return ReminderUiText.packCareMembersLabel(activeMemberCount);
@@ -120,8 +130,56 @@ class SharedPackCareController {
   final Ref _ref;
 
   Future<PackCareInviteResult> createInvite(ItemPack pack) async {
+    return ensureActiveInviteForPack(pack);
+  }
+
+  Future<PackCareInviteResult> ensureActiveInviteForPack(ItemPack pack) async {
+    final inviteTarget = await _prepareInviteTarget(pack);
+    if (!inviteTarget.succeeded) {
+      return PackCareInviteResult.failure(inviteTarget.errorMessage!);
+    }
+
+    final inviteResult = await _ref
+        .read(remoteSharedPackRepositoryProvider)
+        .ensureActiveInviteForPack(inviteTarget.remotePackId!);
+    if (!inviteResult.isSuccess) {
+      return PackCareInviteResult.failure(
+        _sharedCareFailureMessage(inviteResult.failureReason),
+      );
+    }
+
+    _invalidatePackCare(pack.id);
+    return PackCareInviteResult.success(
+      invite: inviteResult.value!,
+      warningMessage: inviteTarget.warningMessage,
+    );
+  }
+
+  Future<PackCareInviteResult> refreshInviteForPack(ItemPack pack) async {
+    final inviteTarget = await _prepareInviteTarget(pack);
+    if (!inviteTarget.succeeded) {
+      return PackCareInviteResult.failure(inviteTarget.errorMessage!);
+    }
+
+    final inviteResult = await _ref
+        .read(remoteSharedPackRepositoryProvider)
+        .refreshInviteForPack(inviteTarget.remotePackId!);
+    if (!inviteResult.isSuccess) {
+      return PackCareInviteResult.failure(
+        _sharedCareFailureMessage(inviteResult.failureReason),
+      );
+    }
+
+    _invalidatePackCare(pack.id);
+    return PackCareInviteResult.success(
+      invite: inviteResult.value!,
+      warningMessage: inviteTarget.warningMessage,
+    );
+  }
+
+  Future<_InviteTargetResult> _prepareInviteTarget(ItemPack pack) async {
     if (pack.isSystemDefault) {
-      return const PackCareInviteResult.failure(
+      return const _InviteTargetResult.failure(
         ReminderUiText.packCareRemoteUnavailable,
       );
     }
@@ -135,7 +193,7 @@ class SharedPackCareController {
             .read(itemRepositoryProvider)
             .getPackById(pack.id);
         if (refreshed?.packType != ItemPackType.shared) {
-          return const PackCareInviteResult.failure(
+          return const _InviteTargetResult.failure(
             ReminderUiText.packCareRemoteUnavailable,
           );
         }
@@ -146,7 +204,7 @@ class SharedPackCareController {
     final linkResult = await remoteRepository
         .createRemoteSharedPackFromLocalPack(pack.id);
     if (!linkResult.isSuccess) {
-      return PackCareInviteResult.failure(
+      return _InviteTargetResult.failure(
         _sharedCareFailureMessage(linkResult.failureReason),
       );
     }
@@ -157,24 +215,14 @@ class SharedPackCareController {
       warningMessage = '有些提醒可能稍後才會出現在對方裝置。';
     }
 
-    final inviteResult = await remoteRepository.createRemotePackInvite(
-      linkResult.value!.remotePackId,
-    );
-    if (!inviteResult.isSuccess) {
-      return PackCareInviteResult.failure(
-        _sharedCareFailureMessage(inviteResult.failureReason),
-      );
-    }
-
-    _invalidatePackCare(pack.id);
-    return PackCareInviteResult.success(
-      invite: inviteResult.value!,
+    return _InviteTargetResult.success(
+      remotePackId: linkResult.value!.remotePackId,
       warningMessage: warningMessage,
     );
   }
 
   Future<PackCareJoinResult> joinWithInviteCode(String inviteCode) async {
-    final code = inviteCode.trim();
+    final code = normalizeInviteCode(inviteCode);
     if (code.isEmpty) {
       return const PackCareJoinResult.failure(
         ReminderUiText.packCareInviteInvalid,
@@ -223,6 +271,23 @@ class SharedPackCareController {
   }
 }
 
+class _InviteTargetResult {
+  const _InviteTargetResult.success({
+    required this.remotePackId,
+    this.warningMessage,
+  }) : errorMessage = null;
+
+  const _InviteTargetResult.failure(this.errorMessage)
+    : remotePackId = null,
+      warningMessage = null;
+
+  final String? remotePackId;
+  final String? warningMessage;
+  final String? errorMessage;
+
+  bool get succeeded => remotePackId != null;
+}
+
 final sharedPackCareControllerProvider = Provider<SharedPackCareController>((
   ref,
 ) {
@@ -232,20 +297,49 @@ final sharedPackCareControllerProvider = Provider<SharedPackCareController>((
 final packCareViewModelProvider =
     FutureProvider.family<PackCareViewModel, ItemPack>((ref, pack) async {
       final dao = ref.watch(appDatabaseProvider).reminderDao;
-      final metadata = await dao.getRemotePackSyncMetadataForLocalPack(pack.id);
-      final members = pack.packType == ItemPackType.shared
-          ? await _loadActiveMembers(dao, pack.id)
+      final currentPack = await dao.getItemPackById(pack.id) ?? pack;
+      final metadata = await dao.getRemotePackSyncMetadataForLocalPack(
+        currentPack.id,
+      );
+      final currentUser = await ref.watch(currentAppUserProvider.future);
+      final members = currentPack.packType == ItemPackType.shared
+          ? await _loadActiveMembers(dao, currentPack.id, currentUser.id)
           : const <PackCareMemberView>[];
+      final inviteState = await _loadInviteState(ref, dao, currentPack.id);
       return PackCareViewModel(
-        pack: pack,
+        pack: currentPack,
         metadata: metadata,
         members: members,
+        inviteState: inviteState,
       );
     });
+
+Future<RemotePackInviteState> _loadInviteState(
+  Ref ref,
+  ReminderDao dao,
+  int packId,
+) async {
+  final mapping = await dao.getSyncMapping(
+    localEntityType: RemoteSharedPackRepository.localEntityPack,
+    localEntityId: packId,
+    remoteTable: RemoteSharedPackRepository.remoteTablePacks,
+  );
+  if (mapping == null) {
+    return const RemotePackInviteState();
+  }
+  final result = await ref
+      .read(remoteSharedPackRepositoryProvider)
+      .fetchPackInviteState(mapping.remoteEntityId);
+  if (!result.isSuccess) {
+    return const RemotePackInviteState();
+  }
+  return result.value!;
+}
 
 Future<List<PackCareMemberView>> _loadActiveMembers(
   ReminderDao dao,
   int packId,
+  String currentUserId,
 ) async {
   final members = await dao.listPackMembers(packId);
   final users = await dao.listLocalUsers();
@@ -255,7 +349,9 @@ Future<List<PackCareMemberView>> _loadActiveMembers(
       .map((member) {
         final user = usersById[member.userId];
         return PackCareMemberView(
-          displayName: user?.displayName ?? '照顧成員',
+          displayName: member.userId == currentUserId
+              ? '你'
+              : user?.displayName ?? '照顧成員',
           roleLabel: switch (member.role) {
             PackMemberRole.host => '建立者',
             PackMemberRole.member => '成員',

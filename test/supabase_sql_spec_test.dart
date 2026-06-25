@@ -86,6 +86,9 @@ void main() {
       'complete_pack_item(uuid, text)',
       'undo_pack_item_completion(uuid, text)',
       'create_pack_invite(uuid, integer, integer)',
+      'ensure_active_pack_invite(uuid, integer, integer)',
+      'fetch_pack_invite_state(uuid)',
+      'refresh_pack_invite(uuid, integer, integer)',
       'join_pack_with_invite(text)',
       'revoke_pack_invite(uuid)',
       'is_pack_member(uuid)',
@@ -196,12 +199,19 @@ void main() {
 
     expect(lower, contains('pack_invites'));
     expect(lower, contains('create_pack_invite'));
+    expect(lower, contains('ensure_active_pack_invite'));
+    expect(lower, contains('fetch_pack_invite_state'));
+    expect(lower, contains('refresh_pack_invite'));
     expect(lower, contains('join_pack_with_invite'));
     expect(lower, contains('revoke_pack_invite'));
     expect(lower, contains('enable row level security'));
+    expect(lower, contains('invite_code'));
     expect(lower, contains('code_hash'));
     expect(lower, contains('digest('));
-    expect(lower, contains('only code_hash is stored'));
+    expect(lower, contains('pack_invites_one_active_per_pack_idx'));
+    expect(lower, contains('abcdefghjklmnpqrstuvwxyz23456789'));
+    expect(lower, contains('public.pack_invites.invite_code is null'));
+    expect(lower, contains('public.pack_invites.expires_at <= now()'));
     expect(lower, contains('auth.uid()'));
     expect(lower, contains('already_member'));
     expect(lower, contains('invite_created'));

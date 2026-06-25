@@ -12,10 +12,25 @@
 -- create sync mappings, or mutate viewer item/completion state directly.
 --
 -- REVIEW: Validate in Supabase SQL editor or local Supabase CLI before use.
--- REVIEW: If public.activity_events is already in the supabase_realtime
--- publication, Supabase/Postgres may return a duplicate publication error.
--- This is safe to ignore in dev, or apply this file only once.
+-- REVIEW: The block below is idempotent. If public.activity_events is already
+-- in the supabase_realtime publication, it does nothing.
 -- REVIEW: Phase 4D listens to INSERT only and does not need previous row data,
 -- so REPLICA IDENTITY FULL is intentionally not enabled here.
 
-alter publication supabase_realtime add table public.activity_events;
+do $$
+begin
+  if exists (
+    select 1
+    from pg_publication
+    where pubname = 'supabase_realtime'
+  ) and not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'activity_events'
+  ) then
+    execute 'alter publication supabase_realtime add table public.activity_events';
+  end if;
+end;
+$$;

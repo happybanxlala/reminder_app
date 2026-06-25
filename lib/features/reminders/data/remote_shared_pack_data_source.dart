@@ -7,6 +7,9 @@ abstract class RemoteSharedPackDataSource {
   Future<String> upsertCurrentProfile({required String displayName});
   Future<String> createSharedPack({required String name, String? description});
   Future<RemotePackInvite> createPackInvite({required String packId});
+  Future<RemotePackInviteState> fetchPackInviteState({required String packId});
+  Future<RemotePackInvite> ensureActivePackInvite({required String packId});
+  Future<RemotePackInvite> refreshPackInvite({required String packId});
   Future<RemoteJoinPackResult> joinPackWithInvite({required String inviteCode});
   Future<RemoteRevokeInviteResult> revokePackInvite({required String inviteId});
   Future<String> createPackItem({
@@ -42,6 +45,21 @@ class DisabledRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
 
   @override
   Future<RemotePackInvite> createPackInvite({required String packId}) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<RemotePackInviteState> fetchPackInviteState({required String packId}) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<RemotePackInvite> ensureActivePackInvite({required String packId}) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<RemotePackInvite> refreshPackInvite({required String packId}) {
     throw RemoteSharedPackException(reason);
   }
 
@@ -145,9 +163,47 @@ class SupabaseRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
 
   @override
   Future<RemotePackInvite> createPackInvite({required String packId}) async {
+    return ensureActivePackInvite(packId: packId);
+  }
+
+  @override
+  Future<RemotePackInviteState> fetchPackInviteState({
+    required String packId,
+  }) async {
     try {
       final result = await _client.rpc(
-        'create_pack_invite',
+        'fetch_pack_invite_state',
+        params: {'target_pack_id': packId},
+      );
+      final row = _mapRpcResult(result);
+      final inviteId = _optionalString(row, 'invite_id');
+      return RemotePackInviteState(
+        activeInvite: inviteId == null
+            ? null
+            : RemotePackInvite(
+                inviteId: inviteId,
+                inviteCode: _requiredString(row, 'invite_code'),
+                expiresAt: _requiredDate(row, 'expires_at'),
+                maxUses: _requiredInt(row, 'max_uses'),
+              ),
+        latestInviteExpired: _optionalBool(row, 'latest_invite_expired'),
+      );
+    } catch (error) {
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteInviteNotHost,
+        operationName: 'fetch_pack_invite_state',
+      );
+    }
+  }
+
+  @override
+  Future<RemotePackInvite> ensureActivePackInvite({
+    required String packId,
+  }) async {
+    try {
+      final result = await _client.rpc(
+        'ensure_active_pack_invite',
         params: {
           'target_pack_id': packId,
           'expires_in_days': 7,
@@ -165,7 +221,34 @@ class SupabaseRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
       throw _mapError(
         error,
         RemoteSharedPackFailureReason.remoteInviteNotHost,
-        operationName: 'create_pack_invite',
+        operationName: 'ensure_active_pack_invite',
+      );
+    }
+  }
+
+  @override
+  Future<RemotePackInvite> refreshPackInvite({required String packId}) async {
+    try {
+      final result = await _client.rpc(
+        'refresh_pack_invite',
+        params: {
+          'target_pack_id': packId,
+          'expires_in_days': 7,
+          'max_uses_limit': 10,
+        },
+      );
+      final row = _mapRpcResult(result);
+      return RemotePackInvite(
+        inviteId: _requiredString(row, 'invite_id'),
+        inviteCode: _requiredString(row, 'invite_code'),
+        expiresAt: _requiredDate(row, 'expires_at'),
+        maxUses: _requiredInt(row, 'max_uses'),
+      );
+    } catch (error) {
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteInviteNotHost,
+        operationName: 'refresh_pack_invite',
       );
     }
   }
@@ -496,6 +579,14 @@ String? _optionalString(Map<String, Object?> row, String key) {
     return value;
   }
   return null;
+}
+
+bool _optionalBool(Map<String, Object?> row, String key) {
+  final value = row[key];
+  if (value is bool) {
+    return value;
+  }
+  return false;
 }
 
 String _requiredString(Map<String, Object?> row, String key) {

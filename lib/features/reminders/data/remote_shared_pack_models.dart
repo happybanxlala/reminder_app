@@ -138,6 +138,33 @@ class RemotePackInvite {
   final int maxUses;
 }
 
+class RemotePackInviteState {
+  const RemotePackInviteState({
+    this.activeInvite,
+    this.latestInviteExpired = false,
+  });
+
+  final RemotePackInvite? activeInvite;
+  final bool latestInviteExpired;
+
+  bool get hasActiveInvite => activeInvite != null;
+}
+
+String normalizeInviteCode(String input) {
+  return input.trim().toUpperCase().replaceAll(
+    RegExp(r'[\s\-\u2010-\u2015\u2212]+'),
+    '',
+  );
+}
+
+String groupedInviteCode(String code) {
+  final normalized = normalizeInviteCode(code);
+  if (normalized.length <= 3) {
+    return normalized;
+  }
+  return '${normalized.substring(0, 3)} ${normalized.substring(3)}';
+}
+
 enum RemoteJoinPackStatus { joined, alreadyMember }
 
 class RemoteJoinPackResult {

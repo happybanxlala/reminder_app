@@ -208,6 +208,12 @@ class RemoteSharedPackRepository {
   Future<RemotePocResult<RemotePackInvite>> createRemotePackInvite(
     String remotePackId,
   ) async {
+    return ensureActiveInviteForPack(remotePackId);
+  }
+
+  Future<RemotePocResult<RemotePackInviteState>> fetchPackInviteState(
+    String remotePackId,
+  ) async {
     final identityResult = await _ensureAnonymousIdentity();
     if (!identityResult.isSuccess) {
       return RemotePocResult.failure(
@@ -218,7 +224,57 @@ class RemoteSharedPackRepository {
 
     try {
       return RemotePocResult.success(
-        await _remoteDataSource.createPackInvite(packId: remotePackId),
+        await _remoteDataSource.fetchPackInviteState(packId: remotePackId),
+      );
+    } on RemoteSharedPackException catch (error) {
+      return RemotePocResult.failure(error.reason, error);
+    } catch (error) {
+      return RemotePocResult.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        error,
+      );
+    }
+  }
+
+  Future<RemotePocResult<RemotePackInvite>> ensureActiveInviteForPack(
+    String remotePackId,
+  ) async {
+    final identityResult = await _ensureAnonymousIdentity();
+    if (!identityResult.isSuccess) {
+      return RemotePocResult.failure(
+        identityResult.failureReason,
+        identityResult.error,
+      );
+    }
+
+    try {
+      return RemotePocResult.success(
+        await _remoteDataSource.ensureActivePackInvite(packId: remotePackId),
+      );
+    } on RemoteSharedPackException catch (error) {
+      return RemotePocResult.failure(error.reason, error);
+    } catch (error) {
+      return RemotePocResult.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        error,
+      );
+    }
+  }
+
+  Future<RemotePocResult<RemotePackInvite>> refreshInviteForPack(
+    String remotePackId,
+  ) async {
+    final identityResult = await _ensureAnonymousIdentity();
+    if (!identityResult.isSuccess) {
+      return RemotePocResult.failure(
+        identityResult.failureReason,
+        identityResult.error,
+      );
+    }
+
+    try {
+      return RemotePocResult.success(
+        await _remoteDataSource.refreshPackInvite(packId: remotePackId),
       );
     } on RemoteSharedPackException catch (error) {
       return RemotePocResult.failure(error.reason, error);

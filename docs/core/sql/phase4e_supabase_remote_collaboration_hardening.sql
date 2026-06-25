@@ -19,10 +19,15 @@
 --   deletes item_completions.
 -- - join_pack_with_invite returns joined / already_member. A removed member can
 --   rejoin only through a valid active invite.
+-- - ensure_active_pack_invite returns the existing active invite or creates one.
+-- - fetch_pack_invite_state returns the current host-readable active invite.
+-- - refresh_pack_invite revokes the previous active invite before creating one.
 -- - revoke_pack_invite returns revoked / already_revoked.
--- - invite codes are bearer secrets. Only code_hash may be stored in database;
---   plaintext invite codes must not be persisted in activity_events, backup, or
---   local DB.
+-- - invite codes are bearer secrets. Remote pack_invites may store host-readable
+--   plaintext for active invite recovery, but plaintext invite codes must not be
+--   persisted in activity_events, backup, sync metadata, or local DB. In short:
+--   plaintext invite codes must not be persisted outside host-readable remote
+--   invite rows.
 --
 -- RLS checklist:
 -- - Active pack members can read pack data.

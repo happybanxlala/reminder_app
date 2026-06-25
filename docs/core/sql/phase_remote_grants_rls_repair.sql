@@ -168,6 +168,15 @@ grant execute on function public.undo_pack_item_completion(uuid, text) to authen
 revoke all on function public.create_pack_invite(uuid, integer, integer) from public;
 grant execute on function public.create_pack_invite(uuid, integer, integer) to authenticated;
 
+revoke all on function public.ensure_active_pack_invite(uuid, integer, integer) from public;
+grant execute on function public.ensure_active_pack_invite(uuid, integer, integer) to authenticated;
+
+revoke all on function public.fetch_pack_invite_state(uuid) from public;
+grant execute on function public.fetch_pack_invite_state(uuid) to authenticated;
+
+revoke all on function public.refresh_pack_invite(uuid, integer, integer) from public;
+grant execute on function public.refresh_pack_invite(uuid, integer, integer) to authenticated;
+
 revoke all on function public.join_pack_with_invite(text) from public;
 grant execute on function public.join_pack_with_invite(text) to authenticated;
 

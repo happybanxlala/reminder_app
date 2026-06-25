@@ -901,7 +901,7 @@ The Phase 4A SQL adds:
 - `revoke_pack_invite`
 - RLS policy draft for host-only invite listing/management
 
-Invite code is a temporary bearer secret. The RPC returns the invite code once to the host, but the database stores only `code_hash`. Activity events and local backups must not store the full invite code.
+Invite code is a temporary bearer secret. Codes are 6 uppercase human-friendly characters from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`. Remote `pack_invites` stores a host-readable `invite_code` for active invite recovery plus `code_hash` for join lookup. Activity events, local backups, local DB, and sync metadata must not store the full invite code.
 
 Hash strategy:
 
@@ -909,11 +909,14 @@ Hash strategy:
 code_hash = sha256(normalized_invite_code || ':' || pack_id)
 ```
 
-For join, the RPC scans active invite rows and compares the computed hash for each invite pack. This keeps the user-facing input to only the invite code for Phase 4A.
+For join, the RPC normalizes input by trimming, uppercasing, and removing whitespace / hyphen-like separators, then scans active invite rows and compares the computed hash for each invite pack. This keeps the user-facing input to only the invite code for Phase 4A.
 
 ### RPC Behavior
 
-- `create_pack_invite(target_pack_id, expires_in_days default 7, max_uses default 10)` requires `auth.uid()` to be active host of the pack, inserts invite metadata, writes `invite_created`, and returns `invite_id / invite_code / expires_at / max_uses`.
+- `ensure_active_pack_invite(target_pack_id, expires_in_days default 7, max_uses default 10)` requires `auth.uid()` to be active host of the pack, expires stale active invites, returns the existing active invite if present, otherwise inserts invite metadata, writes `invite_created`, and returns `invite_id / invite_code / expires_at / max_uses`.
+- `fetch_pack_invite_state(target_pack_id)` requires active host and returns the current active invite plus whether the latest invite is expired.
+- `refresh_pack_invite(target_pack_id, expires_in_days default 7, max_uses default 10)` requires active host, revokes active invites, writes `invite_revoked`, creates a new invite, and returns the new invite.
+- `create_pack_invite(target_pack_id, expires_in_days default 7, max_uses default 10)` remains a compatibility wrapper for `ensure_active_pack_invite`.
 - `join_pack_with_invite(invite_code)` validates active/unexpired/under-limit invite, requires current profile, creates or reactivates `pack_members` as `member / active`, increments `used_count`, writes `member_joined`, and returns `joined` or `already_member`.
 - `revoke_pack_invite(invite_id)` requires active host, marks invite revoked, writes `invite_revoked`, and never hard-deletes invite history.
 

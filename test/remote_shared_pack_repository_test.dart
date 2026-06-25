@@ -326,12 +326,50 @@ void main() {
 
       expect(result.isSuccess, isTrue);
       expect(result.value!.inviteId, 'invite_1');
-      expect(result.value!.inviteCode, 'ABCD-1234-EFGH');
+      expect(result.value!.inviteCode, 'K7M4Q9');
       expect(result.value!.maxUses, 10);
       expect(harness.remoteDataSource.createdInviteCount, 1);
       expect(await harness.db.reminderDao.listSyncMappings(), hasLength(1));
     },
   );
+
+  test('ensureActiveInviteForPack reuses active invite', () async {
+    final harness = await _Harness.create();
+    addTearDown(harness.close);
+
+    final first = await harness.remoteRepository.ensureActiveInviteForPack(
+      'remote_pack_1',
+    );
+    final second = await harness.remoteRepository.ensureActiveInviteForPack(
+      'remote_pack_1',
+    );
+
+    expect(first.isSuccess, isTrue);
+    expect(first.value!.inviteCode, hasLength(6));
+    expect(
+      first.value!.inviteCode,
+      matches(r'^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$'),
+    );
+    expect(second.value!.inviteId, first.value!.inviteId);
+    expect(harness.remoteDataSource.createdInviteCount, 1);
+  });
+
+  test('refreshInviteForPack replaces active invite', () async {
+    final harness = await _Harness.create();
+    addTearDown(harness.close);
+
+    final first = await harness.remoteRepository.ensureActiveInviteForPack(
+      'remote_pack_1',
+    );
+    final refreshed = await harness.remoteRepository.refreshInviteForPack(
+      'remote_pack_1',
+    );
+
+    expect(refreshed.isSuccess, isTrue);
+    expect(refreshed.value!.inviteCode, isNot(first.value!.inviteCode));
+    expect(harness.remoteDataSource.revokedInviteIds, [first.value!.inviteId]);
+    expect(harness.remoteDataSource.createdInviteCount, 2);
+  });
 
   test('createRemotePackInvite maps host/RLS failures', () async {
     final harness = await _Harness.create();
@@ -356,11 +394,11 @@ void main() {
       addTearDown(harness.close);
 
       final result = await harness.remoteRepository.joinRemotePackWithInvite(
-        'ABCD-1234-EFGH',
+        'K7M4Q9',
       );
       harness.remoteDataSource.alreadyMemberOnJoin = true;
       final alreadyMember = await harness.remoteRepository
-          .joinRemotePackWithInvite('ABCD-1234-EFGH');
+          .joinRemotePackWithInvite('K7M4Q9');
 
       expect(result.isSuccess, isTrue);
       expect(result.value!.status, RemoteJoinPackStatus.joined);
@@ -645,6 +683,7 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   int createdInviteCount = 0;
   int joinInviteCount = 0;
   int undoCount = 0;
+  final revokedInviteIds = <String>[];
   bool rejectCompletion = false;
   bool rejectUndo = false;
   bool malformedSnapshot = false;
@@ -657,6 +696,7 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   final _packs = <String, String>{};
   final _packItems = <String, List<String>>{};
   final _completions = <String, RemoteItemCompletionResult>{};
+  final _activeInvites = <String, RemotePackInvite>{};
 
   @override
   Future<String> upsertCurrentProfile({required String displayName}) async {
@@ -686,18 +726,47 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
 
   @override
   Future<RemotePackInvite> createPackInvite({required String packId}) async {
+    return ensureActivePackInvite(packId: packId);
+  }
+
+  @override
+  Future<RemotePackInviteState> fetchPackInviteState({
+    required String packId,
+  }) async {
+    return RemotePackInviteState(activeInvite: _activeInvites[packId]);
+  }
+
+  @override
+  Future<RemotePackInvite> ensureActivePackInvite({
+    required String packId,
+  }) async {
     if (rejectInviteCreate) {
       throw const RemoteSharedPackException(
         RemoteSharedPackFailureReason.remoteInviteNotHost,
       );
     }
+    final existing = _activeInvites[packId];
+    if (existing != null) {
+      return existing;
+    }
     createdInviteCount += 1;
-    return RemotePackInvite(
+    final invite = RemotePackInvite(
       inviteId: 'invite_$createdInviteCount',
-      inviteCode: 'ABCD-1234-EFGH',
+      inviteCode: createdInviteCount == 1 ? 'K7M4Q9' : 'P8W6RA',
       expiresAt: DateTime(2026, 6, 28, 10),
       maxUses: 10,
     );
+    _activeInvites[packId] = invite;
+    return invite;
+  }
+
+  @override
+  Future<RemotePackInvite> refreshPackInvite({required String packId}) async {
+    final existing = _activeInvites.remove(packId);
+    if (existing != null) {
+      revokedInviteIds.add(existing.inviteId);
+    }
+    return ensureActivePackInvite(packId: packId);
   }
 
   @override

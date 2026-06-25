@@ -830,7 +830,7 @@ void main() {
     );
     await tester.enterText(
       find.byKey(const Key('settings-remote-poc-invite-input')),
-      'ABCD-1234-EFGH',
+      'K7M4Q9',
     );
     await tester.pumpAndSettle();
     await _tapSettingsRow(
@@ -898,7 +898,7 @@ void main() {
       const Key('settings-remote-poc-create-invite-row'),
     );
     expect(fakeRemote.createdInviteCalls, 1);
-    expect(find.textContaining('ABCD-1234-EFGH'), findsWidgets);
+    expect(find.textContaining('K7M4Q9'), findsWidgets);
     expect(find.text('10'), findsWidgets);
 
     await _tapSettingsRow(
@@ -914,7 +914,7 @@ void main() {
     );
     await tester.enterText(
       find.byKey(const Key('settings-remote-poc-invite-input')),
-      'ABCD-1234-EFGH',
+      'K7M4Q9',
     );
     await tester.pumpAndSettle();
     await _tapSettingsRow(
@@ -954,7 +954,7 @@ void main() {
     final backup = await ReminderBackupService(
       db.reminderDao,
     ).exportJsonString(exportedAt: DateTime(2026, 6, 21));
-    expect(backup, isNot(contains('ABCD-1234-EFGH')));
+    expect(backup, isNot(contains('K7M4Q9')));
   });
 
   testWidgets('developer remote viewer clears selection when item disappears', (
@@ -1190,6 +1190,7 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   final _packItems = <String, List<String>>{};
   final _completedItems = <String, RemoteItemCompletionResult>{};
   final _undoActivityItems = <String>{};
+  final _activeInvites = <String, RemotePackInvite>{};
 
   @override
   Future<String> upsertCurrentProfile({required String displayName}) async {
@@ -1218,13 +1219,47 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
 
   @override
   Future<RemotePackInvite> createPackInvite({required String packId}) async {
+    return ensureActivePackInvite(packId: packId);
+  }
+
+  @override
+  Future<RemotePackInviteState> fetchPackInviteState({
+    required String packId,
+  }) async {
+    return RemotePackInviteState(activeInvite: _activeInvites[packId]);
+  }
+
+  @override
+  Future<RemotePackInvite> ensureActivePackInvite({
+    required String packId,
+  }) async {
+    final existing = _activeInvites[packId];
+    if (existing != null) {
+      return existing;
+    }
     createdInviteCalls += 1;
-    return RemotePackInvite(
+    final invite = RemotePackInvite(
       inviteId: 'invite$createdInviteCalls',
-      inviteCode: 'ABCD-1234-EFGH',
+      inviteCode: 'K7M4Q9',
       expiresAt: DateTime(2026, 6, 28, 10),
       maxUses: 10,
     );
+    _activeInvites[packId] = invite;
+    return invite;
+  }
+
+  @override
+  Future<RemotePackInvite> refreshPackInvite({required String packId}) async {
+    _activeInvites.remove(packId);
+    createdInviteCalls += 1;
+    final invite = RemotePackInvite(
+      inviteId: 'invite$createdInviteCalls',
+      inviteCode: 'P8W6RA',
+      expiresAt: DateTime(2026, 6, 28, 10),
+      maxUses: 10,
+    );
+    _activeInvites[packId] = invite;
+    return invite;
   }
 
   @override

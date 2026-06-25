@@ -9,6 +9,7 @@ import 'package:reminder_app/features/reminders/data/remote_shared_pack_models.d
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/shared_pack.dart';
+import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
 import 'package:reminder_app/features/reminders/providers/database_providers.dart';
 import 'package:reminder_app/features/reminders/providers/identity_providers.dart';
 import 'package:reminder_app/features/reminders/providers/item_providers.dart';
@@ -29,7 +30,7 @@ void main() {
         .createInvite(pack);
 
     expect(result.succeeded, isTrue);
-    expect(result.invite!.inviteCode, 'ABCD-1234-EFGH');
+    expect(result.invite!.inviteCode, 'K7M4Q9');
     expect(harness.remote.createdPackCount, 1);
     expect(harness.remote.createdInviteCount, 1);
     expect(harness.remote.createdItems.map((item) => item.title), ['Feed cat']);
@@ -54,7 +55,52 @@ void main() {
     expect(first.succeeded, isTrue);
     expect(second.succeeded, isTrue);
     expect(harness.remote.createdPackCount, 1);
+    expect(first.invite!.inviteId, second.invite!.inviteId);
+    expect(harness.remote.createdInviteCount, 1);
+  });
+
+  test('refresh invite invalidates old invite and returns new code', () async {
+    final harness = await _Harness.create();
+    addTearDown(harness.close);
+    final packId = await harness.createPersonalPackWithItem('House');
+    final repository = harness.container.read(itemRepositoryProvider);
+    final pack = (await repository.getPackById(packId))!;
+    final controller = harness.container.read(sharedPackCareControllerProvider);
+
+    final first = await controller.createInvite(pack);
+    final mappedPack = (await repository.getPackById(packId))!;
+    final refreshed = await controller.refreshInviteForPack(mappedPack);
+
+    expect(first.succeeded, isTrue);
+    expect(refreshed.succeeded, isTrue);
+    expect(refreshed.invite!.inviteCode, isNot(first.invite!.inviteCode));
+    expect(harness.remote.revokedInviteIds, [first.invite!.inviteId]);
     expect(harness.remote.createdInviteCount, 2);
+  });
+
+  test('pack care view model exposes active invite when reopened', () async {
+    final harness = await _Harness.create();
+    addTearDown(harness.close);
+    final packId = await harness.createPersonalPackWithItem('House');
+    final repository = harness.container.read(itemRepositoryProvider);
+    final pack = (await repository.getPackById(packId))!;
+
+    await harness.container
+        .read(sharedPackCareControllerProvider)
+        .createInvite(pack);
+    final mappedPack = (await repository.getPackById(packId))!;
+    final viewModel = await harness.container.read(
+      packCareViewModelProvider(mappedPack).future,
+    );
+
+    expect(viewModel.activeInvite!.inviteCode, 'K7M4Q9');
+    expect(viewModel.rowStatusLabel, ReminderUiText.packCareInviteActiveLabel);
+  });
+
+  test('normalizes invite code input before join', () async {
+    expect(normalizeInviteCode(' k7m-4q9 '), 'K7M4Q9');
+    expect(normalizeInviteCode('K7M 4Q9'), 'K7M4Q9');
+    expect(normalizeInviteCode('k7m—4q9'), 'K7M4Q9');
   });
 
   test(
@@ -131,10 +177,11 @@ void main() {
 
     final result = await harness.container
         .read(sharedPackCareControllerProvider)
-        .joinWithInviteCode('ABCD-1234-EFGH');
+        .joinWithInviteCode('k7m 4q9');
 
     expect(result.succeeded, isTrue);
     expect(result.packTitle, 'Joined Cats');
+    expect(harness.remote.lastJoinedInviteCode, 'K7M4Q9');
     expect(harness.remote.joinInviteCount, 1);
     expect(harness.remote.fetchSnapshotCount, 1);
     final packs = await harness.container
@@ -155,7 +202,7 @@ void main() {
         .joinWithInviteCode('EXPIRED');
 
     expect(result.succeeded, isFalse);
-    expect(result.errorMessage, '邀請碼已過期，請對方重新建立邀請。');
+    expect(result.errorMessage, '這個邀請碼已過期，請向對方索取新的邀請碼。');
     final packs = await harness.container
         .read(itemRepositoryProvider)
         .watchPacks()
@@ -232,10 +279,13 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   int createdInviteCount = 0;
   int joinInviteCount = 0;
   int fetchSnapshotCount = 0;
+  String? lastJoinedInviteCode;
   RemoteSharedPackFailureReason? profileFailure;
   RemoteSharedPackFailureReason? packCreateFailure;
   RemoteSharedPackFailureReason? inviteFailure;
   RemoteSharedPackFailureReason? joinFailure;
+  RemotePackInvite? activeInvite;
+  final revokedInviteIds = <String>[];
   final createdItems = <_RemoteItemDraft>[];
 
   @override
@@ -273,6 +323,23 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
 
   @override
   Future<RemotePackInvite> createPackInvite({required String packId}) async {
+    return ensureActivePackInvite(packId: packId);
+  }
+
+  @override
+  Future<RemotePackInviteState> fetchPackInviteState({
+    required String packId,
+  }) async {
+    return RemotePackInviteState(activeInvite: activeInvite);
+  }
+
+  @override
+  Future<RemotePackInvite> ensureActivePackInvite({
+    required String packId,
+  }) async {
+    if (activeInvite != null) {
+      return activeInvite!;
+    }
     createdInviteCount += 1;
     final failure = inviteFailure;
     if (failure != null) {
@@ -283,12 +350,30 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
         '42501',
       );
     }
-    return RemotePackInvite(
+    activeInvite = RemotePackInvite(
       inviteId: 'invite_$createdInviteCount',
-      inviteCode: 'ABCD-1234-EFGH',
+      inviteCode: 'K7M4Q9',
       expiresAt: DateTime(2026, 6, 29),
       maxUses: 10,
     );
+    return activeInvite!;
+  }
+
+  @override
+  Future<RemotePackInvite> refreshPackInvite({required String packId}) async {
+    final existing = activeInvite;
+    if (existing != null) {
+      revokedInviteIds.add(existing.inviteId);
+    }
+    activeInvite = null;
+    final invite = await ensureActivePackInvite(packId: packId);
+    activeInvite = RemotePackInvite(
+      inviteId: invite.inviteId,
+      inviteCode: 'P8W6RA',
+      expiresAt: invite.expiresAt,
+      maxUses: invite.maxUses,
+    );
+    return activeInvite!;
   }
 
   @override
@@ -307,6 +392,7 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
     required String inviteCode,
   }) async {
     joinInviteCount += 1;
+    lastJoinedInviteCode = inviteCode;
     final failure = joinFailure;
     if (failure != null) {
       throw RemoteSharedPackException(failure);

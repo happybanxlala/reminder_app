@@ -198,17 +198,17 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(Key('pack-care-invite-$packId')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('pack-care-create-invite-submit')));
     await tester.pumpAndSettle();
 
     expect(
-      find.text(ReminderUiText.packCareInviteCreatedTitle),
+      find.byKey(const Key('pack-care-active-invite-card')),
       findsOneWidget,
     );
     expect(find.byKey(const Key('pack-care-invite-code')), findsOneWidget);
-    expect(find.text('ABCD-1234-EFGH'), findsOneWidget);
+    expect(find.text('K7M 4Q9'), findsOneWidget);
     expect(find.text(ReminderUiText.packCareShareInviteCode), findsOneWidget);
     expect(find.text(ReminderUiText.packCareCopyInviteCode), findsOneWidget);
+    expect(find.text(ReminderUiText.packCareRefreshInviteCode), findsOneWidget);
     expect(remote.createdInviteCount, 1);
     expect(remote.createdItems.map((item) => item.title), ['Feed cat']);
   });
@@ -324,6 +324,7 @@ class _RemoteItemDraft {
 class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   int createdPackCount = 0;
   int createdInviteCount = 0;
+  final _activeInvites = <String, RemotePackInvite>{};
   final createdItems = <_RemoteItemDraft>[];
 
   @override
@@ -342,13 +343,47 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
 
   @override
   Future<RemotePackInvite> createPackInvite({required String packId}) async {
+    return ensureActivePackInvite(packId: packId);
+  }
+
+  @override
+  Future<RemotePackInviteState> fetchPackInviteState({
+    required String packId,
+  }) async {
+    return RemotePackInviteState(activeInvite: _activeInvites[packId]);
+  }
+
+  @override
+  Future<RemotePackInvite> ensureActivePackInvite({
+    required String packId,
+  }) async {
+    final existing = _activeInvites[packId];
+    if (existing != null) {
+      return existing;
+    }
     createdInviteCount += 1;
-    return RemotePackInvite(
+    final invite = RemotePackInvite(
       inviteId: 'invite_$createdInviteCount',
-      inviteCode: 'ABCD-1234-EFGH',
+      inviteCode: 'K7M4Q9',
       expiresAt: DateTime(2026, 6, 29),
       maxUses: 10,
     );
+    _activeInvites[packId] = invite;
+    return invite;
+  }
+
+  @override
+  Future<RemotePackInvite> refreshPackInvite({required String packId}) async {
+    _activeInvites.remove(packId);
+    createdInviteCount += 1;
+    final invite = RemotePackInvite(
+      inviteId: 'invite_$createdInviteCount',
+      inviteCode: 'P8W6RA',
+      expiresAt: DateTime(2026, 6, 29),
+      maxUses: 10,
+    );
+    _activeInvites[packId] = invite;
+    return invite;
   }
 
   @override

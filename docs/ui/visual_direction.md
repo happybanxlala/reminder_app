@@ -1069,3 +1069,11 @@ flutter test
 - The `一起照顧` bottom sheet uses progressive disclosure: personal explanation and invite action, shared member summary/list, compact sync banners, or access-lost guard copy.
 - Invite and join flows use dialogs with production product language (`邀請一起照顧`, `加入生活場景`) and hide developer terms such as Supabase, remote-backed, POC, and sync metadata.
 - Home remains mixed: personal and shared items continue to appear in the existing danger / warning / today completed sections with compact sync labels only when needed.
+
+### 19.25 Shared Pack Invite UX v2 2026-06-25
+
+- Active invite display stays inside the existing `一起照顧` bottom sheet instead of stacking a result dialog over the sheet.
+- Invite codes are shown as compact grouped text such as `K7M 4Q9`, while share/copy uses the canonical code without separators.
+- Active invite cards expose `分享邀請碼`, `複製`, and `刷新邀請碼`; refresh uses a short confirmation dialog because it invalidates the previous code.
+- Only-host copy uses `目前只有你可以看到這個生活場景。`; member lists show the current user as `你 / 建立者` rather than device-data wording.
+- Pack rows may show `邀請碼有效中`, but full invite codes must not appear in the pack list.
