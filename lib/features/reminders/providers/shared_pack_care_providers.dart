@@ -276,11 +276,11 @@ String _sharedCareFailureMessage(RemoteSharedPackFailureReason? reason) {
     RemoteSharedPackFailureReason.remoteInviteAlreadyRevoked =>
       ReminderUiText.packCareInviteInvalid,
     RemoteSharedPackFailureReason.remoteInviteNotHost => '目前無法建立邀請。',
+    RemoteSharedPackFailureReason.remoteRlsRejected => '遠端資料庫權限不足，請稍後再試。',
     RemoteSharedPackFailureReason.supabaseConfigMissing ||
     RemoteSharedPackFailureReason.remoteAuthRequired ||
     RemoteSharedPackFailureReason.remoteProfileFailed ||
     RemoteSharedPackFailureReason.remotePackCreateFailed ||
-    RemoteSharedPackFailureReason.remoteRlsRejected ||
     RemoteSharedPackFailureReason.remoteNetworkFailed ||
     RemoteSharedPackFailureReason.remoteUnknownFailure ||
     RemoteSharedPackFailureReason.malformedRemoteData ||

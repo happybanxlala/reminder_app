@@ -31,6 +31,140 @@ void main() {
     );
   });
 
+  test('Remote grants repair SQL covers authenticated privileges safely', () {
+    final file = File('docs/core/sql/phase_remote_grants_rls_repair.sql');
+
+    expect(file.existsSync(), isTrue);
+    final sql = file.readAsStringSync();
+    final lower = sql.toLowerCase();
+
+    const readWriteTables = [
+      'profiles',
+      'packs',
+      'pack_members',
+      'items',
+      'item_completions',
+      'resources',
+      'resource_events',
+      'stages',
+      'stage_acknowledgements',
+      'pack_invites',
+    ];
+    for (final table in readWriteTables) {
+      expect(
+        lower,
+        contains(
+          'grant select, insert, update on table public.$table to authenticated',
+        ),
+        reason: table,
+      );
+    }
+    expect(
+      lower,
+      contains(
+        'grant select, insert on table public.activity_events to authenticated',
+      ),
+    );
+
+    expect(lower, isNot(contains(' to anon')));
+    expect(lower, isNot(contains('grant delete')));
+    expect(lower, isNot(contains('disable row level security')));
+    expect(lower, isNot(contains('service_role')));
+    expect(lower, isNot(contains('service role key')));
+    expect(lower, isNot(contains('secret key')));
+  });
+
+  test('Remote grants repair SQL locks function execute grants', () {
+    final lower = File(
+      'docs/core/sql/phase_remote_grants_rls_repair.sql',
+    ).readAsStringSync().toLowerCase();
+
+    const functions = [
+      'upsert_current_profile(text)',
+      'create_shared_pack(text, text)',
+      'create_pack_item(uuid, text, text)',
+      'complete_pack_item(uuid, text)',
+      'undo_pack_item_completion(uuid, text)',
+      'create_pack_invite(uuid, integer, integer)',
+      'join_pack_with_invite(text)',
+      'revoke_pack_invite(uuid)',
+      'is_pack_member(uuid)',
+      'is_pack_host(uuid)',
+      'hash_pack_invite_code(text, uuid)',
+      'generate_pack_invite_code()',
+    ];
+
+    for (final function in functions) {
+      expect(
+        lower,
+        contains('revoke all on function public.$function from public'),
+        reason: function,
+      );
+      expect(
+        lower,
+        contains('grant execute on function public.$function to authenticated'),
+        reason: function,
+      );
+    }
+
+    expect(lower, contains('security definer'));
+    expect(lower, contains('set search_path = public'));
+    expect(lower, contains('current_user_id uuid := auth.uid()'));
+    expect(lower, contains('auth required'));
+    expect(lower, isNot(contains('upsert_current_profile(user_id')));
+    expect(lower, isNot(contains('user_id uuid,')));
+  });
+
+  test('Remote grants repair SQL makes create_shared_pack safe definer RPC', () {
+    final lower = File(
+      'docs/core/sql/phase_remote_grants_rls_repair.sql',
+    ).readAsStringSync().toLowerCase();
+    final match = RegExp(
+      r'create or replace function public\.create_shared_pack[\s\S]*?comment on function public\.create_shared_pack',
+    ).firstMatch(lower);
+
+    expect(match, isNotNull);
+    final functionSql = match!.group(0)!;
+
+    expect(functionSql, contains('pack_name text'));
+    expect(functionSql, contains('description text default null'));
+    expect(functionSql, contains('security definer'));
+    expect(functionSql, contains('set search_path = public'));
+    expect(functionSql, contains('current_user_id uuid := auth.uid()'));
+    expect(functionSql, contains("raise exception 'auth required'"));
+    expect(functionSql, contains('host_user_id'));
+    expect(functionSql, contains('current_user_id'));
+    expect(functionSql, contains('public.pack_members'));
+    expect(functionSql, contains('user_id'));
+    expect(functionSql, contains("'host'"));
+    expect(functionSql, contains('public.activity_events'));
+    expect(functionSql, contains('actor_user_id'));
+    expect(functionSql, isNot(contains('create_shared_pack(user_id')));
+    expect(functionSql, isNot(contains('user_id uuid,')));
+    expect(functionSql, isNot(contains('target_user_id')));
+    expect(functionSql, isNot(contains('caller_user_id')));
+  });
+
+  test('Remote grants repair SQL includes manual privilege audit query', () {
+    final lower = File(
+      'docs/core/sql/phase_remote_grants_rls_repair.sql',
+    ).readAsStringSync().toLowerCase();
+
+    expect(lower, contains("has_table_privilege('authenticated'"));
+    expect(lower, contains("'select') as can_select"));
+    expect(lower, contains("'insert') as can_insert"));
+    expect(lower, contains("'update') as can_update"));
+    expect(lower, contains("'delete') as can_delete"));
+    expect(lower, contains('information_schema.tables'));
+    expect(lower, contains('pg_get_function_identity_arguments'));
+    expect(lower, contains('p.prosecdef as is_security_definer'));
+    expect(lower, contains("has_function_privilege('anon', p.oid, 'execute')"));
+    expect(
+      lower,
+      contains("has_function_privilege('authenticated', p.oid, 'execute')"),
+    );
+  });
+
   test('Phase 3C SQL draft contains RLS and RPC contract boundaries', () {
     final file = File('docs/core/sql/phase3c_supabase_minimal_poc.sql');
 

@@ -22,13 +22,35 @@ enum RemoteSharedPackFailureReason {
 }
 
 class RemoteSharedPackException implements Exception {
-  const RemoteSharedPackException(this.reason, [this.cause]);
+  const RemoteSharedPackException(
+    this.reason, [
+    this.cause,
+    this.operationName,
+    this.remoteCode,
+  ]);
 
   final RemoteSharedPackFailureReason reason;
   final Object? cause;
+  final String? operationName;
+  final String? remoteCode;
+
+  String? get safeDebugMessage {
+    final operation = operationName;
+    final code = remoteCode;
+    if (operation == null || code == null) {
+      return null;
+    }
+    return '$operation 被 Supabase 拒絕：$code';
+  }
 
   @override
-  String toString() => 'RemoteSharedPackException($reason)';
+  String toString() {
+    final debugMessage = safeDebugMessage;
+    if (debugMessage != null) {
+      return 'RemoteSharedPackException($reason, $debugMessage)';
+    }
+    return 'RemoteSharedPackException($reason)';
+  }
 }
 
 class RemotePocResult<T> {

@@ -364,7 +364,9 @@ Manual backup is expected to become legacy for remote-backed shared packs.
 
 - Service role key 永不進 app、文件範例或 backup。
 - Flutter app 只使用 anon key。
-- RLS 仍然是 remote data boundary。
+- RLS 仍然是 remote data boundary；table grants 與 RLS policy 是兩層權限，`authenticated` role 必須先具備必要 table grants，RLS 才能套用 row-level 限制。
+- `anon` role 不取得 shared pack private data table grants；invite、profile、pack、item、completion、resource、stage、activity access 都必須透過 authenticated session 與 RLS / RPC 邊界。
+- Manual Supabase apply must include `docs/core/sql/phase_remote_grants_rls_repair.sql` and its grants audit query before validating remote-backed shared pack / invite flows.
 - Local mirror 可能包含 shared pack private data，因此要視為敏感本機資料。
 - Removed member 後，本機 cache / mirror 需進入 access lost / removed handling；是否保留 read-only history 是 open question。
 - Backup 不保存 tokens、sessions、credentials、service role keys、secret keys。

@@ -629,6 +629,34 @@ void main() {
     expect(find.textContaining('item_undone'), findsWidgets);
   });
 
+  testWidgets('developer remote POC shows safe RPC detail on RLS failure', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    await _seedSharedPackForRemotePoc(db);
+    final fakeRemote = _FakeRemoteSharedPackDataSource()
+      ..rejectCreateSharedPack = true;
+
+    await _pumpSettings(
+      tester,
+      developerVisible: true,
+      database: db,
+      extraOverrides: [
+        authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+        remoteSharedPackDataSourceProvider.overrideWithValue(fakeRemote),
+      ],
+    );
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-poc-create-pack-row'),
+    );
+
+    expect(fakeRemote.createdPackCalls, 1);
+    expect(find.text('create_shared_pack 被 Supabase 拒絕：42501'), findsWidgets);
+  });
+
   testWidgets(
     'developer remote realtime signal is advisory until manual refresh',
     (tester) async {
@@ -1155,6 +1183,7 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   int completionCalls = 0;
   int undoCalls = 0;
   int snapshotCalls = 0;
+  bool rejectCreateSharedPack = false;
   bool rejectSnapshot = false;
   final hiddenItemIds = <String>{};
 
@@ -1174,6 +1203,14 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
     String? description,
   }) async {
     createdPackCalls += 1;
+    if (rejectCreateSharedPack) {
+      throw const RemoteSharedPackException(
+        RemoteSharedPackFailureReason.remoteRlsRejected,
+        null,
+        'create_shared_pack',
+        '42501',
+      );
+    }
     final id = 'rpack$createdPackCalls';
     _packItems[id] = <String>[];
     return id;

@@ -62,6 +62,41 @@ void main() {
     },
   );
 
+  test('profile bootstrap maps Supabase 42501 with safe RPC detail', () {
+    final error = mapRemoteSharedPackError(
+      const PostgrestException(
+        message: 'permission denied for table profiles',
+        code: '42501',
+      ),
+      RemoteSharedPackFailureReason.remoteProfileFailed,
+      operationName: 'upsert_current_profile',
+    );
+
+    expect(error.reason, RemoteSharedPackFailureReason.remoteRlsRejected);
+    expect(error.operationName, 'upsert_current_profile');
+    expect(error.remoteCode, '42501');
+    expect(
+      error.safeDebugMessage,
+      'upsert_current_profile 被 Supabase 拒絕：42501',
+    );
+  });
+
+  test('shared pack bootstrap maps Supabase 42501 with safe RPC detail', () {
+    final error = mapRemoteSharedPackError(
+      const PostgrestException(
+        message: 'permission denied for table packs',
+        code: '42501',
+      ),
+      RemoteSharedPackFailureReason.remotePackCreateFailed,
+      operationName: 'create_shared_pack',
+    );
+
+    expect(error.reason, RemoteSharedPackFailureReason.remoteRlsRejected);
+    expect(error.operationName, 'create_shared_pack');
+    expect(error.remoteCode, '42501');
+    expect(error.safeDebugMessage, 'create_shared_pack 被 Supabase 拒絕：42501');
+  });
+
   test('shared pack host creates remote pack mapping once', () async {
     final harness = await _Harness.create();
     addTearDown(harness.close);
@@ -614,6 +649,7 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   bool rejectUndo = false;
   bool malformedSnapshot = false;
   bool rejectInviteCreate = false;
+  bool rejectProfileUpsert = false;
   bool alreadyMemberOnJoin = false;
   bool alreadyRevoked = false;
   RemoteSharedPackFailureReason? joinFailure;
@@ -625,6 +661,14 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   @override
   Future<String> upsertCurrentProfile({required String displayName}) async {
     profileUpsertCount += 1;
+    if (rejectProfileUpsert) {
+      throw const RemoteSharedPackException(
+        RemoteSharedPackFailureReason.remoteRlsRejected,
+        null,
+        'upsert_current_profile',
+        '42501',
+      );
+    }
     return 'fake_supabase_user_profile';
   }
 

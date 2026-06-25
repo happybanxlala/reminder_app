@@ -115,7 +115,11 @@ class SupabaseRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
       );
       return _stringRpcResult(result, 'id');
     } catch (error) {
-      throw _mapError(error, RemoteSharedPackFailureReason.remoteProfileFailed);
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteProfileFailed,
+        operationName: 'upsert_current_profile',
+      );
     }
   }
 
@@ -134,6 +138,7 @@ class SupabaseRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
       throw _mapError(
         error,
         RemoteSharedPackFailureReason.remotePackCreateFailed,
+        operationName: 'create_shared_pack',
       );
     }
   }
@@ -157,7 +162,11 @@ class SupabaseRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
         maxUses: _requiredInt(row, 'max_uses'),
       );
     } catch (error) {
-      throw _mapError(error, RemoteSharedPackFailureReason.remoteInviteNotHost);
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteInviteNotHost,
+        operationName: 'create_pack_invite',
+      );
     }
   }
 
@@ -181,7 +190,11 @@ class SupabaseRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
         role: _requiredString(row, 'role'),
       );
     } catch (error) {
-      throw _mapError(error, RemoteSharedPackFailureReason.remoteInviteInvalid);
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteInviteInvalid,
+        operationName: 'join_pack_with_invite',
+      );
     }
   }
 
@@ -203,7 +216,11 @@ class SupabaseRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
         inviteId: _requiredString(row, 'invite_id'),
       );
     } catch (error) {
-      throw _mapError(error, RemoteSharedPackFailureReason.remoteInviteNotHost);
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteInviteNotHost,
+        operationName: 'revoke_pack_invite',
+      );
     }
   }
 
@@ -223,6 +240,7 @@ class SupabaseRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
       throw _mapError(
         error,
         RemoteSharedPackFailureReason.remoteItemPushFailed,
+        operationName: 'create_pack_item',
       );
     }
   }
@@ -251,6 +269,7 @@ class SupabaseRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
       throw _mapError(
         error,
         RemoteSharedPackFailureReason.remoteUnknownFailure,
+        operationName: 'complete_pack_item',
       );
     }
   }
@@ -283,6 +302,7 @@ class SupabaseRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
       throw _mapError(
         error,
         RemoteSharedPackFailureReason.remoteUnknownFailure,
+        operationName: 'undo_pack_item_completion',
       );
     }
   }
@@ -541,17 +561,20 @@ Map<String, Object?>? _jsonMap(Object? value) {
 
 RemoteSharedPackException mapRemoteSharedPackError(
   Object error,
-  RemoteSharedPackFailureReason fallback,
-) {
+  RemoteSharedPackFailureReason fallback, {
+  String? operationName,
+}) {
   if (error is RemoteSharedPackException) {
     return error;
   }
   if (error is PostgrestException) {
     final status = error.code;
-    if (status == '42501' || status == 'PGRST301') {
+    if (status == '42501' || status == '403' || status == 'PGRST301') {
       return RemoteSharedPackException(
         RemoteSharedPackFailureReason.remoteRlsRejected,
         error,
+        operationName,
+        status,
       );
     }
     final message = error.message.toLowerCase();
@@ -559,12 +582,16 @@ RemoteSharedPackException mapRemoteSharedPackError(
       return RemoteSharedPackException(
         RemoteSharedPackFailureReason.remoteAuthRequired,
         error,
+        operationName,
+        status,
       );
     }
     if (message.contains('profile required')) {
       return RemoteSharedPackException(
         RemoteSharedPackFailureReason.remoteProfileFailed,
         error,
+        operationName,
+        status,
       );
     }
     if (message.contains('active pack member required') ||
@@ -572,46 +599,63 @@ RemoteSharedPackException mapRemoteSharedPackError(
       return RemoteSharedPackException(
         RemoteSharedPackFailureReason.remoteRlsRejected,
         error,
+        operationName,
+        status,
       );
     }
     if (message.contains('invite expired')) {
       return RemoteSharedPackException(
         RemoteSharedPackFailureReason.remoteInviteExpired,
         error,
+        operationName,
+        status,
       );
     }
     if (message.contains('invite max uses reached')) {
       return RemoteSharedPackException(
         RemoteSharedPackFailureReason.remoteInviteMaxUsesReached,
         error,
+        operationName,
+        status,
       );
     }
     if (message.contains('invite invalid')) {
       return RemoteSharedPackException(
         RemoteSharedPackFailureReason.remoteInviteInvalid,
         error,
+        operationName,
+        status,
       );
     }
     if (message.contains('already revoked')) {
       return RemoteSharedPackException(
         RemoteSharedPackFailureReason.remoteInviteAlreadyRevoked,
         error,
+        operationName,
+        status,
       );
     }
     if (message.contains('pack host required')) {
       return RemoteSharedPackException(
         RemoteSharedPackFailureReason.remoteInviteNotHost,
         error,
+        operationName,
+        status,
       );
     }
-    return RemoteSharedPackException(fallback, error);
+    return RemoteSharedPackException(fallback, error, operationName, status);
   }
   return RemoteSharedPackException(fallback, error);
 }
 
 RemoteSharedPackException _mapError(
   Object error,
-  RemoteSharedPackFailureReason fallback,
-) {
-  return mapRemoteSharedPackError(error, fallback);
+  RemoteSharedPackFailureReason fallback, {
+  String? operationName,
+}) {
+  return mapRemoteSharedPackError(
+    error,
+    fallback,
+    operationName: operationName,
+  );
 }

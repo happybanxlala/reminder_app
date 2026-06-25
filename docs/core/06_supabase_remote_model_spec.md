@@ -1513,13 +1513,17 @@ Manual apply order for a Supabase dev project:
 3. `docs/core/sql/phase4c_supabase_remote_member_actions_mvp.sql`
 4. `docs/core/sql/phase4d_supabase_realtime_soft_notification_poc.sql`
 5. `docs/core/sql/phase4e_supabase_remote_collaboration_hardening.sql`
+6. `docs/core/sql/phase_remote_grants_rls_repair.sql`
 
 Phase 4E adds an idempotent Realtime publication setup guard for `public.activity_events`. It does not create new tables, resource sync, stage sync, local import, or production UI.
+
+`phase_remote_grants_rls_repair.sql` is an idempotent manual repair patch for Supabase projects where RLS policies exist but the `authenticated` role is missing base table privileges or RPC execute grants. It does not create product features, does not disable RLS, does not grant table access to `anon`, and does not grant hard delete.
 
 ### RPC Contract Checklist
 
 - `upsert_current_profile` uses `auth.uid()` and returns the current remote profile id.
-- `create_shared_pack` uses `auth.uid()` as host and writes `pack_created`.
+- `create_shared_pack` is a bootstrap transaction RPC: it uses `auth.uid()` as host, creates the initial host membership, and writes `pack_created`.
+- `create_shared_pack` uses `SECURITY DEFINER` because the first host membership cannot satisfy normal membership-based RLS before it exists. It must still use only `auth.uid()` for actor identity and must not accept caller-supplied user ids.
 - `create_pack_item` verifies active membership, uses `auth.uid()` for creator/updater, and writes `item_created`.
 - `complete_pack_item` verifies active membership, uses `auth.uid()` as `completed_by_user_id`, returns `completed / already_completed`, writes `item_completed`, and relies on the active-completion unique index.
 - `undo_pack_item_completion` verifies active membership, returns `undone / already_not_completed`, writes `undone_by_user_id` / `undone_at`, writes `item_undone`, and does not delete completion history.
@@ -1527,9 +1531,14 @@ Phase 4E adds an idempotent Realtime publication setup guard for `public.activit
 - `join_pack_with_invite` returns `joined / already_member`; a removed member can rejoin only through a valid active invite.
 - `revoke_pack_invite` returns `revoked / already_revoked`.
 - RPCs must not accept client-supplied actor ids.
+- App-callable RPCs explicitly revoke default `public` execute and grant execute to `authenticated`. `anon` execute is not granted unless a future spec explicitly allows an unauthenticated RPC.
+- `upsert_current_profile(text)` and `create_shared_pack(text,text)` are `SECURITY DEFINER` bootstrap RPCs with `set search_path = public`; both derive actor identity only from `auth.uid()`, reject null auth, and do not accept caller-supplied user ids.
 
 ### RLS Checklist
 
+- Table grants and RLS policies are separate permission layers. Supabase/PostgREST first requires the `authenticated` role to have table privileges; RLS then limits which rows the user can see or mutate.
+- Remote/shared pack private tables grant only the minimum required `authenticated` `select / insert / update` table privileges. `activity_events` grants `select / insert` only. No remote/shared pack table grants `delete`.
+- `anon` must not receive table privileges for shared pack private data. Flutter uses the Supabase anon key only as a public client key; row access still depends on authenticated sessions plus RLS.
 - `profiles`: user can read/write self; active pack members can read active co-members.
 - `packs`: active members can read; host can update/archive; no hard delete policy.
 - `pack_members`: active members can read same pack; host manages members; join goes through invite RPC.
@@ -1563,10 +1572,12 @@ Supabase setup:
 5. Apply `docs/core/sql/phase4c_supabase_remote_member_actions_mvp.sql`。
 6. Apply `docs/core/sql/phase4d_supabase_realtime_soft_notification_poc.sql`。
 7. Apply `docs/core/sql/phase4e_supabase_remote_collaboration_hardening.sql`。
-8. 確認 RLS enabled。
-9. 確認 `activity_events` Realtime publication enabled。
-10. Flutter app 只使用 `SUPABASE_URL` / `SUPABASE_ANON_KEY`。
-11. 不使用 service role key。
+8. Apply `docs/core/sql/phase_remote_grants_rls_repair.sql`。
+9. 確認 RLS enabled。
+10. 確認 `activity_events` Realtime publication enabled。
+11. Run the grants audit query from `phase_remote_grants_rls_repair.sql` and verify expected `authenticated` privileges are true while delete remains false.
+12. Flutter app 只使用 `SUPABASE_URL` / `SUPABASE_ANON_KEY`。
+13. 不使用 service role key。
 
 Device A / Host flow:
 

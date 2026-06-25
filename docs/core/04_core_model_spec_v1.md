@@ -1240,6 +1240,10 @@ Profile mapping 不使用 `sync_mappings`，因為 `local_users.remoteUserId` �
 - Phase 3C SQL draft 位於 `docs/core/sql/phase3c_supabase_minimal_poc.sql`。
 - SQL draft 只包含 `profiles / packs / pack_members / items / item_completions / activity_events`，並定義 RLS、`is_pack_member`、`is_pack_host` 與 Phase 3C RPC。
 - SQL draft 需手動在 Supabase SQL editor 或 local Supabase CLI apply；app 不會自動 apply SQL，不會使用 service role key。
+- Remote/shared pack Supabase 權限需要 table grants 與 RLS policy 兩層同時成立：`authenticated` role 必須先有必要 table privileges，RLS 才有機會進一步限制 row-level access。
+- `docs/core/sql/phase_remote_grants_rls_repair.sql` 是 manual idempotent repair patch，用於補齊 remote/shared pack tables 的 `authenticated` grants、鎖定 app RPC execute grants，並將 `upsert_current_profile(text)` 固定為只使用 `auth.uid()` 的 `SECURITY DEFINER` bootstrap RPC。
+- `create_shared_pack(text,text)` 也是 bootstrap transaction RPC：它會一次建立 remote pack、current-user host membership 與 `pack_created` activity event，因此使用 `SECURITY DEFINER` 避免第一筆 host membership 被 membership-based RLS deadlock 擋住；安全邊界仍是 `auth.uid()`，function 不接受 caller-supplied user id。
+- Manual Supabase apply checklist 必須包含 grants audit query；`anon` 不取得 shared pack private data table grants，app 不使用 privileged backend key。
 
 #### Backup / Restore
 
@@ -1364,9 +1368,11 @@ Shared Pack UIUX v1 makes collaboration visible through normal `生活場景管�
 - 非 system default Pack overflow menu 第一項是「一起照顧」；system default pack 不顯示此 action。
 - 「一起照顧」bottom sheet 依 Pack 狀態顯示 personal、shared active、pending / failed / stale banner、access-lost copy。Shared active state 可顯示 active member list 與 role label（建立者 / 成員）。
 - Personal Pack 建立邀請前會先轉為 local Shared Pack，再建立 / 重用 remote pack mapping，推送 active / paused minimal items，最後建立 invite code。
+- 建立邀請若在 `ensureRemoteProfile()` / `upsert_current_profile` 或 `create_shared_pack` 階段遭 Supabase `403 / 42501` 或 RLS / grant 拒絕，流程會停止，不會繼續建立 invite code。
 - Invite code 只存在當次 UI result；不寫入 local DB、backup、activity event 或 sync metadata。
 - 「加入生活場景」在 Pack 管理頁提供 invite code entry。Join 成功後會拉取 remote snapshot 並匯入 local mirror，刷新 active packs 與管理頁資料。
 - User-facing copy 使用「一起照顧 / 邀請一起照顧 / 照顧成員 / 加入生活場景 / 只在此裝置」等產品語言，不顯示 Supabase、remote-backed、POC、sync metadata、token 或 service role key。
+- User-facing shared-care failure copy 會把 Supabase permission / RLS / grant rejection 分類為遠端資料庫權限不足；debug-safe diagnostics 可保留 RPC name 與 PostgREST code，但不得包含 token、session、anon key 或 invite secret。
 
 #### 非目標
 

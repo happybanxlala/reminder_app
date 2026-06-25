@@ -57,6 +57,74 @@ void main() {
     expect(harness.remote.createdInviteCount, 2);
   });
 
+  test(
+    'invite flow stops before invite when profile bootstrap is rejected',
+    () async {
+      final harness = await _Harness.create();
+      addTearDown(harness.close);
+      harness.remote.profileFailure =
+          RemoteSharedPackFailureReason.remoteRlsRejected;
+      final packId = await harness.createPersonalPackWithItem('Cats');
+      final pack = (await harness.container
+          .read(itemRepositoryProvider)
+          .getPackById(packId))!;
+
+      final result = await harness.container
+          .read(sharedPackCareControllerProvider)
+          .createInvite(pack);
+
+      expect(result.succeeded, isFalse);
+      expect(result.errorMessage, '遠端資料庫權限不足，請稍後再試。');
+      expect(harness.remote.profileUpsertCount, 1);
+      expect(harness.remote.createdPackCount, 0);
+      expect(harness.remote.createdInviteCount, 0);
+    },
+  );
+
+  test(
+    'invite flow stops before invite when remote pack bootstrap is rejected',
+    () async {
+      final harness = await _Harness.create();
+      addTearDown(harness.close);
+      harness.remote.packCreateFailure =
+          RemoteSharedPackFailureReason.remoteRlsRejected;
+      final packId = await harness.createPersonalPackWithItem('Cats');
+      final pack = (await harness.container
+          .read(itemRepositoryProvider)
+          .getPackById(packId))!;
+
+      final result = await harness.container
+          .read(sharedPackCareControllerProvider)
+          .createInvite(pack);
+
+      expect(result.succeeded, isFalse);
+      expect(result.errorMessage, '遠端資料庫權限不足，請稍後再試。');
+      expect(harness.remote.profileUpsertCount, 1);
+      expect(harness.remote.createdPackCount, 1);
+      expect(harness.remote.createdInviteCount, 0);
+    },
+  );
+
+  test('invite flow reports specific RLS grant failure message', () async {
+    final harness = await _Harness.create();
+    addTearDown(harness.close);
+    harness.remote.inviteFailure =
+        RemoteSharedPackFailureReason.remoteRlsRejected;
+    final packId = await harness.createPersonalPackWithItem('Cats');
+    final pack = (await harness.container
+        .read(itemRepositoryProvider)
+        .getPackById(packId))!;
+
+    final result = await harness.container
+        .read(sharedPackCareControllerProvider)
+        .createInvite(pack);
+
+    expect(result.succeeded, isFalse);
+    expect(result.errorMessage, '遠端資料庫權限不足，請稍後再試。');
+    expect(harness.remote.createdPackCount, 1);
+    expect(harness.remote.createdInviteCount, 1);
+  });
+
   test('join flow imports remote snapshot as local mirror', () async {
     final harness = await _Harness.create();
     addTearDown(harness.close);
@@ -164,12 +232,24 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   int createdInviteCount = 0;
   int joinInviteCount = 0;
   int fetchSnapshotCount = 0;
+  RemoteSharedPackFailureReason? profileFailure;
+  RemoteSharedPackFailureReason? packCreateFailure;
+  RemoteSharedPackFailureReason? inviteFailure;
   RemoteSharedPackFailureReason? joinFailure;
   final createdItems = <_RemoteItemDraft>[];
 
   @override
   Future<String> upsertCurrentProfile({required String displayName}) async {
     profileUpsertCount += 1;
+    final failure = profileFailure;
+    if (failure != null) {
+      throw RemoteSharedPackException(
+        failure,
+        null,
+        'upsert_current_profile',
+        '42501',
+      );
+    }
     return 'fake_profile';
   }
 
@@ -179,12 +259,30 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
     String? description,
   }) async {
     createdPackCount += 1;
+    final failure = packCreateFailure;
+    if (failure != null) {
+      throw RemoteSharedPackException(
+        failure,
+        null,
+        'create_shared_pack',
+        '42501',
+      );
+    }
     return 'remote_pack_$createdPackCount';
   }
 
   @override
   Future<RemotePackInvite> createPackInvite({required String packId}) async {
     createdInviteCount += 1;
+    final failure = inviteFailure;
+    if (failure != null) {
+      throw RemoteSharedPackException(
+        failure,
+        null,
+        'create_pack_invite',
+        '42501',
+      );
+    }
     return RemotePackInvite(
       inviteId: 'invite_$createdInviteCount',
       inviteCode: 'ABCD-1234-EFGH',

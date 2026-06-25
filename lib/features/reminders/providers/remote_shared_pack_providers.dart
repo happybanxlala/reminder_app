@@ -491,7 +491,7 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
       _ref.invalidate(currentAppUserProvider);
       _ref.invalidate(currentAppUserIdProvider);
       if (!result.isSuccess) {
-        return _failureOutcome(result.failureReason);
+        return _failureOutcome(result.failureReason, result.error);
       }
       return _RemotePocOutcome(
         succeeded: true,
@@ -516,7 +516,7 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
       _ref.invalidate(currentAppUserProvider);
       _ref.invalidate(currentAppUserIdProvider);
       if (!result.isSuccess) {
-        return _failureOutcome(result.failureReason);
+        return _failureOutcome(result.failureReason, result.error);
       }
       final link = result.value!;
       if (link.alreadyLinked) {
@@ -545,7 +545,7 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
           .pushMinimalItems(localPackId);
       _ref.invalidate(remotePocFirstMappedItemProvider(localPackId));
       if (!result.isSuccess) {
-        return _failureOutcome(result.failureReason);
+        return _failureOutcome(result.failureReason, result.error);
       }
       final summary = result.value!;
       return _RemotePocOutcome(
@@ -568,7 +568,7 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
           .read(remoteSharedPackRepositoryProvider)
           .createRemotePackInvite(remotePackId);
       if (!result.isSuccess) {
-        return _failureOutcome(result.failureReason);
+        return _failureOutcome(result.failureReason, result.error);
       }
       final invite = result.value!;
       return _RemotePocOutcome(
@@ -594,7 +594,7 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
       _ref.invalidate(currentAppUserProvider);
       _ref.invalidate(currentAppUserIdProvider);
       if (!result.isSuccess) {
-        return _failureOutcome(result.failureReason);
+        return _failureOutcome(result.failureReason, result.error);
       }
       final join = result.value!;
       final status = join.status == RemoteJoinPackStatus.alreadyMember
@@ -636,7 +636,7 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
         );
       }
       if (!result.isSuccess) {
-        return _failureOutcome(result.failureReason);
+        return _failureOutcome(result.failureReason, result.error);
       }
       return const _RemotePocOutcome(succeeded: true, message: '遠端 Item 已完成');
     });
@@ -662,7 +662,7 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
         );
       }
       if (!result.isSuccess) {
-        return _failureOutcome(result.failureReason);
+        return _failureOutcome(result.failureReason, result.error);
       }
       return const _RemotePocOutcome(
         succeeded: true,
@@ -691,7 +691,7 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
         );
       }
       if (!result.isSuccess) {
-        return _failureOutcome(result.failureReason);
+        return _failureOutcome(result.failureReason, result.error);
       }
       return const _RemotePocOutcome(
         succeeded: true,
@@ -719,7 +719,7 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
           .read(remoteSharedPackRepositoryProvider)
           .undoRemoteItemByRemoteId(selected.item.id);
       if (!result.isSuccess) {
-        return _failureOutcome(result.failureReason);
+        return _failureOutcome(result.failureReason, result.error);
       }
       final undo = result.value!;
       if (undo.status == RemoteItemUndoStatus.alreadyNotCompleted) {
@@ -757,7 +757,7 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
       if (!result.isSuccess) {
         return _RemotePocOutcome(
           succeeded: false,
-          message: _failureMessage(result.failureReason),
+          message: _failureMessage(result.failureReason, result.error),
           refreshAttempted: true,
           snapshotTargetType: targetType,
         );
@@ -881,14 +881,26 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
     return outcome.message;
   }
 
-  _RemotePocOutcome _failureOutcome(RemoteSharedPackFailureReason? reason) {
+  _RemotePocOutcome _failureOutcome(
+    RemoteSharedPackFailureReason? reason, [
+    Object? error,
+  ]) {
     return _RemotePocOutcome(
       succeeded: false,
-      message: _failureMessage(reason),
+      message: _failureMessage(reason, error),
     );
   }
 
-  String _failureMessage(RemoteSharedPackFailureReason? reason) {
+  String _failureMessage(
+    RemoteSharedPackFailureReason? reason, [
+    Object? error,
+  ]) {
+    if (error is RemoteSharedPackException) {
+      final safeDebugMessage = error.safeDebugMessage;
+      if (safeDebugMessage != null) {
+        return safeDebugMessage;
+      }
+    }
     return switch (reason) {
       RemoteSharedPackFailureReason.supabaseConfigMissing => 'Supabase 尚未設定',
       RemoteSharedPackFailureReason.remoteAuthRequired => '請先建立匿名遠端身份',

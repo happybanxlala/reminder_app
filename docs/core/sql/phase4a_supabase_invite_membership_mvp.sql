@@ -81,6 +81,8 @@ with check (public.is_pack_host(pack_id));
 -- Helpers
 -- ---------------------------------------------------------------------------
 
+create extension if not exists pgcrypto with schema extensions;
+
 create or replace function public.hash_pack_invite_code(
   invite_code text,
   target_pack_id uuid
@@ -91,7 +93,14 @@ security invoker
 set search_path = public
 as $$
   select encode(
-    digest(upper(regexp_replace(invite_code, '[[:space:]]+', '', 'g')) || ':' || target_pack_id::text, 'sha256'),
+    extensions.digest(
+      (
+        upper(regexp_replace(invite_code, '[[:space:]]+', '', 'g'))
+        || ':'
+        || target_pack_id::text
+      )::text,
+      'sha256'::text
+    ),
     'hex'
   );
 $$;
@@ -105,7 +114,7 @@ as $$
 declare
   raw_code text;
 begin
-  raw_code := upper(encode(gen_random_bytes(6), 'hex'));
+  raw_code := upper(encode(extensions.gen_random_bytes(6), 'hex'));
   return substring(raw_code from 1 for 4) || '-' ||
          substring(raw_code from 5 for 4) || '-' ||
          substring(raw_code from 9 for 4);
