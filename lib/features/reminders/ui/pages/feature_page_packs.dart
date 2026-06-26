@@ -396,6 +396,9 @@ class _PackManagementTile extends ConsumerWidget {
               onRefreshInvite: () => ref
                   .read(sharedPackCareControllerProvider)
                   .refreshInviteForPack(viewModel.pack),
+              onRefreshSharedState: () => ref
+                  .read(sharedPackCareControllerProvider)
+                  .refreshSharedState(viewModel.pack),
             ),
             error: (error, stack) => Padding(
               padding: const EdgeInsets.all(ReminderSpacing.page),
@@ -421,11 +424,13 @@ class _PackCareSheet extends StatefulWidget {
     required this.viewModel,
     required this.onEnsureInvite,
     required this.onRefreshInvite,
+    required this.onRefreshSharedState,
   });
 
   final PackCareViewModel viewModel;
   final Future<PackCareInviteResult> Function() onEnsureInvite;
   final Future<PackCareInviteResult> Function() onRefreshInvite;
+  final Future<PackCareRefreshResult> Function() onRefreshSharedState;
 
   @override
   State<_PackCareSheet> createState() => _PackCareSheetState();
@@ -433,6 +438,7 @@ class _PackCareSheet extends StatefulWidget {
 
 class _PackCareSheetState extends State<_PackCareSheet> {
   bool _isUpdatingInvite = false;
+  bool _isRefreshingSharedState = false;
 
   PackCareViewModel get viewModel => widget.viewModel;
 
@@ -464,6 +470,25 @@ class _PackCareSheetState extends State<_PackCareSheet> {
             const SizedBox(height: 12),
             if (viewModel.bannerText != null) ...[
               _PackCareStatusBanner(message: viewModel.bannerText!),
+              const SizedBox(height: 12),
+            ],
+            if (viewModel.isRemoteBacked) ...[
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  key: Key('pack-care-refresh-shared-state-${pack.id}'),
+                  onPressed: _isRefreshingSharedState
+                      ? null
+                      : _refreshSharedState,
+                  icon: _isRefreshingSharedState
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.sync),
+                  label: const Text(ReminderUiText.packCareRefreshSharedState),
+                ),
+              ),
               const SizedBox(height: 12),
             ],
             if (isAccessLost) ...[
@@ -614,6 +639,27 @@ class _PackCareSheetState extends State<_PackCareSheet> {
     if (confirmed == true) {
       await _runInviteAction(widget.onRefreshInvite);
     }
+  }
+
+  Future<void> _refreshSharedState() async {
+    if (_isRefreshingSharedState) {
+      return;
+    }
+    setState(() => _isRefreshingSharedState = true);
+    final result = await widget.onRefreshSharedState();
+    if (!mounted) {
+      return;
+    }
+    setState(() => _isRefreshingSharedState = false);
+    final message = result.succeeded
+        ? result.warningMessage ?? result.message
+        : result.errorMessage;
+    if (message == null) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _runInviteAction(

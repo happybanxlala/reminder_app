@@ -39,7 +39,7 @@ class _AppBootstrapState extends ConsumerState<AppBootstrap>
     final router = ref.read(appRouterProvider);
 
     _summarySubscription = ref.listenManual<AsyncValue<AttentionSummary>>(
-      liveAttentionSummaryProvider,
+      liveNotificationAttentionSummaryProvider,
       (previous, next) {
         next.whenData((summary) {
           unawaited(syncService.syncSummary(summary));

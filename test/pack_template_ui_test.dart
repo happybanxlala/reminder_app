@@ -11,10 +11,13 @@ import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/local/reminder_dao.dart';
 import 'package:reminder_app/features/reminders/data/remote_shared_pack_data_source.dart';
 import 'package:reminder_app/features/reminders/data/remote_shared_pack_models.dart';
+import 'package:reminder_app/features/reminders/data/remote_shared_pack_repository.dart';
 import 'package:reminder_app/features/reminders/data/shared_pack_repository.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/pack_template.dart';
+import 'package:reminder_app/features/reminders/domain/remote_sync.dart';
+import 'package:reminder_app/features/reminders/domain/shared_pack.dart';
 import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
 import 'package:reminder_app/features/reminders/providers/database_providers.dart';
 import 'package:reminder_app/features/reminders/providers/identity_providers.dart';
@@ -212,6 +215,72 @@ void main() {
     expect(remote.createdInviteCount, 1);
     expect(remote.createdItems.map((item) => item.title), ['Feed cat']);
   });
+
+  testWidgets('remote-backed pack sheet refreshes shared state', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    final repository = ItemRepository(db.reminderDao);
+    final packId = await repository.createPack(
+      const ItemPackInput(title: 'Cats', iconEmoji: '🐱'),
+    );
+    await SharedPackRepository(db.reminderDao).convertPackToShared(packId);
+    final pack = (await repository.getPackById(packId))!;
+    final now = DateTime(2026, 6, 21).millisecondsSinceEpoch;
+    await db.reminderDao.upsertSyncMapping(
+      SyncMappingsCompanion.insert(
+        localEntityType: RemoteSharedPackRepository.localEntityPack,
+        localEntityId: packId,
+        remoteTable: RemoteSharedPackRepository.remoteTablePacks,
+        remoteEntityId: 'remote_pack_1',
+        syncState: SyncMappingState.linked.storageValue,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await db.reminderDao.insertRemotePackSyncMetadata(
+      RemotePackSyncMetadataCompanion.insert(
+        localPackId: packId,
+        remotePackId: 'remote_pack_1',
+        syncKind: RemotePackSyncKind.remoteBacked.storageValue,
+        syncState: RemotePackSyncState.stale.storageValue,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    final remote = _FakeRemoteSharedPackDataSource();
+
+    await _pumpPackManagement(
+      tester,
+      database: db,
+      packs: [_defaultPack(), pack],
+      extraOverrides: [
+        authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+        remoteSharedPackDataSourceProvider.overrideWithValue(remote),
+      ],
+    );
+
+    await tester.tap(find.byKey(Key('pack-overflow-$packId')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(ReminderUiText.packCareAction));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(Key('pack-care-refresh-shared-state-$packId')),
+      findsOneWidget,
+    );
+    expect(
+      find.text(ReminderUiText.packCareRefreshSharedState),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(Key('pack-care-refresh-shared-state-$packId')));
+    await tester.pumpAndSettle();
+
+    expect(find.text(ReminderUiText.packCareRefreshSuccess), findsOneWidget);
+    expect(find.textContaining('remote_pack_1'), findsNothing);
+    expect(remote.snapshotCount, 1);
+  });
 }
 
 Future<void> _pumpPackManagement(
@@ -324,6 +393,7 @@ class _RemoteItemDraft {
 class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   int createdPackCount = 0;
   int createdInviteCount = 0;
+  int snapshotCount = 0;
   final _activeInvites = <String, RemotePackInvite>{};
   final createdItems = <_RemoteItemDraft>[];
 
@@ -407,9 +477,45 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   }
 
   @override
-  Future<RemotePackSnapshot> fetchPackSnapshot(String remotePackId) {
-    throw const RemoteSharedPackException(
-      RemoteSharedPackFailureReason.remoteUnknownFailure,
+  Future<RemotePackSnapshot> fetchPackSnapshot(String remotePackId) async {
+    snapshotCount += 1;
+    final created = DateTime(2026, 6, 21, 10);
+    final itemIds = createdItems.isEmpty
+        ? const [_RemoteItemDraft(id: 'remote_item_1', title: 'Feed cat')]
+        : createdItems;
+    return RemotePackSnapshot(
+      id: remotePackId,
+      name: 'Remote cats',
+      hostUserId: 'fake_profile',
+      status: 'active',
+      createdAt: created,
+      updatedAt: DateTime(2026, 6, 21, 11),
+      members: [
+        RemotePackMemberSnapshot(
+          id: 'member_1',
+          packId: remotePackId,
+          userId: 'fake_profile',
+          displayName: 'Host',
+          role: 'host',
+          status: 'active',
+          joinedAt: created,
+        ),
+      ],
+      items: [
+        for (final item in itemIds)
+          RemoteItemSnapshot(
+            id: item.id,
+            packId: remotePackId,
+            title: item.title,
+            status: 'active',
+            createdByUserId: 'fake_profile',
+            updatedByUserId: 'fake_profile',
+            createdAt: created,
+            updatedAt: DateTime(2026, 6, 21, 11),
+          ),
+      ],
+      completions: const [],
+      activityEvents: const [],
     );
   }
 

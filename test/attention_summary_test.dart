@@ -124,11 +124,164 @@ void main() {
     expect(notificationSummary.dangerItemCount, 1);
     expect(notificationSummary.totalCount, 2);
   });
+
+  test(
+    'notification summary includes eligible remote-backed item entries',
+    () async {
+      final repository = AttentionSummaryRepository(
+        homeRepository: _FakeHomeAttentionSource(
+          dangerEntries: [
+            _itemEntry(title: 'Local litter box'),
+            _itemEntry(
+              id: 2,
+              title: 'Remote litter box',
+              syncStatus: const HomeItemSyncStatus(
+                isRemoteBacked: true,
+                remotePackSyncState: RemotePackSyncState.synced,
+              ),
+            ),
+          ],
+        ),
+      );
+
+      final summary = await repository.getNotificationSummary(
+        now: DateTime(2026, 5, 1),
+      );
+
+      expect(summary.dangerItemCount, 2);
+      expect(summary.totalCount, 2);
+      expect(summary.remoteBackedItemCount, 1);
+      expect(summary.notificationSyncLabels, isEmpty);
+    },
+  );
+
+  test(
+    'notification summary is not forced by unscheduled remote-backed items',
+    () async {
+      final repository = AttentionSummaryRepository(
+        homeRepository: const _FakeHomeAttentionSource(),
+      );
+
+      final summary = await repository.getNotificationSummary(
+        now: DateTime(2026, 5, 1),
+      );
+
+      expect(summary.totalCount, 0);
+      expect(summary.remoteBackedItemCount, 0);
+    },
+  );
+
+  test(
+    'notification summary preserves pending sync without re-reminding complete',
+    () async {
+      final repository = AttentionSummaryRepository(
+        homeRepository: _FakeHomeAttentionSource(
+          dangerEntries: [
+            _itemEntry(title: 'Local litter box'),
+            _itemEntry(
+              id: 2,
+              title: 'Remote litter box',
+              syncStatus: const HomeItemSyncStatus(
+                isRemoteBacked: true,
+                remotePackSyncState: RemotePackSyncState.stale,
+                pendingMutationAction: SyncOutboxActionType.completeItem,
+                pendingMutationStatus: SyncOutboxStatus.pending,
+              ),
+            ),
+          ],
+        ),
+      );
+
+      final summary = await repository.getNotificationSummary(
+        now: DateTime(2026, 5, 1),
+      );
+
+      expect(summary.dangerItemCount, 1);
+      expect(summary.totalCount, 1);
+      expect(summary.remoteBackedItemCount, 1);
+      expect(summary.pendingSyncItemCount, 1);
+      expect(summary.notificationSyncLabels, ['等待同步']);
+    },
+  );
+
+  test('notification summary preserves failed and stale sync state', () async {
+    final repository = AttentionSummaryRepository(
+      homeRepository: _FakeHomeAttentionSource(
+        dangerEntries: [
+          _itemEntry(
+            id: 2,
+            title: 'Failed remote',
+            syncStatus: const HomeItemSyncStatus(
+              isRemoteBacked: true,
+              remotePackSyncState: RemotePackSyncState.synced,
+              pendingMutationAction: SyncOutboxActionType.undoItem,
+              pendingMutationStatus: SyncOutboxStatus.failed,
+            ),
+          ),
+        ],
+        warningEntries: [
+          _itemEntry(
+            id: 3,
+            title: 'Stale remote',
+            severity: HomeAttentionSeverity.warning,
+            syncStatus: const HomeItemSyncStatus(
+              isRemoteBacked: true,
+              remotePackSyncState: RemotePackSyncState.stale,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final summary = await repository.getNotificationSummary(
+      now: DateTime(2026, 5, 1),
+    );
+
+    expect(summary.dangerItemCount, 1);
+    expect(summary.warningItemCount, 1);
+    expect(summary.totalCount, 2);
+    expect(summary.remoteBackedItemCount, 2);
+    expect(summary.failedSyncItemCount, 1);
+    expect(summary.staleSyncItemCount, 1);
+    expect(summary.notificationSyncLabels, ['同步失敗', '遠端狀態可能已更新']);
+  });
+
+  test(
+    'notification summary excludes access-lost remote-backed item',
+    () async {
+      final repository = AttentionSummaryRepository(
+        homeRepository: _FakeHomeAttentionSource(
+          dangerEntries: [
+            _itemEntry(title: 'Local litter box'),
+            _itemEntry(
+              id: 2,
+              title: 'Access lost remote',
+              syncStatus: const HomeItemSyncStatus(
+                isRemoteBacked: true,
+                remotePackSyncState: RemotePackSyncState.accessLost,
+              ),
+            ),
+          ],
+        ),
+      );
+
+      final summary = await repository.getNotificationSummary(
+        now: DateTime(2026, 5, 1),
+      );
+
+      expect(summary.dangerItemCount, 1);
+      expect(summary.totalCount, 1);
+      expect(summary.remoteBackedItemCount, 1);
+      expect(summary.accessLostRemoteBackedItemCount, 1);
+      expect(summary.notificationSyncLabels, ['已失去遠端存取權']);
+    },
+  );
 }
 
 HomeAttentionEntry _itemEntry({
   int id = 1,
   required String title,
+  HomeAttentionSeverity severity = HomeAttentionSeverity.danger,
   HomeItemSyncStatus syncStatus = HomeItemSyncStatus.localOnly,
 }) {
   final pack = _pack();
@@ -153,7 +306,7 @@ HomeAttentionEntry _itemEntry({
       status: ItemStatus.danger,
       syncStatus: syncStatus,
     ),
-    severity: HomeAttentionSeverity.danger,
+    severity: severity,
     urgencyDate: DateTime(2026, 4, 14),
   );
 }

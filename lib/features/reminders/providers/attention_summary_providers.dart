@@ -55,3 +55,16 @@ final liveAttentionSummaryProvider = StreamProvider<AttentionSummary>((ref) {
       );
   return ref.watch(attentionSummaryRepositoryProvider).watchSummary(now: today);
 });
+
+final liveNotificationAttentionSummaryProvider =
+    StreamProvider<AttentionSummary>((ref) {
+      final today = ref
+          .watch(realTodayProvider)
+          .maybeWhen(
+            data: (value) => value,
+            orElse: () => normalizePreviewDate(DateTime.now()),
+          );
+      return ref
+          .watch(attentionSummaryRepositoryProvider)
+          .watchNotificationSummary(now: today);
+    });

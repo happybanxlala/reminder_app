@@ -1,14 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../home_widget/providers/home_widget_providers.dart';
 import '../data/local/reminder_dao.dart';
 import '../data/remote_shared_pack_repository.dart';
 import '../data/remote_shared_pack_models.dart';
 import '../data/remote_snapshot_import_service.dart';
 import '../domain/item_pack.dart';
+import '../domain/remote_backed_pack_refresh.dart';
 import '../domain/remote_sync.dart';
 import '../domain/shared_pack.dart';
 import '../presentation/text/reminder_ui_text.dart';
+import 'attention_service_providers.dart';
 import 'database_providers.dart';
+import 'home_providers.dart';
 import 'identity_providers.dart';
 import 'item_providers.dart';
 import 'remote_shared_pack_providers.dart';
@@ -43,6 +49,9 @@ class PackCareViewModel {
       metadata?.currentUserRemoteStatus == RemoteUserStatus.removed;
 
   bool get isShared => pack.packType == ItemPackType.shared;
+
+  bool get isRemoteBacked =>
+      metadata?.syncKind == RemotePackSyncKind.remoteBacked;
 
   int get activeMemberCount => members.length;
 
@@ -122,6 +131,23 @@ class PackCareJoinResult {
   final String? errorMessage;
 
   bool get succeeded => packTitle != null;
+}
+
+class PackCareRefreshResult {
+  const PackCareRefreshResult.success({
+    required this.message,
+    this.warningMessage,
+  }) : errorMessage = null;
+
+  const PackCareRefreshResult.failure(this.errorMessage)
+    : message = null,
+      warningMessage = null;
+
+  final String? message;
+  final String? warningMessage;
+  final String? errorMessage;
+
+  bool get succeeded => errorMessage == null;
 }
 
 class SharedPackCareController {
@@ -261,13 +287,67 @@ class SharedPackCareController {
     return PackCareJoinResult.success(packTitle: snapshotResult.value!.name);
   }
 
+  Future<PackCareRefreshResult> refreshSharedState(ItemPack pack) async {
+    final metadata = await _ref
+        .read(appDatabaseProvider)
+        .reminderDao
+        .getRemotePackSyncMetadataForLocalPack(pack.id);
+    if (metadata?.syncKind != RemotePackSyncKind.remoteBacked) {
+      return const PackCareRefreshResult.failure(
+        ReminderUiText.packCareRemoteUnavailable,
+      );
+    }
+
+    final result = await _ref
+        .read(remoteBackedPackRefreshServiceProvider)
+        .refreshPack(pack.id);
+    _invalidatePackCare(result.summary.localPackId);
+    if (result.succeeded) {
+      _refreshDerivedLocalSurfaces();
+      return PackCareRefreshResult.success(
+        message: ReminderUiText.packCareRefreshSuccess,
+        warningMessage:
+            result.status ==
+                RemoteBackedPackRefreshStatus.hasPendingLocalMutations
+            ? ReminderUiText.packCareRefreshPendingWarning
+            : null,
+      );
+    }
+
+    return PackCareRefreshResult.failure(_refreshFailureMessage(result.status));
+  }
+
   void _invalidatePackCare(int packId) {
     _ref.invalidate(activeItemPacksProvider);
     _ref.invalidate(itemManagementGroupsProvider);
+    _ref.invalidate(dangerHomeAttentionEntriesProvider);
+    _ref.invalidate(warningHomeAttentionEntriesProvider);
+    _ref.invalidate(dangerHomeEntriesProvider);
+    _ref.invalidate(warningHomeEntriesProvider);
+    _ref.invalidate(todayCompletedEntriesProvider);
     _ref.invalidate(packCareViewModelProvider);
     _ref.invalidate(packMembersProvider(packId));
     _ref.invalidate(currentAppUserProvider);
     _ref.invalidate(currentAppUserIdProvider);
+  }
+
+  void _refreshDerivedLocalSurfaces() {
+    unawaited(
+      _bestEffort(() async {
+        await _ref.read(homeWidgetActionServiceProvider).refreshSnapshot();
+      }),
+    );
+    unawaited(
+      _bestEffort(() => _ref.read(attentionSyncServiceProvider).refresh()),
+    );
+  }
+
+  Future<void> _bestEffort(Future<void> Function() action) async {
+    try {
+      await action();
+    } catch (_) {
+      // Derived surfaces are refreshed opportunistically from local data.
+    }
   }
 }
 
@@ -386,5 +466,26 @@ String _sharedCareFailureMessage(RemoteSharedPackFailureReason? reason) {
     RemoteSharedPackFailureReason.remoteItemAlreadyCompleted ||
     RemoteSharedPackFailureReason.remotePackAlreadyLinked ||
     null => ReminderUiText.packCareRemoteUnavailable,
+  };
+}
+
+String _refreshFailureMessage(RemoteBackedPackRefreshStatus status) {
+  return switch (status) {
+    RemoteBackedPackRefreshStatus.accessLost =>
+      ReminderUiText.packCareRefreshAccessLost,
+    RemoteBackedPackRefreshStatus.configMissing ||
+    RemoteBackedPackRefreshStatus.remoteAuthRequired ||
+    RemoteBackedPackRefreshStatus.remoteRlsRejected ||
+    RemoteBackedPackRefreshStatus.networkFailed ||
+    RemoteBackedPackRefreshStatus.importFailed ||
+    RemoteBackedPackRefreshStatus.partialImport ||
+    RemoteBackedPackRefreshStatus.unknownFailure =>
+      ReminderUiText.packCareRefreshFailed,
+    RemoteBackedPackRefreshStatus.notRemoteBacked ||
+    RemoteBackedPackRefreshStatus.missingRemoteMapping =>
+      ReminderUiText.packCareRemoteUnavailable,
+    RemoteBackedPackRefreshStatus.refreshed ||
+    RemoteBackedPackRefreshStatus.hasPendingLocalMutations =>
+      ReminderUiText.packCareRefreshSuccess,
   };
 }

@@ -93,10 +93,17 @@ class ReminderNotificationService {
     await _client.schedule(
       id: attentionNotificationId,
       title: '今天有 ${summary.totalCount} 項需要留意',
-      body: '打開看看哪些項目需要留意',
+      body: _notificationBody(summary),
       scheduledDate: _nextReminderTime(reminderTime),
       payload: attentionPayload,
     );
+  }
+
+  String _notificationBody(AttentionSummary summary) {
+    if (summary.notificationSyncLabels.isEmpty) {
+      return '打開看看哪些項目需要留意';
+    }
+    return '打開看看哪些項目需要留意，同步狀態：${summary.notificationSyncLabels.join('、')}';
   }
 
   tz.TZDateTime _nextReminderTime(String reminderTime) {

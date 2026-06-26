@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/anonymous_remote_identity_service.dart';
 import '../data/local/reminder_dao.dart';
+import '../data/remote_backed_pack_refresh_service.dart';
 import '../data/remote_backed_outbox_flush_service.dart';
 import '../data/remote_shared_pack_data_source.dart';
 import '../data/remote_shared_pack_models.dart';
@@ -13,6 +14,7 @@ import '../data/remote_snapshot_import_service.dart';
 import '../data/supabase_config.dart';
 import '../domain/item.dart';
 import '../domain/item_pack.dart';
+import '../domain/remote_backed_pack_refresh.dart';
 import '../domain/remote_sync.dart';
 import '../domain/shared_pack.dart';
 import 'database_providers.dart';
@@ -59,6 +61,17 @@ final remoteBackedOutboxFlushServiceProvider =
         remoteClient: RemoteSharedPackOutboxRemoteClient(
           ref.watch(remoteSharedPackRepositoryProvider),
         ),
+      );
+    });
+
+final remoteBackedPackRefreshServiceProvider =
+    Provider<RemoteBackedPackRefreshService>((ref) {
+      final remoteRepository = ref.watch(remoteSharedPackRepositoryProvider);
+      final importService = ref.watch(remoteSnapshotImportServiceProvider);
+      return RemoteBackedPackRefreshService(
+        dao: ref.watch(appDatabaseProvider).reminderDao,
+        pullRemotePackSnapshot: remoteRepository.pullRemotePackSnapshot,
+        importRemotePackSnapshot: importService.importRemotePackSnapshot,
       );
     });
 
@@ -825,6 +838,29 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
     });
   }
 
+  Future<String> refreshAndImportRemoteBackedPack(int? localPackId) {
+    return _run('刷新並匯入 Remote-backed Pack POC', () async {
+      if (localPackId == null) {
+        return const _RemotePocOutcome(
+          succeeded: false,
+          message: '目前沒有可刷新的 local pack',
+        );
+      }
+      final result = await _ref
+          .read(remoteBackedPackRefreshServiceProvider)
+          .refreshPack(localPackId);
+      return _RemotePocOutcome(
+        succeeded: result.succeeded,
+        message: _refreshResultMessage(result),
+        snapshotSummary: state.snapshotSummary,
+        snapshot: state.lastPulledRemoteSnapshot,
+        snapshotTargetType: state.snapshotTargetType,
+        refreshAttempted: true,
+        clearRemoteChanges: result.succeeded,
+      );
+    });
+  }
+
   Future<String> flushRemoteBackedOutbox() {
     return _run('Flush Pending Remote-backed Mutations POC', () async {
       final result = await _ref
@@ -944,6 +980,42 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
       RemoteSnapshotImportStatus.partialImport => 'partial',
       RemoteSnapshotImportStatus.failed => 'failed',
       RemoteSnapshotImportStatus.conflict => 'conflict',
+    };
+  }
+
+  String _refreshResultMessage(RemoteBackedPackRefreshResult result) {
+    final summary = result.summary;
+    final details =
+        'items +${summary.importedItemCount}/${summary.updatedItemCount}，'
+        'completions +${summary.importedCompletionCount}/${summary.updatedCompletionCount}，'
+        'events +${summary.importedActivityCount}/${summary.updatedActivityCount}';
+    final warning = summary.warnings.isEmpty
+        ? ''
+        : '，warnings ${summary.warnings.length}';
+    return switch (result.status) {
+      RemoteBackedPackRefreshStatus.refreshed =>
+        'Manual refresh：refreshed，$details$warning',
+      RemoteBackedPackRefreshStatus.hasPendingLocalMutations =>
+        'Manual refresh：refreshed with pending local mutations，$details$warning',
+      RemoteBackedPackRefreshStatus.partialImport =>
+        'Manual refresh：partial import，$details$warning',
+      RemoteBackedPackRefreshStatus.notRemoteBacked =>
+        'Manual refresh：not remote-backed',
+      RemoteBackedPackRefreshStatus.missingRemoteMapping =>
+        'Manual refresh：missing remote mapping',
+      RemoteBackedPackRefreshStatus.configMissing =>
+        'Manual refresh：config missing',
+      RemoteBackedPackRefreshStatus.remoteAuthRequired =>
+        'Manual refresh：remote auth required',
+      RemoteBackedPackRefreshStatus.remoteRlsRejected =>
+        'Manual refresh：remote RLS rejected',
+      RemoteBackedPackRefreshStatus.accessLost => 'Manual refresh：access lost',
+      RemoteBackedPackRefreshStatus.networkFailed =>
+        'Manual refresh：network failed',
+      RemoteBackedPackRefreshStatus.importFailed =>
+        'Manual refresh：import failed',
+      RemoteBackedPackRefreshStatus.unknownFailure =>
+        'Manual refresh：unknown failure',
     };
   }
 

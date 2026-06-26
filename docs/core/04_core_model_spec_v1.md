@@ -29,6 +29,10 @@ Phase 5E adds main-screen integration for remote-backed item mirrors. Home warni
 
 Phase 5F integrates remote-backed local mirror items into Home Widget snapshots and widget complete/undo action flow. Widget reads local mirror/cache only, never calls Supabase, and remote-backed widget actions route through the Phase 5D outbox path. It does not implement notification integration, background sync, automatic retry, full sync, or account binding.
 
+Phase 5G integrates remote-backed local mirror items into notification summaries where current notification infrastructure supports them. Notification summaries read local mirror data only, never call Supabase, preserve compact pending / failed / stale / access-lost sync context, and do not implement background sync, automatic retry, full sync, account binding, conflict resolution UI, due reminders, or notification action buttons.
+
+Phase 5H productionizes manual remote refresh for remote-backed shared packs. A manual refresh pulls the remote snapshot, imports the local mirror, updates local derived surfaces where safe, and clears stale state where appropriate. It does not flush outbox, push local mutations, auto retry, background sync, or implement full two-way sync.
+
 Shared Pack UIUX v1 adds production-facing shared-care entry points inside `生活場景管理`: pack rows show compact care/sync status, non-system packs expose `一起照顧`, users can create, reopen, share, copy, and refresh active invite codes, and users can join by normalized invite code. The flow reuses existing anonymous identity, remote pack/invite, minimal item push, snapshot pull, and local mirror import services. It does not add background sync, full two-way sync, shared-only navigation, resource/stage remote sync, widget behavior changes, or user-facing developer POC UI.
 
 ## 1. 總覽

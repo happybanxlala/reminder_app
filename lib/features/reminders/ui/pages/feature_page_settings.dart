@@ -476,6 +476,26 @@ class SettingsPage extends ConsumerWidget {
                           (controller) => controller.importLastPulledSnapshot(),
                         ),
                 ),
+                _SettingsActionRow(
+                  key: const Key('settings-remote-poc-refresh-import-row'),
+                  label: ReminderUiText.remotePocRefreshAndImportLabel,
+                  value: remotePocTargetPack == null
+                      ? ReminderUiText.remotePocNotRun
+                      : remotePocTargetPack.title,
+                  icon: Icons.sync_alt_outlined,
+                  enabled:
+                      !remotePocState.isRunning && remotePocTargetPack != null,
+                  onTap: remotePocTargetPack == null
+                      ? null
+                      : () => _runRemotePocAction(
+                          context,
+                          ref,
+                          (controller) =>
+                              controller.refreshAndImportRemoteBackedPack(
+                                remotePocTargetPack.id,
+                              ),
+                        ),
+                ),
                 _SettingsReadOnlyRow(
                   key: const Key('settings-remote-backed-outbox-row'),
                   label: ReminderUiText.remotePocOutboxLabel,
@@ -1030,6 +1050,7 @@ class SettingsPage extends ConsumerWidget {
     ref.invalidate(todayCompletedEntriesProvider);
     ref.invalidate(attentionSummaryProvider);
     ref.invalidate(liveAttentionSummaryProvider);
+    ref.invalidate(liveNotificationAttentionSummaryProvider);
   }
 }
 

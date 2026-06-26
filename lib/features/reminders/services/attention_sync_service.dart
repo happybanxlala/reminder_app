@@ -26,9 +26,8 @@ class AttentionSyncService {
   }
 
   Future<void> refresh() async {
-    final summary = await _repository.getSummary(
+    final summary = await _repository.getNotificationSummary(
       now: DateTime.now(),
-      excludeRemoteBackedItems: true,
     );
     await syncSummary(summary);
   }

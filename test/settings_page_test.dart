@@ -1048,6 +1048,51 @@ void main() {
     expect(await db.reminderDao.listItemCompletions(seed.itemId), isEmpty);
   });
 
+  testWidgets('developer combined refresh imports mapped remote pack', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final seed = await _seedSharedPackForRemotePoc(db);
+    await db.reminderDao.upsertSyncMapping(
+      SyncMappingsCompanion.insert(
+        localEntityType: RemoteSharedPackRepository.localEntityPack,
+        localEntityId: seed.packId,
+        remoteTable: RemoteSharedPackRepository.remoteTablePacks,
+        remoteEntityId: 'remote-combined-pack',
+        syncState: SyncMappingState.pushed.name,
+        createdAt: DateTime(2026, 6, 21).millisecondsSinceEpoch,
+        updatedAt: DateTime(2026, 6, 21).millisecondsSinceEpoch,
+      ),
+    );
+    final fakeRemote = _FakeRemoteSharedPackDataSource();
+
+    await _pumpSettings(
+      tester,
+      developerVisible: true,
+      database: db,
+      extraOverrides: [
+        authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+        remoteSharedPackDataSourceProvider.overrideWithValue(fakeRemote),
+      ],
+    );
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-poc-refresh-import-row'),
+    );
+
+    expect(fakeRemote.snapshotCalls, 1);
+    expect(fakeRemote.completionCalls, 0);
+    expect(fakeRemote.undoCalls, 0);
+    final metadata = await db.reminderDao.getRemotePackSyncMetadataForLocalPack(
+      seed.packId,
+    );
+    expect(metadata, isNotNull);
+    expect(metadata!.remotePackId, 'remote-combined-pack');
+    expect(await db.reminderDao.listSyncOutboxEntries(), isEmpty);
+  });
+
   testWidgets(
     'developer settings compatibility route renders unified settings',
     (tester) async {

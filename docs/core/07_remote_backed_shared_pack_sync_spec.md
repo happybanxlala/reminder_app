@@ -487,13 +487,36 @@ Phase 5E implementation note:
 - Backup remains legacy and unchanged: widget cache is not a remote source of truth, and `sync_outbox`, typed sync metadata, credentials, sessions, tokens, plaintext invite codes, and remote-backed mirror rows are not exported for replay.
 - Notification integration remains deferred to a later phase; Phase 5F keeps daily notification summaries excluding remote-backed item rows.
 
-### Phase 5G：Account Binding / Backup Legacy Transition
+### Phase 5G：Remote-backed Notification Integration
 
-- Apple / Google / Email binding
-- Remote recovery
-- Manual backup deprecation UI / docs
+- Current notification infrastructure is daily attention summary only. Phase 5G does not add item-level due reminders or notification complete / undo action buttons.
+- Notification summaries read local HomeRepository warning / danger entries and local sync metadata only. They never call Supabase, flush `sync_outbox`, import remote snapshots, or process realtime payloads.
+- Remote-backed local mirror items may contribute to notification summary totals when existing local Home classification already includes them.
+- Remote-backed mirrors without local warning / danger classification, including unscheduled imports with insufficient schedule data, are not forced into notifications.
+- Access-lost remote-backed items are excluded from actionable notification totals but preserve `已失去遠端存取權` summary metadata.
+- Pending `complete_item` rows are not re-counted as active attention, avoiding repeated reminders after a local pending complete. The summary preserves `等待同步`.
+- Failed and stale rows may remain in notification totals when local Home classification still includes them. The summary preserves `同步失敗` and `遠端狀態可能已更新`.
+- Notification payload remains local app navigation metadata only. It must not store Supabase tokens, sessions, credentials, service role keys, plaintext invite codes, full remote snapshots, or raw remote errors.
+- Widget behavior from Phase 5F is unchanged. Notification summary changes must not alter widget snapshot eligibility or widget action routing.
+- Backup remains legacy and unchanged: notification summary state is derived, not a remote source of truth, and backup still excludes `sync_outbox`, typed sync metadata, credentials, sessions, tokens, plaintext invite codes, and remote-backed mirror rows.
+- Notification action routing through `ItemRepository.markDone` / `undoDone` remains a future phase because no platform-safe notification action bridge exists yet.
 
-Phase 5B should not implement full sync directly.
+### Phase 5H：Manual Remote Refresh / Pull Import
+
+- Productionizes a manual refresh path for remote-backed shared packs.
+- Reuses `RemoteSharedPackRepository.pullRemotePackSnapshot(remotePackId)` for remote snapshot pull and `RemoteSnapshotImportService.importRemotePackSnapshot(snapshot, source)` for local mirror import.
+- Adds a typed refresh result that reports status, imported / updated item, completion, and activity counts, pending / failed local mutation counts, stale-before / stale-after flags, and friendly warnings.
+- Product entry lives inside the existing `一起照顧` bottom sheet for remote-backed packs as `刷新共享狀態`. Local-only packs do not show this action.
+- Developer Settings keeps separate pull/import POC actions and adds a combined refresh/import POC action.
+- Manual refresh may pull remote truth while pending outbox rows exist, but it never flushes outbox, retries failed mutations, pushes local mutations, or deletes pending / failed / conflict / no-op rows.
+- Successful import clears stale state where safe. Partial import or unresolved local outbox keeps the pack stale and may mark affected local item metadata stale. Access-lost / removed state is preserved unless remote access is confirmed restored.
+- Widget cache refresh, notification summary refresh, and badge refresh are best-effort derived updates from local DB only. Widget and notification layers still never call Supabase, flush outbox, import snapshots, process realtime payloads, or parse remote snapshot data.
+- Realtime remains hint-only: realtime signals may indicate remote changes, but they do not auto pull, auto import, or auto flush. A successful manual refresh can clear the developer POC volatile remote-change hint.
+- Backup remains legacy and non-replayable: `sync_outbox`, typed remote metadata, credentials, sessions, tokens, plaintext invite codes, and remote-backed mirror rows remain excluded, and restore does not auto refresh, pull, import, flush, or grant remote access.
+
+### Phase 5I+ Boundary
+
+- Account binding, remote recovery, backup legacy transition, background sync, automatic retry, conflict UI, resource / stage sync, richer notification scheduling, and notification action bridge remain later-phase work.
 
 ## 19. Open Questions
 

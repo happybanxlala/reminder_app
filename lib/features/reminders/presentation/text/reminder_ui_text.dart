@@ -120,6 +120,11 @@ class ReminderUiText {
   static const packCareSyncWaitingBanner = '有些變更還未同步。';
   static const packCareSyncFailedBanner = '同步失敗，請稍後再試。';
   static const packCareSyncStaleBanner = '可能有新的更新，下拉重新整理後會顯示最新狀態。';
+  static const packCareRefreshSharedState = '刷新共享狀態';
+  static const packCareRefreshSuccess = '已刷新共同資料';
+  static const packCareRefreshPendingWarning = '仍有等待同步的本機操作';
+  static const packCareRefreshFailed = '同步失敗，稍後再試';
+  static const packCareRefreshAccessLost = '已失去遠端存取權';
   static const packCareAccessLostReason = '你可能已被移出這個生活場景，或目前無法確認共享權限。';
   static const packCareAccessLostGuard = '為了避免資料錯亂，暫時不能完成或復原這裡的提醒。';
   static const packCareDataProtectionNote =
@@ -239,6 +244,7 @@ class ReminderUiText {
   static const remotePocPullSnapshotLabel = '刷新遠端 Snapshot';
   static const remotePocImportSnapshotMirrorLabel =
       '匯入 Remote Snapshot 到本機 Mirror POC';
+  static const remotePocRefreshAndImportLabel = '刷新並匯入 Remote-backed Pack POC';
   static const remotePocOutboxLabel = 'Remote-backed Outbox';
   static const remotePocFlushOutboxLabel =
       'Flush Pending Remote-backed Mutations POC';
