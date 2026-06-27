@@ -181,6 +181,28 @@ class RemoteJoinPackResult {
   final String role;
 }
 
+class RemoteRecoverablePack {
+  const RemoteRecoverablePack({
+    required this.remotePackId,
+    required this.name,
+    this.description,
+    required this.role,
+    required this.memberStatus,
+    required this.packStatus,
+    required this.hostUserId,
+    required this.updatedAt,
+  });
+
+  final String remotePackId;
+  final String name;
+  final String? description;
+  final String role;
+  final String memberStatus;
+  final String packStatus;
+  final String hostUserId;
+  final DateTime updatedAt;
+}
+
 enum RemoteRevokeInviteStatus { revoked, alreadyRevoked }
 
 class RemoteRevokeInviteResult {

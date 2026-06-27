@@ -88,8 +88,27 @@ class SupabaseAuthRepository implements AuthRepository {
   RemoteIdentity _toRemoteIdentity(User user) {
     return RemoteIdentity(
       remoteUserId: user.id,
-      provider: AuthProviderType.supabaseAnonymous,
+      provider: _providerFor(user),
       isAnonymous: user.isAnonymous,
     );
+  }
+
+  AuthProviderType _providerFor(User user) {
+    if (user.isAnonymous) {
+      return AuthProviderType.supabaseAnonymous;
+    }
+    final providers =
+        user.identities?.map((identity) => identity.provider).toSet() ??
+        const <String>{};
+    if (providers.contains('apple')) {
+      return AuthProviderType.apple;
+    }
+    if (providers.contains('google')) {
+      return AuthProviderType.google;
+    }
+    if (providers.contains('email')) {
+      return AuthProviderType.email;
+    }
+    return AuthProviderType.supabaseAnonymous;
   }
 }

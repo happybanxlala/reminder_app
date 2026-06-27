@@ -530,6 +530,21 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   }
 
   @override
+  Future<List<RemoteRecoverablePack>> fetchActiveMembershipPacks() async {
+    return [
+      RemoteRecoverablePack(
+        remotePackId: 'remote_pack_1',
+        name: 'Remote cats',
+        role: 'host',
+        memberStatus: 'active',
+        packStatus: 'active',
+        hostUserId: 'fake_profile',
+        updatedAt: DateTime(2026, 6, 21, 11),
+      ),
+    ];
+  }
+
+  @override
   Future<RemoteRevokeInviteResult> revokePackInvite({
     required String inviteId,
   }) {

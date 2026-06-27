@@ -11,6 +11,7 @@ abstract class RemoteSharedPackDataSource {
   Future<RemotePackInvite> ensureActivePackInvite({required String packId});
   Future<RemotePackInvite> refreshPackInvite({required String packId});
   Future<RemoteJoinPackResult> joinPackWithInvite({required String inviteCode});
+  Future<List<RemoteRecoverablePack>> fetchActiveMembershipPacks();
   Future<RemoteRevokeInviteResult> revokePackInvite({required String inviteId});
   Future<String> createPackItem({
     required String packId,
@@ -67,6 +68,11 @@ class DisabledRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   Future<RemoteJoinPackResult> joinPackWithInvite({
     required String inviteCode,
   }) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<List<RemoteRecoverablePack>> fetchActiveMembershipPacks() {
     throw RemoteSharedPackException(reason);
   }
 
@@ -277,6 +283,35 @@ class SupabaseRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
         error,
         RemoteSharedPackFailureReason.remoteInviteInvalid,
         operationName: 'join_pack_with_invite',
+      );
+    }
+  }
+
+  @override
+  Future<List<RemoteRecoverablePack>> fetchActiveMembershipPacks() async {
+    try {
+      final currentUserId = _client.auth.currentUser?.id;
+      if (currentUserId == null || currentUserId.isEmpty) {
+        throw const RemoteSharedPackException(
+          RemoteSharedPackFailureReason.remoteAuthRequired,
+        );
+      }
+      final rows = await _client
+          .from('pack_members')
+          .select(
+            'pack_id, role, status, packs(id, name, description, host_user_id, status, updated_at)',
+          )
+          .eq('user_id', currentUserId)
+          .eq('status', 'active')
+          .order('joined_at');
+      return _listOfMaps(
+        rows,
+      ).map(_recoverablePackFromMembershipRow).toList(growable: false);
+    } catch (error) {
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        operationName: 'fetch_active_membership_packs',
       );
     }
   }
@@ -510,6 +545,28 @@ RemotePackMemberSnapshot _memberFromRow(Map<String, Object?> row) {
     role: _requiredString(row, 'role'),
     status: _requiredString(row, 'status'),
     joinedAt: _requiredDate(row, 'joined_at'),
+  );
+}
+
+RemoteRecoverablePack _recoverablePackFromMembershipRow(
+  Map<String, Object?> row,
+) {
+  final pack = row['packs'];
+  if (pack is! Map) {
+    throw const RemoteSharedPackException(
+      RemoteSharedPackFailureReason.malformedRemoteData,
+    );
+  }
+  final packRow = Map<String, Object?>.from(pack);
+  return RemoteRecoverablePack(
+    remotePackId: _requiredString(packRow, 'id'),
+    name: _requiredString(packRow, 'name'),
+    description: packRow['description'] as String?,
+    role: _requiredString(row, 'role'),
+    memberStatus: _requiredString(row, 'status'),
+    packStatus: _requiredString(packRow, 'status'),
+    hostUserId: _requiredString(packRow, 'host_user_id'),
+    updatedAt: _requiredDate(packRow, 'updated_at'),
   );
 }
 

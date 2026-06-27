@@ -530,9 +530,33 @@ Phase 5E implementation note:
 - Widget behavior from Phase 5F is unchanged: widget snapshot and action code do not call Supabase or run retry. Notification behavior from Phase 5G is unchanged: notification summary code remains local-summary only and does not retry or flush.
 - Realtime remains hint-only and never auto-retries. Backup remains legacy and non-replayable: `sync_outbox`, retry state, typed remote metadata, credentials, sessions, tokens, plaintext invite codes, and remote-backed mirror rows remain excluded, and restore does not replay, retry, pull, import, flush, or grant remote access.
 
-### Phase 5J+ Boundary
+### Phase 5J：Account Binding & Backup Legacy Transition
 
-- Account binding, backup legacy transition, background sync, automatic retry, conflict resolution UI, resource / stage sync, richer notification scheduling, notification action bridge, remote edit/delete/archive sync, and full two-way sync remain later-phase work.
+- Adds account protection status foundation for remote-backed recovery without a Drift schema bump, backup schema bump, or Supabase SQL/RPC/table change.
+- Existing `local_users.remote_user_id`, `remote_provider`, `identity_kind`, and `linked_at` remain the local account protection record. Local user ids and local entity ids are never replaced by remote ids.
+- `AccountProtectionService` derives local-only, anonymous-unprotected, linked-protected, missing-session, unsupported, and unavailable states from the current local user plus Supabase/AuthRepository current identity.
+- Production Supabase auth remains anonymous-first. Apple, Google, and Email binding interfaces exist but return unsupported until a later phase provides real provider configuration and UX.
+- Successful fake/provider test binding updates the existing local user to `identityKind = linked` with a non-anonymous provider; it does not merge local data, upload local-only packs, create remote packs, join packs, pull/import snapshots, or replay `sync_outbox`.
+- Settings shows account protection status and copy that distinguishes anonymous unprotected identity from linked protected identity.
+- Manual backup is labeled as legacy local backup. Copy clarifies that backup protects local data only and does not restore remote-backed shared pack access.
+- Backup schema remains unchanged. Backup still excludes Supabase tokens, sessions, credentials, service-role keys, plaintext invite codes, typed remote metadata, `sync_outbox`, retry state, and remote-backed mirror rows. Restore still does not pull, import, flush, retry, replay, create remote access, or grant membership.
+
+### Phase 5K：Remote Membership Discovery & Recovery Restore
+
+- Adds explicit recovery of active remote pack memberships for linked/protected remote identities. Discovery reads remote memberships through existing Supabase RLS and does not create membership or grant access.
+- Product/default recovery fails closed for anonymous-unprotected, local-only, missing-session, unsupported, or unavailable account states before remote discovery. Developer POC tooling may still expose diagnostics, but product restore is account-protected by default.
+- Recovery restore pulls each eligible active pack snapshot through the current Supabase session and imports it through `RemoteSnapshotImportService.importRemotePackSnapshot(source: joinedRemotePack)`. Active membership + active pack status is the MVP eligibility rule; archived/inactive packs are skipped for future optional management, and removed memberships are not recovered.
+- Recovery uses a current-session snapshot pull path so it does not create or replace the local user with a new anonymous remote identity.
+- Recovery restore is idempotent through existing remote mapping/import behavior: new mirrors are created and existing mirrors can be updated, but local ids are not replaced by remote ids.
+- Recovery does not replay backup, replay outbox, flush pending mutations, retry failed mutations, push local data, auto pull at startup, auto import on realtime, or merge local-only packs into remote packs. Pending local mutations remain local pending state and may be surfaced as recovery warnings.
+- After successful recovery import, Home naturally updates from local DB invalidation, while widget and notification refresh use existing best-effort local-only refresh services. These surfaces never call Supabase.
+- Backup remains legacy and non-replayable. Restore still does not pull, import, report sync state, create remote packs, join packs, grant membership, or regain remote access by itself.
+- No Drift schema bump, backup schema bump, Supabase SQL/RPC/table change, widget behavior change, notification behavior change, resource sync, stage sync, account switching UI, or production OAuth provider flow is added.
+- Settings exposes a protected-account recovery entry plus `Restore active remote memberships POC` under `Remote-backed Recovery` for manual smoke testing. Product UI does not expose raw remote ids, raw exceptions, tokens, sessions, credentials, service-role keys, or plaintext invite codes.
+
+### Phase 5L+ Boundary
+
+- Member sync awareness / pack freshness, production Apple / Google / Email binding, account switching, local/remote merge, backup legacy removal, background sync, automatic retry, conflict resolution UI, resource / stage sync, richer notification scheduling, notification action bridge, remote edit/delete/archive sync, and full two-way sync remain later-phase work.
 
 ## 19. Open Questions
 

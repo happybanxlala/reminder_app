@@ -3,11 +3,13 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../home_widget/providers/home_widget_providers.dart';
 import '../data/anonymous_remote_identity_service.dart';
 import '../data/local/reminder_dao.dart';
 import '../data/remote_backed_outbox_flush_service.dart';
 import '../data/remote_backed_outbox_retry_service.dart';
 import '../data/remote_backed_pack_refresh_service.dart';
+import '../data/remote_membership_recovery_service.dart';
 import '../data/remote_shared_pack_data_source.dart';
 import '../data/remote_shared_pack_models.dart';
 import '../data/remote_shared_pack_repository.dart';
@@ -18,8 +20,10 @@ import '../domain/item.dart';
 import '../domain/item_pack.dart';
 import '../domain/remote_backed_pack_refresh.dart';
 import '../domain/remote_backed_recovery.dart';
+import '../domain/remote_membership_recovery.dart';
 import '../domain/remote_sync.dart';
 import '../domain/shared_pack.dart';
+import 'attention_service_providers.dart';
 import 'database_providers.dart';
 import 'identity_providers.dart';
 
@@ -85,6 +89,16 @@ final remoteBackedPackRefreshServiceProvider =
         dao: ref.watch(appDatabaseProvider).reminderDao,
         pullRemotePackSnapshot: remoteRepository.pullRemotePackSnapshot,
         importRemotePackSnapshot: importService.importRemotePackSnapshot,
+      );
+    });
+
+final remoteMembershipRecoveryServiceProvider =
+    Provider<RemoteMembershipRecoveryService>((ref) {
+      return RemoteMembershipRecoveryService(
+        dao: ref.watch(appDatabaseProvider).reminderDao,
+        accountProtectionService: ref.watch(accountProtectionServiceProvider),
+        remoteRepository: ref.watch(remoteSharedPackRepositoryProvider),
+        importService: ref.watch(remoteSnapshotImportServiceProvider),
       );
     });
 
@@ -933,6 +947,29 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
     });
   }
 
+  Future<String> restoreRecoveredRemoteMemberships() {
+    return _run('Restore active remote memberships POC', () async {
+      final result = await _ref
+          .read(remoteMembershipRecoveryServiceProvider)
+          .restoreActiveMemberships();
+      _ref.invalidate(remoteBackedRecoverySummaryProvider);
+      _ref.invalidate(remoteBackedPackRecoverySummaryProvider);
+      if (result.succeeded) {
+        _invalidateRecoveredLocalSurfaces(result.summary.restoredLocalPackIds);
+        await _refreshDerivedLocalSurfaces();
+      }
+      return _RemotePocOutcome(
+        succeeded: result.succeeded,
+        message: _membershipRecoveryResultMessage(result),
+        snapshot: state.lastPulledRemoteSnapshot,
+        snapshotSummary: state.snapshotSummary,
+        snapshotTargetType: state.snapshotTargetType,
+        refreshAttempted: result.succeeded,
+        clearRemoteChanges: result.succeeded,
+      );
+    });
+  }
+
   Future<String> flushRemoteBackedOutbox() {
     return _run('Flush Pending Remote-backed Mutations POC', () async {
       final result = await _ref
@@ -1089,6 +1126,66 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
       RemoteBackedPackRefreshStatus.unknownFailure =>
         'Manual refresh：unknown failure',
     };
+  }
+
+  String _membershipRecoveryResultMessage(
+    RemoteMembershipRecoveryResult result,
+  ) {
+    final summary = result.summary;
+    final details =
+        'discovered ${summary.discoveredCount}, eligible ${summary.eligibleCount}, created ${summary.createdLocalMirrorCount}, refreshed ${summary.refreshedExistingCount}, skipped ${summary.skippedCount}, failed ${summary.failedCount}';
+    final warning = summary.warnings.isEmpty
+        ? ''
+        : ', warnings ${summary.warnings.length}';
+    return switch (result.status) {
+      RemoteMembershipRecoveryStatus.restored =>
+        'Membership recovery：restored，$details$warning',
+      RemoteMembershipRecoveryStatus.partiallyRecovered =>
+        'Membership recovery：partial，$details$warning',
+      RemoteMembershipRecoveryStatus.nothingToRecover =>
+        'Membership recovery：no active remote packs',
+      RemoteMembershipRecoveryStatus.accountNotProtected =>
+        'Membership recovery：account binding required',
+      RemoteMembershipRecoveryStatus.remoteSessionMissing =>
+        'Membership recovery：remote session missing',
+      RemoteMembershipRecoveryStatus.configMissing =>
+        'Membership recovery：config missing',
+      RemoteMembershipRecoveryStatus.remoteAuthRequired =>
+        'Membership recovery：remote auth required',
+      RemoteMembershipRecoveryStatus.accessDenied =>
+        'Membership recovery：remote RLS rejected',
+      RemoteMembershipRecoveryStatus.networkFailed =>
+        'Membership recovery：network failed',
+      RemoteMembershipRecoveryStatus.importFailed =>
+        'Membership recovery：import failed，$details$warning',
+      RemoteMembershipRecoveryStatus.unknownFailure =>
+        'Membership recovery：unknown failure',
+    };
+  }
+
+  void _invalidateRecoveredLocalSurfaces(List<int> localPackIds) {
+    _ref.invalidate(remoteBackedOutboxSummaryProvider);
+    _ref.invalidate(remoteBackedRecoverySummaryProvider);
+    for (final localPackId in localPackIds) {
+      _ref.invalidate(remoteBackedPackRecoverySummaryProvider(localPackId));
+    }
+  }
+
+  Future<void> _refreshDerivedLocalSurfaces() async {
+    await Future.wait([
+      _bestEffort(() async {
+        await _ref.read(homeWidgetActionServiceProvider).refreshSnapshot();
+      }),
+      _bestEffort(() => _ref.read(attentionSyncServiceProvider).refresh()),
+    ]).timeout(const Duration(milliseconds: 500), onTimeout: () => const []);
+  }
+
+  Future<void> _bestEffort(Future<void> Function() action) async {
+    try {
+      await action();
+    } catch (_) {
+      // Recovery refreshes derived surfaces only from local mirror data.
+    }
   }
 
   @override

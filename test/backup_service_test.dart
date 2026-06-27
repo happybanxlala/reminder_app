@@ -42,6 +42,7 @@ void main() {
 
     expect(json['app'], BackupPayload.appName);
     expect(json['schemaVersion'], BackupPayload.currentSchemaVersion);
+    expect(BackupPayload.currentSchemaVersion, 4);
     expect(json['exportedAt'], '2026-06-04T09:30:00.000');
     expect(
       data.keys,
@@ -252,6 +253,11 @@ void main() {
     final syncMappings = await targetDb.reminderDao.listSyncMappings();
     expect(syncMappings, isNotEmpty);
     expect(syncMappings.single.remoteEntityId, 'remote-pack-housework');
+    expect(await targetDb.reminderDao.listSyncOutboxEntries(), isEmpty);
+    expect(
+      await targetDb.reminderDao.listRemotePackSyncMetadataEntries(),
+      isEmpty,
+    );
     final cleanSink = items.firstWhere(
       (item) => item.item.title == 'Clean sink',
     );

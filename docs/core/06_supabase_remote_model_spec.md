@@ -1522,6 +1522,18 @@ Phase 4E adds an idempotent Realtime publication setup guard for `public.activit
 
 `phase_remote_grants_rls_repair.sql` is an idempotent manual repair patch for Supabase projects where RLS policies exist but the `authenticated` role is missing base table privileges or RPC execute grants. It does not create product features, does not disable RLS, does not grant table access to `anon`, and does not grant hard delete.
 
+### Phase 5K Remote Membership Recovery
+
+Phase 5K does not add Supabase SQL. It reuses existing `pack_members` RLS, `packs`, and snapshot reads so the current authenticated remote user can discover active remote pack memberships and restore local mirrors manually.
+
+- Discovery queries `pack_members` for the current `auth.uid()`, filters active memberships, and returns only packs visible through existing RLS.
+- Product/default recovery is gated by the local account-protection state: only linked/protected remote identities restore by default. Anonymous-unprotected, local-only, missing-session, unsupported, and unavailable states fail closed before discovery.
+- Active membership + active pack status is the MVP restore eligibility. Archived/inactive packs are skipped for later optional management; removed members are not recoverable.
+- Recovery pulls pack snapshots through the current Supabase session and imports them locally; it does not create memberships, join packs, grant access, upload local-only packs, replay `sync_outbox`, flush/retry outbox, or use service-role privileges.
+- Repeated recovery is idempotent through existing `sync_mappings` and import behavior: missing mirrors are created, existing mirrors are refreshed, and duplicate local packs/items/completions/activity rows are not created.
+- Backup restore remains local-only and never triggers membership discovery, snapshot pull, import, outbox replay, or remote access recovery. Recovery always depends on the current authenticated remote account, not the backup file.
+- No realtime signal, app startup, backup import, widget/notification path, or outbox retry path auto-runs recovery. Phase 5K also does not implement member freshness, read receipts, or host awareness; those remain Phase 5L+ work.
+
 ### RPC Contract Checklist
 
 - `upsert_current_profile` uses `auth.uid()` and returns the current remote profile id.

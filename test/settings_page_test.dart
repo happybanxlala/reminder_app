@@ -124,8 +124,19 @@ void main() {
     await _pumpSettings(tester, developerVisible: false);
 
     expect(find.text(ReminderUiText.settingsDataSectionTitle), findsOneWidget);
+    expect(find.text(ReminderUiText.accountProtectionTitle), findsOneWidget);
+    expect(
+      find.text(ReminderUiText.accountProtectionLocalOnly),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('settings-account-protection-action-row')),
+      findsOneWidget,
+    );
     expect(find.text(ReminderUiText.backupDataLabel), findsOneWidget);
     expect(find.text(ReminderUiText.importDataLabel), findsOneWidget);
+    expect(find.text(ReminderUiText.backupDataDescription), findsOneWidget);
+    expect(find.text(ReminderUiText.importDataDescription), findsOneWidget);
     expect(find.text(ReminderUiText.resetUserDataLabel), findsOneWidget);
     expect(find.byKey(const Key('settings-backup-data-row')), findsOneWidget);
     expect(find.byKey(const Key('settings-import-data-row')), findsOneWidget);
@@ -138,18 +149,101 @@ void main() {
   testWidgets('import action shows overwrite confirmation', (tester) async {
     await _pumpSettings(tester, developerVisible: false);
 
-    await tester.tap(find.byKey(const Key('settings-import-data-row')));
-    await tester.pumpAndSettle();
+    await _tapSettingsRow(tester, const Key('settings-import-data-row'));
 
     expect(find.text(ReminderUiText.importConfirmTitle), findsOneWidget);
     expect(find.text(ReminderUiText.importConfirmMessage), findsOneWidget);
+    expect(find.textContaining('不會自動恢復遠端共同 Pack 存取權'), findsOneWidget);
+  });
+
+  testWidgets('account protection shows anonymous warning', (tester) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final fakeAuth = FakeAuthRepository();
+    final remote = await fakeAuth.signInAnonymously();
+    await IdentityRepository(db.reminderDao).linkRemoteIdentity(
+      remoteUserId: remote.remoteUserId,
+      provider: AuthProviderType.supabaseAnonymous,
+    );
+
+    await _pumpSettings(
+      tester,
+      developerVisible: false,
+      database: db,
+      extraOverrides: [authRepositoryProvider.overrideWithValue(fakeAuth)],
+    );
+
+    expect(
+      find.text(ReminderUiText.accountProtectionAnonymous),
+      findsOneWidget,
+    );
+    expect(
+      find.text(ReminderUiText.accountRecoveryBindingRequired),
+      findsOneWidget,
+    );
+    expect(
+      find.text(ReminderUiText.identityKindAnonymousRemote),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('account protection shows linked protected status', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final fakeAuth = FakeAuthRepository();
+    final remote = await fakeAuth.linkWithGoogle();
+    await IdentityRepository(db.reminderDao).linkRemoteIdentity(
+      remoteUserId: remote.remoteUserId,
+      provider: AuthProviderType.google,
+    );
+
+    await _pumpSettings(
+      tester,
+      developerVisible: false,
+      database: db,
+      extraOverrides: [authRepositoryProvider.overrideWithValue(fakeAuth)],
+    );
+
+    expect(find.text(ReminderUiText.accountProtectionLinked), findsOneWidget);
+    expect(find.text(ReminderUiText.identityBoundLabel), findsWidgets);
+    expect(find.text(ReminderUiText.accountRecoveryAction), findsOneWidget);
+    expect(find.text(ReminderUiText.accountRecoveryAvailable), findsOneWidget);
+  });
+
+  testWidgets('account binding placeholder returns unsupported safely', (
+    tester,
+  ) async {
+    await _pumpSettings(tester, developerVisible: false);
+
+    await tester.tap(
+      find.byKey(const Key('settings-account-protection-action-row')),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text(ReminderUiText.accountProtectionSheetTitle),
+      findsOneWidget,
+    );
+    expect(
+      find.text(ReminderUiText.accountProtectionProviderUnsupported),
+      findsWidgets,
+    );
+
+    await tester.tap(find.byKey(const Key('settings-account-binding-apple')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(ReminderUiText.accountBindingUnsupportedMessage),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('reset action requires RESET before confirm', (tester) async {
     await _pumpSettings(tester, developerVisible: false);
 
-    await tester.tap(find.byKey(const Key('settings-reset-user-data-row')));
-    await tester.pumpAndSettle();
+    await _tapSettingsRow(tester, const Key('settings-reset-user-data-row'));
 
     expect(find.text(ReminderUiText.resetConfirmTitle), findsOneWidget);
     expect(
@@ -226,12 +320,18 @@ void main() {
     await _pumpSettings(tester, developerVisible: true);
 
     expect(
-      find.text(ReminderUiText.settingsDeveloperSectionTitle),
+      find.text(
+        ReminderUiText.settingsDeveloperSectionTitle,
+        skipOffstage: false,
+      ),
       findsOneWidget,
     );
-    expect(find.text(ReminderUiText.previewDateSettingLabel), findsOneWidget);
     expect(
-      find.byKey(const Key('settings-reset-database-row')),
+      find.text(ReminderUiText.previewDateSettingLabel, skipOffstage: false),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('settings-reset-database-row'), skipOffstage: false),
       findsOneWidget,
     );
   });
@@ -252,8 +352,7 @@ void main() {
   testWidgets('preview date row opens date picker', (tester) async {
     await _pumpSettings(tester, developerVisible: true);
 
-    await tester.tap(find.byKey(const Key('settings-preview-date-row')));
-    await tester.pumpAndSettle();
+    await _tapSettingsRow(tester, const Key('settings-preview-date-row'));
 
     expect(find.byType(DatePickerDialog), findsOneWidget);
   });
@@ -265,8 +364,7 @@ void main() {
       pickDate: (context, initialDate) async => DateTime(2026, 6, 2, 14),
     );
 
-    await tester.tap(find.byKey(const Key('settings-preview-date-row')));
-    await tester.pumpAndSettle();
+    await _tapSettingsRow(tester, const Key('settings-preview-date-row'));
 
     expect(find.text('2026/06/02'), findsOneWidget);
     expect(find.text(ReminderUiText.dateSourcePreview), findsWidgets);
@@ -1094,6 +1192,48 @@ void main() {
   });
 
   testWidgets(
+    'developer recovery restore row is available for protected account',
+    (tester) async {
+      final fakeRemote = _FakeRemoteSharedPackDataSource();
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final fakeAuth = FakeAuthRepository();
+      final remoteIdentity = await fakeAuth.linkWithGoogle();
+      await IdentityRepository(db.reminderDao).linkRemoteIdentity(
+        remoteUserId: remoteIdentity.remoteUserId,
+        provider: AuthProviderType.google,
+      );
+      await _pumpSettings(
+        tester,
+        developerVisible: true,
+        database: db,
+        extraOverrides: [
+          authRepositoryProvider.overrideWithValue(fakeAuth),
+          remoteSharedPackDataSourceProvider.overrideWithValue(fakeRemote),
+        ],
+      );
+
+      final recoveryRow = find.byKey(
+        const Key('settings-remote-recovery-restore-memberships-row'),
+        skipOffstage: false,
+      );
+      await tester.scrollUntilVisible(
+        recoveryRow.first,
+        120,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pump();
+
+      expect(
+        find.text(ReminderUiText.remoteRecoveryRestoreMembershipsLabel),
+        findsOneWidget,
+      );
+      expect(fakeRemote.snapshotCalls, 0);
+      expect(await db.reminderDao.listSyncOutboxEntries(), isEmpty);
+    },
+  );
+
+  testWidgets(
     'developer settings compatibility route renders unified settings',
     (tester) async {
       final router = GoRouter(
@@ -1116,7 +1256,10 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.text(ReminderUiText.settingsDeveloperSectionTitle),
+        find.text(
+          ReminderUiText.settingsDeveloperSectionTitle,
+          skipOffstage: false,
+        ),
         findsOneWidget,
       );
     },
@@ -1177,8 +1320,9 @@ Future<AppDatabase> _pumpSettings(
 }
 
 Future<void> _tapSettingsRow(WidgetTester tester, Key key) async {
+  final rowFinder = find.byKey(key, skipOffstage: false).first;
   await tester.scrollUntilVisible(
-    find.byKey(key).first,
+    rowFinder,
     120,
     scrollable: find.byType(Scrollable).first,
   );
@@ -1319,6 +1463,21 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
       memberId: 'joined-member',
       role: 'member',
     );
+  }
+
+  @override
+  Future<List<RemoteRecoverablePack>> fetchActiveMembershipPacks() async {
+    return [
+      RemoteRecoverablePack(
+        remotePackId: 'joined-pack',
+        name: 'Remote POC Pack',
+        role: 'member',
+        memberStatus: 'active',
+        packStatus: 'active',
+        hostUserId: 'profile1',
+        updatedAt: DateTime(2026, 6, 21),
+      ),
+    ];
   }
 
   @override

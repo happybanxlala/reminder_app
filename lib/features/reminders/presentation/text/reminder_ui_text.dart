@@ -191,10 +191,10 @@ class ReminderUiText {
   static const settingsGeneralSectionTitle = '一般設定';
   static const settingsDataSectionTitle = '資料管理';
   static const settingsDeveloperSectionTitle = '開發工具';
-  static const backupDataLabel = '備份資料';
-  static const backupDataDescription = '產生 JSON 備份檔';
+  static const backupDataLabel = '本機備份（Legacy）';
+  static const backupDataDescription = '只保護本機資料，不等於遠端帳號恢復';
   static const importDataLabel = '匯入資料';
-  static const importDataDescription = '用 JSON 備份檔覆蓋目前資料';
+  static const importDataDescription = '用本機備份覆蓋目前資料，不會恢復遠端存取權';
   static const resetUserDataLabel = '重設資料庫';
   static const resetUserDataDescription = '清除使用者資料並回到初始狀態';
   static const backupSuccessMessage = '備份資料已建立';
@@ -205,7 +205,8 @@ class ReminderUiText {
   static const resetSuccessMessage = '資料庫已重設';
   static const resetFailureMessage = '重設失敗';
   static const importConfirmTitle = '匯入資料？';
-  static const importConfirmMessage = '匯入資料會覆蓋目前的使用者資料。建議先備份現有資料。確定要繼續嗎？';
+  static const importConfirmMessage =
+      '匯入資料會覆蓋目前的使用者資料。這只會還原本機備份，不會自動恢復遠端共同 Pack 存取權，也不會重送等待同步的操作。建議先備份現有資料。確定要繼續嗎？';
   static const resetConfirmTitle = '重設資料庫？';
   static const resetConfirmMessage = '這會清除目前的使用者資料，並回復到初始資料狀態。此操作無法復原，建議先備份。';
   static const resetConfirmInputLabel = '輸入 RESET 以確認';
@@ -221,6 +222,29 @@ class ReminderUiText {
   static const localUserIdLabel = 'Local user';
   static const identityKindLabel = '身份狀態';
   static const identityBindingStatusLabel = '綁定狀態';
+  static const accountProtectionTitle = '共同資料保護';
+  static const accountProtectionAction = '保護共同資料';
+  static const accountProtectionLocalOnly = '尚未使用遠端共同資料。';
+  static const accountProtectionAnonymous =
+      '未保護：目前只是匿名遠端身份。刪 app / 換機後可能無法找回共同 Pack。';
+  static const accountProtectionLinked =
+      '已綁定：此遠端身份已被帳號保護。未來可用帳號恢復共同 Pack access。';
+  static const accountProtectionSessionMissing = '目前找不到遠端登入狀態。請先重新建立或確認遠端身份。';
+  static const accountProtectionUnsupported = '目前版本尚未提供帳號綁定。';
+  static const accountProtectionUnavailable = '目前無法確認共同資料保護狀態。';
+  static const accountProtectionSheetTitle = '選擇保護方式';
+  static const accountProtectionSheetBody =
+      'Phase 5J 先建立帳號保護狀態與綁定介面。Apple、Google、Email 綁定會在後續階段開放。';
+  static const accountProtectionProviderUnsupported = '尚未開放';
+  static const accountRecoveryAction = '恢復共同 Pack';
+  static const accountRecoveryAvailable = '找回已綁定帳號的共同 Pack';
+  static const accountRecoveryBindingRequired = '請先綁定帳號，以便在新裝置找回共同 Pack。';
+  static const accountBindingUnsupportedMessage = '目前版本尚未提供此綁定方式。';
+  static const accountBindingLinkedMessage = '共同資料身份已受到帳號保護。';
+  static const accountBindingAlreadyLinkedMessage = '共同資料身份已受到帳號保護。';
+  static const accountBindingSessionMissingMessage = '目前找不到遠端登入狀態，暫時不能綁定。';
+  static const accountBindingConfigMissingMessage = 'Supabase 尚未設定，暫時不能綁定。';
+  static const accountBindingFailedMessage = '帳號保護設定失敗，請稍後再試。';
   static const remoteProviderLabel = 'Remote provider';
   static const remoteUserIdLabel = 'Remote user';
   static const supabaseConfigStatusLabel = 'Supabase 設定';
@@ -258,6 +282,8 @@ class ReminderUiText {
       'Retry retryable failed mutations POC';
   static const remoteRecoveryRefreshStaleLabel =
       'Refresh stale remote-backed packs POC';
+  static const remoteRecoveryRestoreMembershipsLabel =
+      'Restore active remote memberships POC';
   static const remotePocInviteCodeLabel = 'Invite Code';
   static const remotePocInviteExpiresLabel = 'Invite expires';
   static const remotePocInviteMaxUsesLabel = 'Invite max uses';

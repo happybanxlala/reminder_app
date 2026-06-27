@@ -18,6 +18,11 @@ class SettingsPage extends ConsumerWidget {
     final isOverridden = overrideDate != null;
     final databaseVersion = ref.watch(appDatabaseProvider).schemaVersion;
     final currentUserAsync = ref.watch(currentAppUserProvider);
+    final accountProtectionAsync = ref.watch(accountProtectionStatusProvider);
+    final accountProtection = accountProtectionAsync.maybeWhen(
+      data: (snapshot) => snapshot,
+      orElse: () => null,
+    );
     final supabaseRuntimeStatus = ref.watch(supabaseRuntimeStatusProvider);
     final remotePocState = ref.watch(remotePocControllerProvider);
     final remotePocTargetPackAsync = ref.watch(
@@ -68,670 +73,748 @@ class SettingsPage extends ConsumerWidget {
 
     return ReminderEditorScaffold(
       title: ReminderUiText.settingsTitle,
-      body: ListView(
+      body: SingleChildScrollView(
         key: const Key('settings-page'),
         padding: const EdgeInsets.all(12),
-        children: [
-          ReminderEditorSection(
-            key: const Key('settings-general-section'),
-            title: ReminderUiText.settingsGeneralSectionTitle,
-            children: [
-              ReminderEditorPickerRow(
-                key: const Key('settings-reminder-tone-row'),
-                label: ReminderUiText.reminderToneSettingLabel,
-                value: ReminderFormatters.reminderTone(currentTone),
-                leading: Icon(
-                  Icons.notifications_active_outlined,
-                  size: 18,
-                  color: context.reminderPalette.primaryWarm,
-                ),
-                onTap: settingsAsync.isLoading
-                    ? null
-                    : () => _showReminderTonePicker(context, ref, currentTone),
-              ),
-              Text(
-                ReminderFormatters.reminderToneDescription(currentTone),
-                key: const Key('reminder-tone-description'),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: context.reminderPalette.textSecondary,
-                ),
-              ),
-              ReminderEditorPickerRow(
-                key: const Key('settings-reminder-time-row'),
-                label: ReminderUiText.notificationReminderTimeLabel,
-                value: reminderTime,
-                leading: Icon(
-                  Icons.schedule_outlined,
-                  size: 18,
-                  color: context.reminderPalette.primaryWarm,
-                ),
-                onTap: settingsAsync.isLoading
-                    ? null
-                    : () => _pickReminderTime(context, ref, reminderTime),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ReminderEditorSection(
-            key: const Key('settings-data-section'),
-            title: ReminderUiText.settingsDataSectionTitle,
-            children: [
-              _SettingsActionRow(
-                key: const Key('settings-backup-data-row'),
-                label: ReminderUiText.backupDataLabel,
-                value: ReminderUiText.backupDataDescription,
-                icon: Icons.ios_share_outlined,
-                onTap: () => _backupData(context, ref),
-              ),
-              _SettingsActionRow(
-                key: const Key('settings-import-data-row'),
-                label: ReminderUiText.importDataLabel,
-                value: ReminderUiText.importDataDescription,
-                icon: Icons.file_upload_outlined,
-                onTap: () => _importData(context, ref),
-              ),
-              _SettingsActionRow(
-                key: const Key('settings-reset-user-data-row'),
-                label: ReminderUiText.resetUserDataLabel,
-                value: ReminderUiText.resetUserDataDescription,
-                icon: Icons.delete_forever_outlined,
-                destructive: true,
-                onTap: () => _resetUserData(context, ref),
-              ),
-            ],
-          ),
-          if (showDeveloperSettings) ...[
-            const SizedBox(height: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
             ReminderEditorSection(
-              key: const Key('settings-developer-section'),
-              title: ReminderUiText.settingsDeveloperSectionTitle,
+              key: const Key('settings-general-section'),
+              title: ReminderUiText.settingsGeneralSectionTitle,
               children: [
                 ReminderEditorPickerRow(
-                  key: const Key('settings-preview-date-row'),
-                  label: ReminderUiText.previewDateSettingLabel,
-                  value: ReminderFormatters.date(effectiveDate),
+                  key: const Key('settings-reminder-tone-row'),
+                  label: ReminderUiText.reminderToneSettingLabel,
+                  value: ReminderFormatters.reminderTone(currentTone),
                   leading: Icon(
-                    Icons.calendar_today_outlined,
+                    Icons.notifications_active_outlined,
                     size: 18,
                     color: context.reminderPalette.primaryWarm,
                   ),
-                  onTap: () => _pickPreviewDate(context, ref, effectiveDate),
+                  onTap: settingsAsync.isLoading
+                      ? null
+                      : () =>
+                            _showReminderTonePicker(context, ref, currentTone),
                 ),
                 Text(
-                  ReminderUiText.previewDateHelp,
-                  key: const Key('settings-preview-date-help'),
+                  ReminderFormatters.reminderToneDescription(currentTone),
+                  key: const Key('reminder-tone-description'),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: context.reminderPalette.textSecondary,
                   ),
                 ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton(
-                    key: const Key('reset-preview-date-button'),
-                    onPressed: isOverridden
-                        ? () {
-                            ref
-                                    .read(
-                                      developerDateOverrideProvider.notifier,
-                                    )
-                                    .state =
-                                null;
-                          }
-                        : null,
-                    child: const Text(ReminderUiText.clearPreviewDateLabel),
+                ReminderEditorPickerRow(
+                  key: const Key('settings-reminder-time-row'),
+                  label: ReminderUiText.notificationReminderTimeLabel,
+                  value: reminderTime,
+                  leading: Icon(
+                    Icons.schedule_outlined,
+                    size: 18,
+                    color: context.reminderPalette.primaryWarm,
                   ),
-                ),
-                Text(
-                  ReminderUiText.debugInfoSectionTitle,
-                  key: const Key('settings-debug-info-title'),
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: context.reminderPalette.textSecondary,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-debug-db-version'),
-                  label: ReminderUiText.databaseVersionLabel,
-                  value: '$databaseVersion',
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-debug-device-data-label'),
-                  label: ReminderUiText.deviceDataLabel,
-                  value: currentUserAsync.maybeWhen(
-                    data: (user) => user.displayName,
-                    orElse: () => ReminderUiText.loadingLabel,
-                  ),
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-debug-local-user-id'),
-                  label: ReminderUiText.localUserIdLabel,
-                  value: currentUserAsync.maybeWhen(
-                    data: (user) => _shortUserId(user.id),
-                    orElse: () => '-',
-                  ),
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-debug-identity-kind'),
-                  label: ReminderUiText.identityKindLabel,
-                  value: currentUserAsync.maybeWhen(
-                    data: (user) => _identityKindLabel(user.identityKind),
-                    orElse: () => '-',
-                  ),
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-debug-binding-status'),
-                  label: ReminderUiText.identityBindingStatusLabel,
-                  value: currentUserAsync.maybeWhen(
-                    data: (user) => user.remoteUserId == null
-                        ? ReminderUiText.identityNotBoundLabel
-                        : ReminderUiText.identityBoundLabel,
-                    orElse: () => '-',
-                  ),
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-debug-remote-provider'),
-                  label: ReminderUiText.remoteProviderLabel,
-                  value: currentUserAsync.maybeWhen(
-                    data: (user) => user.remoteProvider == null
-                        ? '-'
-                        : _remoteProviderLabel(user.remoteProvider!),
-                    orElse: () => '-',
-                  ),
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-debug-remote-user-id'),
-                  label: ReminderUiText.remoteUserIdLabel,
-                  value: currentUserAsync.maybeWhen(
-                    data: (user) => user.remoteUserId == null
-                        ? '-'
-                        : _shortUserId(user.remoteUserId!),
-                    orElse: () => '-',
-                  ),
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-debug-supabase-config-status'),
-                  label: ReminderUiText.supabaseConfigStatusLabel,
-                  value: _supabaseRuntimeStatusLabel(supabaseRuntimeStatus),
-                ),
-                Text(
-                  ReminderUiText.supabaseRemotePocSectionTitle,
-                  key: const Key('settings-remote-poc-title'),
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: context.reminderPalette.textSecondary,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-remote-poc-shared-pack'),
-                  label: ReminderUiText.remotePocSharedPackLabel,
-                  value: _remotePocSharedPackValue(remotePocTargetPack),
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-remote-poc-remote-pack'),
-                  label: ReminderUiText.remotePocRemotePackLabel,
-                  value: remotePocPackMappingAsync?.isLoading ?? false
-                      ? ReminderUiText.loadingLabel
-                      : remotePocPackMapping == null
-                      ? ReminderUiText.remotePocNoRemoteMapping
-                      : _shortUserId(remotePocPackMapping.remoteEntityId),
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-remote-poc-mapped-item'),
-                  label: ReminderUiText.remotePocMappedItemLabel,
-                  value: remotePocFirstMappedItemAsync?.isLoading ?? false
-                      ? ReminderUiText.loadingLabel
-                      : remotePocFirstMappedItem == null
-                      ? ReminderUiText.remotePocNotCreated
-                      : remotePocFirstMappedItem.item.title,
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-remote-poc-last-operation'),
-                  label: ReminderUiText.remotePocLastOperationLabel,
-                  value:
-                      remotePocState.lastMessage ??
-                      ReminderUiText.remotePocNotRun,
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-remote-poc-snapshot-summary'),
-                  label: ReminderUiText.remotePocSnapshotLabel,
-                  value: _remotePocSnapshotSummaryValue(
-                    remotePocState.snapshotSummary,
-                  ),
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-remote-poc-invite-code'),
-                  label: ReminderUiText.remotePocInviteCodeLabel,
-                  value:
-                      remotePocState.lastCreatedInviteCode ??
-                      ReminderUiText.remotePocNotCreated,
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-remote-poc-invite-expires'),
-                  label: ReminderUiText.remotePocInviteExpiresLabel,
-                  value: _remotePocDateTimeValue(
-                    remotePocState.lastInviteExpiresAt,
-                  ),
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-remote-poc-invite-max-uses'),
-                  label: ReminderUiText.remotePocInviteMaxUsesLabel,
-                  value: remotePocState.lastInviteMaxUses?.toString() ?? '-',
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-remote-poc-joined-pack'),
-                  label: ReminderUiText.remotePocJoinedPackLabel,
-                  value: remotePocState.lastJoinedRemotePackId == null
-                      ? ReminderUiText.remotePocNoRemoteMapping
-                      : _shortUserId(remotePocState.lastJoinedRemotePackId!),
-                ),
-                _SettingsActionRow(
-                  key: const Key(
-                    'settings-create-anonymous-remote-identity-row',
-                  ),
-                  label: ReminderUiText.createAnonymousRemoteIdentityLabel,
-                  value: ReminderUiText.identityKindAnonymousRemote,
-                  icon: Icons.cloud_outlined,
-                  enabled: !remotePocState.isRunning,
-                  onTap: () => _ensureAnonymousRemoteIdentity(context, ref),
-                ),
-                _SettingsActionRow(
-                  key: const Key('settings-remote-poc-create-profile-row'),
-                  label: ReminderUiText.remotePocCreateProfileLabel,
-                  value: ReminderUiText.remotePocNotCreated,
-                  icon: Icons.account_circle_outlined,
-                  enabled: !remotePocState.isRunning,
-                  onTap: () => _runRemotePocAction(
-                    context,
-                    ref,
-                    (controller) => controller.ensureRemoteProfile(),
-                  ),
-                ),
-                _SettingsActionRow(
-                  key: const Key('settings-remote-poc-create-pack-row'),
-                  label: ReminderUiText.remotePocCreatePackLabel,
-                  value: remotePocPackMapping == null
-                      ? ReminderUiText.remotePocNoRemoteMapping
-                      : _shortUserId(remotePocPackMapping.remoteEntityId),
-                  icon: Icons.cloud_upload_outlined,
-                  enabled: !remotePocState.isRunning,
-                  onTap: () => _runRemotePocAction(
-                    context,
-                    ref,
-                    (controller) =>
-                        controller.createRemotePack(remotePocTargetPack?.id),
-                  ),
-                ),
-                _SettingsActionRow(
-                  key: const Key('settings-remote-poc-push-items-row'),
-                  label: ReminderUiText.remotePocPushItemsLabel,
-                  value: remotePocFirstMappedItem == null
-                      ? ReminderUiText.remotePocNotCreated
-                      : remotePocFirstMappedItem.item.title,
-                  icon: Icons.playlist_add_check_outlined,
-                  enabled: !remotePocState.isRunning,
-                  onTap: () => _runRemotePocAction(
-                    context,
-                    ref,
-                    (controller) =>
-                        controller.pushMinimalItems(remotePocTargetPack?.id),
-                  ),
-                ),
-                _SettingsActionRow(
-                  key: const Key('settings-remote-poc-create-invite-row'),
-                  label: ReminderUiText.remotePocCreateInviteLabel,
-                  value: remotePocPackMapping == null
-                      ? ReminderUiText.remotePocNoRemoteMapping
-                      : _shortUserId(remotePocPackMapping.remoteEntityId),
-                  icon: Icons.key_outlined,
-                  enabled: !remotePocState.isRunning,
-                  onTap: () => _runRemotePocAction(
-                    context,
-                    ref,
-                    (controller) => controller.createInviteCode(
-                      remotePocPackMapping?.remoteEntityId,
-                    ),
-                  ),
-                ),
-                _SettingsInputRow(
-                  key: const Key('settings-remote-poc-invite-input-row'),
-                  fieldKey: const Key('settings-remote-poc-invite-input'),
-                  label: ReminderUiText.remotePocInviteInputLabel,
-                  initialValue: remotePocState.inviteCodeInput,
-                  enabled: !remotePocState.isRunning,
-                  onChanged: ref
-                      .read(remotePocControllerProvider.notifier)
-                      .updateInviteCodeInput,
-                ),
-                _SettingsActionRow(
-                  key: const Key('settings-remote-poc-join-invite-row'),
-                  label: ReminderUiText.remotePocJoinInviteLabel,
-                  value: remotePocState.lastJoinedRemotePackId == null
-                      ? ReminderUiText.remotePocNoRemoteMapping
-                      : _shortUserId(remotePocState.lastJoinedRemotePackId!),
-                  icon: Icons.group_add_outlined,
-                  enabled: !remotePocState.isRunning,
-                  onTap: () => _runRemotePocAction(
-                    context,
-                    ref,
-                    (controller) => controller.joinWithInviteCode(),
-                  ),
-                ),
-                _SettingsActionRow(
-                  key: const Key('settings-remote-poc-complete-item-row'),
-                  label: ReminderUiText.remotePocCompleteItemLabel,
-                  value: remotePocFirstMappedItem == null
-                      ? ReminderUiText.remotePocNotCreated
-                      : remotePocFirstMappedItem.item.title,
-                  icon: Icons.task_alt_outlined,
-                  enabled: !remotePocState.isRunning,
-                  onTap: () => _runRemotePocAction(
-                    context,
-                    ref,
-                    (controller) => controller.completeFirstMappedItem(
-                      remotePocTargetPack?.id,
-                    ),
-                  ),
-                ),
-                _SettingsActionRow(
-                  key: const Key(
-                    'settings-remote-poc-complete-snapshot-item-row',
-                  ),
-                  label: ReminderUiText.remotePocCompleteSnapshotItemLabel,
-                  value:
-                      remotePocState.firstSnapshotItem?.title ??
-                      ReminderUiText.remotePocNotCreated,
-                  icon: Icons.fact_check_outlined,
-                  enabled: !remotePocState.isRunning,
-                  onTap: () => _runRemotePocAction(
-                    context,
-                    ref,
-                    (controller) => controller.completeFirstSnapshotItem(),
-                  ),
-                ),
-                _SettingsActionRow(
-                  key: const Key('settings-remote-poc-pull-snapshot-row'),
-                  label: ReminderUiText.remotePocPullSnapshotLabel,
-                  value: remotePocTargetRemotePackId == null
-                      ? ReminderUiText.remotePocNoRemoteMapping
-                      : _shortUserId(remotePocTargetRemotePackId),
-                  icon: Icons.cloud_download_outlined,
-                  enabled: !remotePocState.isRunning,
-                  onTap: () => _runRemotePocAction(
-                    context,
-                    ref,
-                    (controller) => controller.pullRemoteSnapshot(
-                      localPackId: remotePocTargetPack?.id,
-                      remotePackId: remotePocPackMapping?.remoteEntityId,
-                    ),
-                  ),
-                ),
-                _SettingsActionRow(
-                  key: const Key('settings-remote-poc-import-snapshot-row'),
-                  label: ReminderUiText.remotePocImportSnapshotMirrorLabel,
-                  value: remotePocState.lastPulledRemoteSnapshot == null
-                      ? ReminderUiText.remotePocNotRun
-                      : ReminderUiText.remotePocSnapshotLabel,
-                  icon: Icons.download_done_outlined,
-                  enabled:
-                      !remotePocState.isRunning &&
-                      remotePocState.lastPulledRemoteSnapshot != null,
-                  onTap: remotePocState.lastPulledRemoteSnapshot == null
+                  onTap: settingsAsync.isLoading
                       ? null
-                      : () => _runRemotePocAction(
-                          context,
-                          ref,
-                          (controller) => controller.importLastPulledSnapshot(),
-                        ),
-                ),
-                _SettingsActionRow(
-                  key: const Key('settings-remote-poc-refresh-import-row'),
-                  label: ReminderUiText.remotePocRefreshAndImportLabel,
-                  value: remotePocTargetPack == null
-                      ? ReminderUiText.remotePocNotRun
-                      : remotePocTargetPack.title,
-                  icon: Icons.sync_alt_outlined,
-                  enabled:
-                      !remotePocState.isRunning && remotePocTargetPack != null,
-                  onTap: remotePocTargetPack == null
-                      ? null
-                      : () => _runRemotePocAction(
-                          context,
-                          ref,
-                          (controller) =>
-                              controller.refreshAndImportRemoteBackedPack(
-                                remotePocTargetPack.id,
-                              ),
-                        ),
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-remote-backed-outbox-row'),
-                  label: ReminderUiText.remotePocOutboxLabel,
-                  value: outboxSummary == null
-                      ? ReminderUiText.remotePocNotRun
-                      : 'pending ${outboxSummary.pendingCount}, syncing ${outboxSummary.syncingCount}, failed ${outboxSummary.failedCount}, conflict/no-op ${outboxSummary.conflictOrNoOpCount}',
-                ),
-                _SettingsActionRow(
-                  key: const Key('settings-remote-backed-flush-outbox-row'),
-                  label: ReminderUiText.remotePocFlushOutboxLabel,
-                  value: outboxSummary == null
-                      ? ReminderUiText.remotePocNotRun
-                      : '${outboxSummary.pendingCount} pending',
-                  icon: Icons.sync_outlined,
-                  enabled:
-                      !remotePocState.isRunning &&
-                      (outboxSummary?.pendingCount ?? 0) > 0,
-                  onTap: (outboxSummary?.pendingCount ?? 0) == 0
-                      ? null
-                      : () => _runRemotePocAction(
-                          context,
-                          ref,
-                          (controller) => controller.flushRemoteBackedOutbox(),
-                        ),
-                ),
-                Text(
-                  ReminderUiText.remoteRecoverySectionTitle,
-                  key: const Key('settings-remote-recovery-title'),
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: context.reminderPalette.textSecondary,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-remote-recovery-summary-row'),
-                  label: ReminderUiText.remoteRecoverySectionTitle,
-                  value: recoverySummary == null
-                      ? ReminderUiText.remotePocNotRun
-                      : _remoteRecoverySummaryValue(recoverySummary),
-                ),
-                _SettingsActionRow(
-                  key: const Key('settings-remote-recovery-retry-row'),
-                  label: ReminderUiText.remoteRecoveryRetryLabel,
-                  value: recoverySummary == null
-                      ? ReminderUiText.remotePocNotRun
-                      : '${recoverySummary.retryableFailedCount} retryable',
-                  icon: Icons.restart_alt,
-                  enabled:
-                      !remotePocState.isRunning &&
-                      (recoverySummary?.retryableFailedCount ?? 0) > 0,
-                  onTap: (recoverySummary?.retryableFailedCount ?? 0) == 0
-                      ? null
-                      : () => _runRemotePocAction(
-                          context,
-                          ref,
-                          (controller) =>
-                              controller.retryRetryableFailedMutations(),
-                        ),
-                ),
-                _SettingsActionRow(
-                  key: const Key('settings-remote-recovery-refresh-stale-row'),
-                  label: ReminderUiText.remoteRecoveryRefreshStaleLabel,
-                  value: recoverySummary == null
-                      ? ReminderUiText.remotePocNotRun
-                      : '${recoverySummary.stalePackCount} stale packs',
-                  icon: Icons.sync_alt_outlined,
-                  enabled:
-                      !remotePocState.isRunning &&
-                      (recoverySummary?.stalePackCount ?? 0) > 0,
-                  onTap: (recoverySummary?.stalePackCount ?? 0) == 0
-                      ? null
-                      : () => _runRemotePocAction(
-                          context,
-                          ref,
-                          (controller) =>
-                              controller.refreshStaleRemoteBackedPacks(),
-                        ),
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-remote-realtime-title-row'),
-                  label: ReminderUiText.remotePocRealtimeSectionTitle,
-                  value: remotePocState.hasRemoteChanges
-                      ? ReminderUiText.remotePocRealtimeChangeBanner
-                      : _remoteRealtimeStatusLabel(
-                          remotePocState.realtimeStatus,
-                        ),
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-remote-realtime-status-row'),
-                  label: ReminderUiText.remotePocRealtimeStatusLabel,
-                  value: _remoteRealtimeStatusLabel(
-                    remotePocState.realtimeStatus,
-                  ),
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-remote-realtime-target-row'),
-                  label: ReminderUiText.remotePocRealtimeTargetLabel,
-                  value: remotePocState.realtimeTargetRemotePackId == null
-                      ? ReminderUiText.remotePocRealtimeNoTarget
-                      : _shortUserId(
-                          remotePocState.realtimeTargetRemotePackId!,
-                        ),
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-remote-realtime-has-changes-row'),
-                  label: ReminderUiText.remotePocRealtimeHasChangesLabel,
-                  value: remotePocState.hasRemoteChanges ? '是' : '否',
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-remote-realtime-count-row'),
-                  label: ReminderUiText.remotePocRealtimeChangeCountLabel,
-                  value: '${remotePocState.remoteChangeCount}',
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-remote-realtime-last-action-row'),
-                  label: ReminderUiText.remotePocRealtimeLastActionLabel,
-                  value:
-                      remotePocState.lastRemoteChangeAction ??
-                      ReminderUiText.remotePocNotRun,
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-remote-realtime-last-actor-row'),
-                  label: ReminderUiText.remotePocRealtimeLastActorLabel,
-                  value: remotePocState.lastRemoteChangeActorUserId == null
-                      ? ReminderUiText.remotePocNotRun
-                      : _shortUserId(
-                          remotePocState.lastRemoteChangeActorUserId!,
-                        ),
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-remote-realtime-last-received-row'),
-                  label: ReminderUiText.remotePocRealtimeLastReceivedLabel,
-                  value: _remotePocDateTimeValue(
-                    remotePocState.lastRemoteChangeReceivedAt,
-                  ),
-                ),
-                if (remotePocState.lastRealtimeErrorMessage != null)
-                  _SettingsReadOnlyRow(
-                    key: const Key('settings-remote-realtime-error-row'),
-                    label: ReminderUiText.remotePocRealtimeErrorLabel,
-                    value: remotePocState.lastRealtimeErrorMessage!,
-                  ),
-                _SettingsActionRow(
-                  key: const Key('settings-remote-realtime-subscribe-row'),
-                  label: ReminderUiText.remotePocRealtimeSubscribeLabel,
-                  value: remotePocTargetRemotePackId == null
-                      ? ReminderUiText.remotePocRealtimeNoTarget
-                      : _shortUserId(remotePocTargetRemotePackId),
-                  icon: Icons.sensors_outlined,
-                  enabled: !remotePocState.isRunning,
-                  onTap: () => _runRemotePocAction(
-                    context,
-                    ref,
-                    (controller) => controller.subscribeToRemoteChanges(
-                      remotePocTargetRemotePackId,
-                    ),
-                  ),
-                ),
-                _SettingsActionRow(
-                  key: const Key('settings-remote-realtime-unsubscribe-row'),
-                  label: ReminderUiText.remotePocRealtimeUnsubscribeLabel,
-                  value: _remoteRealtimeStatusLabel(
-                    remotePocState.realtimeStatus,
-                  ),
-                  icon: Icons.sensors_off_outlined,
-                  enabled: !remotePocState.isRunning,
-                  onTap: () => _runRemotePocAction(
-                    context,
-                    ref,
-                    (controller) => controller.unsubscribeRemoteChanges(),
-                  ),
-                ),
-                _RemoteSnapshotViewer(
-                  key: const Key('settings-remote-snapshot-viewer'),
-                  snapshot: remotePocState.lastPulledRemoteSnapshot,
-                  selectedItem: remotePocState.selectedSnapshotItem,
-                  targetType: remotePocSnapshotTargetType,
-                  targetRemotePackId: remotePocTargetRemotePackId,
-                  hasTarget:
-                      remotePocState.lastJoinedRemotePackId != null ||
-                      remotePocPackMapping != null,
-                  lastRefreshAt: remotePocState.lastRefreshAt,
-                  lastRefreshSucceeded: remotePocState.lastRefreshSucceeded,
-                  summary: remotePocState.snapshotSummary,
-                  shortId: _shortUserId,
-                  dateTimeValue: _remotePocDateTimeValue,
-                  onSelectItem: (itemId) => ref
-                      .read(remotePocControllerProvider.notifier)
-                      .selectRemoteSnapshotItem(itemId),
-                  onCompleteSelected:
-                      remotePocState.isRunning ||
-                          remotePocState.selectedSnapshotItem == null
-                      ? null
-                      : () => _runRemotePocAction(
-                          context,
-                          ref,
-                          (controller) =>
-                              controller.completeSelectedSnapshotItem(),
-                        ),
-                  onUndoSelected:
-                      remotePocState.isRunning ||
-                          remotePocState.selectedSnapshotItem == null
-                      ? null
-                      : () => _runRemotePocAction(
-                          context,
-                          ref,
-                          (controller) => controller.undoSelectedSnapshotItem(),
-                        ),
-                ),
-                _SettingsReadOnlyRow(
-                  key: const Key('settings-debug-date-source'),
-                  label: ReminderUiText.dateSourceLabel,
-                  value: isOverridden
-                      ? ReminderUiText.dateSourcePreview
-                      : ReminderUiText.dateSourceRealToday,
-                ),
-                _SettingsActionRow(
-                  key: const Key('settings-reset-database-row'),
-                  label: ReminderUiText.resetDatabaseLabel,
-                  value: ReminderUiText.resetDatabaseUnavailable,
-                  icon: Icons.delete_forever_outlined,
-                  destructive: true,
-                  enabled: false,
-                  onTap: null,
+                      : () => _pickReminderTime(context, ref, reminderTime),
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            ReminderEditorSection(
+              key: const Key('settings-data-section'),
+              title: ReminderUiText.settingsDataSectionTitle,
+              children: [
+                _SettingsReadOnlyRow(
+                  key: const Key('settings-account-protection-row'),
+                  label: ReminderUiText.accountProtectionTitle,
+                  value: accountProtection == null
+                      ? ReminderUiText.loadingLabel
+                      : _accountProtectionLabel(accountProtection.status),
+                ),
+                Padding(
+                  key: const Key('settings-account-protection-body'),
+                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                  child: Text(
+                    accountProtection == null
+                        ? ReminderUiText.accountProtectionUnavailable
+                        : _accountProtectionBody(accountProtection.status),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.reminderPalette.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                _SettingsActionRow(
+                  key: const Key('settings-account-protection-action-row'),
+                  label: ReminderUiText.accountProtectionAction,
+                  value: accountProtection?.isProtected == true
+                      ? ReminderUiText.identityBoundLabel
+                      : ReminderUiText.accountProtectionProviderUnsupported,
+                  icon: Icons.verified_user_outlined,
+                  enabled: accountProtection != null,
+                  onTap: accountProtection == null
+                      ? null
+                      : () => _showAccountProtectionSheet(context, ref),
+                ),
+                if (accountProtection?.isProtected == true)
+                  _SettingsActionRow(
+                    key: const Key('settings-account-recovery-row'),
+                    label: ReminderUiText.accountRecoveryAction,
+                    value: ReminderUiText.accountRecoveryAvailable,
+                    icon: Icons.cloud_sync_outlined,
+                    enabled: !remotePocState.isRunning,
+                    onTap: () => _runRemotePocAction(
+                      context,
+                      ref,
+                      (controller) =>
+                          controller.restoreRecoveredRemoteMemberships(),
+                    ),
+                  )
+                else
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-account-recovery-row'),
+                    label: ReminderUiText.accountRecoveryAction,
+                    value: ReminderUiText.accountRecoveryBindingRequired,
+                  ),
+                _SettingsActionRow(
+                  key: const Key('settings-backup-data-row'),
+                  label: ReminderUiText.backupDataLabel,
+                  value: ReminderUiText.backupDataDescription,
+                  icon: Icons.ios_share_outlined,
+                  onTap: () => _backupData(context, ref),
+                ),
+                _SettingsActionRow(
+                  key: const Key('settings-import-data-row'),
+                  label: ReminderUiText.importDataLabel,
+                  value: ReminderUiText.importDataDescription,
+                  icon: Icons.file_upload_outlined,
+                  onTap: () => _importData(context, ref),
+                ),
+                _SettingsActionRow(
+                  key: const Key('settings-reset-user-data-row'),
+                  label: ReminderUiText.resetUserDataLabel,
+                  value: ReminderUiText.resetUserDataDescription,
+                  icon: Icons.delete_forever_outlined,
+                  destructive: true,
+                  onTap: () => _resetUserData(context, ref),
+                ),
+              ],
+            ),
+            if (showDeveloperSettings) ...[
+              const SizedBox(height: 12),
+              ReminderEditorSection(
+                key: const Key('settings-developer-section'),
+                title: ReminderUiText.settingsDeveloperSectionTitle,
+                children: [
+                  ReminderEditorPickerRow(
+                    key: const Key('settings-preview-date-row'),
+                    label: ReminderUiText.previewDateSettingLabel,
+                    value: ReminderFormatters.date(effectiveDate),
+                    leading: Icon(
+                      Icons.calendar_today_outlined,
+                      size: 18,
+                      color: context.reminderPalette.primaryWarm,
+                    ),
+                    onTap: () => _pickPreviewDate(context, ref, effectiveDate),
+                  ),
+                  Text(
+                    ReminderUiText.previewDateHelp,
+                    key: const Key('settings-preview-date-help'),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.reminderPalette.textSecondary,
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(
+                      key: const Key('reset-preview-date-button'),
+                      onPressed: isOverridden
+                          ? () {
+                              ref
+                                      .read(
+                                        developerDateOverrideProvider.notifier,
+                                      )
+                                      .state =
+                                  null;
+                            }
+                          : null,
+                      child: const Text(ReminderUiText.clearPreviewDateLabel),
+                    ),
+                  ),
+                  Text(
+                    ReminderUiText.debugInfoSectionTitle,
+                    key: const Key('settings-debug-info-title'),
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: context.reminderPalette.textSecondary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-debug-db-version'),
+                    label: ReminderUiText.databaseVersionLabel,
+                    value: '$databaseVersion',
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-debug-device-data-label'),
+                    label: ReminderUiText.deviceDataLabel,
+                    value: currentUserAsync.maybeWhen(
+                      data: (user) => user.displayName,
+                      orElse: () => ReminderUiText.loadingLabel,
+                    ),
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-debug-local-user-id'),
+                    label: ReminderUiText.localUserIdLabel,
+                    value: currentUserAsync.maybeWhen(
+                      data: (user) => _shortUserId(user.id),
+                      orElse: () => '-',
+                    ),
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-debug-identity-kind'),
+                    label: ReminderUiText.identityKindLabel,
+                    value: currentUserAsync.maybeWhen(
+                      data: (user) => _identityKindLabel(user.identityKind),
+                      orElse: () => '-',
+                    ),
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-debug-binding-status'),
+                    label: ReminderUiText.identityBindingStatusLabel,
+                    value: accountProtectionAsync.maybeWhen(
+                      data: (snapshot) =>
+                          _accountProtectionLabel(snapshot.status),
+                      orElse: () => '-',
+                    ),
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-debug-remote-provider'),
+                    label: ReminderUiText.remoteProviderLabel,
+                    value: currentUserAsync.maybeWhen(
+                      data: (user) => user.remoteProvider == null
+                          ? '-'
+                          : _remoteProviderLabel(user.remoteProvider!),
+                      orElse: () => '-',
+                    ),
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-debug-remote-user-id'),
+                    label: ReminderUiText.remoteUserIdLabel,
+                    value: currentUserAsync.maybeWhen(
+                      data: (user) => user.remoteUserId == null
+                          ? '-'
+                          : _shortUserId(user.remoteUserId!),
+                      orElse: () => '-',
+                    ),
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-debug-supabase-config-status'),
+                    label: ReminderUiText.supabaseConfigStatusLabel,
+                    value: _supabaseRuntimeStatusLabel(supabaseRuntimeStatus),
+                  ),
+                  Text(
+                    ReminderUiText.supabaseRemotePocSectionTitle,
+                    key: const Key('settings-remote-poc-title'),
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: context.reminderPalette.textSecondary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-remote-poc-shared-pack'),
+                    label: ReminderUiText.remotePocSharedPackLabel,
+                    value: _remotePocSharedPackValue(remotePocTargetPack),
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-remote-poc-remote-pack'),
+                    label: ReminderUiText.remotePocRemotePackLabel,
+                    value: remotePocPackMappingAsync?.isLoading ?? false
+                        ? ReminderUiText.loadingLabel
+                        : remotePocPackMapping == null
+                        ? ReminderUiText.remotePocNoRemoteMapping
+                        : _shortUserId(remotePocPackMapping.remoteEntityId),
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-remote-poc-mapped-item'),
+                    label: ReminderUiText.remotePocMappedItemLabel,
+                    value: remotePocFirstMappedItemAsync?.isLoading ?? false
+                        ? ReminderUiText.loadingLabel
+                        : remotePocFirstMappedItem == null
+                        ? ReminderUiText.remotePocNotCreated
+                        : remotePocFirstMappedItem.item.title,
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-remote-poc-last-operation'),
+                    label: ReminderUiText.remotePocLastOperationLabel,
+                    value:
+                        remotePocState.lastMessage ??
+                        ReminderUiText.remotePocNotRun,
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-remote-poc-snapshot-summary'),
+                    label: ReminderUiText.remotePocSnapshotLabel,
+                    value: _remotePocSnapshotSummaryValue(
+                      remotePocState.snapshotSummary,
+                    ),
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-remote-poc-invite-code'),
+                    label: ReminderUiText.remotePocInviteCodeLabel,
+                    value:
+                        remotePocState.lastCreatedInviteCode ??
+                        ReminderUiText.remotePocNotCreated,
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-remote-poc-invite-expires'),
+                    label: ReminderUiText.remotePocInviteExpiresLabel,
+                    value: _remotePocDateTimeValue(
+                      remotePocState.lastInviteExpiresAt,
+                    ),
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-remote-poc-invite-max-uses'),
+                    label: ReminderUiText.remotePocInviteMaxUsesLabel,
+                    value: remotePocState.lastInviteMaxUses?.toString() ?? '-',
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-remote-poc-joined-pack'),
+                    label: ReminderUiText.remotePocJoinedPackLabel,
+                    value: remotePocState.lastJoinedRemotePackId == null
+                        ? ReminderUiText.remotePocNoRemoteMapping
+                        : _shortUserId(remotePocState.lastJoinedRemotePackId!),
+                  ),
+                  _SettingsActionRow(
+                    key: const Key(
+                      'settings-create-anonymous-remote-identity-row',
+                    ),
+                    label: ReminderUiText.createAnonymousRemoteIdentityLabel,
+                    value: ReminderUiText.identityKindAnonymousRemote,
+                    icon: Icons.cloud_outlined,
+                    enabled: !remotePocState.isRunning,
+                    onTap: () => _ensureAnonymousRemoteIdentity(context, ref),
+                  ),
+                  _SettingsActionRow(
+                    key: const Key('settings-remote-poc-create-profile-row'),
+                    label: ReminderUiText.remotePocCreateProfileLabel,
+                    value: ReminderUiText.remotePocNotCreated,
+                    icon: Icons.account_circle_outlined,
+                    enabled: !remotePocState.isRunning,
+                    onTap: () => _runRemotePocAction(
+                      context,
+                      ref,
+                      (controller) => controller.ensureRemoteProfile(),
+                    ),
+                  ),
+                  _SettingsActionRow(
+                    key: const Key('settings-remote-poc-create-pack-row'),
+                    label: ReminderUiText.remotePocCreatePackLabel,
+                    value: remotePocPackMapping == null
+                        ? ReminderUiText.remotePocNoRemoteMapping
+                        : _shortUserId(remotePocPackMapping.remoteEntityId),
+                    icon: Icons.cloud_upload_outlined,
+                    enabled: !remotePocState.isRunning,
+                    onTap: () => _runRemotePocAction(
+                      context,
+                      ref,
+                      (controller) =>
+                          controller.createRemotePack(remotePocTargetPack?.id),
+                    ),
+                  ),
+                  _SettingsActionRow(
+                    key: const Key('settings-remote-poc-push-items-row'),
+                    label: ReminderUiText.remotePocPushItemsLabel,
+                    value: remotePocFirstMappedItem == null
+                        ? ReminderUiText.remotePocNotCreated
+                        : remotePocFirstMappedItem.item.title,
+                    icon: Icons.playlist_add_check_outlined,
+                    enabled: !remotePocState.isRunning,
+                    onTap: () => _runRemotePocAction(
+                      context,
+                      ref,
+                      (controller) =>
+                          controller.pushMinimalItems(remotePocTargetPack?.id),
+                    ),
+                  ),
+                  _SettingsActionRow(
+                    key: const Key('settings-remote-poc-create-invite-row'),
+                    label: ReminderUiText.remotePocCreateInviteLabel,
+                    value: remotePocPackMapping == null
+                        ? ReminderUiText.remotePocNoRemoteMapping
+                        : _shortUserId(remotePocPackMapping.remoteEntityId),
+                    icon: Icons.key_outlined,
+                    enabled: !remotePocState.isRunning,
+                    onTap: () => _runRemotePocAction(
+                      context,
+                      ref,
+                      (controller) => controller.createInviteCode(
+                        remotePocPackMapping?.remoteEntityId,
+                      ),
+                    ),
+                  ),
+                  _SettingsInputRow(
+                    key: const Key('settings-remote-poc-invite-input-row'),
+                    fieldKey: const Key('settings-remote-poc-invite-input'),
+                    label: ReminderUiText.remotePocInviteInputLabel,
+                    initialValue: remotePocState.inviteCodeInput,
+                    enabled: !remotePocState.isRunning,
+                    onChanged: ref
+                        .read(remotePocControllerProvider.notifier)
+                        .updateInviteCodeInput,
+                  ),
+                  _SettingsActionRow(
+                    key: const Key('settings-remote-poc-join-invite-row'),
+                    label: ReminderUiText.remotePocJoinInviteLabel,
+                    value: remotePocState.lastJoinedRemotePackId == null
+                        ? ReminderUiText.remotePocNoRemoteMapping
+                        : _shortUserId(remotePocState.lastJoinedRemotePackId!),
+                    icon: Icons.group_add_outlined,
+                    enabled: !remotePocState.isRunning,
+                    onTap: () => _runRemotePocAction(
+                      context,
+                      ref,
+                      (controller) => controller.joinWithInviteCode(),
+                    ),
+                  ),
+                  _SettingsActionRow(
+                    key: const Key('settings-remote-poc-complete-item-row'),
+                    label: ReminderUiText.remotePocCompleteItemLabel,
+                    value: remotePocFirstMappedItem == null
+                        ? ReminderUiText.remotePocNotCreated
+                        : remotePocFirstMappedItem.item.title,
+                    icon: Icons.task_alt_outlined,
+                    enabled: !remotePocState.isRunning,
+                    onTap: () => _runRemotePocAction(
+                      context,
+                      ref,
+                      (controller) => controller.completeFirstMappedItem(
+                        remotePocTargetPack?.id,
+                      ),
+                    ),
+                  ),
+                  _SettingsActionRow(
+                    key: const Key(
+                      'settings-remote-poc-complete-snapshot-item-row',
+                    ),
+                    label: ReminderUiText.remotePocCompleteSnapshotItemLabel,
+                    value:
+                        remotePocState.firstSnapshotItem?.title ??
+                        ReminderUiText.remotePocNotCreated,
+                    icon: Icons.fact_check_outlined,
+                    enabled: !remotePocState.isRunning,
+                    onTap: () => _runRemotePocAction(
+                      context,
+                      ref,
+                      (controller) => controller.completeFirstSnapshotItem(),
+                    ),
+                  ),
+                  _SettingsActionRow(
+                    key: const Key('settings-remote-poc-pull-snapshot-row'),
+                    label: ReminderUiText.remotePocPullSnapshotLabel,
+                    value: remotePocTargetRemotePackId == null
+                        ? ReminderUiText.remotePocNoRemoteMapping
+                        : _shortUserId(remotePocTargetRemotePackId),
+                    icon: Icons.cloud_download_outlined,
+                    enabled: !remotePocState.isRunning,
+                    onTap: () => _runRemotePocAction(
+                      context,
+                      ref,
+                      (controller) => controller.pullRemoteSnapshot(
+                        localPackId: remotePocTargetPack?.id,
+                        remotePackId: remotePocPackMapping?.remoteEntityId,
+                      ),
+                    ),
+                  ),
+                  _SettingsActionRow(
+                    key: const Key('settings-remote-poc-import-snapshot-row'),
+                    label: ReminderUiText.remotePocImportSnapshotMirrorLabel,
+                    value: remotePocState.lastPulledRemoteSnapshot == null
+                        ? ReminderUiText.remotePocNotRun
+                        : ReminderUiText.remotePocSnapshotLabel,
+                    icon: Icons.download_done_outlined,
+                    enabled:
+                        !remotePocState.isRunning &&
+                        remotePocState.lastPulledRemoteSnapshot != null,
+                    onTap: remotePocState.lastPulledRemoteSnapshot == null
+                        ? null
+                        : () => _runRemotePocAction(
+                            context,
+                            ref,
+                            (controller) =>
+                                controller.importLastPulledSnapshot(),
+                          ),
+                  ),
+                  _SettingsActionRow(
+                    key: const Key('settings-remote-poc-refresh-import-row'),
+                    label: ReminderUiText.remotePocRefreshAndImportLabel,
+                    value: remotePocTargetPack == null
+                        ? ReminderUiText.remotePocNotRun
+                        : remotePocTargetPack.title,
+                    icon: Icons.sync_alt_outlined,
+                    enabled:
+                        !remotePocState.isRunning &&
+                        remotePocTargetPack != null,
+                    onTap: remotePocTargetPack == null
+                        ? null
+                        : () => _runRemotePocAction(
+                            context,
+                            ref,
+                            (controller) =>
+                                controller.refreshAndImportRemoteBackedPack(
+                                  remotePocTargetPack.id,
+                                ),
+                          ),
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-remote-backed-outbox-row'),
+                    label: ReminderUiText.remotePocOutboxLabel,
+                    value: outboxSummary == null
+                        ? ReminderUiText.remotePocNotRun
+                        : 'pending ${outboxSummary.pendingCount}, syncing ${outboxSummary.syncingCount}, failed ${outboxSummary.failedCount}, conflict/no-op ${outboxSummary.conflictOrNoOpCount}',
+                  ),
+                  _SettingsActionRow(
+                    key: const Key('settings-remote-backed-flush-outbox-row'),
+                    label: ReminderUiText.remotePocFlushOutboxLabel,
+                    value: outboxSummary == null
+                        ? ReminderUiText.remotePocNotRun
+                        : '${outboxSummary.pendingCount} pending',
+                    icon: Icons.sync_outlined,
+                    enabled:
+                        !remotePocState.isRunning &&
+                        (outboxSummary?.pendingCount ?? 0) > 0,
+                    onTap: (outboxSummary?.pendingCount ?? 0) == 0
+                        ? null
+                        : () => _runRemotePocAction(
+                            context,
+                            ref,
+                            (controller) =>
+                                controller.flushRemoteBackedOutbox(),
+                          ),
+                  ),
+                  Text(
+                    ReminderUiText.remoteRecoverySectionTitle,
+                    key: const Key('settings-remote-recovery-title'),
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: context.reminderPalette.textSecondary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-remote-recovery-summary-row'),
+                    label: ReminderUiText.remoteRecoverySectionTitle,
+                    value: recoverySummary == null
+                        ? ReminderUiText.remotePocNotRun
+                        : _remoteRecoverySummaryValue(recoverySummary),
+                  ),
+                  _SettingsActionRow(
+                    key: const Key('settings-remote-recovery-retry-row'),
+                    label: ReminderUiText.remoteRecoveryRetryLabel,
+                    value: recoverySummary == null
+                        ? ReminderUiText.remotePocNotRun
+                        : '${recoverySummary.retryableFailedCount} retryable',
+                    icon: Icons.restart_alt,
+                    enabled:
+                        !remotePocState.isRunning &&
+                        (recoverySummary?.retryableFailedCount ?? 0) > 0,
+                    onTap: (recoverySummary?.retryableFailedCount ?? 0) == 0
+                        ? null
+                        : () => _runRemotePocAction(
+                            context,
+                            ref,
+                            (controller) =>
+                                controller.retryRetryableFailedMutations(),
+                          ),
+                  ),
+                  _SettingsActionRow(
+                    key: const Key(
+                      'settings-remote-recovery-refresh-stale-row',
+                    ),
+                    label: ReminderUiText.remoteRecoveryRefreshStaleLabel,
+                    value: recoverySummary == null
+                        ? ReminderUiText.remotePocNotRun
+                        : '${recoverySummary.stalePackCount} stale packs',
+                    icon: Icons.sync_alt_outlined,
+                    enabled:
+                        !remotePocState.isRunning &&
+                        (recoverySummary?.stalePackCount ?? 0) > 0,
+                    onTap: (recoverySummary?.stalePackCount ?? 0) == 0
+                        ? null
+                        : () => _runRemotePocAction(
+                            context,
+                            ref,
+                            (controller) =>
+                                controller.refreshStaleRemoteBackedPacks(),
+                          ),
+                  ),
+                  _SettingsActionRow(
+                    key: const Key(
+                      'settings-remote-recovery-restore-memberships-row',
+                    ),
+                    label: ReminderUiText.remoteRecoveryRestoreMembershipsLabel,
+                    value: ReminderUiText.remotePocNotRun,
+                    icon: Icons.cloud_sync_outlined,
+                    enabled: !remotePocState.isRunning,
+                    onTap: () => _runRemotePocAction(
+                      context,
+                      ref,
+                      (controller) =>
+                          controller.restoreRecoveredRemoteMemberships(),
+                    ),
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-remote-realtime-title-row'),
+                    label: ReminderUiText.remotePocRealtimeSectionTitle,
+                    value: remotePocState.hasRemoteChanges
+                        ? ReminderUiText.remotePocRealtimeChangeBanner
+                        : _remoteRealtimeStatusLabel(
+                            remotePocState.realtimeStatus,
+                          ),
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-remote-realtime-status-row'),
+                    label: ReminderUiText.remotePocRealtimeStatusLabel,
+                    value: _remoteRealtimeStatusLabel(
+                      remotePocState.realtimeStatus,
+                    ),
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-remote-realtime-target-row'),
+                    label: ReminderUiText.remotePocRealtimeTargetLabel,
+                    value: remotePocState.realtimeTargetRemotePackId == null
+                        ? ReminderUiText.remotePocRealtimeNoTarget
+                        : _shortUserId(
+                            remotePocState.realtimeTargetRemotePackId!,
+                          ),
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-remote-realtime-has-changes-row'),
+                    label: ReminderUiText.remotePocRealtimeHasChangesLabel,
+                    value: remotePocState.hasRemoteChanges ? '是' : '否',
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-remote-realtime-count-row'),
+                    label: ReminderUiText.remotePocRealtimeChangeCountLabel,
+                    value: '${remotePocState.remoteChangeCount}',
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-remote-realtime-last-action-row'),
+                    label: ReminderUiText.remotePocRealtimeLastActionLabel,
+                    value:
+                        remotePocState.lastRemoteChangeAction ??
+                        ReminderUiText.remotePocNotRun,
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-remote-realtime-last-actor-row'),
+                    label: ReminderUiText.remotePocRealtimeLastActorLabel,
+                    value: remotePocState.lastRemoteChangeActorUserId == null
+                        ? ReminderUiText.remotePocNotRun
+                        : _shortUserId(
+                            remotePocState.lastRemoteChangeActorUserId!,
+                          ),
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key(
+                      'settings-remote-realtime-last-received-row',
+                    ),
+                    label: ReminderUiText.remotePocRealtimeLastReceivedLabel,
+                    value: _remotePocDateTimeValue(
+                      remotePocState.lastRemoteChangeReceivedAt,
+                    ),
+                  ),
+                  if (remotePocState.lastRealtimeErrorMessage != null)
+                    _SettingsReadOnlyRow(
+                      key: const Key('settings-remote-realtime-error-row'),
+                      label: ReminderUiText.remotePocRealtimeErrorLabel,
+                      value: remotePocState.lastRealtimeErrorMessage!,
+                    ),
+                  _SettingsActionRow(
+                    key: const Key('settings-remote-realtime-subscribe-row'),
+                    label: ReminderUiText.remotePocRealtimeSubscribeLabel,
+                    value: remotePocTargetRemotePackId == null
+                        ? ReminderUiText.remotePocRealtimeNoTarget
+                        : _shortUserId(remotePocTargetRemotePackId),
+                    icon: Icons.sensors_outlined,
+                    enabled: !remotePocState.isRunning,
+                    onTap: () => _runRemotePocAction(
+                      context,
+                      ref,
+                      (controller) => controller.subscribeToRemoteChanges(
+                        remotePocTargetRemotePackId,
+                      ),
+                    ),
+                  ),
+                  _SettingsActionRow(
+                    key: const Key('settings-remote-realtime-unsubscribe-row'),
+                    label: ReminderUiText.remotePocRealtimeUnsubscribeLabel,
+                    value: _remoteRealtimeStatusLabel(
+                      remotePocState.realtimeStatus,
+                    ),
+                    icon: Icons.sensors_off_outlined,
+                    enabled: !remotePocState.isRunning,
+                    onTap: () => _runRemotePocAction(
+                      context,
+                      ref,
+                      (controller) => controller.unsubscribeRemoteChanges(),
+                    ),
+                  ),
+                  _RemoteSnapshotViewer(
+                    key: const Key('settings-remote-snapshot-viewer'),
+                    snapshot: remotePocState.lastPulledRemoteSnapshot,
+                    selectedItem: remotePocState.selectedSnapshotItem,
+                    targetType: remotePocSnapshotTargetType,
+                    targetRemotePackId: remotePocTargetRemotePackId,
+                    hasTarget:
+                        remotePocState.lastJoinedRemotePackId != null ||
+                        remotePocPackMapping != null,
+                    lastRefreshAt: remotePocState.lastRefreshAt,
+                    lastRefreshSucceeded: remotePocState.lastRefreshSucceeded,
+                    summary: remotePocState.snapshotSummary,
+                    shortId: _shortUserId,
+                    dateTimeValue: _remotePocDateTimeValue,
+                    onSelectItem: (itemId) => ref
+                        .read(remotePocControllerProvider.notifier)
+                        .selectRemoteSnapshotItem(itemId),
+                    onCompleteSelected:
+                        remotePocState.isRunning ||
+                            remotePocState.selectedSnapshotItem == null
+                        ? null
+                        : () => _runRemotePocAction(
+                            context,
+                            ref,
+                            (controller) =>
+                                controller.completeSelectedSnapshotItem(),
+                          ),
+                    onUndoSelected:
+                        remotePocState.isRunning ||
+                            remotePocState.selectedSnapshotItem == null
+                        ? null
+                        : () => _runRemotePocAction(
+                            context,
+                            ref,
+                            (controller) =>
+                                controller.undoSelectedSnapshotItem(),
+                          ),
+                  ),
+                  _SettingsReadOnlyRow(
+                    key: const Key('settings-debug-date-source'),
+                    label: ReminderUiText.dateSourceLabel,
+                    value: isOverridden
+                        ? ReminderUiText.dateSourcePreview
+                        : ReminderUiText.dateSourceRealToday,
+                  ),
+                  _SettingsActionRow(
+                    key: const Key('settings-reset-database-row'),
+                    label: ReminderUiText.resetDatabaseLabel,
+                    value: ReminderUiText.resetDatabaseUnavailable,
+                    icon: Icons.delete_forever_outlined,
+                    destructive: true,
+                    enabled: false,
+                    onTap: null,
+                  ),
+                ],
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -759,6 +842,68 @@ class SettingsPage extends ConsumerWidget {
       AuthProviderType.apple => ReminderUiText.remoteProviderApple,
       AuthProviderType.google => ReminderUiText.remoteProviderGoogle,
       AuthProviderType.email => ReminderUiText.remoteProviderEmail,
+    };
+  }
+
+  String _accountProtectionLabel(AccountProtectionStatus status) {
+    return switch (status) {
+      AccountProtectionStatus.localOnly => ReminderUiText.identityNotBoundLabel,
+      AccountProtectionStatus.anonymousUnprotected =>
+        ReminderUiText.identityKindAnonymousRemote,
+      AccountProtectionStatus.linkedProtected =>
+        ReminderUiText.identityBoundLabel,
+      AccountProtectionStatus.remoteSessionMissing => '遠端登入遺失',
+      AccountProtectionStatus.unsupported => '尚未支援',
+      AccountProtectionStatus.unavailable => '無法確認',
+    };
+  }
+
+  String _accountProtectionBody(AccountProtectionStatus status) {
+    return switch (status) {
+      AccountProtectionStatus.localOnly =>
+        ReminderUiText.accountProtectionLocalOnly,
+      AccountProtectionStatus.anonymousUnprotected =>
+        ReminderUiText.accountProtectionAnonymous,
+      AccountProtectionStatus.linkedProtected =>
+        ReminderUiText.accountProtectionLinked,
+      AccountProtectionStatus.remoteSessionMissing =>
+        ReminderUiText.accountProtectionSessionMissing,
+      AccountProtectionStatus.unsupported =>
+        ReminderUiText.accountProtectionUnsupported,
+      AccountProtectionStatus.unavailable =>
+        ReminderUiText.accountProtectionUnavailable,
+    };
+  }
+
+  String _accountBindingMessage(AccountBindingResult result) {
+    return switch (result) {
+      AccountBindingResult.linked => ReminderUiText.accountBindingLinkedMessage,
+      AccountBindingResult.alreadyLinked =>
+        ReminderUiText.accountBindingAlreadyLinkedMessage,
+      AccountBindingResult.unsupported =>
+        ReminderUiText.accountBindingUnsupportedMessage,
+      AccountBindingResult.configMissing =>
+        ReminderUiText.accountBindingConfigMissingMessage,
+      AccountBindingResult.remoteSessionMissing =>
+        ReminderUiText.accountBindingSessionMissingMessage,
+      AccountBindingResult.remoteAuthFailed =>
+        ReminderUiText.accountBindingFailedMessage,
+    };
+  }
+
+  String _accountBindingProviderLabel(AccountBindingProvider provider) {
+    return switch (provider) {
+      AccountBindingProvider.apple => 'Apple',
+      AccountBindingProvider.google => 'Google',
+      AccountBindingProvider.email => 'Email',
+    };
+  }
+
+  IconData _accountBindingProviderIcon(AccountBindingProvider provider) {
+    return switch (provider) {
+      AccountBindingProvider.apple => Icons.apple,
+      AccountBindingProvider.google => Icons.g_mobiledata,
+      AccountBindingProvider.email => Icons.mail_outline,
     };
   }
 
@@ -885,6 +1030,76 @@ class SettingsPage extends ConsumerWidget {
     }
     ref.read(developerDateOverrideProvider.notifier).state =
         normalizePreviewDate(selected);
+  }
+
+  Future<void> _showAccountProtectionSheet(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  ReminderUiText.accountProtectionSheetTitle,
+                  style: Theme.of(sheetContext).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  ReminderUiText.accountProtectionSheetBody,
+                  style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
+                    color: sheetContext.reminderPalette.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                for (final provider in AccountBindingProvider.values)
+                  ListTile(
+                    key: Key('settings-account-binding-${provider.name}'),
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(_accountBindingProviderIcon(provider)),
+                    title: Text(_accountBindingProviderLabel(provider)),
+                    subtitle: const Text(
+                      ReminderUiText.accountProtectionProviderUnsupported,
+                    ),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      _bindAccountProvider(context, ref, provider);
+                    },
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _bindAccountProvider(
+    BuildContext context,
+    WidgetRef ref,
+    AccountBindingProvider provider,
+  ) async {
+    final outcome = await ref
+        .read(accountProtectionServiceProvider)
+        .bindWithProvider(provider);
+    ref.invalidate(accountProtectionStatusProvider);
+    ref.invalidate(currentAppUserProvider);
+    ref.invalidate(currentAppUserIdProvider);
+    if (!context.mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(_accountBindingMessage(outcome.result))),
+    );
   }
 
   Future<void> _backupData(BuildContext context, WidgetRef ref) async {

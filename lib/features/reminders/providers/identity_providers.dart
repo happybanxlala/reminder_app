@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/account_protection_service.dart';
 import '../data/anonymous_remote_identity_service.dart';
 import '../data/auth_repository.dart';
 import '../data/identity_repository.dart';
 import '../data/supabase_auth_repository.dart';
 import '../data/supabase_config.dart';
+import '../domain/account_protection.dart';
 import '../domain/shared_pack.dart';
 import 'database_providers.dart';
 
@@ -33,6 +35,20 @@ final anonymousRemoteIdentityServiceProvider =
         identityRepository: ref.watch(identityRepositoryProvider),
         authRepository: ref.watch(authRepositoryProvider),
       );
+    });
+
+final accountProtectionServiceProvider = Provider<AccountProtectionService>((
+  ref,
+) {
+  return AccountProtectionService(
+    identityRepository: ref.watch(identityRepositoryProvider),
+    authRepository: ref.watch(authRepositoryProvider),
+  );
+});
+
+final accountProtectionStatusProvider =
+    FutureProvider<AccountProtectionSnapshot>((ref) {
+      return ref.watch(accountProtectionServiceProvider).getStatus();
     });
 
 final supabaseRuntimeStatusProvider = Provider<SupabaseRuntimeStatus>((ref) {

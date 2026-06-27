@@ -311,6 +311,22 @@ class RemoteSharedPackRepository {
     }
   }
 
+  Future<RemotePocResult<List<RemoteRecoverablePack>>>
+  discoverActiveRemoteMemberships() async {
+    try {
+      return RemotePocResult.success(
+        await _remoteDataSource.fetchActiveMembershipPacks(),
+      );
+    } on RemoteSharedPackException catch (error) {
+      return RemotePocResult.failure(error.reason, error);
+    } catch (error) {
+      return RemotePocResult.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        error,
+      );
+    }
+  }
+
   Future<RemotePocResult<RemoteRevokeInviteResult>> revokeRemotePackInvite(
     String inviteId,
   ) async {
@@ -466,6 +482,22 @@ class RemoteSharedPackRepository {
       );
     }
 
+    try {
+      return RemotePocResult.success(
+        await _remoteDataSource.fetchPackSnapshot(remotePackId),
+      );
+    } on RemoteSharedPackException catch (error) {
+      return RemotePocResult.failure(error.reason, error);
+    } catch (error) {
+      return RemotePocResult.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        error,
+      );
+    }
+  }
+
+  Future<RemotePocResult<RemotePackSnapshot>>
+  pullRemotePackSnapshotForCurrentSession(String remotePackId) async {
     try {
       return RemotePocResult.success(
         await _remoteDataSource.fetchPackSnapshot(remotePackId),
