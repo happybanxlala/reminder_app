@@ -16,6 +16,7 @@ import 'package:reminder_app/features/reminders/data/shared_pack_repository.dart
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/pack_template.dart';
+import 'package:reminder_app/features/reminders/domain/remote_pack_freshness.dart';
 import 'package:reminder_app/features/reminders/domain/remote_sync.dart';
 import 'package:reminder_app/features/reminders/domain/shared_pack.dart';
 import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
@@ -561,5 +562,19 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
     throw const RemoteSharedPackException(
       RemoteSharedPackFailureReason.remoteUnknownFailure,
     );
+  }
+
+  @override
+  Future<void> reportPackSnapshotImported({
+    required String remotePackId,
+    String? latestActivityEventId,
+    DateTime? latestActivityAt,
+  }) async {}
+
+  @override
+  Future<List<RemotePackMemberFreshness>> getPackMemberFreshness({
+    required String remotePackId,
+  }) async {
+    return const [];
   }
 }

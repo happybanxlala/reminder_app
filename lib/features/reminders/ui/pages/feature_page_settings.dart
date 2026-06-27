@@ -661,6 +661,46 @@ class SettingsPage extends ConsumerWidget {
                     ),
                   ),
                   _SettingsReadOnlyRow(
+                    key: const Key('settings-remote-freshness-summary-row'),
+                    label: ReminderUiText.remoteFreshnessSummaryLabel,
+                    value: _remoteFreshnessSummaryValue(
+                      remotePocState.lastFreshnessSummary,
+                    ),
+                  ),
+                  _SettingsActionRow(
+                    key: const Key('settings-remote-freshness-refresh-row'),
+                    label: ReminderUiText.remoteFreshnessRefreshLabel,
+                    value: remotePocTargetRemotePackId == null
+                        ? ReminderUiText.remotePocNoRemoteMapping
+                        : _shortUserId(remotePocTargetRemotePackId),
+                    icon: Icons.groups_2_outlined,
+                    enabled: !remotePocState.isRunning,
+                    onTap: () => _runRemotePocAction(
+                      context,
+                      ref,
+                      (controller) => controller.refreshMemberFreshness(
+                        remotePocTargetRemotePackId,
+                      ),
+                    ),
+                  ),
+                  _SettingsActionRow(
+                    key: const Key('settings-remote-freshness-report-row'),
+                    label: ReminderUiText.remoteFreshnessReportImportedLabel,
+                    value: remotePocTargetRemotePackId == null
+                        ? ReminderUiText.remotePocNoRemoteMapping
+                        : _shortUserId(remotePocTargetRemotePackId),
+                    icon: Icons.fact_check_outlined,
+                    enabled: !remotePocState.isRunning,
+                    onTap: () => _runRemotePocAction(
+                      context,
+                      ref,
+                      (controller) =>
+                          controller.reportCurrentPackSnapshotImported(
+                            remotePocTargetRemotePackId,
+                          ),
+                    ),
+                  ),
+                  _SettingsReadOnlyRow(
                     key: const Key('settings-remote-realtime-title-row'),
                     label: ReminderUiText.remotePocRealtimeSectionTitle,
                     value: remotePocState.hasRemoteChanges
@@ -907,6 +947,52 @@ class SettingsPage extends ConsumerWidget {
     };
   }
 
+  String _emailBindingStartMessage(EmailBindingStartStatus status) {
+    return switch (status) {
+      EmailBindingStartStatus.codeSent =>
+        ReminderUiText.emailBindingCodeSentMessage,
+      EmailBindingStartStatus.alreadyBound =>
+        ReminderUiText.emailBindingSuccessMessage,
+      EmailBindingStartStatus.emailInvalid =>
+        ReminderUiText.emailBindingInvalidEmailMessage,
+      EmailBindingStartStatus.remoteAuthRequired =>
+        ReminderUiText.emailBindingSessionMissingMessage,
+      EmailBindingStartStatus.configMissing =>
+        ReminderUiText.accountBindingConfigMissingMessage,
+      EmailBindingStartStatus.notAnonymous ||
+      EmailBindingStartStatus.providerUnavailable =>
+        ReminderUiText.emailBindingProviderUnavailableMessage,
+      EmailBindingStartStatus.unknownFailure =>
+        ReminderUiText.accountBindingFailedMessage,
+    };
+  }
+
+  String _emailBindingVerifyMessage(EmailBindingVerifyStatus status) {
+    return switch (status) {
+      EmailBindingVerifyStatus.bound =>
+        '${ReminderUiText.emailBindingSuccessTitle}。${ReminderUiText.emailBindingSuccessMessage}',
+      EmailBindingVerifyStatus.alreadyBound =>
+        ReminderUiText.accountBindingAlreadyLinkedMessage,
+      EmailBindingVerifyStatus.invalidCode =>
+        ReminderUiText.emailBindingInvalidCodeMessage,
+      EmailBindingVerifyStatus.expiredCode =>
+        ReminderUiText.emailBindingExpiredCodeMessage,
+      EmailBindingVerifyStatus.emailMismatch =>
+        ReminderUiText.emailBindingMismatchMessage,
+      EmailBindingVerifyStatus.uidChangedUnsafe =>
+        ReminderUiText.emailBindingUnsafeMessage,
+      EmailBindingVerifyStatus.configMissing =>
+        ReminderUiText.accountBindingConfigMissingMessage,
+      EmailBindingVerifyStatus.remoteAuthRequired =>
+        ReminderUiText.emailBindingSessionMissingMessage,
+      EmailBindingVerifyStatus.providerUnavailable =>
+        ReminderUiText.emailBindingProviderUnavailableMessage,
+      EmailBindingVerifyStatus.networkFailed ||
+      EmailBindingVerifyStatus.unknownFailure =>
+        ReminderUiText.accountBindingFailedMessage,
+    };
+  }
+
   String _supabaseRuntimeStatusLabel(SupabaseRuntimeStatus status) {
     return switch (status) {
       SupabaseRuntimeStatus.configured =>
@@ -948,6 +1034,13 @@ class SettingsPage extends ConsumerWidget {
         ? ''
         : ', first failed #${firstFailed.mutationId} ${firstFailed.shortRemoteItemId ?? '-'}';
     return 'pending ${summary.pendingCount}, retryable ${summary.retryableFailedCount}, non-retryable ${summary.nonRetryableFailedCount}, no-op ${summary.noOpCount}, conflict ${summary.conflictCount}, access-lost ${summary.accessLostCount}, stale packs ${summary.stalePackCount}$firstFailedLabel';
+  }
+
+  String _remoteFreshnessSummaryValue(RemotePocFreshnessSummary? summary) {
+    if (summary == null) {
+      return ReminderUiText.remotePocNotRun;
+    }
+    return 'members ${summary.totalCount}, up-to-date ${summary.upToDateCount}, stale ${summary.possiblyStaleCount}, no-report ${summary.noSyncReportCount}, unknown ${summary.accessUnknownCount}';
   }
 
   String _remotePocDateTimeValue(DateTime? value) {
@@ -1067,12 +1160,18 @@ class SettingsPage extends ConsumerWidget {
                     contentPadding: EdgeInsets.zero,
                     leading: Icon(_accountBindingProviderIcon(provider)),
                     title: Text(_accountBindingProviderLabel(provider)),
-                    subtitle: const Text(
-                      ReminderUiText.accountProtectionProviderUnsupported,
+                    subtitle: Text(
+                      provider == AccountBindingProvider.email
+                          ? ReminderUiText.emailBindingAvailable
+                          : ReminderUiText.accountProtectionProviderPlanned,
                     ),
                     onTap: () {
                       Navigator.of(sheetContext).pop();
-                      _bindAccountProvider(context, ref, provider);
+                      if (provider == AccountBindingProvider.email) {
+                        _showEmailBindingSheet(context, ref);
+                      } else {
+                        _bindAccountProvider(context, ref, provider);
+                      }
                     },
                   ),
               ],
@@ -1081,6 +1180,176 @@ class SettingsPage extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _showEmailBindingSheet(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final emailController = TextEditingController();
+    final codeController = TextEditingController();
+    var codeSent = false;
+    var sending = false;
+    var verifying = false;
+    var statusMessage = '';
+    var success = false;
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        showDragHandle: true,
+        isScrollControlled: true,
+        builder: (sheetContext) => StatefulBuilder(
+          builder: (sheetContext, setSheetState) => SafeArea(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                0,
+                16,
+                MediaQuery.viewInsetsOf(sheetContext).bottom + 16,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      ReminderUiText.emailBindingSheetTitle,
+                      style: Theme.of(sheetContext).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      key: const Key('settings-email-binding-email-field'),
+                      controller: emailController,
+                      enabled: !sending && !verifying && !success,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        labelText: ReminderUiText.emailBindingEmailLabel,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (codeSent)
+                      TextField(
+                        key: const Key('settings-email-binding-code-field'),
+                        controller: codeController,
+                        enabled: !verifying && !success,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: ReminderUiText.emailBindingCodeLabel,
+                        ),
+                      ),
+                    if (codeSent) const SizedBox(height: 12),
+                    if (statusMessage.isNotEmpty)
+                      Text(
+                        statusMessage,
+                        style: Theme.of(sheetContext).textTheme.bodySmall
+                            ?.copyWith(
+                              color: success
+                                  ? sheetContext.reminderPalette.primaryWarmDark
+                                  : sheetContext.reminderPalette.textSecondary,
+                            ),
+                      ),
+                    if (success) ...[
+                      const SizedBox(height: 8),
+                      const Text(ReminderUiText.emailBindingRecoveryMessage),
+                    ],
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton(
+                            key: const Key('settings-email-binding-send-code'),
+                            onPressed: sending || verifying || success
+                                ? null
+                                : () async {
+                                    setSheetState(() {
+                                      sending = true;
+                                      statusMessage = '';
+                                    });
+                                    final outcome = await ref
+                                        .read(accountProtectionServiceProvider)
+                                        .startEmailBinding(
+                                          emailController.text,
+                                        );
+                                    if (!sheetContext.mounted) {
+                                      return;
+                                    }
+                                    setSheetState(() {
+                                      sending = false;
+                                      codeSent = outcome.codeSent;
+                                      statusMessage = _emailBindingStartMessage(
+                                        outcome.status,
+                                      );
+                                    });
+                                  },
+                            child: Text(
+                              sending
+                                  ? ReminderUiText.loadingLabel
+                                  : ReminderUiText.emailBindingSendCodeAction,
+                            ),
+                          ),
+                        ),
+                        if (codeSent) ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: FilledButton(
+                              key: const Key(
+                                'settings-email-binding-confirm-code',
+                              ),
+                              onPressed: verifying || success
+                                  ? null
+                                  : () async {
+                                      setSheetState(() {
+                                        verifying = true;
+                                        statusMessage = '';
+                                      });
+                                      final outcome = await ref
+                                          .read(
+                                            accountProtectionServiceProvider,
+                                          )
+                                          .verifyEmailBinding(
+                                            email: emailController.text,
+                                            code: codeController.text,
+                                          );
+                                      ref.invalidate(
+                                        accountProtectionStatusProvider,
+                                      );
+                                      ref.invalidate(currentAppUserProvider);
+                                      ref.invalidate(currentAppUserIdProvider);
+                                      if (!sheetContext.mounted) {
+                                        return;
+                                      }
+                                      setSheetState(() {
+                                        verifying = false;
+                                        success = outcome.succeeded;
+                                        statusMessage =
+                                            _emailBindingVerifyMessage(
+                                              outcome.status,
+                                            );
+                                      });
+                                    },
+                              child: Text(
+                                verifying
+                                    ? ReminderUiText.loadingLabel
+                                    : ReminderUiText
+                                          .emailBindingConfirmCodeAction,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    } finally {
+      emailController.dispose();
+      codeController.dispose();
+    }
   }
 
   Future<void> _bindAccountProvider(

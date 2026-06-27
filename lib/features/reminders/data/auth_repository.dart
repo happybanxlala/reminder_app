@@ -7,6 +7,14 @@ enum RemoteAuthFailureReason {
   unavailable,
   remoteAuthFailed,
   unsupported,
+  notAnonymous,
+  emailInvalid,
+  providerUnavailable,
+  invalidCode,
+  expiredCode,
+  emailMismatch,
+  uidChangedUnsafe,
+  networkFailed,
 }
 
 class RemoteAuthException implements Exception {
@@ -31,12 +39,27 @@ class RemoteIdentity {
   final bool isAnonymous;
 }
 
+class EmailBindingStartRemoteResult {
+  const EmailBindingStartRemoteResult({
+    required this.remoteUserId,
+    required this.email,
+  });
+
+  final String remoteUserId;
+  final String email;
+}
+
 abstract class AuthRepository {
   Future<RemoteIdentity?> getCurrentRemoteIdentity();
   Future<RemoteIdentity> signInAnonymously();
   Future<RemoteIdentity> linkWithApple();
   Future<RemoteIdentity> linkWithGoogle();
   Future<RemoteIdentity> linkWithEmail();
+  Future<EmailBindingStartRemoteResult> startEmailBinding(String email);
+  Future<RemoteIdentity> verifyEmailBinding({
+    required String email,
+    required String code,
+  });
   Future<void> signOut();
 }
 
@@ -64,6 +87,53 @@ class FakeAuthRepository implements AuthRepository {
   @override
   Future<RemoteIdentity> linkWithEmail() {
     return _setIdentity(AuthProviderType.email);
+  }
+
+  String? _pendingEmailBinding;
+
+  @override
+  Future<EmailBindingStartRemoteResult> startEmailBinding(String email) async {
+    final current = _current;
+    if (current == null) {
+      throw const RemoteAuthException(RemoteAuthFailureReason.remoteAuthFailed);
+    }
+    if (!current.isAnonymous ||
+        current.provider != AuthProviderType.supabaseAnonymous) {
+      throw const RemoteAuthException(RemoteAuthFailureReason.notAnonymous);
+    }
+    _pendingEmailBinding = email;
+    return EmailBindingStartRemoteResult(
+      remoteUserId: current.remoteUserId,
+      email: email,
+    );
+  }
+
+  @override
+  Future<RemoteIdentity> verifyEmailBinding({
+    required String email,
+    required String code,
+  }) async {
+    final current = _current;
+    if (current == null) {
+      throw const RemoteAuthException(RemoteAuthFailureReason.remoteAuthFailed);
+    }
+    if (_pendingEmailBinding != email) {
+      throw const RemoteAuthException(RemoteAuthFailureReason.emailMismatch);
+    }
+    if (code == 'expired') {
+      throw const RemoteAuthException(RemoteAuthFailureReason.expiredCode);
+    }
+    if (code != '123456') {
+      throw const RemoteAuthException(RemoteAuthFailureReason.invalidCode);
+    }
+    final identity = RemoteIdentity(
+      remoteUserId: current.remoteUserId,
+      provider: AuthProviderType.email,
+      isAnonymous: false,
+    );
+    _pendingEmailBinding = null;
+    _current = identity;
+    return identity;
   }
 
   @override
@@ -130,8 +200,21 @@ class DisabledAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<EmailBindingStartRemoteResult> startEmailBinding(String email) {
+    throw RemoteAuthException(reason);
+  }
+
+  @override
+  Future<RemoteIdentity> verifyEmailBinding({
+    required String email,
+    required String code,
+  }) {
+    throw RemoteAuthException(reason);
+  }
+
+  @override
   Future<void> signOut() async {
-    // Anonymous remote users may not be recoverable after sign-out unless they
-    // are later protected with Apple / Google / Email binding.
+    // Anonymous remote users may not be recoverable after sign-out unless the
+    // current session is protected first, such as with Email OTP binding.
   }
 }

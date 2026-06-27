@@ -8,6 +8,7 @@ import 'package:reminder_app/features/reminders/data/remote_shared_pack_data_sou
 import 'package:reminder_app/features/reminders/data/remote_shared_pack_models.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
+import 'package:reminder_app/features/reminders/domain/remote_pack_freshness.dart';
 import 'package:reminder_app/features/reminders/domain/shared_pack.dart';
 import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
 import 'package:reminder_app/features/reminders/providers/database_providers.dart';
@@ -96,6 +97,47 @@ void main() {
     expect(viewModel.activeInvite!.inviteCode, 'K7M4Q9');
     expect(viewModel.rowStatusLabel, ReminderUiText.packCareInviteActiveLabel);
   });
+
+  test(
+    'remote-backed care view model exposes member freshness labels',
+    () async {
+      final harness = await _Harness.create();
+      addTearDown(harness.close);
+      harness.remote.freshnessRows = [
+        RemotePackMemberFreshness(
+          remoteUserId: 'remote_host',
+          displayName: 'Host',
+          role: 'host',
+          memberStatus: 'active',
+          status: RemotePackFreshnessStatus.upToDate,
+          lastImportedAt: DateTime(2026, 6, 21, 12),
+        ),
+      ];
+
+      final join = await harness.container
+          .read(sharedPackCareControllerProvider)
+          .joinWithInviteCode('k7m 4q9');
+      expect(join.succeeded, isTrue);
+      final packs = await harness.container
+          .read(itemRepositoryProvider)
+          .watchPacks()
+          .first;
+      final remotePack = packs.firstWhere(
+        (pack) => pack.title == 'Joined Cats',
+      );
+
+      final viewModel = await harness.container.read(
+        packCareViewModelProvider(remotePack).future,
+      );
+
+      expect(viewModel.isRemoteBacked, isTrue);
+      expect(viewModel.members.single.freshnessLabel, '已更新至最新資料');
+      expect(
+        viewModel.members.single.lastImportedAt,
+        DateTime(2026, 6, 21, 12),
+      );
+    },
+  );
 
   test('normalizes invite code input before join', () async {
     expect(normalizeInviteCode(' k7m-4q9 '), 'K7M4Q9');
@@ -285,6 +327,7 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   RemoteSharedPackFailureReason? inviteFailure;
   RemoteSharedPackFailureReason? joinFailure;
   RemotePackInvite? activeInvite;
+  List<RemotePackMemberFreshness> freshnessRows = const [];
   final revokedInviteIds = <String>[];
   final createdItems = <_RemoteItemDraft>[];
 
@@ -486,5 +529,19 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
     throw const RemoteSharedPackException(
       RemoteSharedPackFailureReason.remoteUnknownFailure,
     );
+  }
+
+  @override
+  Future<void> reportPackSnapshotImported({
+    required String remotePackId,
+    String? latestActivityEventId,
+    DateTime? latestActivityAt,
+  }) async {}
+
+  @override
+  Future<List<RemotePackMemberFreshness>> getPackMemberFreshness({
+    required String remotePackId,
+  }) async {
+    return freshnessRows;
   }
 }

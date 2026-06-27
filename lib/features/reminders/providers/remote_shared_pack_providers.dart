@@ -21,6 +21,7 @@ import '../domain/item_pack.dart';
 import '../domain/remote_backed_pack_refresh.dart';
 import '../domain/remote_backed_recovery.dart';
 import '../domain/remote_membership_recovery.dart';
+import '../domain/remote_pack_freshness.dart';
 import '../domain/remote_sync.dart';
 import '../domain/shared_pack.dart';
 import 'attention_service_providers.dart';
@@ -89,6 +90,7 @@ final remoteBackedPackRefreshServiceProvider =
         dao: ref.watch(appDatabaseProvider).reminderDao,
         pullRemotePackSnapshot: remoteRepository.pullRemotePackSnapshot,
         importRemotePackSnapshot: importService.importRemotePackSnapshot,
+        reportPackSnapshotImported: remoteRepository.reportPackSnapshotImported,
       );
     });
 
@@ -99,6 +101,9 @@ final remoteMembershipRecoveryServiceProvider =
         accountProtectionService: ref.watch(accountProtectionServiceProvider),
         remoteRepository: ref.watch(remoteSharedPackRepositoryProvider),
         importService: ref.watch(remoteSnapshotImportServiceProvider),
+        reportPackSnapshotImported: ref
+            .watch(remoteSharedPackRepositoryProvider)
+            .reportPackSnapshotImported,
       );
     });
 
@@ -143,6 +148,22 @@ class RemoteBackedOutboxSummary {
 
   int get total =>
       pendingCount + syncingCount + failedCount + conflictOrNoOpCount;
+}
+
+class RemotePocFreshnessSummary {
+  const RemotePocFreshnessSummary({
+    required this.totalCount,
+    required this.upToDateCount,
+    required this.possiblyStaleCount,
+    required this.noSyncReportCount,
+    required this.accessUnknownCount,
+  });
+
+  final int totalCount;
+  final int upToDateCount;
+  final int possiblyStaleCount;
+  final int noSyncReportCount;
+  final int accessUnknownCount;
 }
 
 enum RemotePocSnapshotTargetType { localMappedPack, joinedRemotePack }
@@ -194,6 +215,7 @@ class RemotePocOperationState {
     this.lastRemoteChangeAction,
     this.lastRemoteChangeActorUserId,
     this.lastRealtimeErrorMessage,
+    this.lastFreshnessSummary,
   });
 
   final bool isRunning;
@@ -221,6 +243,7 @@ class RemotePocOperationState {
   final String? lastRemoteChangeAction;
   final String? lastRemoteChangeActorUserId;
   final String? lastRealtimeErrorMessage;
+  final RemotePocFreshnessSummary? lastFreshnessSummary;
 
   RemoteItemSnapshot? get firstSnapshotItem {
     final snapshot = lastPulledRemoteSnapshot;
@@ -282,6 +305,7 @@ class RemotePocOperationState {
     String? lastRemoteChangeAction,
     String? lastRemoteChangeActorUserId,
     String? lastRealtimeErrorMessage,
+    RemotePocFreshnessSummary? lastFreshnessSummary,
     bool clearSnapshotSummary = false,
     bool clearInvite = false,
     bool clearJoinedRemotePackId = false,
@@ -290,6 +314,7 @@ class RemotePocOperationState {
     bool clearRealtimeTarget = false,
     bool clearRealtimeError = false,
     bool clearRemoteChanges = false,
+    bool clearFreshnessSummary = false,
   }) {
     return RemotePocOperationState(
       isRunning: isRunning ?? this.isRunning,
@@ -349,6 +374,9 @@ class RemotePocOperationState {
       lastRealtimeErrorMessage: clearRealtimeError
           ? null
           : lastRealtimeErrorMessage ?? this.lastRealtimeErrorMessage,
+      lastFreshnessSummary: clearFreshnessSummary
+          ? null
+          : lastFreshnessSummary ?? this.lastFreshnessSummary,
     );
   }
 }
@@ -970,6 +998,68 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
     });
   }
 
+  Future<String> refreshMemberFreshness(String? remotePackId) {
+    return _run('刷新成員同步狀態 POC', () async {
+      if (remotePackId == null) {
+        return const _RemotePocOutcome(
+          succeeded: false,
+          message: '尚未有可查詢的遠端 Pack',
+        );
+      }
+      final result = await _ref
+          .read(remoteSharedPackRepositoryProvider)
+          .getPackMemberFreshness(remotePackId: remotePackId);
+      if (!result.succeeded) {
+        return _RemotePocOutcome(
+          succeeded: false,
+          message: _freshnessFailureMessage(result.status),
+        );
+      }
+      final summary = _freshnessSummary(result.members);
+      return _RemotePocOutcome(
+        succeeded: true,
+        message:
+            'Member freshness：members ${summary.totalCount}, up-to-date ${summary.upToDateCount}, stale ${summary.possiblyStaleCount}, no-report ${summary.noSyncReportCount}, unknown ${summary.accessUnknownCount}',
+        freshnessSummary: summary,
+        snapshot: state.lastPulledRemoteSnapshot,
+        snapshotSummary: state.snapshotSummary,
+        snapshotTargetType: state.snapshotTargetType,
+      );
+    });
+  }
+
+  Future<String> reportCurrentPackSnapshotImported(String? remotePackId) {
+    return _run('回報我已取得此 Pack 資料 POC', () async {
+      if (remotePackId == null) {
+        return const _RemotePocOutcome(
+          succeeded: false,
+          message: '尚未有可回報的遠端 Pack',
+        );
+      }
+      final latest = _latestActivity(state.lastPulledRemoteSnapshot);
+      final result = await _ref
+          .read(remoteSharedPackRepositoryProvider)
+          .reportPackSnapshotImported(
+            remotePackId: remotePackId,
+            latestActivityEventId: latest?.id,
+            latestActivityAt: latest?.createdAt,
+          );
+      if (!result.succeeded) {
+        return _RemotePocOutcome(
+          succeeded: false,
+          message: _snapshotReportFailureMessage(result.status),
+        );
+      }
+      return _RemotePocOutcome(
+        succeeded: true,
+        message: '已回報我已取得此 Pack 資料',
+        snapshot: state.lastPulledRemoteSnapshot,
+        snapshotSummary: state.snapshotSummary,
+        snapshotTargetType: state.snapshotTargetType,
+      );
+    });
+  }
+
   Future<String> flushRemoteBackedOutbox() {
     return _run('Flush Pending Remote-backed Mutations POC', () async {
       final result = await _ref
@@ -1022,6 +1112,7 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
       selectedRemoteItemId: outcome.selectedRemoteItemId,
       clearSelectedRemoteItem: outcome.clearSelectedRemoteItem,
       clearRemoteChanges: outcome.clearRemoteChanges,
+      lastFreshnessSummary: outcome.freshnessSummary,
     );
     return outcome.message;
   }
@@ -1163,6 +1254,74 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
     };
   }
 
+  RemotePocFreshnessSummary _freshnessSummary(
+    List<RemotePackMemberFreshness> members,
+  ) {
+    var upToDate = 0;
+    var possiblyStale = 0;
+    var noSyncReport = 0;
+    var accessUnknown = 0;
+    for (final member in members) {
+      switch (member.status) {
+        case RemotePackFreshnessStatus.upToDate:
+          upToDate++;
+        case RemotePackFreshnessStatus.possiblyStale:
+          possiblyStale++;
+        case RemotePackFreshnessStatus.noSyncReport:
+          noSyncReport++;
+        case RemotePackFreshnessStatus.accessUnknown:
+          accessUnknown++;
+      }
+    }
+    return RemotePocFreshnessSummary(
+      totalCount: members.length,
+      upToDateCount: upToDate,
+      possiblyStaleCount: possiblyStale,
+      noSyncReportCount: noSyncReport,
+      accessUnknownCount: accessUnknown,
+    );
+  }
+
+  RemoteActivityEventSnapshot? _latestActivity(RemotePackSnapshot? snapshot) {
+    if (snapshot == null) {
+      return null;
+    }
+    RemoteActivityEventSnapshot? latest;
+    for (final event in snapshot.activityEvents) {
+      if (latest == null ||
+          event.createdAt.isAfter(latest.createdAt) ||
+          (event.createdAt.isAtSameMomentAs(latest.createdAt) &&
+              event.id.compareTo(latest.id) > 0)) {
+        latest = event;
+      }
+    }
+    return latest;
+  }
+
+  String _freshnessFailureMessage(RemotePackFreshnessQueryStatus status) {
+    return switch (status) {
+      RemotePackFreshnessQueryStatus.notMember ||
+      RemotePackFreshnessQueryStatus.accessDenied => '無法查看此 Pack 的同步狀態',
+      RemotePackFreshnessQueryStatus.configMissing => 'Supabase 尚未設定',
+      RemotePackFreshnessQueryStatus.remoteAuthRequired => '請先建立遠端身份',
+      RemotePackFreshnessQueryStatus.networkFailed => '網絡連線失敗',
+      RemotePackFreshnessQueryStatus.unknownFailure ||
+      RemotePackFreshnessQueryStatus.loaded => '同步狀態查詢失敗',
+    };
+  }
+
+  String _snapshotReportFailureMessage(RemotePackSnapshotReportStatus status) {
+    return switch (status) {
+      RemotePackSnapshotReportStatus.notMember ||
+      RemotePackSnapshotReportStatus.accessDenied => '無法回報此 Pack 的同步狀態',
+      RemotePackSnapshotReportStatus.configMissing => 'Supabase 尚未設定',
+      RemotePackSnapshotReportStatus.remoteAuthRequired => '請先建立遠端身份',
+      RemotePackSnapshotReportStatus.networkFailed => '網絡連線失敗',
+      RemotePackSnapshotReportStatus.unknownFailure ||
+      RemotePackSnapshotReportStatus.reported => '同步狀態回報失敗',
+    };
+  }
+
   void _invalidateRecoveredLocalSurfaces(List<int> localPackIds) {
     _ref.invalidate(remoteBackedOutboxSummaryProvider);
     _ref.invalidate(remoteBackedRecoverySummaryProvider);
@@ -1212,6 +1371,7 @@ class _RemotePocOutcome {
     this.selectedRemoteItemId,
     this.clearSelectedRemoteItem = false,
     this.clearRemoteChanges = false,
+    this.freshnessSummary,
   });
 
   final bool succeeded;
@@ -1225,6 +1385,7 @@ class _RemotePocOutcome {
   final String? selectedRemoteItemId;
   final bool clearSelectedRemoteItem;
   final bool clearRemoteChanges;
+  final RemotePocFreshnessSummary? freshnessSummary;
 }
 
 final remotePocControllerProvider =

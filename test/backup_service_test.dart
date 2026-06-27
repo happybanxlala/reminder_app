@@ -96,6 +96,10 @@ void main() {
     expect(source, isNot(contains('credential')));
     expect(source, isNot(contains('session')));
     expect(source, isNot(contains('service_role')));
+    expect(source, isNot(contains('otp')));
+    expect(source, isNot(contains('magic_link')));
+    expect(source, isNot(contains('token_hash')));
+    expect(source, isNot(contains('email_otp')));
     expect(source, isNot(contains('secret')));
     expect(source, isNot(contains('K7M4Q9')));
     expect(source, isNot(contains('Invite Code')));

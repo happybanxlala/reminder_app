@@ -21,6 +21,7 @@ import 'package:reminder_app/features/reminders/domain/app_settings.dart';
 import 'package:reminder_app/features/reminders/domain/attention_policy.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
+import 'package:reminder_app/features/reminders/domain/remote_pack_freshness.dart';
 import 'package:reminder_app/features/reminders/domain/shared_pack.dart';
 import 'package:reminder_app/features/reminders/presentation/formatters/reminder_formatters.dart';
 import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
@@ -226,9 +227,10 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.text(ReminderUiText.accountProtectionProviderUnsupported),
+      find.text(ReminderUiText.accountProtectionProviderPlanned),
       findsWidgets,
     );
+    expect(find.text(ReminderUiText.emailBindingAvailable), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('settings-account-binding-apple')));
     await tester.pumpAndSettle();
@@ -238,6 +240,71 @@ void main() {
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('email account binding uses code flow and marks protected', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final fakeAuth = FakeAuthRepository();
+    final remote = await fakeAuth.signInAnonymously();
+    await IdentityRepository(db.reminderDao).linkRemoteIdentity(
+      remoteUserId: remote.remoteUserId,
+      provider: AuthProviderType.supabaseAnonymous,
+    );
+
+    await _pumpSettings(
+      tester,
+      developerVisible: false,
+      database: db,
+      extraOverrides: [authRepositoryProvider.overrideWithValue(fakeAuth)],
+    );
+
+    await tester.tap(
+      find.byKey(const Key('settings-account-protection-action-row')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('settings-account-binding-email')));
+    await tester.pumpAndSettle();
+
+    expect(find.text(ReminderUiText.emailBindingSheetTitle), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const Key('settings-email-binding-email-field')),
+      'USER@example.COM',
+    );
+    await tester.tap(find.byKey(const Key('settings-email-binding-send-code')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(ReminderUiText.emailBindingCodeSentMessage),
+      findsOneWidget,
+    );
+    await tester.enterText(
+      find.byKey(const Key('settings-email-binding-code-field')),
+      '123456',
+    );
+    await tester.tap(
+      find.byKey(const Key('settings-email-binding-confirm-code')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        '${ReminderUiText.emailBindingSuccessTitle}。${ReminderUiText.emailBindingSuccessMessage}',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text(ReminderUiText.emailBindingRecoveryMessage),
+      findsOneWidget,
+    );
+    expect(find.textContaining(remote.remoteUserId), findsNothing);
+    final updated = await IdentityRepository(
+      db.reminderDao,
+    ).getCurrentAppUser();
+    expect(updated.identityKind, LocalUserIdentityKind.linked);
+    expect(updated.remoteProvider, AuthProviderType.email);
   });
 
   testWidgets('reset action requires RESET before confirm', (tester) async {
@@ -347,6 +414,22 @@ void main() {
     );
     expect(find.text(ReminderUiText.previewDateSettingLabel), findsNothing);
     expect(find.byKey(const Key('settings-reset-database-row')), findsNothing);
+    expect(
+      find.byKey(const Key('settings-remote-poc-create-pack-row')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const Key('settings-remote-backed-flush-outbox-row')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const Key('settings-remote-recovery-restore-memberships-row')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const Key('settings-remote-freshness-refresh-row')),
+      findsNothing,
+    );
   });
 
   testWidgets('preview date row opens date picker', (tester) async {
@@ -685,6 +768,24 @@ void main() {
       find.text(ReminderUiText.remotePocViewerNoSelectedItem),
       findsOneWidget,
     );
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-freshness-refresh-row'),
+    );
+    expect(fakeRemote.freshnessCalls, 1);
+    expect(
+      find.textContaining('Member freshness：members 2, up-to-date 1'),
+      findsWidgets,
+    );
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-freshness-report-row'),
+    );
+    expect(fakeRemote.reportCalls, 1);
+    expect(fakeRemote.reportedActivityIds, ['event3']);
+    expect(find.text('已回報我已取得此 Pack 資料'), findsWidgets);
 
     await _tapSettingsRow(
       tester,
@@ -1372,9 +1473,13 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   int completionCalls = 0;
   int undoCalls = 0;
   int snapshotCalls = 0;
+  int reportCalls = 0;
+  int freshnessCalls = 0;
   bool rejectCreateSharedPack = false;
   bool rejectSnapshot = false;
+  bool rejectFreshnessReport = false;
   final hiddenItemIds = <String>{};
+  final reportedActivityIds = <String?>[];
 
   final _packItems = <String, List<String>>{};
   final _completedItems = <String, RemoteItemCompletionResult>{};
@@ -1664,6 +1769,45 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
           ),
       ],
     );
+  }
+
+  @override
+  Future<void> reportPackSnapshotImported({
+    required String remotePackId,
+    String? latestActivityEventId,
+    DateTime? latestActivityAt,
+  }) async {
+    reportCalls += 1;
+    if (rejectFreshnessReport) {
+      throw const RemoteSharedPackException(
+        RemoteSharedPackFailureReason.remoteRlsRejected,
+      );
+    }
+    reportedActivityIds.add(latestActivityEventId);
+  }
+
+  @override
+  Future<List<RemotePackMemberFreshness>> getPackMemberFreshness({
+    required String remotePackId,
+  }) async {
+    freshnessCalls += 1;
+    return [
+      RemotePackMemberFreshness(
+        remoteUserId: 'profile1',
+        displayName: 'Host Device',
+        role: 'host',
+        memberStatus: 'active',
+        status: RemotePackFreshnessStatus.upToDate,
+        lastImportedAt: DateTime(2026, 6, 21, 3),
+      ),
+      const RemotePackMemberFreshness(
+        remoteUserId: 'profile2',
+        displayName: 'Member',
+        role: 'member',
+        memberStatus: 'active',
+        status: RemotePackFreshnessStatus.noSyncReport,
+      ),
+    ];
   }
 }
 

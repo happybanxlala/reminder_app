@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../domain/remote_pack_freshness.dart';
 import 'remote_shared_pack_models.dart';
 import 'supabase_config.dart';
 
@@ -27,6 +28,14 @@ abstract class RemoteSharedPackDataSource {
     String? clientMutationId,
   });
   Future<RemotePackSnapshot> fetchPackSnapshot(String remotePackId);
+  Future<void> reportPackSnapshotImported({
+    required String remotePackId,
+    String? latestActivityEventId,
+    DateTime? latestActivityAt,
+  });
+  Future<List<RemotePackMemberFreshness>> getPackMemberFreshness({
+    required String remotePackId,
+  });
 }
 
 class DisabledRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
@@ -110,6 +119,22 @@ class DisabledRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
 
   @override
   Future<RemotePackSnapshot> fetchPackSnapshot(String remotePackId) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<void> reportPackSnapshotImported({
+    required String remotePackId,
+    String? latestActivityEventId,
+    DateTime? latestActivityAt,
+  }) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<List<RemotePackMemberFreshness>> getPackMemberFreshness({
+    required String remotePackId,
+  }) {
     throw RemoteSharedPackException(reason);
   }
 }
@@ -465,6 +490,49 @@ class SupabaseRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
       throw _mapError(error, RemoteSharedPackFailureReason.malformedRemoteData);
     }
   }
+
+  @override
+  Future<void> reportPackSnapshotImported({
+    required String remotePackId,
+    String? latestActivityEventId,
+    DateTime? latestActivityAt,
+  }) async {
+    try {
+      await _client.rpc(
+        'report_pack_snapshot_imported',
+        params: {
+          'target_pack_id': remotePackId,
+          'latest_activity_event_id': latestActivityEventId,
+          'latest_activity_at': latestActivityAt?.toUtc().toIso8601String(),
+        },
+      );
+    } catch (error) {
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        operationName: 'report_pack_snapshot_imported',
+      );
+    }
+  }
+
+  @override
+  Future<List<RemotePackMemberFreshness>> getPackMemberFreshness({
+    required String remotePackId,
+  }) async {
+    try {
+      final result = await _client.rpc(
+        'get_pack_member_freshness',
+        params: {'target_pack_id': remotePackId},
+      );
+      return _listOfMaps(result).map(_freshnessFromRow).toList(growable: false);
+    } catch (error) {
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        operationName: 'get_pack_member_freshness',
+      );
+    }
+  }
 }
 
 String _stringRpcResult(Object? result, String key) {
@@ -628,6 +696,33 @@ RemoteActivityEventSnapshot _activityEventFromRow(Map<String, Object?> row) {
     metadataJson: _jsonMap(row['metadata_json']),
     createdAt: _requiredDate(row, 'created_at'),
   );
+}
+
+RemotePackMemberFreshness _freshnessFromRow(Map<String, Object?> row) {
+  return RemotePackMemberFreshness(
+    remoteUserId: _requiredString(row, 'user_id'),
+    displayName: _optionalString(row, 'display_name'),
+    role: _requiredString(row, 'role'),
+    memberStatus: _requiredString(row, 'member_status'),
+    status: _freshnessStatus(_requiredString(row, 'freshness_status')),
+    latestActivityEventId: _optionalString(row, 'latest_activity_event_id'),
+    latestActivityAt: _optionalDate(row, 'latest_activity_at'),
+    lastImportedAt: _optionalDate(row, 'last_imported_at'),
+    lastSeenActivityEventId: _optionalString(
+      row,
+      'last_seen_activity_event_id',
+    ),
+    lastSeenActivityAt: _optionalDate(row, 'last_seen_activity_at'),
+  );
+}
+
+RemotePackFreshnessStatus _freshnessStatus(String value) {
+  return switch (value) {
+    'up_to_date' => RemotePackFreshnessStatus.upToDate,
+    'possibly_stale' => RemotePackFreshnessStatus.possiblyStale,
+    'no_sync_report' => RemotePackFreshnessStatus.noSyncReport,
+    _ => RemotePackFreshnessStatus.accessUnknown,
+  };
 }
 
 String? _optionalString(Map<String, Object?> row, String key) {

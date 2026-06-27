@@ -11,6 +11,7 @@ import 'package:reminder_app/features/reminders/data/remote_shared_pack_reposito
 import 'package:reminder_app/features/reminders/data/shared_pack_repository.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
+import 'package:reminder_app/features/reminders/domain/remote_pack_freshness.dart';
 import 'package:reminder_app/features/reminders/domain/shared_pack.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -294,6 +295,85 @@ void main() {
       );
     },
   );
+
+  test(
+    'reportPackSnapshotImported maps active member report success',
+    () async {
+      final harness = await _Harness.create();
+      addTearDown(harness.close);
+
+      final result = await harness.remoteRepository.reportPackSnapshotImported(
+        remotePackId: 'remote_pack_1',
+        latestActivityEventId: 'event_1',
+        latestActivityAt: DateTime(2026, 6, 21, 12),
+      );
+
+      expect(result.succeeded, isTrue);
+      expect(harness.remoteDataSource.reportedPackIds, ['remote_pack_1']);
+      expect(harness.remoteDataSource.reportedActivityIds, ['event_1']);
+    },
+  );
+
+  test('reportPackSnapshotImported maps RLS rejection safely', () async {
+    final harness = await _Harness.create();
+    addTearDown(harness.close);
+    harness.remoteDataSource.rejectSnapshotReport = true;
+
+    final result = await harness.remoteRepository.reportPackSnapshotImported(
+      remotePackId: 'remote_pack_1',
+    );
+
+    expect(result.succeeded, isFalse);
+    expect(result.status, RemotePackSnapshotReportStatus.accessDenied);
+    expect(result.message, 'accessDenied');
+  });
+
+  test('getPackMemberFreshness maps remote freshness rows', () async {
+    final harness = await _Harness.create();
+    addTearDown(harness.close);
+    harness.remoteDataSource.freshnessRows = [
+      RemotePackMemberFreshness(
+        remoteUserId: 'remote_user_1',
+        displayName: 'Ada',
+        role: 'host',
+        memberStatus: 'active',
+        status: RemotePackFreshnessStatus.upToDate,
+        lastImportedAt: DateTime(2026, 6, 21, 12),
+      ),
+      const RemotePackMemberFreshness(
+        remoteUserId: 'remote_user_2',
+        displayName: 'Ben',
+        role: 'member',
+        memberStatus: 'active',
+        status: RemotePackFreshnessStatus.possiblyStale,
+      ),
+      const RemotePackMemberFreshness(
+        remoteUserId: 'remote_user_3',
+        displayName: 'Cy',
+        role: 'member',
+        memberStatus: 'active',
+        status: RemotePackFreshnessStatus.noSyncReport,
+      ),
+      const RemotePackMemberFreshness(
+        remoteUserId: 'remote_user_4',
+        displayName: 'Dee',
+        role: 'member',
+        memberStatus: 'active',
+        status: RemotePackFreshnessStatus.accessUnknown,
+      ),
+    ];
+
+    final result = await harness.remoteRepository.getPackMemberFreshness(
+      remotePackId: 'remote_pack_1',
+    );
+
+    expect(result.succeeded, isTrue);
+    expect(result.members, hasLength(4));
+    expect(
+      result.members.map((member) => member.status),
+      containsAll(RemotePackFreshnessStatus.values),
+    );
+  });
 
   test('malformed remote snapshot returns typed failure', () async {
     final harness = await _Harness.create();
@@ -689,9 +769,13 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   bool malformedSnapshot = false;
   bool rejectInviteCreate = false;
   bool rejectProfileUpsert = false;
+  bool rejectSnapshotReport = false;
   bool alreadyMemberOnJoin = false;
   bool alreadyRevoked = false;
   RemoteSharedPackFailureReason? joinFailure;
+  List<RemotePackMemberFreshness> freshnessRows = const [];
+  final reportedPackIds = <String>[];
+  final reportedActivityIds = <String?>[];
   final createdItems = <_RemoteItemDraft>[];
   final _packs = <String, String>{};
   final _packItems = <String, List<String>>{};
@@ -945,5 +1029,27 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
         ),
       ],
     );
+  }
+
+  @override
+  Future<void> reportPackSnapshotImported({
+    required String remotePackId,
+    String? latestActivityEventId,
+    DateTime? latestActivityAt,
+  }) async {
+    if (rejectSnapshotReport) {
+      throw const RemoteSharedPackException(
+        RemoteSharedPackFailureReason.remoteRlsRejected,
+      );
+    }
+    reportedPackIds.add(remotePackId);
+    reportedActivityIds.add(latestActivityEventId);
+  }
+
+  @override
+  Future<List<RemotePackMemberFreshness>> getPackMemberFreshness({
+    required String remotePackId,
+  }) async {
+    return freshnessRows;
   }
 }

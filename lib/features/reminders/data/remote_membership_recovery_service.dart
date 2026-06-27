@@ -3,6 +3,7 @@ import '../domain/remote_membership_recovery.dart';
 import '../domain/remote_sync.dart';
 import 'account_protection_service.dart';
 import 'local/reminder_dao.dart';
+import 'remote_backed_pack_refresh_service.dart';
 import 'remote_shared_pack_models.dart';
 import 'remote_shared_pack_repository.dart';
 import 'remote_snapshot_import_service.dart';
@@ -13,15 +14,18 @@ class RemoteMembershipRecoveryService {
     required AccountProtectionService accountProtectionService,
     required RemoteSharedPackRepository remoteRepository,
     required RemoteSnapshotImportService importService,
+    RemotePackSnapshotImportedReporter? reportPackSnapshotImported,
   }) : _dao = dao,
        _accountProtectionService = accountProtectionService,
        _remoteRepository = remoteRepository,
-       _importService = importService;
+       _importService = importService,
+       _reportPackSnapshotImported = reportPackSnapshotImported;
 
   final ReminderDao _dao;
   final AccountProtectionService _accountProtectionService;
   final RemoteSharedPackRepository _remoteRepository;
   final RemoteSnapshotImportService _importService;
+  final RemotePackSnapshotImportedReporter? _reportPackSnapshotImported;
 
   Future<RemotePocResult<List<RemoteRecoverablePack>>>
   discoverActiveMemberships() {
@@ -131,10 +135,13 @@ class RemoteMembershipRecoveryService {
           }
           if (result.status == RemoteSnapshotImportStatus.partialImport) {
             warnings.add('partialImport');
+          } else {
+            warnings.addAll(await _reportSnapshotImported(pull.value!));
           }
         case RemoteSnapshotImportStatus.alreadyImported:
         case RemoteSnapshotImportStatus.updatedExistingMirror:
           refreshed += 1;
+          warnings.addAll(await _reportSnapshotImported(pull.value!));
         case RemoteSnapshotImportStatus.failed:
         case RemoteSnapshotImportStatus.conflict:
           failed += 1;
@@ -248,6 +255,38 @@ class RemoteMembershipRecoveryService {
       RemoteSharedPackFailureReason.remoteNetworkFailed => 'networkFailed',
       _ => 'unknownFailure',
     };
+  }
+
+  Future<List<String>> _reportSnapshotImported(
+    RemotePackSnapshot snapshot,
+  ) async {
+    final reporter = _reportPackSnapshotImported;
+    if (reporter == null) {
+      return const [];
+    }
+    final latest = _latestActivity(snapshot);
+    final result = await reporter(
+      remotePackId: snapshot.id,
+      latestActivityEventId: latest?.id,
+      latestActivityAt: latest?.createdAt,
+    );
+    if (result.succeeded) {
+      return const [];
+    }
+    return const ['本機已更新，但未能回報同步狀態'];
+  }
+
+  RemoteActivityEventSnapshot? _latestActivity(RemotePackSnapshot snapshot) {
+    RemoteActivityEventSnapshot? latest;
+    for (final event in snapshot.activityEvents) {
+      if (latest == null ||
+          event.createdAt.isAfter(latest.createdAt) ||
+          (event.createdAt.isAtSameMomentAs(latest.createdAt) &&
+              event.id.compareTo(latest.id) > 0)) {
+        latest = event;
+      }
+    }
+    return latest;
   }
 
   RemoteMembershipRecoverySummary _emptySummary() {

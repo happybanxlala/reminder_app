@@ -75,13 +75,102 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<EmailBindingStartRemoteResult> startEmailBinding(String email) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw const RemoteAuthException(RemoteAuthFailureReason.remoteAuthFailed);
+    }
+    if (!user.isAnonymous ||
+        _providerFor(user) != AuthProviderType.supabaseAnonymous) {
+      throw const RemoteAuthException(RemoteAuthFailureReason.notAnonymous);
+    }
+    final normalizedEmail = email.trim().toLowerCase();
+    try {
+      final response = await _client.auth.updateUser(
+        UserAttributes(email: normalizedEmail),
+      );
+      final updatedUser = response.user ?? _client.auth.currentUser;
+      if (updatedUser == null) {
+        throw const RemoteAuthException(
+          RemoteAuthFailureReason.remoteAuthFailed,
+        );
+      }
+      if (updatedUser.id != user.id) {
+        throw const RemoteAuthException(
+          RemoteAuthFailureReason.uidChangedUnsafe,
+        );
+      }
+      return EmailBindingStartRemoteResult(
+        remoteUserId: user.id,
+        email: normalizedEmail,
+      );
+    } on RemoteAuthException {
+      rethrow;
+    } on AuthException catch (error) {
+      throw RemoteAuthException(_emailStartFailureReason(error), error);
+    } catch (error) {
+      throw RemoteAuthException(
+        RemoteAuthFailureReason.remoteAuthFailed,
+        error,
+      );
+    }
+  }
+
+  @override
+  Future<RemoteIdentity> verifyEmailBinding({
+    required String email,
+    required String code,
+  }) async {
+    final currentUser = _client.auth.currentUser;
+    if (currentUser == null) {
+      throw const RemoteAuthException(RemoteAuthFailureReason.remoteAuthFailed);
+    }
+    final normalizedEmail = email.trim().toLowerCase();
+    try {
+      final response = await _client.auth.verifyOTP(
+        email: normalizedEmail,
+        token: code.trim(),
+        type: OtpType.emailChange,
+      );
+      final verifiedUser =
+          response.user ?? response.session?.user ?? _client.auth.currentUser;
+      if (verifiedUser == null) {
+        throw const RemoteAuthException(
+          RemoteAuthFailureReason.remoteAuthFailed,
+        );
+      }
+      if (verifiedUser.id != currentUser.id) {
+        throw const RemoteAuthException(
+          RemoteAuthFailureReason.uidChangedUnsafe,
+        );
+      }
+      final identity = _emailLinkedIdentityFor(verifiedUser, normalizedEmail);
+      if (identity == null) {
+        throw const RemoteAuthException(
+          RemoteAuthFailureReason.remoteAuthFailed,
+        );
+      }
+      return identity;
+    } on RemoteAuthException {
+      rethrow;
+    } on AuthException catch (error) {
+      throw RemoteAuthException(_emailVerifyFailureReason(error), error);
+    } catch (error) {
+      throw RemoteAuthException(
+        RemoteAuthFailureReason.remoteAuthFailed,
+        error,
+      );
+    }
+  }
+
+  @override
   Future<void> signOut() async {
     final client = _runtime.client;
     if (client == null) {
       return;
     }
-    // Anonymous remote users may not be recoverable after sign-out unless they
-    // are later protected with Apple / Google / Email binding.
+    // Anonymous remote users may not be recoverable after sign-out unless the
+    // current session is protected first, such as with Email OTP binding.
     await client.auth.signOut();
   }
 
@@ -90,6 +179,26 @@ class SupabaseAuthRepository implements AuthRepository {
       remoteUserId: user.id,
       provider: _providerFor(user),
       isAnonymous: user.isAnonymous,
+    );
+  }
+
+  RemoteIdentity? _emailLinkedIdentityFor(User user, String email) {
+    if (user.isAnonymous) {
+      return null;
+    }
+    final providers =
+        user.identities?.map((identity) => identity.provider).toSet() ??
+        const <String>{};
+    final hasEmailIdentity = providers.contains('email');
+    final hasConfirmedEmail =
+        user.email?.toLowerCase() == email && user.emailConfirmedAt != null;
+    if (!hasEmailIdentity && !hasConfirmedEmail) {
+      return null;
+    }
+    return RemoteIdentity(
+      remoteUserId: user.id,
+      provider: AuthProviderType.email,
+      isAnonymous: false,
     );
   }
 
@@ -110,5 +219,55 @@ class SupabaseAuthRepository implements AuthRepository {
       return AuthProviderType.email;
     }
     return AuthProviderType.supabaseAnonymous;
+  }
+
+  RemoteAuthFailureReason _emailStartFailureReason(AuthException error) {
+    if (error is AuthSessionMissingException) {
+      return RemoteAuthFailureReason.remoteAuthFailed;
+    }
+    final text = '${error.code ?? ''} ${error.message}'.toLowerCase();
+    if (text.contains('invalid') && text.contains('email')) {
+      return RemoteAuthFailureReason.emailInvalid;
+    }
+    if (text.contains('disabled') || text.contains('provider')) {
+      return RemoteAuthFailureReason.providerUnavailable;
+    }
+    if (_isNetworkLike(error)) {
+      return RemoteAuthFailureReason.networkFailed;
+    }
+    return RemoteAuthFailureReason.remoteAuthFailed;
+  }
+
+  RemoteAuthFailureReason _emailVerifyFailureReason(AuthException error) {
+    if (error is AuthSessionMissingException) {
+      return RemoteAuthFailureReason.remoteAuthFailed;
+    }
+    final text = '${error.code ?? ''} ${error.message}'.toLowerCase();
+    if (text.contains('expired')) {
+      return RemoteAuthFailureReason.expiredCode;
+    }
+    if (text.contains('invalid') ||
+        text.contains('token') ||
+        text.contains('otp')) {
+      return RemoteAuthFailureReason.invalidCode;
+    }
+    if (text.contains('email')) {
+      return RemoteAuthFailureReason.emailMismatch;
+    }
+    if (text.contains('disabled') || text.contains('provider')) {
+      return RemoteAuthFailureReason.providerUnavailable;
+    }
+    if (_isNetworkLike(error)) {
+      return RemoteAuthFailureReason.networkFailed;
+    }
+    return RemoteAuthFailureReason.remoteAuthFailed;
+  }
+
+  bool _isNetworkLike(AuthException error) {
+    if (error is AuthRetryableFetchException) {
+      return true;
+    }
+    final statusCode = int.tryParse(error.statusCode ?? '');
+    return statusCode != null && statusCode >= 500;
   }
 }

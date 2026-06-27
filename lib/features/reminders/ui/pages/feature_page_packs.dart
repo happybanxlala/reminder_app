@@ -583,13 +583,22 @@ class _PackCareSheetState extends State<_PackCareSheet> {
               Text(_sharedBodyText(viewModel)),
               if (viewModel.members.isNotEmpty) ...[
                 const SizedBox(height: 12),
+                if (viewModel.isRemoteBacked) ...[
+                  Text(
+                    ReminderUiText.packCareFreshnessTitle,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                ],
                 for (final member in viewModel.members)
                   ListTile(
                     dense: true,
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.person_outline),
                     title: Text(member.displayName),
-                    subtitle: Text(member.roleLabel),
+                    subtitle: _PackCareMemberSubtitle(member: member),
                   ),
               ],
               const SizedBox(height: 12),
@@ -829,6 +838,33 @@ class _PackCareInviteCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _PackCareMemberSubtitle extends StatelessWidget {
+  const _PackCareMemberSubtitle({required this.member});
+
+  final PackCareMemberView member;
+
+  @override
+  Widget build(BuildContext context) {
+    final freshnessLabel = member.freshnessLabel;
+    final lastImportedAt = member.lastImportedAt;
+    if (freshnessLabel == null && lastImportedAt == null) {
+      return Text(member.roleLabel);
+    }
+    final lines = <String>[member.roleLabel];
+    if (freshnessLabel != null) {
+      lines.add(freshnessLabel);
+    }
+    if (lastImportedAt != null) {
+      lines.add(
+        ReminderUiText.packCareFreshnessLastImported(
+          ReminderFormatters.dateTime(lastImportedAt),
+        ),
+      );
+    }
+    return Text(lines.join('\n'));
   }
 }
 

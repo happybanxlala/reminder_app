@@ -220,6 +220,19 @@ class _CountingAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<EmailBindingStartRemoteResult> startEmailBinding(String email) {
+    throw const RemoteAuthException(RemoteAuthFailureReason.unsupported);
+  }
+
+  @override
+  Future<RemoteIdentity> verifyEmailBinding({
+    required String email,
+    required String code,
+  }) {
+    throw const RemoteAuthException(RemoteAuthFailureReason.unsupported);
+  }
+
+  @override
   Future<void> signOut() async {}
 }
 
@@ -246,6 +259,19 @@ class _FailingAuthRepository implements AuthRepository {
 
   @override
   Future<RemoteIdentity> linkWithEmail() {
+    throw const RemoteAuthException(RemoteAuthFailureReason.unsupported);
+  }
+
+  @override
+  Future<EmailBindingStartRemoteResult> startEmailBinding(String email) {
+    throw const RemoteAuthException(RemoteAuthFailureReason.unsupported);
+  }
+
+  @override
+  Future<RemoteIdentity> verifyEmailBinding({
+    required String email,
+    required String code,
+  }) {
     throw const RemoteAuthException(RemoteAuthFailureReason.unsupported);
   }
 

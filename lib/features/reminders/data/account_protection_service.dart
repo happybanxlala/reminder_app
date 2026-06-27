@@ -81,6 +81,159 @@ class AccountProtectionService {
     }
   }
 
+  Future<EmailBindingStartOutcome> startEmailBinding(String email) async {
+    final normalizedEmail = _normalizeEmail(email);
+    final localUser = await _identityRepository.ensureLocalIdentity();
+    final currentRemote = await _safeCurrentRemoteIdentity();
+    final currentSnapshot = _snapshotFor(localUser, currentRemote);
+    if (!_isValidEmail(normalizedEmail)) {
+      return EmailBindingStartOutcome(
+        status: EmailBindingStartStatus.emailInvalid,
+        snapshot: currentSnapshot,
+      );
+    }
+    if (currentSnapshot.status == AccountProtectionStatus.linkedProtected &&
+        localUser.remoteProvider == AuthProviderType.email) {
+      return EmailBindingStartOutcome(
+        status: EmailBindingStartStatus.alreadyBound,
+        snapshot: currentSnapshot,
+        normalizedEmail: normalizedEmail,
+      );
+    }
+    if (currentRemote.failed) {
+      return EmailBindingStartOutcome(
+        status: EmailBindingStartStatus.providerUnavailable,
+        snapshot: currentSnapshot,
+      );
+    }
+    final remoteIdentity = currentRemote.identity;
+    if (localUser.remoteUserId == null ||
+        remoteIdentity == null ||
+        remoteIdentity.remoteUserId != localUser.remoteUserId) {
+      return EmailBindingStartOutcome(
+        status: EmailBindingStartStatus.remoteAuthRequired,
+        snapshot: currentSnapshot,
+      );
+    }
+    if (!remoteIdentity.isAnonymous ||
+        remoteIdentity.provider != AuthProviderType.supabaseAnonymous) {
+      return EmailBindingStartOutcome(
+        status: EmailBindingStartStatus.notAnonymous,
+        snapshot: currentSnapshot,
+      );
+    }
+
+    try {
+      final started = await _authRepository.startEmailBinding(normalizedEmail);
+      if (started.remoteUserId != localUser.remoteUserId) {
+        return EmailBindingStartOutcome(
+          status: EmailBindingStartStatus.unknownFailure,
+          snapshot: currentSnapshot,
+        );
+      }
+      return EmailBindingStartOutcome(
+        status: EmailBindingStartStatus.codeSent,
+        snapshot: currentSnapshot,
+        normalizedEmail: started.email,
+      );
+    } on RemoteAuthException catch (error) {
+      return EmailBindingStartOutcome(
+        status: _emailStartStatusForFailure(error.reason),
+        snapshot: currentSnapshot,
+      );
+    } catch (_) {
+      return EmailBindingStartOutcome(
+        status: EmailBindingStartStatus.unknownFailure,
+        snapshot: currentSnapshot,
+      );
+    }
+  }
+
+  Future<EmailBindingVerifyOutcome> verifyEmailBinding({
+    required String email,
+    required String code,
+  }) async {
+    final normalizedEmail = _normalizeEmail(email);
+    final trimmedCode = code.trim();
+    final localUser = await _identityRepository.ensureLocalIdentity();
+    final currentRemote = await _safeCurrentRemoteIdentity();
+    final currentSnapshot = _snapshotFor(localUser, currentRemote);
+    if (currentSnapshot.status == AccountProtectionStatus.linkedProtected &&
+        localUser.remoteProvider == AuthProviderType.email) {
+      return EmailBindingVerifyOutcome(
+        status: EmailBindingVerifyStatus.alreadyBound,
+        snapshot: currentSnapshot,
+      );
+    }
+    if (!_isValidEmail(normalizedEmail)) {
+      return EmailBindingVerifyOutcome(
+        status: EmailBindingVerifyStatus.emailMismatch,
+        snapshot: currentSnapshot,
+      );
+    }
+    if (trimmedCode.isEmpty) {
+      return EmailBindingVerifyOutcome(
+        status: EmailBindingVerifyStatus.invalidCode,
+        snapshot: currentSnapshot,
+      );
+    }
+    if (currentRemote.failed) {
+      return EmailBindingVerifyOutcome(
+        status: EmailBindingVerifyStatus.providerUnavailable,
+        snapshot: currentSnapshot,
+      );
+    }
+    final remoteIdentity = currentRemote.identity;
+    if (localUser.remoteUserId == null ||
+        remoteIdentity == null ||
+        remoteIdentity.remoteUserId != localUser.remoteUserId) {
+      return EmailBindingVerifyOutcome(
+        status: EmailBindingVerifyStatus.remoteAuthRequired,
+        snapshot: currentSnapshot,
+      );
+    }
+
+    try {
+      final verified = await _authRepository.verifyEmailBinding(
+        email: normalizedEmail,
+        code: trimmedCode,
+      );
+      if (verified.remoteUserId != localUser.remoteUserId) {
+        return EmailBindingVerifyOutcome(
+          status: EmailBindingVerifyStatus.uidChangedUnsafe,
+          snapshot: currentSnapshot,
+        );
+      }
+      if (verified.isAnonymous || verified.provider != AuthProviderType.email) {
+        return EmailBindingVerifyOutcome(
+          status: EmailBindingVerifyStatus.unknownFailure,
+          snapshot: currentSnapshot,
+        );
+      }
+      final linkedUser = await _identityRepository.linkRemoteIdentity(
+        remoteUserId: verified.remoteUserId,
+        provider: AuthProviderType.email,
+      );
+      return EmailBindingVerifyOutcome(
+        status: EmailBindingVerifyStatus.bound,
+        snapshot: _snapshotFor(
+          linkedUser,
+          _CurrentRemoteIdentityResult(identity: verified),
+        ),
+      );
+    } on RemoteAuthException catch (error) {
+      return EmailBindingVerifyOutcome(
+        status: _emailVerifyStatusForFailure(error.reason),
+        snapshot: currentSnapshot,
+      );
+    } catch (_) {
+      return EmailBindingVerifyOutcome(
+        status: EmailBindingVerifyStatus.unknownFailure,
+        snapshot: currentSnapshot,
+      );
+    }
+  }
+
   Future<_CurrentRemoteIdentityResult> _safeCurrentRemoteIdentity() async {
     try {
       return _CurrentRemoteIdentityResult(
@@ -153,9 +306,77 @@ class AccountProtectionService {
         AccountBindingResult.configMissing,
       RemoteAuthFailureReason.unsupported => AccountBindingResult.unsupported,
       RemoteAuthFailureReason.unavailable ||
-      RemoteAuthFailureReason.remoteAuthFailed =>
+      RemoteAuthFailureReason.remoteAuthFailed ||
+      RemoteAuthFailureReason.notAnonymous ||
+      RemoteAuthFailureReason.emailInvalid ||
+      RemoteAuthFailureReason.providerUnavailable ||
+      RemoteAuthFailureReason.invalidCode ||
+      RemoteAuthFailureReason.expiredCode ||
+      RemoteAuthFailureReason.emailMismatch ||
+      RemoteAuthFailureReason.uidChangedUnsafe ||
+      RemoteAuthFailureReason.networkFailed =>
         AccountBindingResult.remoteAuthFailed,
     };
+  }
+
+  EmailBindingStartStatus _emailStartStatusForFailure(
+    RemoteAuthFailureReason reason,
+  ) {
+    return switch (reason) {
+      RemoteAuthFailureReason.configMissing =>
+        EmailBindingStartStatus.configMissing,
+      RemoteAuthFailureReason.emailInvalid =>
+        EmailBindingStartStatus.emailInvalid,
+      RemoteAuthFailureReason.notAnonymous =>
+        EmailBindingStartStatus.notAnonymous,
+      RemoteAuthFailureReason.unsupported ||
+      RemoteAuthFailureReason.providerUnavailable =>
+        EmailBindingStartStatus.providerUnavailable,
+      RemoteAuthFailureReason.unavailable ||
+      RemoteAuthFailureReason.networkFailed =>
+        EmailBindingStartStatus.providerUnavailable,
+      RemoteAuthFailureReason.remoteAuthFailed =>
+        EmailBindingStartStatus.remoteAuthRequired,
+      RemoteAuthFailureReason.invalidCode ||
+      RemoteAuthFailureReason.expiredCode ||
+      RemoteAuthFailureReason.emailMismatch ||
+      RemoteAuthFailureReason.uidChangedUnsafe =>
+        EmailBindingStartStatus.unknownFailure,
+    };
+  }
+
+  EmailBindingVerifyStatus _emailVerifyStatusForFailure(
+    RemoteAuthFailureReason reason,
+  ) {
+    return switch (reason) {
+      RemoteAuthFailureReason.configMissing =>
+        EmailBindingVerifyStatus.configMissing,
+      RemoteAuthFailureReason.invalidCode =>
+        EmailBindingVerifyStatus.invalidCode,
+      RemoteAuthFailureReason.expiredCode =>
+        EmailBindingVerifyStatus.expiredCode,
+      RemoteAuthFailureReason.emailMismatch =>
+        EmailBindingVerifyStatus.emailMismatch,
+      RemoteAuthFailureReason.uidChangedUnsafe =>
+        EmailBindingVerifyStatus.uidChangedUnsafe,
+      RemoteAuthFailureReason.unsupported ||
+      RemoteAuthFailureReason.providerUnavailable ||
+      RemoteAuthFailureReason.notAnonymous =>
+        EmailBindingVerifyStatus.providerUnavailable,
+      RemoteAuthFailureReason.networkFailed ||
+      RemoteAuthFailureReason.unavailable =>
+        EmailBindingVerifyStatus.networkFailed,
+      RemoteAuthFailureReason.remoteAuthFailed =>
+        EmailBindingVerifyStatus.remoteAuthRequired,
+      RemoteAuthFailureReason.emailInvalid =>
+        EmailBindingVerifyStatus.emailMismatch,
+    };
+  }
+
+  String _normalizeEmail(String email) => email.trim().toLowerCase();
+
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
   }
 }
 

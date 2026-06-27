@@ -14,6 +14,7 @@ import 'package:reminder_app/features/reminders/data/remote_shared_pack_models.d
 import 'package:reminder_app/features/reminders/data/remote_shared_pack_repository.dart';
 import 'package:reminder_app/features/reminders/data/remote_snapshot_import_service.dart';
 import 'package:reminder_app/features/reminders/domain/remote_membership_recovery.dart';
+import 'package:reminder_app/features/reminders/domain/remote_pack_freshness.dart';
 import 'package:reminder_app/features/reminders/domain/remote_sync.dart';
 import 'package:reminder_app/features/reminders/domain/shared_pack.dart';
 
@@ -192,6 +193,33 @@ void main() {
       expect(env.remote.snapshotCalls, 2);
     },
   );
+
+  test('successful recovery reports imported snapshot watermark', () async {
+    final env = await _Env.create();
+    addTearDown(env.close);
+    env.remote.memberships = [_membership('recover-pack')];
+    env.remote.snapshots['recover-pack'] = _snapshot('recover-pack');
+
+    final result = await env.service.restoreActiveMemberships();
+
+    expect(result.status, RemoteMembershipRecoveryStatus.restored);
+    expect(env.remote.reportCalls, 1);
+    expect(env.remote.reportedActivityIds, ['remote-activity-1']);
+  });
+
+  test('recovery report failure only adds warning', () async {
+    final env = await _Env.create();
+    addTearDown(env.close);
+    env.remote.memberships = [_membership('recover-pack')];
+    env.remote.snapshots['recover-pack'] = _snapshot('recover-pack');
+    env.remote.rejectSnapshotReport = true;
+
+    final result = await env.service.restoreActiveMemberships();
+
+    expect(result.status, RemoteMembershipRecoveryStatus.restored);
+    expect(result.summary.createdLocalMirrorCount, 1);
+    expect(result.summary.warnings, contains('本機已更新，但未能回報同步狀態'));
+  });
 }
 
 class _Env {
@@ -241,6 +269,7 @@ class _Env {
         dao: db.reminderDao,
         identityRepository: identity,
       ),
+      reportPackSnapshotImported: repository.reportPackSnapshotImported,
     );
     return _Env(db: db, remote: remote, service: service);
   }
@@ -291,8 +320,11 @@ class _RecoveryRemoteDataSource extends DisabledRemoteSharedPackDataSource {
   RemoteSharedPackFailureReason? discoveryFailure;
   final snapshots = <String, RemotePackSnapshot>{};
   final snapshotFailures = <String, RemoteSharedPackFailureReason>{};
+  final reportedActivityIds = <String?>[];
+  bool rejectSnapshotReport = false;
   int discoveryCalls = 0;
   int snapshotCalls = 0;
+  int reportCalls = 0;
 
   @override
   Future<List<RemoteRecoverablePack>> fetchActiveMembershipPacks() async {
@@ -318,6 +350,28 @@ class _RecoveryRemoteDataSource extends DisabledRemoteSharedPackDataSource {
       );
     }
     return snapshot;
+  }
+
+  @override
+  Future<void> reportPackSnapshotImported({
+    required String remotePackId,
+    String? latestActivityEventId,
+    DateTime? latestActivityAt,
+  }) async {
+    reportCalls += 1;
+    if (rejectSnapshotReport) {
+      throw const RemoteSharedPackException(
+        RemoteSharedPackFailureReason.remoteRlsRejected,
+      );
+    }
+    reportedActivityIds.add(latestActivityEventId);
+  }
+
+  @override
+  Future<List<RemotePackMemberFreshness>> getPackMemberFreshness({
+    required String remotePackId,
+  }) async {
+    return const [];
   }
 }
 
@@ -348,6 +402,19 @@ class _FixedAuthRepository implements AuthRepository {
 
   @override
   Future<RemoteIdentity> linkWithEmail() => throw UnimplementedError();
+
+  @override
+  Future<EmailBindingStartRemoteResult> startEmailBinding(String email) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<RemoteIdentity> verifyEmailBinding({
+    required String email,
+    required String code,
+  }) {
+    throw UnimplementedError();
+  }
 
   @override
   Future<void> signOut() async {}

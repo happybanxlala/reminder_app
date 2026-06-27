@@ -10,6 +10,7 @@ void main() {
       'docs/core/sql/phase4c_supabase_remote_member_actions_mvp.sql',
       'docs/core/sql/phase4d_supabase_realtime_soft_notification_poc.sql',
       'docs/core/sql/phase4e_supabase_remote_collaboration_hardening.sql',
+      'docs/core/sql/phase5l_member_sync_awareness_mvp.sql',
     ];
 
     for (final path in files) {
@@ -29,6 +30,11 @@ void main() {
       phase4e,
       contains('phase4e_supabase_remote_collaboration_hardening.sql'),
     );
+    final phase5l = File(files.last).readAsStringSync().toLowerCase();
+    expect(phase5l, contains('apply order'));
+    expect(phase5l, contains('manual incremental patch'));
+    expect(phase5l, contains('do not auto-apply to production'));
+    expect(phase5l, contains('phase5l_member_sync_awareness_mvp.sql'));
   });
 
   test('Remote grants repair SQL covers authenticated privileges safely', () {
@@ -309,5 +315,113 @@ void main() {
     expect(lower, contains('no local merge'));
     expect(lower, contains('no auto refresh'));
     expect(lower, contains('no token/session/credential'));
+  });
+
+  test('Phase 5L SQL adds member sync state with active-member RLS', () {
+    final file = File('docs/core/sql/phase5l_member_sync_awareness_mvp.sql');
+
+    expect(file.existsSync(), isTrue);
+    final lower = file.readAsStringSync().toLowerCase();
+
+    expect(
+      lower,
+      contains('create table if not exists public.pack_member_sync_states'),
+    );
+    expect(lower, contains('pack_id uuid not null references public.packs'));
+    expect(lower, contains('user_id uuid not null references public.profiles'));
+    expect(lower, contains('last_snapshot_pulled_at'));
+    expect(lower, contains('last_imported_at'));
+    expect(lower, contains('last_seen_activity_event_id'));
+    expect(lower, contains('last_seen_activity_at'));
+    expect(lower, contains('pack_member_sync_states_pack_user_unique'));
+    expect(
+      lower,
+      contains(
+        'alter table public.pack_member_sync_states enable row level security',
+      ),
+    );
+    expect(lower, contains('for select'));
+    expect(lower, contains('for insert'));
+    expect(lower, contains('for update'));
+    expect(lower, contains('caller.user_id = auth.uid()'));
+    expect(lower, contains("caller.status = 'active'"));
+    expect(lower, contains('user_id = auth.uid()'));
+    expect(
+      lower,
+      contains(
+        'grant select, insert, update on table public.pack_member_sync_states',
+      ),
+    );
+    expect(lower, isNot(contains('grant delete')));
+    expect(lower, isNot(contains('service_role')));
+    expect(lower, isNot(contains('service role key')));
+    expect(lower, isNot(contains('plain invite')));
+    expect(lower, isNot(contains('device')));
+    expect(lower, isNot(contains('ip address')));
+    expect(lower, isNot(contains('location')));
+  });
+
+  test('Phase 5L SQL defines reporting and freshness RPCs safely', () {
+    final lower = File(
+      'docs/core/sql/phase5l_member_sync_awareness_mvp.sql',
+    ).readAsStringSync().toLowerCase();
+
+    expect(lower, contains('report_pack_snapshot_imported'));
+    expect(lower, contains('get_pack_member_freshness'));
+    expect(lower, contains('current_user_id uuid := auth.uid()'));
+    expect(lower, contains("raise exception 'auth required'"));
+    expect(lower, contains('public.is_pack_member(target_pack_id)'));
+    expect(lower, contains('on conflict (pack_id, user_id) do update'));
+    expect(lower, contains("'up_to_date'::text"));
+    expect(lower, contains("'possibly_stale'::text"));
+    expect(lower, contains("'no_sync_report'::text"));
+    expect(
+      lower,
+      contains('revoke all on function public.report_pack_snapshot_imported'),
+    );
+    expect(
+      lower,
+      contains(
+        'grant execute on function public.report_pack_snapshot_imported',
+      ),
+    );
+    expect(
+      lower,
+      contains('revoke all on function public.get_pack_member_freshness'),
+    );
+    expect(
+      lower,
+      contains('grant execute on function public.get_pack_member_freshness'),
+    );
+    expect(lower, isNot(contains('service_role')));
+    expect(lower, isNot(contains('service role key')));
+    expect(lower, isNot(contains('read receipt')));
+    expect(lower, isNot(contains('online')));
+    expect(lower, isNot(contains('offline')));
+  });
+
+  test('Phase 5L manual smoke test documents boundaries', () {
+    final file = File(
+      'docs/core/manual_tests/phase5l_member_sync_awareness_smoke_test.md',
+    );
+
+    expect(file.existsSync(), isTrue);
+    final lower = file.readAsStringSync().toLowerCase();
+
+    expect(lower, contains('phase 5l'));
+    expect(lower, contains('pack freshness'));
+    expect(lower, contains('report_pack_snapshot_imported'));
+    expect(lower, contains('get_pack_member_freshness'));
+    expect(lower, contains('本機已更新，但未能回報同步狀態'));
+    expect(lower, contains('no auto refresh'));
+    expect(lower, contains('no background sync'));
+    expect(lower, contains('no outbox flush'));
+    expect(lower, isNot(contains('已讀')));
+    expect(lower, isNot(contains('未讀')));
+    expect(lower, isNot(contains('在線')));
+    expect(lower, isNot(contains('離線')));
+    expect(lower, isNot(contains('device')));
+    expect(lower, isNot(contains('ip')));
+    expect(lower, isNot(contains('location')));
   });
 }

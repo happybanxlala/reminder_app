@@ -127,6 +127,107 @@ void main() {
     expect(status.status, AccountProtectionStatus.remoteSessionMissing);
     expect(outcome.result, AccountBindingResult.remoteSessionMissing);
   });
+
+  test(
+    'email binding start validates email and leaves user anonymous',
+    () async {
+      final env = await _Env.create();
+      addTearDown(env.close);
+      final remote = await env.auth.signInAnonymously();
+      await env.identity.linkRemoteIdentity(
+        remoteUserId: remote.remoteUserId,
+        provider: AuthProviderType.supabaseAnonymous,
+      );
+
+      final invalid = await env.service.startEmailBinding('not-an-email');
+      final started = await env.service.startEmailBinding('USER@example.COM ');
+      final status = await env.service.getStatus();
+
+      expect(invalid.status, EmailBindingStartStatus.emailInvalid);
+      expect(started.status, EmailBindingStartStatus.codeSent);
+      expect(started.normalizedEmail, 'user@example.com');
+      expect(status.status, AccountProtectionStatus.anonymousUnprotected);
+    },
+  );
+
+  test(
+    'email binding verify links same remote user without changing local id',
+    () async {
+      final env = await _Env.create();
+      addTearDown(env.close);
+      final local = await env.identity.ensureLocalIdentity();
+      final remote = await env.auth.signInAnonymously();
+      await env.identity.linkRemoteIdentity(
+        remoteUserId: remote.remoteUserId,
+        provider: AuthProviderType.supabaseAnonymous,
+      );
+
+      final started = await env.service.startEmailBinding('user@example.com');
+      final verified = await env.service.verifyEmailBinding(
+        email: 'user@example.com',
+        code: '123456',
+      );
+
+      expect(started.status, EmailBindingStartStatus.codeSent);
+      expect(verified.status, EmailBindingVerifyStatus.bound);
+      expect(verified.snapshot.status, AccountProtectionStatus.linkedProtected);
+      final updated = await env.identity.getCurrentAppUser();
+      expect(updated.id, local.id);
+      expect(updated.remoteUserId, remote.remoteUserId);
+      expect(updated.remoteProvider, AuthProviderType.email);
+      expect(updated.identityKind, LocalUserIdentityKind.linked);
+    },
+  );
+
+  test('email binding verify maps invalid and expired code safely', () async {
+    final env = await _Env.create();
+    addTearDown(env.close);
+    final remote = await env.auth.signInAnonymously();
+    await env.identity.linkRemoteIdentity(
+      remoteUserId: remote.remoteUserId,
+      provider: AuthProviderType.supabaseAnonymous,
+    );
+    await env.service.startEmailBinding('user@example.com');
+
+    final invalid = await env.service.verifyEmailBinding(
+      email: 'user@example.com',
+      code: '000000',
+    );
+    final expired = await env.service.verifyEmailBinding(
+      email: 'user@example.com',
+      code: 'expired',
+    );
+    final updated = await env.identity.getCurrentAppUser();
+
+    expect(invalid.status, EmailBindingVerifyStatus.invalidCode);
+    expect(expired.status, EmailBindingVerifyStatus.expiredCode);
+    expect(updated.identityKind, LocalUserIdentityKind.anonymousRemote);
+    expect(updated.remoteProvider, AuthProviderType.supabaseAnonymous);
+  });
+
+  test('email binding fails closed when verified uid changes', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final identity = IdentityRepository(db.reminderDao);
+    await identity.linkRemoteIdentity(
+      remoteUserId: 'anonymous-remote-user',
+      provider: AuthProviderType.supabaseAnonymous,
+    );
+    final service = AccountProtectionService(
+      identityRepository: identity,
+      authRepository: const _UidChangingEmailAuthRepository(),
+    );
+
+    final outcome = await service.verifyEmailBinding(
+      email: 'user@example.com',
+      code: '123456',
+    );
+    final updated = await identity.getCurrentAppUser();
+
+    expect(outcome.status, EmailBindingVerifyStatus.uidChangedUnsafe);
+    expect(updated.identityKind, LocalUserIdentityKind.anonymousRemote);
+    expect(updated.remoteProvider, AuthProviderType.supabaseAnonymous);
+  });
 }
 
 class _ThrowingCurrentAuthRepository implements AuthRepository {
@@ -158,6 +259,19 @@ class _ThrowingCurrentAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<EmailBindingStartRemoteResult> startEmailBinding(String email) {
+    throw const RemoteAuthException(RemoteAuthFailureReason.unsupported);
+  }
+
+  @override
+  Future<RemoteIdentity> verifyEmailBinding({
+    required String email,
+    required String code,
+  }) {
+    throw const RemoteAuthException(RemoteAuthFailureReason.unsupported);
+  }
+
+  @override
   Future<void> signOut() async {}
 }
 
@@ -185,6 +299,75 @@ class _ConfigMissingBindingAuthRepository implements AuthRepository {
   @override
   Future<RemoteIdentity> linkWithEmail() {
     throw const RemoteAuthException(RemoteAuthFailureReason.configMissing);
+  }
+
+  @override
+  Future<EmailBindingStartRemoteResult> startEmailBinding(String email) {
+    throw const RemoteAuthException(RemoteAuthFailureReason.configMissing);
+  }
+
+  @override
+  Future<RemoteIdentity> verifyEmailBinding({
+    required String email,
+    required String code,
+  }) {
+    throw const RemoteAuthException(RemoteAuthFailureReason.configMissing);
+  }
+
+  @override
+  Future<void> signOut() async {}
+}
+
+class _UidChangingEmailAuthRepository implements AuthRepository {
+  const _UidChangingEmailAuthRepository();
+
+  @override
+  Future<RemoteIdentity?> getCurrentRemoteIdentity() async {
+    return const RemoteIdentity(
+      remoteUserId: 'anonymous-remote-user',
+      provider: AuthProviderType.supabaseAnonymous,
+      isAnonymous: true,
+    );
+  }
+
+  @override
+  Future<RemoteIdentity> signInAnonymously() {
+    throw const RemoteAuthException(RemoteAuthFailureReason.unsupported);
+  }
+
+  @override
+  Future<RemoteIdentity> linkWithApple() {
+    throw const RemoteAuthException(RemoteAuthFailureReason.unsupported);
+  }
+
+  @override
+  Future<RemoteIdentity> linkWithGoogle() {
+    throw const RemoteAuthException(RemoteAuthFailureReason.unsupported);
+  }
+
+  @override
+  Future<RemoteIdentity> linkWithEmail() {
+    throw const RemoteAuthException(RemoteAuthFailureReason.unsupported);
+  }
+
+  @override
+  Future<EmailBindingStartRemoteResult> startEmailBinding(String email) async {
+    return EmailBindingStartRemoteResult(
+      remoteUserId: 'anonymous-remote-user',
+      email: email,
+    );
+  }
+
+  @override
+  Future<RemoteIdentity> verifyEmailBinding({
+    required String email,
+    required String code,
+  }) async {
+    return const RemoteIdentity(
+      remoteUserId: 'different-remote-user',
+      provider: AuthProviderType.email,
+      isAnonymous: false,
+    );
   }
 
   @override

@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../domain/item.dart';
 import '../domain/item_pack.dart';
+import '../domain/remote_pack_freshness.dart';
 import '../domain/shared_pack.dart';
 import 'anonymous_remote_identity_service.dart';
 import 'identity_repository.dart';
@@ -512,6 +513,56 @@ class RemoteSharedPackRepository {
     }
   }
 
+  Future<RemotePackSnapshotReportResult> reportPackSnapshotImported({
+    required String remotePackId,
+    String? latestActivityEventId,
+    DateTime? latestActivityAt,
+  }) async {
+    try {
+      await _remoteDataSource.reportPackSnapshotImported(
+        remotePackId: remotePackId,
+        latestActivityEventId: latestActivityEventId,
+        latestActivityAt: latestActivityAt,
+      );
+      return const RemotePackSnapshotReportResult(
+        status: RemotePackSnapshotReportStatus.reported,
+      );
+    } on RemoteSharedPackException catch (error) {
+      return RemotePackSnapshotReportResult(
+        status: _snapshotReportStatus(error.reason),
+        message: _sanitizedFailure(error.reason),
+      );
+    } catch (_) {
+      return const RemotePackSnapshotReportResult(
+        status: RemotePackSnapshotReportStatus.unknownFailure,
+        message: 'unknownFailure',
+      );
+    }
+  }
+
+  Future<RemotePackFreshnessQueryResult> getPackMemberFreshness({
+    required String remotePackId,
+  }) async {
+    try {
+      return RemotePackFreshnessQueryResult(
+        status: RemotePackFreshnessQueryStatus.loaded,
+        members: await _remoteDataSource.getPackMemberFreshness(
+          remotePackId: remotePackId,
+        ),
+      );
+    } on RemoteSharedPackException catch (error) {
+      return RemotePackFreshnessQueryResult(
+        status: _freshnessQueryStatus(error.reason),
+        message: _sanitizedFailure(error.reason),
+      );
+    } catch (_) {
+      return const RemotePackFreshnessQueryResult(
+        status: RemotePackFreshnessQueryStatus.unknownFailure,
+        message: 'unknownFailure',
+      );
+    }
+  }
+
   Future<RemotePocResult<LocalUser>> _ensureAnonymousIdentity() async {
     final result = await _anonymousIdentityService
         .ensureAnonymousRemoteIdentity();
@@ -528,6 +579,53 @@ class RemoteSharedPackRepository {
         RemoteSharedPackFailureReason.remoteAuthRequired,
         result.error,
       ),
+    };
+  }
+
+  RemotePackSnapshotReportStatus _snapshotReportStatus(
+    RemoteSharedPackFailureReason reason,
+  ) {
+    return switch (reason) {
+      RemoteSharedPackFailureReason.supabaseConfigMissing =>
+        RemotePackSnapshotReportStatus.configMissing,
+      RemoteSharedPackFailureReason.remoteAuthRequired =>
+        RemotePackSnapshotReportStatus.remoteAuthRequired,
+      RemoteSharedPackFailureReason.remoteRlsRejected =>
+        RemotePackSnapshotReportStatus.accessDenied,
+      RemoteSharedPackFailureReason.localUserNotPackMember =>
+        RemotePackSnapshotReportStatus.notMember,
+      RemoteSharedPackFailureReason.remoteNetworkFailed =>
+        RemotePackSnapshotReportStatus.networkFailed,
+      _ => RemotePackSnapshotReportStatus.unknownFailure,
+    };
+  }
+
+  RemotePackFreshnessQueryStatus _freshnessQueryStatus(
+    RemoteSharedPackFailureReason reason,
+  ) {
+    return switch (reason) {
+      RemoteSharedPackFailureReason.supabaseConfigMissing =>
+        RemotePackFreshnessQueryStatus.configMissing,
+      RemoteSharedPackFailureReason.remoteAuthRequired =>
+        RemotePackFreshnessQueryStatus.remoteAuthRequired,
+      RemoteSharedPackFailureReason.remoteRlsRejected =>
+        RemotePackFreshnessQueryStatus.accessDenied,
+      RemoteSharedPackFailureReason.localUserNotPackMember =>
+        RemotePackFreshnessQueryStatus.notMember,
+      RemoteSharedPackFailureReason.remoteNetworkFailed =>
+        RemotePackFreshnessQueryStatus.networkFailed,
+      _ => RemotePackFreshnessQueryStatus.unknownFailure,
+    };
+  }
+
+  String _sanitizedFailure(RemoteSharedPackFailureReason reason) {
+    return switch (reason) {
+      RemoteSharedPackFailureReason.supabaseConfigMissing => 'configMissing',
+      RemoteSharedPackFailureReason.remoteAuthRequired => 'remoteAuthRequired',
+      RemoteSharedPackFailureReason.remoteRlsRejected => 'accessDenied',
+      RemoteSharedPackFailureReason.localUserNotPackMember => 'notMember',
+      RemoteSharedPackFailureReason.remoteNetworkFailed => 'networkFailed',
+      _ => 'unknownFailure',
     };
   }
 

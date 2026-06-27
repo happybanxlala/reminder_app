@@ -11,6 +11,7 @@ import 'package:reminder_app/features/reminders/data/remote_shared_pack_models.d
 import 'package:reminder_app/features/reminders/data/remote_snapshot_import_service.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/remote_backed_pack_refresh.dart';
+import 'package:reminder_app/features/reminders/domain/remote_pack_freshness.dart';
 import 'package:reminder_app/features/reminders/domain/remote_sync.dart';
 import 'package:reminder_app/features/reminders/domain/shared_pack.dart';
 
@@ -162,6 +163,77 @@ void main() {
     expect(refreshedItemMetadata!.syncState, RemoteItemSyncState.stale);
   });
 
+  test('successful refresh reports imported snapshot watermark', () async {
+    final env = await _RefreshEnv.create();
+    addTearDown(env.close);
+    final importResult = await env.importSnapshot();
+    final reports = <String, String?>{};
+    final service = env.service(
+      pullRemotePackSnapshot: (_) async => RemotePocResult.success(
+        _snapshot(
+          activityEvents: [
+            RemoteActivityEventSnapshot(
+              id: 'event-old',
+              packId: 'remote-pack-1',
+              entityType: 'pack',
+              entityId: 'remote-pack-1',
+              action: 'pack_created',
+              createdAt: DateTime(2026, 6, 21, 10),
+            ),
+            RemoteActivityEventSnapshot(
+              id: 'event-new',
+              packId: 'remote-pack-1',
+              entityType: 'item',
+              entityId: 'remote-item-1',
+              action: 'item_updated',
+              createdAt: DateTime(2026, 6, 21, 11),
+            ),
+          ],
+        ),
+      ),
+      reportPackSnapshotImported:
+          ({
+            required remotePackId,
+            latestActivityEventId,
+            latestActivityAt,
+          }) async {
+            reports[remotePackId] = latestActivityEventId;
+            return const RemotePackSnapshotReportResult(
+              status: RemotePackSnapshotReportStatus.reported,
+            );
+          },
+    );
+
+    final result = await service.refreshPack(importResult.localPackId!);
+
+    expect(result.status, RemoteBackedPackRefreshStatus.refreshed);
+    expect(reports, {'remote-pack-1': 'event-new'});
+    expect(result.summary.warnings, isNot(contains('本機已更新，但未能回報同步狀態')));
+  });
+
+  test('freshness report failure warns without failing refresh', () async {
+    final env = await _RefreshEnv.create();
+    addTearDown(env.close);
+    final importResult = await env.importSnapshot();
+    final service = env.service(
+      reportPackSnapshotImported:
+          ({
+            required remotePackId,
+            latestActivityEventId,
+            latestActivityAt,
+          }) async {
+            return const RemotePackSnapshotReportResult(
+              status: RemotePackSnapshotReportStatus.accessDenied,
+            );
+          },
+    );
+
+    final result = await service.refreshPack(importResult.localPackId!);
+
+    expect(result.status, RemoteBackedPackRefreshStatus.refreshed);
+    expect(result.summary.warnings, contains('本機已更新，但未能回報同步狀態'));
+  });
+
   test('access-lost metadata fails closed on RLS rejection', () async {
     final env = await _RefreshEnv.create();
     addTearDown(env.close);
@@ -222,6 +294,7 @@ class _RefreshEnv {
   RemoteBackedPackRefreshService service({
     RemotePackSnapshotPuller? pullRemotePackSnapshot,
     RemotePackSnapshotImporter? importRemotePackSnapshot,
+    RemotePackSnapshotImportedReporter? reportPackSnapshotImported,
   }) {
     return RemoteBackedPackRefreshService(
       dao: db.reminderDao,
@@ -233,6 +306,7 @@ class _RefreshEnv {
           },
       importRemotePackSnapshot:
           importRemotePackSnapshot ?? importService.importRemotePackSnapshot,
+      reportPackSnapshotImported: reportPackSnapshotImported,
       clock: () => DateTime(2026, 6, 21, 13),
     );
   }
@@ -280,7 +354,10 @@ class _RefreshEnv {
   Future<void> close() => db.close();
 }
 
-RemotePackSnapshot _snapshot({String title = 'Remote item'}) {
+RemotePackSnapshot _snapshot({
+  String title = 'Remote item',
+  List<RemoteActivityEventSnapshot> activityEvents = const [],
+}) {
   final created = DateTime(2026, 6, 21, 10);
   final updated = DateTime(2026, 6, 21, 11);
   return RemotePackSnapshot(
@@ -317,6 +394,6 @@ RemotePackSnapshot _snapshot({String title = 'Remote item'}) {
       ),
     ],
     completions: const [],
-    activityEvents: const [],
+    activityEvents: activityEvents,
   );
 }

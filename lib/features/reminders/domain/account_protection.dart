@@ -20,6 +20,31 @@ enum AccountBindingResult {
   remoteSessionMissing,
 }
 
+enum EmailBindingStartStatus {
+  codeSent,
+  alreadyBound,
+  notAnonymous,
+  configMissing,
+  remoteAuthRequired,
+  emailInvalid,
+  providerUnavailable,
+  unknownFailure,
+}
+
+enum EmailBindingVerifyStatus {
+  bound,
+  alreadyBound,
+  invalidCode,
+  expiredCode,
+  emailMismatch,
+  uidChangedUnsafe,
+  configMissing,
+  remoteAuthRequired,
+  providerUnavailable,
+  networkFailed,
+  unknownFailure,
+}
+
 class AccountProtectionSnapshot {
   const AccountProtectionSnapshot({
     required this.status,
@@ -47,6 +72,34 @@ class AccountBindingOutcome {
   bool get succeeded =>
       result == AccountBindingResult.linked ||
       result == AccountBindingResult.alreadyLinked;
+}
+
+class EmailBindingStartOutcome {
+  const EmailBindingStartOutcome({
+    required this.status,
+    required this.snapshot,
+    this.normalizedEmail,
+  });
+
+  final EmailBindingStartStatus status;
+  final AccountProtectionSnapshot snapshot;
+  final String? normalizedEmail;
+
+  bool get codeSent => status == EmailBindingStartStatus.codeSent;
+}
+
+class EmailBindingVerifyOutcome {
+  const EmailBindingVerifyOutcome({
+    required this.status,
+    required this.snapshot,
+  });
+
+  final EmailBindingVerifyStatus status;
+  final AccountProtectionSnapshot snapshot;
+
+  bool get succeeded =>
+      status == EmailBindingVerifyStatus.bound ||
+      status == EmailBindingVerifyStatus.alreadyBound;
 }
 
 extension AccountBindingProviderAuthProvider on AccountBindingProvider {

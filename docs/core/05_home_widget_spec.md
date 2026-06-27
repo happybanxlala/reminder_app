@@ -164,7 +164,7 @@ Remote-backed widget support remains local-first:
 - Widget never stores Supabase token, session, credential, invite code, or service role key.
 - Widget timeline refresh never performs remote fetch, outbox flush, snapshot import, or realtime processing.
 - Access-lost remote-backed rows may remain visible but must be disabled/read-only and fail closed if acted on.
-- Notification integration remains deferred; Phase 5F does not make remote-backed items eligible for local notification scheduling.
+- Notification summaries are handled separately by Phase 5G and remain local-derived; widget code does not schedule notifications or query Supabase.
 
 ### 5.1 Snapshot Storage
 
@@ -420,7 +420,7 @@ First version intentionally does not include:
 - native Drift database access
 - native status calculation
 - background-only widget action execution
-- notification scheduling for remote-backed items
+- direct notification scheduling or notification action handling for remote-backed items
 - automatic outbox flush / retry / import from widget refresh or widget actions
 - adding new dependencies before implementation justification
 
@@ -450,7 +450,7 @@ Automated tests should cover:
 - Remote-backed rows serialize pending / failed / stale / access-lost sync state.
 - Remote-backed widget complete / undo delegates to `ItemRepository` and creates local outbox mutations.
 - Access-lost or missing-mapping remote-backed widget actions fail closed.
-- Notification summaries still exclude remote-backed item rows in Phase 5F.
+- Notification summary behavior is verified in Phase 5G tests and remains outside widget/native code.
 
 ### 10.2 Manual QA
 
@@ -523,4 +523,4 @@ iOS 17+:
 - Implemented: widget row snapshots carry compact remote-backed sync state and labels.
 - Implemented: widget complete / undo actions delegate to `ItemRepository`, which routes remote-backed rows through the Phase 5D outbox path.
 - Implemented: access-lost remote-backed rows are read-only/disabled and widget actions fail closed.
-- Deferred: remote-backed notification scheduling, background sync, automatic outbox flush/retry, realtime import, full sync, and account binding.
+- Deferred: remote-backed notification action buttons, background sync, automatic outbox flush/retry, realtime import, full sync, and account switching.

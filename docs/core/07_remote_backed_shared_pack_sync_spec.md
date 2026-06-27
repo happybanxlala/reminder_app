@@ -351,9 +351,9 @@ Manual backup is expected to become legacy for remote-backed shared packs.
 過渡策略：
 
 - Short term：manual backup 保留為 legacy，不新增 remote-backed sync 能力。
-- Medium term：實作 Apple / Google / Email account binding，讓 remote identity 可恢復。
+- Medium term：Email OTP binding protects the current anonymous session; Apple / Google binding remains later work.
 - Long term：remote-backed data 以 account binding recovery 為主。
-- Until account binding is implemented, backup must not be removed.
+- Until production-grade cross-device account recovery is complete, backup must not be removed.
 - Backup must not include Supabase tokens, sessions, credentials, service role keys, secret keys, or plaintext invite codes.
 - Backup 可保存 `remote_pack_id` / `sync_mappings` 等 remote references，但它們是 reference-only。
 - Restore 後不自動取得 remote access。
@@ -472,8 +472,8 @@ Phase 5E implementation note:
 - Home card labels are intentionally compact: `等待同步`, `同步失敗`, `遠端狀態可能已更新`, and `已失去遠端存取權`.
 - App-wired Home complete / today-completed undo keep using `ItemRepository.markDone` / `undoDone`; remote-backed rows route to the Phase 5D local outbox path and do not call Supabase immediately.
 - Local-only actions that do not yet have remote-backed semantics, such as skip/edit/delete/archive entry points on Home cards, remain hidden or disabled for remote-backed rows.
-- Widget integration remains deferred. Phase 5E filters remote-backed item rows out of generated widget snapshots and rejects stale widget actions for remote-backed items.
-- Notification integration remains deferred. Daily attention notification summaries exclude remote-backed item rows, while in-app Home summaries can include them.
+- Widget integration is handled by Phase 5F. Phase 5E itself does not make widget snapshots remote-backed aware.
+- Notification integration is handled by Phase 5G. Phase 5E itself does not make notification summaries remote-backed aware.
 - Backup remains legacy and unchanged: remote-backed mirror rows, typed sync metadata, and `sync_outbox` are not exported or replayed.
 
 ### Phase 5F：Remote-backed Home Widget Integration
@@ -485,7 +485,7 @@ Phase 5E implementation note:
 - Widget never calls Supabase, flushes outbox, imports remote snapshots, processes realtime payloads, stores credentials, or schedules notifications.
 - Access-lost or missing-mapping remote-backed widget actions fail closed. Access-lost rows may remain visible as disabled/read-only rows.
 - Backup remains legacy and unchanged: widget cache is not a remote source of truth, and `sync_outbox`, typed sync metadata, credentials, sessions, tokens, plaintext invite codes, and remote-backed mirror rows are not exported for replay.
-- Notification integration remains deferred to a later phase; Phase 5F keeps daily notification summaries excluding remote-backed item rows.
+- Notification summary integration is handled by Phase 5G and remains outside widget/native code.
 
 ### Phase 5G：Remote-backed Notification Integration
 
@@ -535,11 +535,22 @@ Phase 5E implementation note:
 - Adds account protection status foundation for remote-backed recovery without a Drift schema bump, backup schema bump, or Supabase SQL/RPC/table change.
 - Existing `local_users.remote_user_id`, `remote_provider`, `identity_kind`, and `linked_at` remain the local account protection record. Local user ids and local entity ids are never replaced by remote ids.
 - `AccountProtectionService` derives local-only, anonymous-unprotected, linked-protected, missing-session, unsupported, and unavailable states from the current local user plus Supabase/AuthRepository current identity.
-- Production Supabase auth remains anonymous-first. Apple, Google, and Email binding interfaces exist but return unsupported until a later phase provides real provider configuration and UX.
+- Production Supabase auth remains anonymous-first. Apple, Google, and provider-agnostic Email binding interfaces exist as foundation; Phase 5J.1 adds the first production Email OTP binding flow while Apple / Google remain unsupported.
 - Successful fake/provider test binding updates the existing local user to `identityKind = linked` with a non-anonymous provider; it does not merge local data, upload local-only packs, create remote packs, join packs, pull/import snapshots, or replay `sync_outbox`.
 - Settings shows account protection status and copy that distinguishes anonymous unprotected identity from linked protected identity.
 - Manual backup is labeled as legacy local backup. Copy clarifies that backup protects local data only and does not restore remote-backed shared pack access.
 - Backup schema remains unchanged. Backup still excludes Supabase tokens, sessions, credentials, service-role keys, plaintext invite codes, typed remote metadata, `sync_outbox`, retry state, and remote-backed mirror rows. Restore still does not pull, import, flush, retry, replay, create remote access, or grant membership.
+
+### Phase 5J.1：Email Account Binding MVP
+
+- Adds a two-step Email binding flow for the current anonymous Supabase session. The flow sends an Email-change OTP with `updateUser(UserAttributes(email: ...))` and verifies it with `verifyOTP(type: emailChange)`.
+- The flow is binding, not login. It never calls `signInWithOtp`, never switches accounts, and never stores Email address, OTP code, token, session, credential, service-role key, magic-link token, or plaintext invite code in Drift or backup.
+- Start requires the local user to already be linked to the current anonymous remote identity. Local-only, missing-session, already non-anonymous, unsupported, unavailable, and invalid-Email states fail closed with friendly copy.
+- Verify succeeds only if Supabase still returns the same remote UID, the user is no longer anonymous, and Email identity/confirmation can be safely inferred. If the UID changes, the app returns `uidChangedUnsafe` and does not mutate the local user.
+- On success, `AccountProtectionService.verifyEmailBinding` updates the existing local user to `identityKind = linked` and `remoteProvider = email`. Local app user ids, shared pack ids, item ids, completion actor ids, activity actor ids, mappings, metadata, and outbox rows are unchanged.
+- Settings shows Email as available in the account protection sheet and keeps Apple / Google as planned/unsupported. Successful Email binding enables Phase 5K recovery affordances through normal account-protection provider invalidation, but recovery is not run automatically.
+- Supabase Dashboard must enable Email auth and configure the Email change template to expose `{{ .Token }}`. No app deep link/callback is required for the OTP MVP.
+- Phase 5J.1 does not add Drift schema, backup schema, Supabase SQL/RPC/table changes, automatic recovery, snapshot pull/import, outbox flush/retry, local upload, backup replay, account switching, resource sync, stage sync, or merge/conflict UI.
 
 ### Phase 5K：Remote Membership Discovery & Recovery Restore
 
@@ -554,9 +565,69 @@ Phase 5E implementation note:
 - No Drift schema bump, backup schema bump, Supabase SQL/RPC/table change, widget behavior change, notification behavior change, resource sync, stage sync, account switching UI, or production OAuth provider flow is added.
 - Settings exposes a protected-account recovery entry plus `Restore active remote memberships POC` under `Remote-backed Recovery` for manual smoke testing. Product UI does not expose raw remote ids, raw exceptions, tokens, sessions, credentials, service-role keys, or plaintext invite codes.
 
-### Phase 5L+ Boundary
+### Phase 5L：Member Sync Awareness / Pack Freshness
 
-- Member sync awareness / pack freshness, production Apple / Google / Email binding, account switching, local/remote merge, backup legacy removal, background sync, automatic retry, conflict resolution UI, resource / stage sync, richer notification scheduling, notification action bridge, remote edit/delete/archive sync, and full two-way sync remain later-phase work.
+- Adds pack-data freshness for active members of remote-backed shared packs. This is defined as "this app successfully imported pack data" and must not be framed as human attention, member monitoring, or presence.
+- Adds Supabase SQL patch `docs/core/sql/phase5l_member_sync_awareness_mvp.sql` with `pack_member_sync_states`, `unique(pack_id, user_id)`, active-member RLS, and two RPCs:
+  - `report_pack_snapshot_imported(target_pack_id, latest_activity_event_id, latest_activity_at)`
+  - `get_pack_member_freshness(target_pack_id)`
+- Latest pack activity uses `activity_events` latest `created_at` plus event id. Phase 5L does not add a remote revision, sequence, or `activities_behind` count.
+- Freshness statuses are conservative: `up_to_date`, `possibly_stale`, `no_sync_report`, and `access_unknown`.
+- Manual refresh reports freshness only after successful safe local imports. Failed imports and unsafe partial imports do not report.
+- Membership recovery reports after each successful imported/refreshed pack. Account-blocked, discovery-failed, or import-failed recovery does not report.
+- Reporting failure never rolls back local import or changes the main refresh/recovery success status. It appends the friendly warning `本機已更新，但未能回報同步狀態`.
+- Product UI uses the existing `一起照顧` sheet and shows `成員同步狀態` with display names and labels:
+  - `已更新至最新資料`
+  - `可能未取得最新資料`
+  - `尚未回報取得此 Pack 資料`
+  - `狀態未確認`
+  - `上次更新共同資料：...` when `last_imported_at` exists
+- Developer Settings adds POC actions to refresh member freshness and report the current pack as imported. Developer UI may show short ids only.
+- Home, widget, and notification surfaces remain local-derived. They do not query member freshness or call Supabase.
+- Backup remains legacy and non-replayable. Restore does not report sync state, pull/import remote snapshots, flush/retry outbox, replay backup data, create remote access, or grant membership.
+- Phase 5L does not add Drift schema changes, backup schema changes, app-startup report, realtime-triggered report, background sync, automatic retry, outbox flush, account switching, resource sync, stage sync, remote edit/delete/archive sync, or full two-way sync.
+
+### Phase 5M：Acceptance / Hardening
+
+Phase 5M completes the remote-backed shared pack local-first MVP. It is an acceptance, hardening, regression cleanup, documentation convergence, and manual smoke-test finalization pass. It does not add a new sync engine or new remote-backed capability.
+
+#### Phase 5 Acceptance Matrix
+
+| Area | Accepted behavior |
+| --- | --- |
+| Remote identity / account | Anonymous remote identity can be created and is shown as unprotected. Email binding protects the current anonymous Supabase session only after verified Email-change OTP. `AccountProtectionStatus.linkedProtected` is not set at code-sent time. Apple / Google remain planned/unsupported. Local user id remains stable, `remote_user_id` remains a remote reference, and UID change during Email binding fails closed. |
+| Remote-backed pack lifecycle | Remote-backed packs can be created/joined through existing flows, remote snapshots can be pulled, and snapshots can be imported as local mirrors. Existing mirror import/recovery refreshes without duplicate local packs. Repeated recovery is idempotent. Active remote memberships can be discovered for linked/protected users; anonymous, local-only, missing-session, inactive, archived, and removed-member cases fail closed or are skipped. |
+| Home / Widget / Notification | Remote-backed local mirror items appear in Home, Widget, and notification summaries where existing local classification supports them. Complete/undo actions route through `ItemRepository` and the outbox. Home, Widget, and Notification surfaces do not call Supabase directly. Pending, failed, stale, access-lost, and needs-refresh labels are compact and safe. |
+| Sync / outbox / recovery | Remote-backed complete creates `complete_item`; undo creates `undo_item`. Manual flush and manual retry remain user/developer-triggered. Retry skips non-retryable, conflict, and no-op rows by default. Manual refresh pulls/imports snapshots but does not flush or retry outbox. Email binding does not recover, refresh, flush, or retry. Recovery restore does not flush, retry, push, upload local-only packs, or replay backup data. |
+| Member freshness | Successful manual refresh and successful recovery import report snapshot-imported watermarks. Failed imports and unsafe partial imports do not report. Reporting failure adds `本機已更新，但未能回報同步狀態` and does not roll back local import. Freshness statuses are `up_to_date`, `possibly_stale`, `no_sync_report`, and `access_unknown`. UI wording avoids read/unread, online/offline, device, IP, and location semantics. |
+| Backup / restore | Backup is `本機備份（Legacy）` and is local-only. It does not export Supabase token/session/credential/service-role key, OTP/magic-link token, plaintext invite code, typed remote metadata, outbox replay data, or remote-backed mirrors. Restore does not grant remote access, auto recover, auto pull/import/flush/retry, report sync state, or replay outbox. Old backup schemas remain restorable. |
+
+#### Phase 5 Manual Smoke Test
+
+The consolidated end-to-end smoke test lives at:
+
+- `docs/core/manual_tests/phase5_remote_backed_shared_pack_acceptance.md`
+
+It covers anonymous identity plus Email binding, create/join/import, Home / Widget / Notification display, complete/undo outbox, manual refresh, protected-account recovery, member freshness, and legacy backup boundaries.
+
+#### Phase 5 Completion Note
+
+Phase 5 completes the remote-backed shared pack local-first MVP. It intentionally stops before background sync, automatic retry, account switching, full conflict resolution, remote item edit/delete/archive sync, resource/stage remote sync, Apple / Google binding, and production-grade cross-device account management.
+
+### Phase 6 Backlog
+
+None of these are implemented in Phase 5M.
+
+- Phase 6A：Background Sync Design Spec.
+- Phase 6B：Automatic Refresh / Pull Sync MVP.
+- Phase 6C：Automatic Outbox Retry MVP.
+- Phase 6D：Conflict Resolution UX.
+- Phase 6E：Remote Item Edit / Delete / Archive Sync.
+- Phase 6F：Resource / Stage Remote Sync.
+- Phase 6G：Apple / Google Binding.
+- Phase 6H：Account Switching / Multi-account Safety.
+- Phase 6I：Production Observability / Error Reporting.
+- Additional later work：local/remote merge, backup legacy removal, richer notification scheduling, notification action bridge, richer freshness history/management, and full two-way sync.
 
 ## 19. Open Questions
 
@@ -566,7 +637,7 @@ Phase 5E implementation note:
 4. Widget 是否應顯示 sync failed / pending 狀態？
 5. Notification action 離線後同步失敗時，如何提醒使用者？
 6. Backup legacy UI 何時隱藏？
-7. Account binding 優先 Apple / Google / Email 哪一種？
+7. Apple / Google binding should follow which provider first after Email OTP binding?
 8. Pending local activity 與 confirmed remote activity 是否共用 `activity_events`，或以 projection / outbox 分離？
 9. Removed member 的 local mirror 是否應清除 shared content，或只停止 active query / action？
 10. Resource / stage sync 是否要跟 item completion sync 同一 outbox 模型？

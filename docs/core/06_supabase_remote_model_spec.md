@@ -1522,6 +1522,19 @@ Phase 4E adds an idempotent Realtime publication setup guard for `public.activit
 
 `phase_remote_grants_rls_repair.sql` is an idempotent manual repair patch for Supabase projects where RLS policies exist but the `authenticated` role is missing base table privileges or RPC execute grants. It does not create product features, does not disable RLS, does not grant table access to `anon`, and does not grant hard delete.
 
+### Phase 5J.1 Email Account Binding
+
+Phase 5J.1 adds production Email binding for the current anonymous Supabase session. It does not add SQL, tables, RPCs, RLS policies, provider secrets, Drift schema, or backup schema.
+
+- Email binding uses Supabase Auth Email-change OTP, not Email sign-in. The app must not call `signInWithOtp` for binding because binding must preserve the existing anonymous remote user id.
+- Start flow requires a current anonymous Supabase session linked to the local user. It sends the Email-change code with `updateUser(UserAttributes(email: ...))`.
+- Verify flow calls `verifyOTP(type: emailChange)` with the Email and OTP code, then fails closed unless the current/returned Supabase UID equals the local `remote_user_id`, the user is no longer anonymous, and Email identity/confirmation can be inferred.
+- On verified success, local account protection updates the existing `local_users` row to `identity_kind = linked` and `remote_provider = email`; local user ids, pack ids, item ids, completion actor ids, and activity actor ids are unchanged.
+- Supabase Dashboard must enable Email auth and configure the Email change template to expose an OTP token such as `{{ .Token }}`. No deep link or callback is required for this MVP.
+- The app never saves Email address, OTP code, access token, refresh token, session JSON, OAuth credential, service-role key, plaintext invite code, or magic-link token in Drift or backup.
+- Email binding does not auto-run Phase 5K recovery, pull/import snapshots, flush/retry outbox, upload local-only packs, replay backup data, or create/join remote packs. It only makes the current remote identity recoverable for later explicit recovery.
+- Production Apple and Google binding remain unsupported. Account switching, merge behavior, Email sign-in, magic-link login, and background recovery remain later work.
+
 ### Phase 5K Remote Membership Recovery
 
 Phase 5K does not add Supabase SQL. It reuses existing `pack_members` RLS, `packs`, and snapshot reads so the current authenticated remote user can discover active remote pack memberships and restore local mirrors manually.
@@ -1532,7 +1545,55 @@ Phase 5K does not add Supabase SQL. It reuses existing `pack_members` RLS, `pack
 - Recovery pulls pack snapshots through the current Supabase session and imports them locally; it does not create memberships, join packs, grant access, upload local-only packs, replay `sync_outbox`, flush/retry outbox, or use service-role privileges.
 - Repeated recovery is idempotent through existing `sync_mappings` and import behavior: missing mirrors are created, existing mirrors are refreshed, and duplicate local packs/items/completions/activity rows are not created.
 - Backup restore remains local-only and never triggers membership discovery, snapshot pull, import, outbox replay, or remote access recovery. Recovery always depends on the current authenticated remote account, not the backup file.
-- No realtime signal, app startup, backup import, widget/notification path, or outbox retry path auto-runs recovery. Phase 5K also does not implement member freshness, read receipts, or host awareness; those remain Phase 5L+ work.
+- No realtime signal, app startup, backup import, widget/notification path, or outbox retry path auto-runs recovery. Phase 5K does not implement member freshness; Phase 5L adds pack-data freshness separately.
+
+### Phase 5L Member Sync Awareness / Pack Freshness
+
+Phase 5L adds a small Supabase SQL patch for per-member pack-data freshness. It stores the latest successful local snapshot import watermark for each active member and exposes RPCs for reporting/querying that state.
+
+SQL file:
+
+- `docs/core/sql/phase5l_member_sync_awareness_mvp.sql`
+
+Remote state:
+
+- `pack_member_sync_states` stores `pack_id`, `user_id`, `last_snapshot_pulled_at`, `last_imported_at`, `last_seen_activity_event_id`, `last_seen_activity_at`, optional sync error fields, and timestamps.
+- `unique(pack_id, user_id)` keeps reports idempotent for the same member and pack.
+- Latest pack activity is derived from `activity_events` using latest `created_at` plus latest event id. Phase 5L does not add a pack revision or activity sequence.
+
+RPCs:
+
+- `report_pack_snapshot_imported(target_pack_id, latest_activity_event_id, latest_activity_at)` verifies `auth.uid()` is an active member, upserts only the caller's own row, and records the supplied/imported activity watermark.
+- `get_pack_member_freshness(target_pack_id)` verifies `auth.uid()` is an active member and returns active same-pack members with conservative statuses: `up_to_date`, `possibly_stale`, `no_sync_report`, or `access_unknown`.
+
+RLS / privacy boundary:
+
+- Active same-pack members can select active-member freshness rows.
+- Active members can insert/update only their own sync-state row.
+- Removed members and non-members cannot query or report pack freshness.
+- The app uses the normal authenticated Supabase client and never requires service-role privileges.
+- Freshness is defined as "this app successfully imported pack data"; it is not human attention, member monitoring, presence, or a background heartbeat.
+
+Integration behavior:
+
+- Phase 5H manual refresh reports only after successful safe local import. Failed imports and unsafe partial imports do not report.
+- Phase 5K recovery restore reports after each successful imported/refreshed pack.
+- Reporting failure is non-blocking and surfaces as `本機已更新，但未能回報同步狀態`; local import remains successful.
+- App startup, realtime signals, backup restore, widget/notification summaries, and outbox retry/flush paths do not report freshness.
+
+Manual smoke test:
+
+- `docs/core/manual_tests/phase5l_member_sync_awareness_smoke_test.md`
+
+### Phase 5M Acceptance / Hardening
+
+Phase 5M completes the remote-backed shared pack local-first MVP acceptance pass without adding Supabase schema, RPC, or RLS changes. The Phase 5L SQL patch remains a manual apply step.
+
+- Email protection is current-session Email-change OTP binding only. It is not Email sign-in, magic-link login, account switching, or cross-device session recovery.
+- Recovery remains explicit/manual and depends on the current authenticated linked/protected remote session. App startup, realtime signals, backup restore, widget refresh, notification sync, and outbox retry/flush paths do not auto-run recovery.
+- Member freshness remains pack-data freshness only. It must not be described as read receipts, presence, attention, online/offline state, device tracking, IP tracking, or location tracking.
+- Remote-backed Home, Widget, and Notification behavior remains local-derived. None of those surfaces directly call Supabase.
+- Backup remains legacy local-only safety. It does not store credentials, tokens, sessions, OTPs, service-role keys, plaintext invite codes, typed remote metadata, outbox replay data, or remote-backed mirrors.
 
 ### RPC Contract Checklist
 

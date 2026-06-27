@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../domain/remote_backed_pack_refresh.dart';
+import '../domain/remote_pack_freshness.dart';
 import '../domain/remote_sync.dart';
 import 'local/app_database.dart';
 import 'local/reminder_dao.dart';
@@ -19,20 +20,30 @@ typedef RemotePackSnapshotImporter =
       required RemoteSnapshotImportSource source,
     });
 
+typedef RemotePackSnapshotImportedReporter =
+    Future<RemotePackSnapshotReportResult> Function({
+      required String remotePackId,
+      String? latestActivityEventId,
+      DateTime? latestActivityAt,
+    });
+
 class RemoteBackedPackRefreshService {
   const RemoteBackedPackRefreshService({
     required ReminderDao dao,
     required RemotePackSnapshotPuller pullRemotePackSnapshot,
     required RemotePackSnapshotImporter importRemotePackSnapshot,
+    RemotePackSnapshotImportedReporter? reportPackSnapshotImported,
     DateTime Function()? clock,
   }) : _dao = dao,
        _pullRemotePackSnapshot = pullRemotePackSnapshot,
        _importRemotePackSnapshot = importRemotePackSnapshot,
+       _reportPackSnapshotImported = reportPackSnapshotImported,
        _clock = clock ?? DateTime.now;
 
   final ReminderDao _dao;
   final RemotePackSnapshotPuller _pullRemotePackSnapshot;
   final RemotePackSnapshotImporter _importRemotePackSnapshot;
+  final RemotePackSnapshotImportedReporter? _reportPackSnapshotImported;
   final DateTime Function() _clock;
 
   Future<RemoteBackedPackRefreshResult> refreshPack(int localPackId) async {
@@ -145,18 +156,58 @@ class RemoteBackedPackRefreshService {
     if (outboxSummary.hasUnresolved) {
       await _markPackStale(refreshedMetadata);
       await _markOutboxItemsStale(importResult.localPackId ?? localPackId);
+      final reportWarnings = await _reportSnapshotImported(snapshot);
       return RemoteBackedPackRefreshResult(
         status: RemoteBackedPackRefreshStatus.hasPendingLocalMutations,
-        summary: importedSummary.copyWith(staleAfterRefresh: true),
+        summary: importedSummary.copyWith(
+          staleAfterRefresh: true,
+          extraWarnings: reportWarnings,
+        ),
         message: 'hasPendingLocalMutations',
       );
     }
 
+    final reportWarnings = await _reportSnapshotImported(snapshot);
     return RemoteBackedPackRefreshResult(
       status: RemoteBackedPackRefreshStatus.refreshed,
-      summary: importedSummary.copyWith(staleAfterRefresh: false),
+      summary: importedSummary.copyWith(
+        staleAfterRefresh: false,
+        extraWarnings: reportWarnings,
+      ),
       message: 'refreshed',
     );
+  }
+
+  Future<List<String>> _reportSnapshotImported(
+    RemotePackSnapshot snapshot,
+  ) async {
+    final reporter = _reportPackSnapshotImported;
+    if (reporter == null) {
+      return const [];
+    }
+    final latest = _latestActivity(snapshot);
+    final result = await reporter(
+      remotePackId: snapshot.id,
+      latestActivityEventId: latest?.id,
+      latestActivityAt: latest?.createdAt,
+    );
+    if (result.succeeded) {
+      return const [];
+    }
+    return const ['本機已更新，但未能回報同步狀態'];
+  }
+
+  RemoteActivityEventSnapshot? _latestActivity(RemotePackSnapshot snapshot) {
+    RemoteActivityEventSnapshot? latest;
+    for (final event in snapshot.activityEvents) {
+      if (latest == null ||
+          event.createdAt.isAfter(latest.createdAt) ||
+          (event.createdAt.isAtSameMomentAs(latest.createdAt) &&
+              event.id.compareTo(latest.id) > 0)) {
+        latest = event;
+      }
+    }
+    return latest;
   }
 
   String? _remotePackId(
@@ -408,7 +459,10 @@ class _RefreshOutboxSummary {
 }
 
 extension on RemoteBackedPackRefreshSummary {
-  RemoteBackedPackRefreshSummary copyWith({required bool staleAfterRefresh}) {
+  RemoteBackedPackRefreshSummary copyWith({
+    required bool staleAfterRefresh,
+    List<String> extraWarnings = const [],
+  }) {
     return RemoteBackedPackRefreshSummary(
       localPackId: localPackId,
       remotePackId: remotePackId,
@@ -423,7 +477,7 @@ extension on RemoteBackedPackRefreshSummary {
       failedMutationCount: failedMutationCount,
       staleBeforeRefresh: staleBeforeRefresh,
       staleAfterRefresh: staleAfterRefresh,
-      warnings: warnings,
+      warnings: List.unmodifiable([...warnings, ...extraWarnings]),
     );
   }
 }

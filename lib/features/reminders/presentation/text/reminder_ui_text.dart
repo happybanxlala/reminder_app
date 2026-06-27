@@ -133,7 +133,7 @@ class ReminderUiText {
   static const packCareAccessLostReason = '你可能已被移出這個生活場景，或目前無法確認共享權限。';
   static const packCareAccessLostGuard = '為了避免資料錯亂，暫時不能完成或復原這裡的提醒。';
   static const packCareDataProtectionNote =
-      '之後可以綁定 Apple / Google / Email 來保護共享資料。';
+      '可先綁定 Email 保護共享資料；Apple / Google 會在後續階段開放。';
   static const remoteBackedUnsupportedAction = '遠端共享事項暫不支援此操作。';
   static const noItemPacks = '目前沒有生活場景。';
   static const noStageTrackers = '目前沒有階段追蹤。';
@@ -192,7 +192,7 @@ class ReminderUiText {
   static const settingsDataSectionTitle = '資料管理';
   static const settingsDeveloperSectionTitle = '開發工具';
   static const backupDataLabel = '本機備份（Legacy）';
-  static const backupDataDescription = '只保護本機資料，不等於遠端帳號恢復';
+  static const backupDataDescription = '備份只保存此裝置的本機資料，不包含登入狀態或遠端帳號權限。';
   static const importDataLabel = '匯入資料';
   static const importDataDescription = '用本機備份覆蓋目前資料，不會恢復遠端存取權';
   static const resetUserDataLabel = '重設資料庫';
@@ -226,20 +226,38 @@ class ReminderUiText {
   static const accountProtectionAction = '保護共同資料';
   static const accountProtectionLocalOnly = '尚未使用遠端共同資料。';
   static const accountProtectionAnonymous =
-      '未保護：目前只是匿名遠端身份。刪 app / 換機後可能無法找回共同 Pack。';
+      '匿名遠端身份，未受保護。刪 app / 換機後可能無法找回共同 Pack。';
   static const accountProtectionLinked =
-      '已綁定：此遠端身份已被帳號保護。未來可用帳號恢復共同 Pack access。';
+      '帳號已受保護：此遠端身份已綁定可恢復帳號。未來可用帳號恢復共同 Pack access。';
   static const accountProtectionSessionMissing = '目前找不到遠端登入狀態。請先重新建立或確認遠端身份。';
   static const accountProtectionUnsupported = '目前版本尚未提供帳號綁定。';
   static const accountProtectionUnavailable = '目前無法確認共同資料保護狀態。';
   static const accountProtectionSheetTitle = '選擇保護方式';
   static const accountProtectionSheetBody =
-      'Phase 5J 先建立帳號保護狀態與綁定介面。Apple、Google、Email 綁定會在後續階段開放。';
+      'Email 可用驗證碼保護目前的匿名遠端身份。Apple、Google 會在後續階段開放。';
   static const accountProtectionProviderUnsupported = '尚未開放';
+  static const accountProtectionProviderPlanned = '稍後提供';
+  static const emailBindingAvailable = '使用 Email 驗證碼保護共同資料';
+  static const emailBindingSheetTitle = '綁定 Email';
+  static const emailBindingEmailLabel = 'Email';
+  static const emailBindingCodeLabel = '驗證碼';
+  static const emailBindingSendCodeAction = '寄出驗證碼';
+  static const emailBindingConfirmCodeAction = '確認驗證碼';
+  static const emailBindingCodeSentMessage = '驗證碼已寄出，請檢查 Email。';
+  static const emailBindingSuccessTitle = '帳號已受保護';
+  static const emailBindingSuccessMessage = '已綁定 Email';
+  static const emailBindingRecoveryMessage = '你的共同 Pack 可透過此 Email 找回';
+  static const emailBindingInvalidEmailMessage = '請輸入有效的 Email。';
+  static const emailBindingInvalidCodeMessage = '驗證碼不正確，請重新確認。';
+  static const emailBindingExpiredCodeMessage = '驗證碼已過期，請重新寄出。';
+  static const emailBindingMismatchMessage = 'Email 與驗證碼不相符，請重新確認。';
+  static const emailBindingUnsafeMessage = '帳號狀態不安全，已停止綁定。';
+  static const emailBindingProviderUnavailableMessage = 'Email 綁定目前無法使用。';
+  static const emailBindingSessionMissingMessage = '目前找不到遠端登入狀態，暫時不能綁定。';
   static const accountRecoveryAction = '恢復共同 Pack';
   static const accountRecoveryAvailable = '找回已綁定帳號的共同 Pack';
   static const accountRecoveryBindingRequired = '請先綁定帳號，以便在新裝置找回共同 Pack。';
-  static const accountBindingUnsupportedMessage = '目前版本尚未提供此綁定方式。';
+  static const accountBindingUnsupportedMessage = '此綁定方式稍後提供。';
   static const accountBindingLinkedMessage = '共同資料身份已受到帳號保護。';
   static const accountBindingAlreadyLinkedMessage = '共同資料身份已受到帳號保護。';
   static const accountBindingSessionMissingMessage = '目前找不到遠端登入狀態，暫時不能綁定。';
@@ -284,6 +302,9 @@ class ReminderUiText {
       'Refresh stale remote-backed packs POC';
   static const remoteRecoveryRestoreMembershipsLabel =
       'Restore active remote memberships POC';
+  static const remoteFreshnessRefreshLabel = '刷新成員同步狀態 POC';
+  static const remoteFreshnessReportImportedLabel = '回報我已取得此 Pack 資料 POC';
+  static const remoteFreshnessSummaryLabel = 'Member freshness';
   static const remotePocInviteCodeLabel = 'Invite Code';
   static const remotePocInviteExpiresLabel = 'Invite expires';
   static const remotePocInviteMaxUsesLabel = 'Invite max uses';
@@ -325,6 +346,13 @@ class ReminderUiText {
   static const remotePocRealtimeUnsubscribeLabel = '停止監聽遠端變更 POC';
   static const remotePocRealtimeChangeBanner = '遠端有新變更，請刷新 Snapshot';
   static const remotePocRealtimeNoTarget = '尚未有可監聽的遠端 Pack';
+  static const packCareFreshnessTitle = '成員同步狀態';
+  static const packCareFreshnessUpToDate = '已更新至最新資料';
+  static const packCareFreshnessPossiblyStale = '可能未取得最新資料';
+  static const packCareFreshnessNoReport = '尚未回報取得此 Pack 資料';
+  static const packCareFreshnessUnknown = '狀態未確認';
+  static String packCareFreshnessLastImported(String value) =>
+      '上次更新共同資料：$value';
   static const remoteProviderSupabaseAnonymous = 'supabase_anonymous';
   static const remoteProviderApple = 'apple';
   static const remoteProviderGoogle = 'google';

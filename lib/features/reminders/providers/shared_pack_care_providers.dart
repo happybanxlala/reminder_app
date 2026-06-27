@@ -10,6 +10,7 @@ import '../data/remote_snapshot_import_service.dart';
 import '../domain/item_pack.dart';
 import '../domain/remote_backed_pack_refresh.dart';
 import '../domain/remote_backed_recovery.dart';
+import '../domain/remote_pack_freshness.dart';
 import '../domain/remote_sync.dart';
 import '../domain/shared_pack.dart';
 import '../presentation/text/reminder_ui_text.dart';
@@ -25,10 +26,14 @@ class PackCareMemberView {
   const PackCareMemberView({
     required this.displayName,
     required this.roleLabel,
+    this.freshnessLabel,
+    this.lastImportedAt,
   });
 
   final String displayName;
   final String roleLabel;
+  final String? freshnessLabel;
+  final DateTime? lastImportedAt;
 }
 
 class PackCareViewModel {
@@ -450,8 +455,16 @@ final packCareViewModelProvider =
         currentPack.id,
       );
       final currentUser = await ref.watch(currentAppUserProvider.future);
+      final freshness = metadata?.syncKind == RemotePackSyncKind.remoteBacked
+          ? await _loadMemberFreshness(ref, dao, currentPack.id)
+          : const <RemotePackMemberFreshness>[];
       final members = currentPack.packType == ItemPackType.shared
-          ? await _loadActiveMembers(dao, currentPack.id, currentUser.id)
+          ? await _loadActiveMembers(
+              dao,
+              currentPack.id,
+              currentUser.id,
+              freshness,
+            )
           : const <PackCareMemberView>[];
       final inviteState = await _loadInviteState(ref, dao, currentPack.id);
       final recoverySummary = await ref.watch(
@@ -488,18 +501,47 @@ Future<RemotePackInviteState> _loadInviteState(
   return result.value!;
 }
 
+Future<List<RemotePackMemberFreshness>> _loadMemberFreshness(
+  Ref ref,
+  ReminderDao dao,
+  int packId,
+) async {
+  final mapping = await dao.getSyncMapping(
+    localEntityType: RemoteSharedPackRepository.localEntityPack,
+    localEntityId: packId,
+    remoteTable: RemoteSharedPackRepository.remoteTablePacks,
+  );
+  if (mapping == null) {
+    return const [];
+  }
+  final result = await ref
+      .read(remoteSharedPackRepositoryProvider)
+      .getPackMemberFreshness(remotePackId: mapping.remoteEntityId);
+  if (!result.succeeded) {
+    return const [];
+  }
+  return result.members;
+}
+
 Future<List<PackCareMemberView>> _loadActiveMembers(
   ReminderDao dao,
   int packId,
   String currentUserId,
+  List<RemotePackMemberFreshness> freshness,
 ) async {
   final members = await dao.listPackMembers(packId);
   final users = await dao.listLocalUsers();
   final usersById = {for (final user in users) user.id: user};
+  final freshnessByRemoteUserId = {
+    for (final entry in freshness) entry.remoteUserId: entry,
+  };
   return members
       .where((member) => member.status == PackMemberStatus.active)
       .map((member) {
         final user = usersById[member.userId];
+        final memberFreshness = user?.remoteUserId == null
+            ? null
+            : freshnessByRemoteUserId[user!.remoteUserId];
         return PackCareMemberView(
           displayName: member.userId == currentUserId
               ? '你'
@@ -508,9 +550,25 @@ Future<List<PackCareMemberView>> _loadActiveMembers(
             PackMemberRole.host => '建立者',
             PackMemberRole.member => '成員',
           },
+          freshnessLabel: _freshnessLabel(memberFreshness?.status),
+          lastImportedAt: memberFreshness?.lastImportedAt,
         );
       })
       .toList(growable: false);
+}
+
+String? _freshnessLabel(RemotePackFreshnessStatus? status) {
+  return switch (status) {
+    RemotePackFreshnessStatus.upToDate =>
+      ReminderUiText.packCareFreshnessUpToDate,
+    RemotePackFreshnessStatus.possiblyStale =>
+      ReminderUiText.packCareFreshnessPossiblyStale,
+    RemotePackFreshnessStatus.noSyncReport =>
+      ReminderUiText.packCareFreshnessNoReport,
+    RemotePackFreshnessStatus.accessUnknown =>
+      ReminderUiText.packCareFreshnessUnknown,
+    null => null,
+  };
 }
 
 String _sharedCareFailureMessage(RemoteSharedPackFailureReason? reason) {
