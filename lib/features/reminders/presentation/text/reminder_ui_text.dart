@@ -89,6 +89,7 @@ class ReminderUiText {
   static const syncPendingLabel = '等待同步';
   static const syncFailedLabel = '同步失敗';
   static const syncStaleLabel = '遠端狀態可能已更新';
+  static const syncNeedsRefreshLabel = '需要刷新共同資料';
   static const syncAccessLostLabel = '已失去遠端存取權';
   static const packCareAction = '一起照顧';
   static const packCareInviteAction = '邀請一起照顧';
@@ -119,12 +120,16 @@ class ReminderUiText {
   static const packCareInviteExpiredBody = '之前的邀請碼已過期。\n你可以重新建立邀請碼，邀請其他人加入。';
   static const packCareSyncWaitingBanner = '有些變更還未同步。';
   static const packCareSyncFailedBanner = '同步失敗，請稍後再試。';
-  static const packCareSyncStaleBanner = '可能有新的更新，下拉重新整理後會顯示最新狀態。';
+  static const packCareSyncStaleBanner = '需要刷新共同資料，才能確認最新狀態。';
   static const packCareRefreshSharedState = '刷新共享狀態';
   static const packCareRefreshSuccess = '已刷新共同資料';
   static const packCareRefreshPendingWarning = '仍有等待同步的本機操作';
   static const packCareRefreshFailed = '同步失敗，稍後再試';
   static const packCareRefreshAccessLost = '已失去遠端存取權';
+  static const packCareRetrySync = '重試同步';
+  static const packCareRetrySuccess = '已重試同步';
+  static const packCareRetryUnavailable = '目前沒有可重試的同步失敗';
+  static const packCareRetryNeedsRefreshWarning = '需要刷新共同資料';
   static const packCareAccessLostReason = '你可能已被移出這個生活場景，或目前無法確認共享權限。';
   static const packCareAccessLostGuard = '為了避免資料錯亂，暫時不能完成或復原這裡的提醒。';
   static const packCareDataProtectionNote =
@@ -248,6 +253,11 @@ class ReminderUiText {
   static const remotePocOutboxLabel = 'Remote-backed Outbox';
   static const remotePocFlushOutboxLabel =
       'Flush Pending Remote-backed Mutations POC';
+  static const remoteRecoverySectionTitle = 'Remote-backed Recovery';
+  static const remoteRecoveryRetryLabel =
+      'Retry retryable failed mutations POC';
+  static const remoteRecoveryRefreshStaleLabel =
+      'Refresh stale remote-backed packs POC';
   static const remotePocInviteCodeLabel = 'Invite Code';
   static const remotePocInviteExpiresLabel = 'Invite expires';
   static const remotePocInviteMaxUsesLabel = 'Invite max uses';

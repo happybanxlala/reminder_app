@@ -228,7 +228,7 @@ class ItemCardViewModel {
       return ReminderUiText.syncPendingLabel;
     }
     if (status.isStale) {
-      return ReminderUiText.syncStaleLabel;
+      return ReminderUiText.syncNeedsRefreshLabel;
     }
     return null;
   }

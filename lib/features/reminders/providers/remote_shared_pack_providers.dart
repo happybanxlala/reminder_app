@@ -1,11 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/anonymous_remote_identity_service.dart';
 import '../data/local/reminder_dao.dart';
-import '../data/remote_backed_pack_refresh_service.dart';
 import '../data/remote_backed_outbox_flush_service.dart';
+import '../data/remote_backed_outbox_retry_service.dart';
+import '../data/remote_backed_pack_refresh_service.dart';
 import '../data/remote_shared_pack_data_source.dart';
 import '../data/remote_shared_pack_models.dart';
 import '../data/remote_shared_pack_repository.dart';
@@ -15,6 +17,7 @@ import '../data/supabase_config.dart';
 import '../domain/item.dart';
 import '../domain/item_pack.dart';
 import '../domain/remote_backed_pack_refresh.dart';
+import '../domain/remote_backed_recovery.dart';
 import '../domain/remote_sync.dart';
 import '../domain/shared_pack.dart';
 import 'database_providers.dart';
@@ -57,6 +60,16 @@ final remoteSnapshotImportServiceProvider =
 final remoteBackedOutboxFlushServiceProvider =
     Provider<RemoteBackedOutboxFlushService>((ref) {
       return RemoteBackedOutboxFlushService(
+        dao: ref.watch(appDatabaseProvider).reminderDao,
+        remoteClient: RemoteSharedPackOutboxRemoteClient(
+          ref.watch(remoteSharedPackRepositoryProvider),
+        ),
+      );
+    });
+
+final remoteBackedOutboxRetryServiceProvider =
+    Provider<RemoteBackedOutboxRetryService>((ref) {
+      return RemoteBackedOutboxRetryService(
         dao: ref.watch(appDatabaseProvider).reminderDao,
         remoteClient: RemoteSharedPackOutboxRemoteClient(
           ref.watch(remoteSharedPackRepositoryProvider),
@@ -861,6 +874,65 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
     });
   }
 
+  Future<String> retryRetryableFailedMutations() {
+    return _run('Retry retryable failed mutations POC', () async {
+      final result = await _ref
+          .read(remoteBackedOutboxRetryServiceProvider)
+          .retryAllRetryableFailedMutations();
+      _ref.invalidate(remoteBackedOutboxSummaryProvider);
+      _ref.invalidate(remoteBackedRecoverySummaryProvider);
+      _ref.invalidate(remoteBackedPackRecoverySummaryProvider);
+      return _RemotePocOutcome(
+        succeeded: !result.hasFailure,
+        message:
+            'Recovery retry：processed ${result.processedCount}, retried ${result.retriedCount}, synced ${result.syncedCount}, no-op ${result.noOpCount}, failed ${result.failedCount}, skipped ${result.skippedCount}',
+        snapshot: state.lastPulledRemoteSnapshot,
+        snapshotSummary: state.snapshotSummary,
+        snapshotTargetType: state.snapshotTargetType,
+      );
+    });
+  }
+
+  Future<String> refreshStaleRemoteBackedPacks() {
+    return _run('Refresh stale remote-backed packs POC', () async {
+      final metadata = await _ref
+          .read(appDatabaseProvider)
+          .reminderDao
+          .listRemotePackSyncMetadataEntries();
+      final stalePacks = metadata
+          .where(
+            (entry) =>
+                entry.syncKind == RemotePackSyncKind.remoteBacked &&
+                RemoteBackedRecoveryClassifier.isPackStale(entry),
+          )
+          .toList(growable: false);
+      var refreshed = 0;
+      var failed = 0;
+      for (final entry in stalePacks) {
+        final result = await _ref
+            .read(remoteBackedPackRefreshServiceProvider)
+            .refreshPack(entry.localPackId);
+        if (result.succeeded) {
+          refreshed++;
+        } else {
+          failed++;
+        }
+      }
+      _ref.invalidate(remoteBackedRecoverySummaryProvider);
+      _ref.invalidate(remoteBackedPackRecoverySummaryProvider);
+      return _RemotePocOutcome(
+        succeeded: failed == 0,
+        message:
+            'Stale pack refresh：targets ${stalePacks.length}, refreshed $refreshed, failed $failed',
+        snapshot: state.lastPulledRemoteSnapshot,
+        snapshotSummary: state.snapshotSummary,
+        snapshotTargetType: state.snapshotTargetType,
+        refreshAttempted: true,
+        clearRemoteChanges: failed == 0 && stalePacks.isNotEmpty,
+      );
+    });
+  }
+
   Future<String> flushRemoteBackedOutbox() {
     return _run('Flush Pending Remote-backed Mutations POC', () async {
       final result = await _ref
@@ -1124,6 +1196,42 @@ final remoteBackedOutboxSummaryProvider =
       );
     });
 
+final remoteBackedRecoverySummaryProvider =
+    FutureProvider<RemoteBackedSyncProblemSummary>((ref) async {
+      final dao = ref.watch(appDatabaseProvider).reminderDao;
+      final entries = await dao.listSyncOutboxEntries();
+      final metadata = await dao.listRemotePackSyncMetadataEntries();
+      return _buildRecoverySummary(entries: entries, packMetadata: metadata);
+    });
+
+final remoteBackedPackRecoverySummaryProvider =
+    FutureProvider.family<RemoteBackedPackRecoverySummary, int>((
+      ref,
+      localPackId,
+    ) async {
+      final dao = ref.watch(appDatabaseProvider).reminderDao;
+      final entries = await dao.listSyncOutboxEntries();
+      final metadata = await dao.listRemotePackSyncMetadataEntries();
+      final summary = _buildRecoverySummary(
+        entries: entries.where((entry) => entry.localPackId == localPackId),
+        packMetadata: metadata.where(
+          (entry) => entry.localPackId == localPackId,
+        ),
+      );
+      return RemoteBackedPackRecoverySummary(
+        localPackId: localPackId,
+        pendingCount: summary.pendingCount,
+        syncingCount: summary.syncingCount,
+        retryableFailedCount: summary.retryableFailedCount,
+        nonRetryableFailedCount: summary.nonRetryableFailedCount,
+        noOpCount: summary.noOpCount,
+        conflictCount: summary.conflictCount,
+        accessLostCount: summary.accessLostCount,
+        stalePackCount: summary.stalePackCount,
+        firstFailedMutation: summary.firstFailedMutation,
+      );
+    });
+
 final remotePocFirstMappedItemProvider =
     FutureProvider.family<ItemBundle?, int>((ref, packId) async {
       final dao = ref.watch(appDatabaseProvider).reminderDao;
@@ -1155,3 +1263,99 @@ final remotePocFirstMappedItemProvider =
       }
       return null;
     });
+
+RemoteBackedSyncProblemSummary _buildRecoverySummary({
+  required Iterable<SyncOutboxEntry> entries,
+  required Iterable<RemotePackSyncMetadataEntry> packMetadata,
+}) {
+  final metadataByPackId = {
+    for (final entry in packMetadata) entry.localPackId: entry,
+  };
+  var pending = 0;
+  var syncing = 0;
+  var retryableFailed = 0;
+  var nonRetryableFailed = 0;
+  var noOp = 0;
+  var conflict = 0;
+  RemoteBackedMutationRecoveryView? firstFailed;
+
+  for (final entry in entries) {
+    final payload = _decodeOutboxPayload(entry.payloadJson);
+    final localItemId = _intPayload(payload, 'localItemId');
+    final view = RemoteBackedRecoveryClassifier.classifyMutation(
+      entry,
+      packMetadata: metadataByPackId[entry.localPackId],
+      localItemId: localItemId,
+    );
+    switch (view.recoveryState) {
+      case RemoteBackedRecoveryState.pending:
+        pending++;
+      case RemoteBackedRecoveryState.syncing:
+        syncing++;
+      case RemoteBackedRecoveryState.retryableFailed:
+        retryableFailed++;
+        firstFailed ??= view;
+      case RemoteBackedRecoveryState.nonRetryableFailed:
+        nonRetryableFailed++;
+        firstFailed ??= view;
+      case RemoteBackedRecoveryState.noOp:
+        noOp++;
+      case RemoteBackedRecoveryState.conflict:
+        conflict++;
+      case RemoteBackedRecoveryState.synced ||
+          RemoteBackedRecoveryState.cancelled ||
+          RemoteBackedRecoveryState.stale ||
+          RemoteBackedRecoveryState.accessLost:
+        break;
+    }
+  }
+
+  var accessLost = 0;
+  var stalePack = 0;
+  for (final metadata in metadataByPackId.values) {
+    if (RemoteBackedRecoveryClassifier.isAccessLost(metadata)) {
+      accessLost++;
+    } else if (RemoteBackedRecoveryClassifier.isPackStale(metadata)) {
+      stalePack++;
+    }
+  }
+
+  return RemoteBackedSyncProblemSummary(
+    pendingCount: pending,
+    syncingCount: syncing,
+    retryableFailedCount: retryableFailed,
+    nonRetryableFailedCount: nonRetryableFailed,
+    noOpCount: noOp,
+    conflictCount: conflict,
+    accessLostCount: accessLost,
+    stalePackCount: stalePack,
+    firstFailedMutation: firstFailed,
+  );
+}
+
+Map<String, Object?> _decodeOutboxPayload(String source) {
+  final Object? decoded;
+  try {
+    decoded = jsonDecode(source);
+  } catch (_) {
+    return const {};
+  }
+  if (decoded is Map<String, Object?>) {
+    return decoded;
+  }
+  if (decoded is Map<String, dynamic>) {
+    return Map<String, Object?>.from(decoded);
+  }
+  return const {};
+}
+
+int? _intPayload(Map<String, Object?> payload, String key) {
+  final value = payload[key];
+  if (value is int) {
+    return value;
+  }
+  if (value is num) {
+    return value.toInt();
+  }
+  return null;
+}

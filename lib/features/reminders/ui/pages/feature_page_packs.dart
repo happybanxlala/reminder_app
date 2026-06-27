@@ -399,6 +399,9 @@ class _PackManagementTile extends ConsumerWidget {
               onRefreshSharedState: () => ref
                   .read(sharedPackCareControllerProvider)
                   .refreshSharedState(viewModel.pack),
+              onRetrySync: () => ref
+                  .read(sharedPackCareControllerProvider)
+                  .retrySyncForPack(viewModel.pack),
             ),
             error: (error, stack) => Padding(
               padding: const EdgeInsets.all(ReminderSpacing.page),
@@ -425,12 +428,14 @@ class _PackCareSheet extends StatefulWidget {
     required this.onEnsureInvite,
     required this.onRefreshInvite,
     required this.onRefreshSharedState,
+    required this.onRetrySync,
   });
 
   final PackCareViewModel viewModel;
   final Future<PackCareInviteResult> Function() onEnsureInvite;
   final Future<PackCareInviteResult> Function() onRefreshInvite;
   final Future<PackCareRefreshResult> Function() onRefreshSharedState;
+  final Future<PackCareRetryResult> Function() onRetrySync;
 
   @override
   State<_PackCareSheet> createState() => _PackCareSheetState();
@@ -439,6 +444,7 @@ class _PackCareSheet extends StatefulWidget {
 class _PackCareSheetState extends State<_PackCareSheet> {
   bool _isUpdatingInvite = false;
   bool _isRefreshingSharedState = false;
+  bool _isRetryingSync = false;
 
   PackCareViewModel get viewModel => widget.viewModel;
 
@@ -473,21 +479,38 @@ class _PackCareSheetState extends State<_PackCareSheet> {
               const SizedBox(height: 12),
             ],
             if (viewModel.isRemoteBacked) ...[
-              Align(
-                alignment: Alignment.centerLeft,
-                child: OutlinedButton.icon(
-                  key: Key('pack-care-refresh-shared-state-${pack.id}'),
-                  onPressed: _isRefreshingSharedState
-                      ? null
-                      : _refreshSharedState,
-                  icon: _isRefreshingSharedState
-                      ? const SizedBox.square(
-                          dimension: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.sync),
-                  label: const Text(ReminderUiText.packCareRefreshSharedState),
-                ),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    key: Key('pack-care-refresh-shared-state-${pack.id}'),
+                    onPressed: _isRefreshingSharedState
+                        ? null
+                        : _refreshSharedState,
+                    icon: _isRefreshingSharedState
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.sync),
+                    label: const Text(
+                      ReminderUiText.packCareRefreshSharedState,
+                    ),
+                  ),
+                  if (viewModel.retryableFailedMutationCount > 0)
+                    OutlinedButton.icon(
+                      key: Key('pack-care-retry-sync-${pack.id}'),
+                      onPressed: _isRetryingSync ? null : _retrySync,
+                      icon: _isRetryingSync
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.restart_alt),
+                      label: const Text(ReminderUiText.packCareRetrySync),
+                    ),
+                ],
               ),
               const SizedBox(height: 12),
             ],
@@ -651,6 +674,27 @@ class _PackCareSheetState extends State<_PackCareSheet> {
       return;
     }
     setState(() => _isRefreshingSharedState = false);
+    final message = result.succeeded
+        ? result.warningMessage ?? result.message
+        : result.errorMessage;
+    if (message == null) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _retrySync() async {
+    if (_isRetryingSync) {
+      return;
+    }
+    setState(() => _isRetryingSync = true);
+    final result = await widget.onRetrySync();
+    if (!mounted) {
+      return;
+    }
+    setState(() => _isRetryingSync = false);
     final message = result.succeeded
         ? result.warningMessage ?? result.message
         : result.errorMessage;

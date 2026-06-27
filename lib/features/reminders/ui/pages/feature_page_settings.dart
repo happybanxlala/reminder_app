@@ -58,6 +58,13 @@ class SettingsPage extends ConsumerWidget {
       data: (summary) => summary,
       orElse: () => null,
     );
+    final remoteBackedRecoverySummary = ref.watch(
+      remoteBackedRecoverySummaryProvider,
+    );
+    final recoverySummary = remoteBackedRecoverySummary.maybeWhen(
+      data: (summary) => summary,
+      orElse: () => null,
+    );
 
     return ReminderEditorScaffold(
       title: ReminderUiText.settingsTitle,
@@ -521,6 +528,59 @@ class SettingsPage extends ConsumerWidget {
                           (controller) => controller.flushRemoteBackedOutbox(),
                         ),
                 ),
+                Text(
+                  ReminderUiText.remoteRecoverySectionTitle,
+                  key: const Key('settings-remote-recovery-title'),
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: context.reminderPalette.textSecondary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                _SettingsReadOnlyRow(
+                  key: const Key('settings-remote-recovery-summary-row'),
+                  label: ReminderUiText.remoteRecoverySectionTitle,
+                  value: recoverySummary == null
+                      ? ReminderUiText.remotePocNotRun
+                      : _remoteRecoverySummaryValue(recoverySummary),
+                ),
+                _SettingsActionRow(
+                  key: const Key('settings-remote-recovery-retry-row'),
+                  label: ReminderUiText.remoteRecoveryRetryLabel,
+                  value: recoverySummary == null
+                      ? ReminderUiText.remotePocNotRun
+                      : '${recoverySummary.retryableFailedCount} retryable',
+                  icon: Icons.restart_alt,
+                  enabled:
+                      !remotePocState.isRunning &&
+                      (recoverySummary?.retryableFailedCount ?? 0) > 0,
+                  onTap: (recoverySummary?.retryableFailedCount ?? 0) == 0
+                      ? null
+                      : () => _runRemotePocAction(
+                          context,
+                          ref,
+                          (controller) =>
+                              controller.retryRetryableFailedMutations(),
+                        ),
+                ),
+                _SettingsActionRow(
+                  key: const Key('settings-remote-recovery-refresh-stale-row'),
+                  label: ReminderUiText.remoteRecoveryRefreshStaleLabel,
+                  value: recoverySummary == null
+                      ? ReminderUiText.remotePocNotRun
+                      : '${recoverySummary.stalePackCount} stale packs',
+                  icon: Icons.sync_alt_outlined,
+                  enabled:
+                      !remotePocState.isRunning &&
+                      (recoverySummary?.stalePackCount ?? 0) > 0,
+                  onTap: (recoverySummary?.stalePackCount ?? 0) == 0
+                      ? null
+                      : () => _runRemotePocAction(
+                          context,
+                          ref,
+                          (controller) =>
+                              controller.refreshStaleRemoteBackedPacks(),
+                        ),
+                ),
                 _SettingsReadOnlyRow(
                   key: const Key('settings-remote-realtime-title-row'),
                   label: ReminderUiText.remotePocRealtimeSectionTitle,
@@ -735,6 +795,14 @@ class SettingsPage extends ConsumerWidget {
       return ReminderUiText.remotePocNotRun;
     }
     return 'members ${summary.membersCount}, items ${summary.itemsCount}, completions ${summary.activeCompletionsCount}, events ${summary.activityEventsCount}';
+  }
+
+  String _remoteRecoverySummaryValue(RemoteBackedSyncProblemSummary summary) {
+    final firstFailed = summary.firstFailedMutation;
+    final firstFailedLabel = firstFailed == null
+        ? ''
+        : ', first failed #${firstFailed.mutationId} ${firstFailed.shortRemoteItemId ?? '-'}';
+    return 'pending ${summary.pendingCount}, retryable ${summary.retryableFailedCount}, non-retryable ${summary.nonRetryableFailedCount}, no-op ${summary.noOpCount}, conflict ${summary.conflictCount}, access-lost ${summary.accessLostCount}, stale packs ${summary.stalePackCount}$firstFailedLabel';
   }
 
   String _remotePocDateTimeValue(DateTime? value) {

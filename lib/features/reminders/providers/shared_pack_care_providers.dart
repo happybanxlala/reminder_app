@@ -9,6 +9,7 @@ import '../data/remote_shared_pack_models.dart';
 import '../data/remote_snapshot_import_service.dart';
 import '../domain/item_pack.dart';
 import '../domain/remote_backed_pack_refresh.dart';
+import '../domain/remote_backed_recovery.dart';
 import '../domain/remote_sync.dart';
 import '../domain/shared_pack.dart';
 import '../presentation/text/reminder_ui_text.dart';
@@ -36,12 +37,14 @@ class PackCareViewModel {
     required this.metadata,
     required this.members,
     required this.inviteState,
+    required this.recoverySummary,
   });
 
   final ItemPack pack;
   final RemotePackSyncMetadataEntry? metadata;
   final List<PackCareMemberView> members;
   final RemotePackInviteState inviteState;
+  final RemoteBackedPackRecoverySummary recoverySummary;
 
   bool get isAccessLost =>
       metadata?.syncState == RemotePackSyncState.accessLost ||
@@ -58,6 +61,8 @@ class PackCareViewModel {
   RemotePackInvite? get activeInvite => inviteState.activeInvite;
 
   bool get hasActiveInvite => inviteState.hasActiveInvite;
+
+  int get retryableFailedMutationCount => recoverySummary.retryableFailedCount;
 
   String get rowStatusLabel {
     if (pack.isSystemDefault) {
@@ -76,7 +81,7 @@ class PackCareViewModel {
       return ReminderUiText.syncFailedLabel;
     }
     if (syncState == RemotePackSyncState.stale) {
-      return '有更新，點下拉同步';
+      return ReminderUiText.syncNeedsRefreshLabel;
     }
     if (hasActiveInvite) {
       return ReminderUiText.packCareInviteActiveLabel;
@@ -140,6 +145,23 @@ class PackCareRefreshResult {
   }) : errorMessage = null;
 
   const PackCareRefreshResult.failure(this.errorMessage)
+    : message = null,
+      warningMessage = null;
+
+  final String? message;
+  final String? warningMessage;
+  final String? errorMessage;
+
+  bool get succeeded => errorMessage == null;
+}
+
+class PackCareRetryResult {
+  const PackCareRetryResult.success({
+    required this.message,
+    this.warningMessage,
+  }) : errorMessage = null;
+
+  const PackCareRetryResult.failure(this.errorMessage)
     : message = null,
       warningMessage = null;
 
@@ -317,6 +339,52 @@ class SharedPackCareController {
     return PackCareRefreshResult.failure(_refreshFailureMessage(result.status));
   }
 
+  Future<PackCareRetryResult> retrySyncForPack(ItemPack pack) async {
+    final metadata = await _ref
+        .read(appDatabaseProvider)
+        .reminderDao
+        .getRemotePackSyncMetadataForLocalPack(pack.id);
+    if (metadata?.syncKind != RemotePackSyncKind.remoteBacked) {
+      return const PackCareRetryResult.failure(
+        ReminderUiText.packCareRemoteUnavailable,
+      );
+    }
+    if (RemoteBackedRecoveryClassifier.isAccessLost(metadata)) {
+      return const PackCareRetryResult.failure(
+        ReminderUiText.packCareRefreshAccessLost,
+      );
+    }
+
+    final result = await _ref
+        .read(remoteBackedOutboxRetryServiceProvider)
+        .retryFailedMutationsForPack(pack.id);
+    _invalidatePackCare(pack.id);
+    _ref.invalidate(remoteBackedOutboxSummaryProvider);
+    _ref.invalidate(remoteBackedRecoverySummaryProvider);
+    _ref.invalidate(remoteBackedPackRecoverySummaryProvider(pack.id));
+    if (!result.hasRetried) {
+      return const PackCareRetryResult.failure(
+        ReminderUiText.packCareRetryUnavailable,
+      );
+    }
+    if (result.accessLostCount > 0) {
+      return const PackCareRetryResult.failure(
+        ReminderUiText.packCareRefreshAccessLost,
+      );
+    }
+    if (result.failedCount > 0) {
+      return const PackCareRetryResult.failure(
+        ReminderUiText.packCareRefreshFailed,
+      );
+    }
+    return PackCareRetryResult.success(
+      message: ReminderUiText.packCareRetrySuccess,
+      warningMessage: result.needsRefreshCount > 0
+          ? ReminderUiText.packCareRetryNeedsRefreshWarning
+          : null,
+    );
+  }
+
   void _invalidatePackCare(int packId) {
     _ref.invalidate(activeItemPacksProvider);
     _ref.invalidate(itemManagementGroupsProvider);
@@ -386,11 +454,15 @@ final packCareViewModelProvider =
           ? await _loadActiveMembers(dao, currentPack.id, currentUser.id)
           : const <PackCareMemberView>[];
       final inviteState = await _loadInviteState(ref, dao, currentPack.id);
+      final recoverySummary = await ref.watch(
+        remoteBackedPackRecoverySummaryProvider(currentPack.id).future,
+      );
       return PackCareViewModel(
         pack: currentPack,
         metadata: metadata,
         members: members,
         inviteState: inviteState,
+        recoverySummary: recoverySummary,
       );
     });
 

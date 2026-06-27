@@ -13,6 +13,7 @@ import '../../domain/attention_policy.dart';
 import '../../domain/item.dart';
 import '../../domain/item_pack.dart';
 import '../../domain/pack_template.dart';
+import '../../domain/remote_backed_recovery.dart';
 import '../../domain/shared_pack.dart';
 import '../../presentation/activity_icon_mapper.dart';
 import '../../presentation/formatters/reminder_formatters.dart';

@@ -33,6 +33,8 @@ Phase 5G integrates remote-backed local mirror items into notification summaries
 
 Phase 5H productionizes manual remote refresh for remote-backed shared packs. A manual refresh pulls the remote snapshot, imports the local mirror, updates local derived surfaces where safe, and clears stale state where appropriate. It does not flush outbox, push local mutations, auto retry, background sync, or implement full two-way sync.
 
+Phase 5I adds retry / failure recovery UX and sync hardening for remote-backed shared packs. Existing outbox and metadata fields now derive retryable failed, non-retryable failed, no-op, conflict, stale, and access-lost recovery states without a schema bump. Users can manually retry retryable failed mutations from the existing `一起照顧` sheet, and developer Settings exposes recovery counts plus manual retry / stale refresh POC actions. Phase 5I does not add background sync, automatic retry, conflict resolution UI, notification action buttons, widget retry behavior, resource / stage sync, account binding, backup replay, or full two-way sync.
+
 Shared Pack UIUX v1 adds production-facing shared-care entry points inside `生活場景管理`: pack rows show compact care/sync status, non-system packs expose `一起照顧`, users can create, reopen, share, copy, and refresh active invite codes, and users can join by normalized invite code. The flow reuses existing anonymous identity, remote pack/invite, minimal item push, snapshot pull, and local mirror import services. It does not add background sync, full two-way sync, shared-only navigation, resource/stage remote sync, widget behavior changes, or user-facing developer POC UI.
 
 ## 1. 總覽

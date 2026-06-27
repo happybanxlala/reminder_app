@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -6,8 +8,11 @@ import 'package:reminder_app/features/reminders/data/item_repository.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/remote_backed_item_action_service.dart';
 import 'package:reminder_app/features/reminders/data/remote_backed_outbox_flush_service.dart';
+import 'package:reminder_app/features/reminders/data/remote_backed_outbox_retry_service.dart';
 import 'package:reminder_app/features/reminders/data/remote_shared_pack_models.dart';
 import 'package:reminder_app/features/reminders/data/remote_snapshot_import_service.dart';
+import 'package:reminder_app/features/reminders/domain/item_pack.dart';
+import 'package:reminder_app/features/reminders/domain/remote_backed_recovery.dart';
 import 'package:reminder_app/features/reminders/domain/remote_sync.dart';
 import 'package:reminder_app/features/reminders/domain/shared_pack.dart';
 
@@ -316,6 +321,259 @@ void main() {
       expect(packMetadata!.syncState, RemotePackSyncState.accessLost);
     },
   );
+
+  test('manual retry failed complete succeeds through remote client', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final env = await _seedRemoteBackedMirror(db, withCompletion: false);
+    await env.actionService.completeRemoteBackedItemLocally(env.localItemId);
+    final mutation =
+        (await db.reminderDao.listPendingSyncOutboxEntries()).single;
+    await db.reminderDao.updateSyncOutboxEntry(
+      mutation.id,
+      SyncOutboxCompanion(
+        status: Value(SyncOutboxStatus.failed.storageValue),
+        lastError: const Value('remoteNetworkFailed'),
+      ),
+    );
+    final fake = _FakeRemoteClient(
+      completeResult: RemotePocResult.success(
+        RemoteItemCompletionResult(
+          status: RemoteItemCompletionStatus.completed,
+          completionId: 'retry-completion-1',
+          completedByUserId: 'remote-user-current',
+          completedAt: DateTime(2026, 6, 22, 11),
+        ),
+      ),
+    );
+
+    final result = await RemoteBackedOutboxRetryService(
+      dao: db.reminderDao,
+      remoteClient: fake,
+    ).retryAllRetryableFailedMutations();
+
+    expect(result.retriedCount, 1);
+    expect(result.syncedCount, 1);
+    expect(result.needsRefreshCount, 1);
+    expect(fake.completeCalls, 1);
+    final outbox = await db.reminderDao.listSyncOutboxEntries();
+    expect(outbox.single.status, SyncOutboxStatus.synced);
+    expect(outbox.single.retryCount, 1);
+    final completion = (await db.reminderDao.listItemCompletions(
+      env.localItemId,
+    )).single;
+    final metadata = await db.reminderDao
+        .getRemoteCompletionSyncMetadataForLocalCompletion(completion.id);
+    expect(metadata!.completionState, RemoteCompletionState.confirmedRemote);
+    expect(metadata.remoteCompletionId, 'retry-completion-1');
+    final packMetadata = await db.reminderDao
+        .getRemotePackSyncMetadataForLocalPack(env.localPackId);
+    expect(packMetadata!.syncState, RemotePackSyncState.stale);
+  });
+
+  test('manual retry failed undo succeeds through remote client', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final env = await _seedRemoteBackedMirror(db, withCompletion: true);
+    await env.actionService.undoRemoteBackedItemLocally(env.localItemId);
+    final mutation =
+        (await db.reminderDao.listPendingSyncOutboxEntries()).single;
+    await db.reminderDao.updateSyncOutboxEntry(
+      mutation.id,
+      SyncOutboxCompanion(
+        status: Value(SyncOutboxStatus.failed.storageValue),
+        lastError: const Value('networkFailed'),
+      ),
+    );
+    final fake = _FakeRemoteClient(
+      undoResult: RemotePocResult.success(
+        RemoteItemUndoResult(
+          status: RemoteItemUndoStatus.undone,
+          itemId: 'remote-item-1',
+          completionId: 'remote-completion-1',
+          undoneByUserId: 'remote-user-current',
+          undoneAt: DateTime(2026, 6, 22, 11),
+        ),
+      ),
+    );
+
+    final result = await RemoteBackedOutboxRetryService(
+      dao: db.reminderDao,
+      remoteClient: fake,
+    ).retryFailedMutationsForPack(env.localPackId);
+
+    expect(result.syncedCount, 1);
+    expect(fake.undoCalls, 1);
+    final completion = (await db.reminderDao.listItemCompletions(
+      env.localItemId,
+    )).single;
+    final metadata = await db.reminderDao
+        .getRemoteCompletionSyncMetadataForLocalCompletion(completion.id);
+    expect(metadata!.completionState, RemoteCompletionState.undoneRemote);
+    expect(metadata.remoteCompletedByUserId, 'remote-user-other');
+  });
+
+  test('manual retry skips non-retryable and access-lost mutations', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final env = await _seedRemoteBackedMirror(db, withCompletion: false);
+    await env.actionService.completeRemoteBackedItemLocally(env.localItemId);
+    final mutation =
+        (await db.reminderDao.listPendingSyncOutboxEntries()).single;
+    await db.reminderDao.updateSyncOutboxEntry(
+      mutation.id,
+      SyncOutboxCompanion(
+        status: Value(SyncOutboxStatus.failed.storageValue),
+        lastError: const Value('remoteUnknownFailure'),
+      ),
+    );
+    final fake = _FakeRemoteClient(
+      completeResult: RemotePocResult.success(
+        RemoteItemCompletionResult(
+          status: RemoteItemCompletionStatus.completed,
+          completionId: 'should-not-send',
+          completedByUserId: 'remote-user-current',
+          completedAt: DateTime(2026, 6, 22, 11),
+        ),
+      ),
+    );
+
+    var result = await RemoteBackedOutboxRetryService(
+      dao: db.reminderDao,
+      remoteClient: fake,
+    ).retryAllRetryableFailedMutations();
+
+    expect(result.skippedCount, 1);
+    expect(fake.completeCalls, 0);
+    var outbox = await db.reminderDao.listSyncOutboxEntries();
+    expect(outbox.single.status, SyncOutboxStatus.failed);
+
+    final packMetadata = await db.reminderDao
+        .getRemotePackSyncMetadataForLocalPack(env.localPackId);
+    await db.reminderDao.updateRemotePackSyncMetadata(
+      packMetadata!.id,
+      RemotePackSyncMetadataCompanion(
+        syncState: Value(RemotePackSyncState.accessLost.storageValue),
+        currentUserRemoteStatus: Value(RemoteUserStatus.removed.storageValue),
+      ),
+    );
+    await db.reminderDao.updateSyncOutboxEntry(
+      mutation.id,
+      SyncOutboxCompanion(lastError: const Value('remoteNetworkFailed')),
+    );
+
+    result = await RemoteBackedOutboxRetryService(
+      dao: db.reminderDao,
+      remoteClient: fake,
+    ).retryFailedMutation(mutation.id);
+
+    expect(result.skippedCount, 1);
+    expect(result.accessLostCount, 1);
+    expect(fake.completeCalls, 0);
+    outbox = await db.reminderDao.listSyncOutboxEntries();
+    expect(outbox.single.status, SyncOutboxStatus.failed);
+  });
+
+  test('manual retry fail-closes missing remote mapping', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final now = DateTime(2026, 6, 22).millisecondsSinceEpoch;
+    final packId = await ItemRepository(
+      db.reminderDao,
+    ).createPack(const ItemPackInput(title: 'Broken remote pack'));
+    await db.reminderDao.insertRemotePackSyncMetadata(
+      RemotePackSyncMetadataCompanion.insert(
+        localPackId: packId,
+        remotePackId: 'remote-pack-broken',
+        syncKind: RemotePackSyncKind.remoteBacked.storageValue,
+        syncState: RemotePackSyncState.synced.storageValue,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    final mutationId = await db.reminderDao.insertSyncOutbox(
+      SyncOutboxCompanion.insert(
+        localPackId: packId,
+        remotePackId: const Value('remote-pack-broken'),
+        localEntityType: 'item_completion',
+        localEntityId: const Value(999),
+        actionType: SyncOutboxActionType.completeItem.storageValue,
+        payloadJson: jsonEncode({'localPackId': packId}),
+        clientMutationId: 'missing-mapping',
+        actorLocalUserId: AppDatabase.defaultHostUserId,
+        createdAt: now,
+        updatedAt: now,
+        status: SyncOutboxStatus.failed.storageValue,
+        lastError: const Value('remoteNetworkFailed'),
+      ),
+    );
+    final fake = _FakeRemoteClient();
+
+    final result = await RemoteBackedOutboxRetryService(
+      dao: db.reminderDao,
+      remoteClient: fake,
+    ).retryFailedMutation(mutationId);
+
+    expect(result.failedCount, 1);
+    expect(fake.completeCalls, 0);
+    final outbox = await db.reminderDao.getSyncOutboxEntryById(mutationId);
+    expect(outbox!.status, SyncOutboxStatus.failed);
+    expect(outbox.lastError, 'missing_remote_item_mapping');
+  });
+
+  test('recovery classifier maps retryable and terminal states', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final env = await _seedRemoteBackedMirror(db, withCompletion: false);
+    await env.actionService.completeRemoteBackedItemLocally(env.localItemId);
+    final mutation =
+        (await db.reminderDao.listPendingSyncOutboxEntries()).single;
+
+    var view = RemoteBackedRecoveryClassifier.classifyMutation(mutation);
+    expect(view.recoveryState, RemoteBackedRecoveryState.pending);
+    expect(view.canRetry, isFalse);
+
+    await db.reminderDao.updateSyncOutboxEntry(
+      mutation.id,
+      SyncOutboxCompanion(
+        status: Value(SyncOutboxStatus.failed.storageValue),
+        lastError: const Value('remoteNetworkFailed'),
+      ),
+    );
+    final failed = await db.reminderDao.getSyncOutboxEntryById(mutation.id);
+    view = RemoteBackedRecoveryClassifier.classifyMutation(failed!);
+    expect(view.recoveryState, RemoteBackedRecoveryState.retryableFailed);
+    expect(view.canRetry, isTrue);
+
+    await db.reminderDao.updateSyncOutboxEntry(
+      mutation.id,
+      SyncOutboxCompanion(
+        status: Value(SyncOutboxStatus.noOp.storageValue),
+        lastError: const Value('already_completed_remote'),
+      ),
+    );
+    final noOp = await db.reminderDao.getSyncOutboxEntryById(mutation.id);
+    view = RemoteBackedRecoveryClassifier.classifyMutation(noOp!);
+    expect(view.recoveryState, RemoteBackedRecoveryState.noOp);
+    expect(view.needsRefresh, isTrue);
+
+    final packMetadata = await db.reminderDao
+        .getRemotePackSyncMetadataForLocalPack(env.localPackId);
+    await db.reminderDao.updateRemotePackSyncMetadata(
+      packMetadata!.id,
+      RemotePackSyncMetadataCompanion(
+        syncState: Value(RemotePackSyncState.accessLost.storageValue),
+      ),
+    );
+    final accessLostMetadata = await db.reminderDao
+        .getRemotePackSyncMetadataForLocalPack(env.localPackId);
+    view = RemoteBackedRecoveryClassifier.classifyMutation(
+      noOp,
+      packMetadata: accessLostMetadata,
+    );
+    expect(view.recoveryState, RemoteBackedRecoveryState.accessLost);
+    expect(view.canRetry, isFalse);
+  });
 }
 
 Future<_RemoteMirrorEnv> _seedRemoteBackedMirror(

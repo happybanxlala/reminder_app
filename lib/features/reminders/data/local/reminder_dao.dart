@@ -459,6 +459,12 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  Future<List<RemotePackSyncMetadataEntry>>
+  listRemotePackSyncMetadataEntries() async {
+    final rows = await select(remotePackSyncMetadata).get();
+    return rows.map(_toRemotePackSyncMetadata).toList(growable: false);
+  }
+
   Future<bool> updateRemotePackSyncMetadata(
     int id,
     RemotePackSyncMetadataCompanion entry,

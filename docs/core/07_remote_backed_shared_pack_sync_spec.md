@@ -514,9 +514,25 @@ Phase 5E implementation note:
 - Realtime remains hint-only: realtime signals may indicate remote changes, but they do not auto pull, auto import, or auto flush. A successful manual refresh can clear the developer POC volatile remote-change hint.
 - Backup remains legacy and non-replayable: `sync_outbox`, typed remote metadata, credentials, sessions, tokens, plaintext invite codes, and remote-backed mirror rows remain excluded, and restore does not auto refresh, pull, import, flush, or grant remote access.
 
-### Phase 5I+ Boundary
+### Phase 5I：Retry / Failure Recovery UX & Sync Hardening
 
-- Account binding, remote recovery, backup legacy transition, background sync, automatic retry, conflict UI, resource / stage sync, richer notification scheduling, and notification action bridge remain later-phase work.
+- Adds a local recovery taxonomy over existing `sync_outbox` status, `last_error`, pack access state, and typed remote sync metadata. No Drift schema bump, backup schema bump, Supabase SQL/RPC/table change, widget native change, or notification scheduling change is required.
+- Recovery state distinguishes pending/syncing, retryable failed, non-retryable failed, no-op, conflict, cancelled, stale pack, and access-lost pack cases.
+- Retryability is derived conservatively. Failed rows with sanitized config/auth/network errors such as `supabaseConfigMissing`, `remoteAuthRequired`, `remoteNetworkFailed`, or `networkFailed` are retryable only while pack access is not lost.
+- Access-lost/RLS/member-removed failures, missing mappings, malformed payloads, unknown failed errors, `no_op`, `conflict`, and `cancelled` are non-retryable from the manual retry path.
+- Adds manual retry APIs for one failed mutation, all failed mutations in a local pack, and all retryable failed mutations. Manual retry reuses the existing remote complete/undo client path and never pulls/imports snapshots, refreshes remote packs, schedules notifications, updates widget state from remote data, or runs automatically at startup/realtime.
+- Successful retry marks the outbox `synced`, updates completion metadata to `confirmedRemote` or `undoneRemote`, and marks pack/item metadata stale so the user can manually refresh remote truth.
+- `alreadyCompleted` and `alreadyNotCompleted` remain `no_op`, mark pack/item stale, and must not overwrite remote `completed_by`.
+- Retry failure leaves the row `failed`, increments retry metadata through `retry_count` / `last_attempt_at`, and stores only sanitized `last_error` values. Access-lost retry failures mark pack metadata `accessLost`.
+- Home/product stale, no-op, and conflict copy is more actionable as `需要刷新共同資料`. Home does not add card buttons in Phase 5I.
+- Product-facing manual retry lives in the existing `一起照顧` sheet as `重試同步`, shown only when that remote-backed pack has retryable failed mutations. Friendly snackbars must not include raw exceptions, full UUIDs, tokens, sessions, secrets, or invite codes.
+- Developer Settings adds a `Remote-backed Recovery` panel with recovery counts plus `Retry retryable failed mutations POC` and `Refresh stale remote-backed packs POC`. Existing flush and manual refresh tools remain.
+- Widget behavior from Phase 5F is unchanged: widget snapshot and action code do not call Supabase or run retry. Notification behavior from Phase 5G is unchanged: notification summary code remains local-summary only and does not retry or flush.
+- Realtime remains hint-only and never auto-retries. Backup remains legacy and non-replayable: `sync_outbox`, retry state, typed remote metadata, credentials, sessions, tokens, plaintext invite codes, and remote-backed mirror rows remain excluded, and restore does not replay, retry, pull, import, flush, or grant remote access.
+
+### Phase 5J+ Boundary
+
+- Account binding, backup legacy transition, background sync, automatic retry, conflict resolution UI, resource / stage sync, richer notification scheduling, notification action bridge, remote edit/delete/archive sync, and full two-way sync remain later-phase work.
 
 ## 19. Open Questions
 

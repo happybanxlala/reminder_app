@@ -288,7 +288,7 @@ void main() {
     expect(pending.syncStatusLabel, '等待同步');
     expect(pending.canSkip, isFalse);
     expect(failed.syncStatusLabel, '同步失敗');
-    expect(stale.syncStatusLabel, '遠端狀態可能已更新');
+    expect(stale.syncStatusLabel, '需要刷新共同資料');
     expect(accessLost.syncStatusLabel, '已失去遠端存取權');
     expect(accessLost.canComplete, isFalse);
   });
