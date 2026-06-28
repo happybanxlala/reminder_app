@@ -19,6 +19,23 @@ abstract class RemoteSharedPackDataSource {
     required String title,
     String? note,
   });
+  Future<RemoteItemCreateResult> createPackItemV2({
+    required String packId,
+    required String title,
+    String? note,
+    String? clientMutationId,
+  });
+  Future<RemoteItemMutationResult> updatePackItem({
+    required String itemId,
+    required String title,
+    String? note,
+    String? assignedToUserId,
+    String? clientMutationId,
+  });
+  Future<RemoteItemMutationResult> archivePackItem({
+    required String itemId,
+    String? clientMutationId,
+  });
   Future<RemoteItemCompletionResult> completePackItem({
     required String itemId,
     String? clientMutationId,
@@ -97,6 +114,35 @@ class DisabledRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
     required String packId,
     required String title,
     String? note,
+  }) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<RemoteItemCreateResult> createPackItemV2({
+    required String packId,
+    required String title,
+    String? note,
+    String? clientMutationId,
+  }) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<RemoteItemMutationResult> updatePackItem({
+    required String itemId,
+    required String title,
+    String? note,
+    String? assignedToUserId,
+    String? clientMutationId,
+  }) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<RemoteItemMutationResult> archivePackItem({
+    required String itemId,
+    String? clientMutationId,
   }) {
     throw RemoteSharedPackException(reason);
   }
@@ -384,6 +430,97 @@ class SupabaseRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
         error,
         RemoteSharedPackFailureReason.remoteItemPushFailed,
         operationName: 'create_pack_item',
+      );
+    }
+  }
+
+  @override
+  Future<RemoteItemCreateResult> createPackItemV2({
+    required String packId,
+    required String title,
+    String? note,
+    String? clientMutationId,
+  }) async {
+    try {
+      final result = await _client.rpc(
+        'create_pack_item_v2',
+        params: {
+          'target_pack_id': packId,
+          'title': title,
+          'note': note,
+          'client_mutation_id': clientMutationId,
+        },
+      );
+      final row = _mapRpcResult(result);
+      return RemoteItemCreateResult(
+        itemId: _requiredString(row, 'item_id'),
+        status: _optionalString(row, 'status') ?? 'created',
+      );
+    } catch (error) {
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteItemPushFailed,
+        operationName: 'create_pack_item_v2',
+      );
+    }
+  }
+
+  @override
+  Future<RemoteItemMutationResult> updatePackItem({
+    required String itemId,
+    required String title,
+    String? note,
+    String? assignedToUserId,
+    String? clientMutationId,
+  }) async {
+    try {
+      final result = await _client.rpc(
+        'update_pack_item',
+        params: {
+          'target_item_id': itemId,
+          'title': title,
+          'note': note,
+          'assigned_to_user_id': assignedToUserId,
+          'client_mutation_id': clientMutationId,
+        },
+      );
+      final row = _mapRpcResult(result);
+      return RemoteItemMutationResult(
+        itemId: _requiredString(row, 'item_id'),
+        status: _optionalString(row, 'status') ?? 'updated',
+      );
+    } catch (error) {
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        operationName: 'update_pack_item',
+      );
+    }
+  }
+
+  @override
+  Future<RemoteItemMutationResult> archivePackItem({
+    required String itemId,
+    String? clientMutationId,
+  }) async {
+    try {
+      final result = await _client.rpc(
+        'archive_pack_item',
+        params: {
+          'target_item_id': itemId,
+          'client_mutation_id': clientMutationId,
+        },
+      );
+      final row = _mapRpcResult(result);
+      return RemoteItemMutationResult(
+        itemId: _requiredString(row, 'item_id'),
+        status: _optionalString(row, 'status') ?? 'archived',
+      );
+    } catch (error) {
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        operationName: 'archive_pack_item',
       );
     }
   }

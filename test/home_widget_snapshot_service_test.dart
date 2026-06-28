@@ -201,11 +201,6 @@ void main() {
           packId: packId,
         ),
       );
-      await _markRemoteBacked(
-        db,
-        localPackId: packId,
-        localItemId: remoteItemId,
-      );
       await repositories.item.createItem(
         ItemInput(
           title: 'Local litter box',
@@ -217,6 +212,11 @@ void main() {
           ),
           packId: packId,
         ),
+      );
+      await _markRemoteBacked(
+        db,
+        localPackId: packId,
+        localItemId: remoteItemId,
       );
 
       final snapshot = await HomeWidgetSnapshotService(

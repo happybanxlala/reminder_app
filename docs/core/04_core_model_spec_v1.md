@@ -47,6 +47,8 @@ Phase 5M completes the remote-backed shared pack local-first MVP acceptance pass
 
 Shared Pack UIUX v1 adds production-facing shared-care entry points inside `生活場景管理`: pack rows show compact care/sync status, non-system packs expose `一起照顧`, users can create, reopen, share, copy, and refresh active invite codes, and users can join by normalized invite code. The flow reuses existing anonymous identity, remote pack/invite, minimal item push, snapshot pull, and local mirror import services. It does not add background sync, full two-way sync, shared-only navigation, resource/stage remote sync, widget behavior changes, or user-facing developer POC UI.
 
+Remote-backed CRUD Boundary Phase 1 adds the first guarded item CRUD sync boundary after the Phase 5M acceptance pass. Remote-backed item create / basic update / archive now use local-first `sync_outbox` rows and manual flush/retry to Supabase RPCs defined in `docs/core/sql/phase6_remote_backed_item_crud_mvp.sql`. Pack update/archive, item skip/pause/resume/move/assign, resource mutations, and stage mutations fail closed for remote-backed packs to prevent silent local-only mirror edits. Phase 1 does not add resource sync, stage sync, hard delete, complex schedule merge, member role management, automatic background sync, widget remote CRUD beyond existing complete/undo routing, or full two-way sync.
+
 ## 1. 總覽
 
 ### 1.1 產品北極星
@@ -150,7 +152,7 @@ Domain 必須保持分離。Home 可以在 presentation layer 聚合 `Item`、`R
 - `RemoteItemSyncState { linked, pendingImport, importing, synced, stale, failed, conflict, archived, deleted }`
 - `RemoteCompletionSyncState { pendingPush, syncing, synced, failed, conflict, noOp }`
 - `RemoteCompletionState { pendingLocal, confirmedRemote, remoteImported, undoneRemote, noOp, conflict, failed }`
-- `SyncOutboxActionType { completeItem, undoItem }`
+- `SyncOutboxActionType { completeItem, undoItem, createItem, updateItem, archiveItem }`
 - `SyncOutboxStatus { pending, syncing, synced, failed, conflict, cancelled, noOp }`
 
 ## 2. 已實作模型

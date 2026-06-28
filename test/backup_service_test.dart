@@ -403,42 +403,6 @@ Future<void> _seedUserData(AppDatabase db) async {
     actorUserId: AppDatabase.defaultMemberUserId,
   );
   final completion = (await db.reminderDao.listItemCompletions(itemId)).single;
-  final remoteSyncRepository = RemoteSyncRepository(
-    db.reminderDao,
-    clock: () => DateTime(2026, 6, 4),
-  );
-  await remoteSyncRepository.createRemoteBackedPackMetadata(
-    localPackId: packId,
-    remotePackId: 'remote-pack-phase5b',
-    currentUserRemoteRole: RemoteUserRole.host,
-    currentUserRemoteStatus: RemoteUserStatus.active,
-  );
-  await remoteSyncRepository.createRemoteItemMetadata(
-    localItemId: itemId,
-    localPackId: packId,
-    remoteItemId: 'remote-item-phase5b',
-    remotePackId: 'remote-pack-phase5b',
-  );
-  await remoteSyncRepository.createCompletionSyncMetadata(
-    localCompletionId: completion.id,
-    localItemId: itemId,
-    localPackId: packId,
-    remoteItemId: 'remote-item-phase5b',
-    remotePackId: 'remote-pack-phase5b',
-    clientMutationId: 'phase5b-completion-metadata',
-  );
-  await remoteSyncRepository.enqueuePendingMutation(
-    localPackId: packId,
-    remotePackId: 'remote-pack-phase5b',
-    localEntityType: 'item',
-    localEntityId: itemId,
-    remoteEntityId: 'remote-item-phase5b',
-    actionType: SyncOutboxActionType.completeItem,
-    payloadJson: '{"action":"complete"}',
-    clientMutationId: 'phase5b-pending-mutation',
-    actorLocalUserId: AppDatabase.defaultMemberUserId,
-    actorRemoteUserId: 'supabase-user-backup',
-  );
   final resourceId = await resourceRepository.createResource(
     ResourceInput(
       title: 'Soap',
@@ -498,6 +462,42 @@ Future<void> _seedUserData(AppDatabase db) async {
   await templateRepository.savePackAsTemplate(
     packId: packId,
     templateName: 'Housework template',
+  );
+  final remoteSyncRepository = RemoteSyncRepository(
+    db.reminderDao,
+    clock: () => DateTime(2026, 6, 4),
+  );
+  await remoteSyncRepository.createRemoteBackedPackMetadata(
+    localPackId: packId,
+    remotePackId: 'remote-pack-phase5b',
+    currentUserRemoteRole: RemoteUserRole.host,
+    currentUserRemoteStatus: RemoteUserStatus.active,
+  );
+  await remoteSyncRepository.createRemoteItemMetadata(
+    localItemId: itemId,
+    localPackId: packId,
+    remoteItemId: 'remote-item-phase5b',
+    remotePackId: 'remote-pack-phase5b',
+  );
+  await remoteSyncRepository.createCompletionSyncMetadata(
+    localCompletionId: completion.id,
+    localItemId: itemId,
+    localPackId: packId,
+    remoteItemId: 'remote-item-phase5b',
+    remotePackId: 'remote-pack-phase5b',
+    clientMutationId: 'phase5b-completion-metadata',
+  );
+  await remoteSyncRepository.enqueuePendingMutation(
+    localPackId: packId,
+    remotePackId: 'remote-pack-phase5b',
+    localEntityType: 'item',
+    localEntityId: itemId,
+    remoteEntityId: 'remote-item-phase5b',
+    actionType: SyncOutboxActionType.completeItem,
+    payloadJson: '{"action":"complete"}',
+    clientMutationId: 'phase5b-pending-mutation',
+    actorLocalUserId: AppDatabase.defaultMemberUserId,
+    actorRemoteUserId: 'supabase-user-backup',
   );
 }
 

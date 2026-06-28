@@ -134,7 +134,7 @@ class ReminderUiText {
   static const packCareAccessLostGuard = '為了避免資料錯亂，暫時不能完成或復原這裡的提醒。';
   static const packCareDataProtectionNote =
       '可先綁定 Email 保護共享資料；Apple / Google 會在後續階段開放。';
-  static const remoteBackedUnsupportedAction = '遠端共享事項暫不支援此操作。';
+  static const remoteBackedUnsupportedAction = '共同生活場景暫時只能完成或復原事項。其他修改會在之後支援。';
   static const noItemPacks = '目前沒有生活場景。';
   static const noStageTrackers = '目前沒有階段追蹤。';
   static const noDefaultItemPack = '目前沒有生活場景。';

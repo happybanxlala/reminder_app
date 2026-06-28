@@ -1603,6 +1603,7 @@ Phase 5M completes the remote-backed shared pack local-first MVP acceptance pass
 - `create_pack_item` verifies active membership, uses `auth.uid()` for creator/updater, and writes `item_created`.
 - `complete_pack_item` verifies active membership, uses `auth.uid()` as `completed_by_user_id`, returns `completed / already_completed`, writes `item_completed`, and relies on the active-completion unique index.
 - `undo_pack_item_completion` verifies active membership, returns `undone / already_not_completed`, writes `undone_by_user_id` / `undone_at`, writes `item_undone`, and does not delete completion history.
+- Remote-backed CRUD Boundary Phase 1 adds `create_pack_item_v2`, `update_pack_item`, and `archive_pack_item` in `docs/core/sql/phase6_remote_backed_item_crud_mvp.sql` for manual `sync_outbox` flush of item create, basic title/note/assigned-user update, and soft archive.
 - `create_pack_invite` is host-only and returns plaintext invite code once; database stores only `code_hash`.
 - `join_pack_with_invite` returns `joined / already_member`; a removed member can rejoin only through a valid active invite.
 - `revoke_pack_invite` returns `revoked / already_revoked`.

@@ -443,6 +443,104 @@ class RemoteSharedPackRepository {
     }
   }
 
+  Future<RemotePocResult<RemoteItemCreateResult>> createRemoteItemForPack({
+    required String remotePackId,
+    required String title,
+    String? note,
+    String? clientMutationId,
+  }) async {
+    final identityResult = await _ensureAnonymousIdentity();
+    if (!identityResult.isSuccess) {
+      return RemotePocResult.failure(
+        identityResult.failureReason,
+        identityResult.error,
+      );
+    }
+
+    try {
+      return RemotePocResult.success(
+        await _remoteDataSource.createPackItemV2(
+          packId: remotePackId,
+          title: title,
+          note: note,
+          clientMutationId: clientMutationId,
+        ),
+      );
+    } on RemoteSharedPackException catch (error) {
+      return RemotePocResult.failure(error.reason, error);
+    } catch (error) {
+      return RemotePocResult.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        error,
+      );
+    }
+  }
+
+  Future<RemotePocResult<RemoteItemMutationResult>> updateRemoteItemByRemoteId({
+    required String remoteItemId,
+    required String title,
+    String? note,
+    String? assignedToUserId,
+    String? clientMutationId,
+  }) async {
+    final identityResult = await _ensureAnonymousIdentity();
+    if (!identityResult.isSuccess) {
+      return RemotePocResult.failure(
+        identityResult.failureReason,
+        identityResult.error,
+      );
+    }
+
+    try {
+      return RemotePocResult.success(
+        await _remoteDataSource.updatePackItem(
+          itemId: remoteItemId,
+          title: title,
+          note: note,
+          assignedToUserId: assignedToUserId,
+          clientMutationId: clientMutationId,
+        ),
+      );
+    } on RemoteSharedPackException catch (error) {
+      return RemotePocResult.failure(error.reason, error);
+    } catch (error) {
+      return RemotePocResult.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        error,
+      );
+    }
+  }
+
+  Future<RemotePocResult<RemoteItemMutationResult>>
+  archiveRemoteItemByRemoteId({
+    required String remoteItemId,
+    String? clientMutationId,
+  }) async {
+    final identityResult = await _ensureAnonymousIdentity();
+    if (!identityResult.isSuccess) {
+      return RemotePocResult.failure(
+        identityResult.failureReason,
+        identityResult.error,
+      );
+    }
+
+    try {
+      return RemotePocResult.success(
+        await _remoteDataSource.archivePackItem(
+          itemId: remoteItemId,
+          clientMutationId: clientMutationId,
+        ),
+      );
+    } on RemoteSharedPackException catch (error) {
+      return RemotePocResult.failure(error.reason, error);
+    } catch (error) {
+      return RemotePocResult.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        error,
+      );
+    }
+  }
+
   Future<RemotePocResult<RemoteItemUndoResult>> undoRemoteItemByRemoteId(
     String remoteItemId,
   ) async {

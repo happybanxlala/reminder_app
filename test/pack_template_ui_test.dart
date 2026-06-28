@@ -469,6 +469,37 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   }
 
   @override
+  Future<RemoteItemCreateResult> createPackItemV2({
+    required String packId,
+    required String title,
+    String? note,
+    String? clientMutationId,
+  }) async {
+    return RemoteItemCreateResult(
+      itemId: await createPackItem(packId: packId, title: title, note: note),
+    );
+  }
+
+  @override
+  Future<RemoteItemMutationResult> updatePackItem({
+    required String itemId,
+    required String title,
+    String? note,
+    String? assignedToUserId,
+    String? clientMutationId,
+  }) async {
+    return RemoteItemMutationResult(itemId: itemId, status: 'updated');
+  }
+
+  @override
+  Future<RemoteItemMutationResult> archivePackItem({
+    required String itemId,
+    String? clientMutationId,
+  }) async {
+    return RemoteItemMutationResult(itemId: itemId, status: 'archived');
+  }
+
+  @override
   Future<RemoteJoinPackResult> joinPackWithInvite({
     required String inviteCode,
   }) {

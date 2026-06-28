@@ -205,12 +205,17 @@ complete_item
 undo_item
 ```
 
-Future action types：
+Remote-backed CRUD Boundary Phase 1 action types：
 
 ```text
 create_item
 update_item
 archive_item
+```
+
+Future action types：
+
+```text
 resource_increment
 resource_adjust
 stage_acknowledge
@@ -613,6 +618,16 @@ It covers anonymous identity plus Email binding, create/join/import, Home / Widg
 #### Phase 5 Completion Note
 
 Phase 5 completes the remote-backed shared pack local-first MVP. It intentionally stops before background sync, automatic retry, account switching, full conflict resolution, remote item edit/delete/archive sync, resource/stage remote sync, Apple / Google binding, and production-grade cross-device account management.
+
+### Remote-backed CRUD Boundary Phase 1：Item Create / Basic Update / Archive
+
+- Adds local-first `sync_outbox` support for `create_item`, `update_item`, and `archive_item`.
+- `create_item` writes a local optimistic item plus pending remote item metadata, then flushes through `create_pack_item_v2`.
+- `update_item` is limited to title, note, and assigned-user hint. Pack moves, schedule/config changes, attention policy changes, and resource binding changes are rejected for remote-backed items.
+- `archive_item` soft-archives the local item optimistically, then flushes through `archive_pack_item`.
+- Manual flush / retry remains explicit. No background sync, startup sync, realtime import, or automatic retry is added.
+- Pack update/archive, item skip/pause/resume/move/assign, resource CRUD, and stage CRUD fail closed for remote-backed packs so local mirrors are not silently forked.
+- Supabase RPC draft lives in `docs/core/sql/phase6_remote_backed_item_crud_mvp.sql`.
 
 ### Phase 6 Backlog
 

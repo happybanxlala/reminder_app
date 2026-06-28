@@ -10,10 +10,16 @@ import 'package:reminder_app/features/reminders/data/remote_backed_item_action_s
 import 'package:reminder_app/features/reminders/data/remote_backed_outbox_flush_service.dart';
 import 'package:reminder_app/features/reminders/data/remote_backed_outbox_retry_service.dart';
 import 'package:reminder_app/features/reminders/data/remote_shared_pack_models.dart';
+import 'package:reminder_app/features/reminders/data/remote_shared_pack_repository.dart';
 import 'package:reminder_app/features/reminders/data/remote_snapshot_import_service.dart';
+import 'package:reminder_app/features/reminders/data/resource_repository.dart';
+import 'package:reminder_app/features/reminders/data/stage_tracker_models.dart';
+import 'package:reminder_app/features/reminders/data/stage_tracker_repository.dart';
+import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/remote_backed_recovery.dart';
 import 'package:reminder_app/features/reminders/domain/remote_sync.dart';
+import 'package:reminder_app/features/reminders/domain/resource.dart';
 import 'package:reminder_app/features/reminders/domain/shared_pack.dart';
 
 void main() {
@@ -104,6 +110,196 @@ void main() {
       expect(
         entries.map((e) => e.actionType),
         contains(SyncOutboxActionType.undoItem),
+      );
+    },
+  );
+
+  test(
+    'remote-backed create item is local-first and flushes to remote',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final env = await _seedRemoteBackedMirror(db, withCompletion: false);
+      final repository = ItemRepository(
+        db.reminderDao,
+        remoteBackedItemActionService: env.actionService,
+        currentActorId: () async => env.currentUser.id,
+      );
+
+      final itemId = await repository.createItem(
+        ItemInput(
+          title: 'Buy litter',
+          description: 'Shared note',
+          type: ItemType.stateBased,
+          config: const StateBasedItemConfig(
+            warningAfter: Duration(days: 3),
+            dangerAfter: Duration(days: 5),
+          ),
+          packId: env.localPackId,
+        ),
+      );
+
+      final metadata = await db.reminderDao
+          .getRemoteItemSyncMetadataForLocalItem(itemId);
+      expect(metadata!.syncState, RemoteItemSyncState.pendingPush);
+      expect(metadata.remoteItemId, startsWith('pending:'));
+      final outbox = await db.reminderDao.listPendingSyncOutboxEntries();
+      expect(outbox.single.actionType, SyncOutboxActionType.createItem);
+      final payload = jsonDecode(outbox.single.payloadJson) as Map;
+      expect((payload['fields'] as Map)['title'], 'Buy litter');
+
+      final remote = _FakeRemoteClient(
+        createResult: const RemotePocResult.success(
+          RemoteItemCreateResult(itemId: 'remote-created-item'),
+        ),
+      );
+      final result = await RemoteBackedOutboxFlushService(
+        dao: db.reminderDao,
+        remoteClient: remote,
+      ).flushPendingRemoteBackedMutations();
+
+      expect(result.synced, 1);
+      expect(remote.createCalls, 1);
+      final mapping = await db.reminderDao.getSyncMapping(
+        localEntityType: RemoteSharedPackRepository.localEntityItem,
+        localEntityId: itemId,
+        remoteTable: RemoteSharedPackRepository.remoteTableItems,
+      );
+      expect(mapping!.remoteEntityId, 'remote-created-item');
+      final updatedMetadata = await db.reminderDao
+          .getRemoteItemSyncMetadataForLocalItem(itemId);
+      expect(updatedMetadata!.remoteItemId, 'remote-created-item');
+    },
+  );
+
+  test('remote-backed update item enqueues basic field mutation', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final env = await _seedRemoteBackedMirror(db, withCompletion: false);
+    final repository = ItemRepository(
+      db.reminderDao,
+      remoteBackedItemActionService: env.actionService,
+      currentActorId: () async => env.currentUser.id,
+    );
+    final bundle = (await repository.getItemById(env.localItemId))!;
+
+    final updated = await repository.updateItem(
+      env.localItemId,
+      ItemInput(
+        title: 'Updated remote mirror',
+        description: 'Updated note',
+        type: bundle.item.type,
+        config: bundle.item.config,
+        attentionPolicySource: bundle.item.attentionPolicySource,
+        packId: bundle.item.packId,
+      ),
+    );
+
+    expect(updated, isTrue);
+    final local = (await repository.getItemById(env.localItemId))!.item;
+    expect(local.title, 'Updated remote mirror');
+    final outbox = await db.reminderDao.listPendingSyncOutboxEntries();
+    expect(outbox.single.actionType, SyncOutboxActionType.updateItem);
+    final remote = _FakeRemoteClient(
+      updateResult: const RemotePocResult.success(
+        RemoteItemMutationResult(itemId: 'remote-item-1', status: 'updated'),
+      ),
+    );
+    final result = await RemoteBackedOutboxFlushService(
+      dao: db.reminderDao,
+      remoteClient: remote,
+    ).flushPendingRemoteBackedMutations();
+
+    expect(result.synced, 1);
+    expect(remote.updateCalls, 1);
+  });
+
+  test('remote-backed archive item enqueues archive mutation', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final env = await _seedRemoteBackedMirror(db, withCompletion: false);
+    final repository = ItemRepository(
+      db.reminderDao,
+      remoteBackedItemActionService: env.actionService,
+      currentActorId: () async => env.currentUser.id,
+    );
+
+    expect(await repository.archiveItem(env.localItemId), isTrue);
+    final local = (await repository.getItemById(env.localItemId))!.item;
+    expect(local.status, ItemLifecycleStatus.archived);
+    final outbox = await db.reminderDao.listPendingSyncOutboxEntries();
+    expect(outbox.single.actionType, SyncOutboxActionType.archiveItem);
+
+    final remote = _FakeRemoteClient(
+      archiveResult: const RemotePocResult.success(
+        RemoteItemMutationResult(itemId: 'remote-item-1', status: 'archived'),
+      ),
+    );
+    final result = await RemoteBackedOutboxFlushService(
+      dao: db.reminderDao,
+      remoteClient: remote,
+    ).flushPendingRemoteBackedMutations();
+
+    expect(result.synced, 1);
+    expect(remote.archiveCalls, 1);
+  });
+
+  test(
+    'remote-backed unsupported CRUD fails closed without local mutation',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final env = await _seedRemoteBackedMirror(db, withCompletion: false);
+      final repository = ItemRepository(
+        db.reminderDao,
+        remoteBackedItemActionService: env.actionService,
+        currentActorId: () async => env.currentUser.id,
+      );
+      final packBefore = (await repository.getPackById(env.localPackId))!;
+
+      expect(
+        await repository.updatePack(
+          env.localPackId,
+          const ItemPackInput(title: 'Changed', iconEmoji: '🏠'),
+        ),
+        isFalse,
+      );
+      expect(
+        await repository.archivePackWithContents(env.localPackId),
+        isFalse,
+      );
+      expect(await repository.skip(env.localItemId), isFalse);
+      expect(await repository.pauseItem(env.localItemId), isFalse);
+      final packAfter = (await repository.getPackById(env.localPackId))!;
+      expect(packAfter.title, packBefore.title);
+      expect(packAfter.status, packBefore.status);
+
+      final resourceRepository = ResourceRepository(db.reminderDao);
+      await expectLater(
+        resourceRepository.createResource(
+          ResourceInput(
+            title: 'Litter',
+            type: ResourceType.quantityBased,
+            config: const QuantityBasedResourceConfig(
+              currentQuantity: 1,
+              unitLabel: 'bag',
+            ),
+            packId: env.localPackId,
+          ),
+        ),
+        throwsA(isA<StateError>()),
+      );
+
+      final stageRepository = StageTrackerRepository(db.reminderDao);
+      await expectLater(
+        stageRepository.createStageTracker(
+          StageTrackerInput(
+            title: 'Kitten growth',
+            trackingStartDate: DateTime(2026, 6, 1),
+            packId: env.localPackId,
+          ),
+        ),
+        throwsA(isA<StateError>()),
       );
     },
   );
@@ -698,12 +894,65 @@ class _RemoteMirrorEnv {
 }
 
 class _FakeRemoteClient implements RemoteBackedOutboxRemoteClient {
-  _FakeRemoteClient({this.completeResult, this.undoResult});
+  _FakeRemoteClient({
+    this.createResult,
+    this.updateResult,
+    this.archiveResult,
+    this.completeResult,
+    this.undoResult,
+  });
 
+  RemotePocResult<RemoteItemCreateResult>? createResult;
+  RemotePocResult<RemoteItemMutationResult>? updateResult;
+  RemotePocResult<RemoteItemMutationResult>? archiveResult;
   RemotePocResult<RemoteItemCompletionResult>? completeResult;
   RemotePocResult<RemoteItemUndoResult>? undoResult;
+  int createCalls = 0;
+  int updateCalls = 0;
+  int archiveCalls = 0;
   int completeCalls = 0;
   int undoCalls = 0;
+
+  @override
+  Future<RemotePocResult<RemoteItemCreateResult>> createRemoteItemForPack({
+    required String remotePackId,
+    required String title,
+    String? note,
+    String? clientMutationId,
+  }) async {
+    createCalls++;
+    return createResult ??
+        const RemotePocResult.failure(
+          RemoteSharedPackFailureReason.remoteUnknownFailure,
+        );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteItemMutationResult>> updateRemoteItemById({
+    required String remoteItemId,
+    required String title,
+    String? note,
+    String? assignedToUserId,
+    String? clientMutationId,
+  }) async {
+    updateCalls++;
+    return updateResult ??
+        const RemotePocResult.failure(
+          RemoteSharedPackFailureReason.remoteUnknownFailure,
+        );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteItemMutationResult>> archiveRemoteItemById({
+    required String remoteItemId,
+    String? clientMutationId,
+  }) async {
+    archiveCalls++;
+    return archiveResult ??
+        const RemotePocResult.failure(
+          RemoteSharedPackFailureReason.remoteUnknownFailure,
+        );
+  }
 
   @override
   Future<RemotePocResult<RemoteItemCompletionResult>> completeRemoteItemById(

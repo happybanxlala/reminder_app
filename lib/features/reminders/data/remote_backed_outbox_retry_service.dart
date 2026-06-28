@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 
 import '../domain/remote_backed_recovery.dart';
 import '../domain/remote_sync.dart';
+import '../domain/shared_pack.dart';
 import 'local/app_database.dart';
 import 'local/reminder_dao.dart';
 import 'remote_backed_outbox_flush_service.dart';
@@ -84,10 +85,19 @@ class RemoteBackedOutboxRetryService {
       );
     }
 
-    final remoteItemId = await _resolveRemoteItemId(mutation, payload);
-    final localCompletionId =
-        _intPayload(payload, 'localCompletionId') ?? mutation.localEntityId;
-    if (remoteItemId == null || localCompletionId == null) {
+    final now = _clock().millisecondsSinceEpoch;
+    await _dao.updateSyncOutboxEntry(
+      mutation.id,
+      SyncOutboxCompanion(
+        status: Value(SyncOutboxStatus.syncing.storageValue),
+        retryCount: Value(mutation.retryCount + 1),
+        lastAttemptAt: Value(now),
+        updatedAt: Value(now),
+      ),
+    );
+
+    final resolution = await _retryRemoteMutation(mutation, payload);
+    if (resolution == null) {
       await _markFailed(
         mutation,
         RemoteBackedMutationResolution.failed,
@@ -102,36 +112,14 @@ class RemoteBackedOutboxRetryService {
         afterStatus: updated?.status ?? SyncOutboxStatus.failed,
         localPackId: mutation.localPackId,
         localItemId: localItemId,
-        remoteItemId: remoteItemId,
+        remoteItemId: mutation.remoteEntityId,
         message: 'missing_remote_item_mapping',
       );
     }
 
-    final now = _clock().millisecondsSinceEpoch;
-    await _dao.updateSyncOutboxEntry(
-      mutation.id,
-      SyncOutboxCompanion(
-        status: Value(SyncOutboxStatus.syncing.storageValue),
-        retryCount: Value(mutation.retryCount + 1),
-        lastAttemptAt: Value(now),
-        updatedAt: Value(now),
-      ),
-    );
-
-    final resolution = switch (mutation.actionType) {
-      SyncOutboxActionType.completeItem => await _retryComplete(
-        mutation,
-        localCompletionId: localCompletionId,
-        remoteItemId: remoteItemId,
-      ),
-      SyncOutboxActionType.undoItem => await _retryUndo(
-        mutation,
-        localCompletionId: localCompletionId,
-        remoteItemId: remoteItemId,
-      ),
-    };
     final updated = await _dao.getSyncOutboxEntryById(mutation.id);
     final afterStatus = updated?.status ?? SyncOutboxStatus.failed;
+    final remoteItemId = await _resolveRemoteItemId(mutation, payload);
     return RemoteBackedRetryMutationResult(
       mutationId: mutation.id,
       actionType: mutation.actionType,
@@ -143,6 +131,196 @@ class RemoteBackedOutboxRetryService {
       remoteItemId: remoteItemId,
       message: resolution.name,
     );
+  }
+
+  Future<RemoteBackedMutationResolution?> _retryRemoteMutation(
+    SyncOutboxEntry mutation,
+    Map<String, Object?> payload,
+  ) async {
+    return switch (mutation.actionType) {
+      SyncOutboxActionType.createItem => await _retryCreateItem(
+        mutation,
+        payload,
+      ),
+      SyncOutboxActionType.updateItem => await _retryUpdateItem(
+        mutation,
+        payload,
+      ),
+      SyncOutboxActionType.archiveItem => await _retryArchiveItem(
+        mutation,
+        payload,
+      ),
+      SyncOutboxActionType.completeItem => await _retryCompletionMutation(
+        mutation,
+        payload,
+        isUndo: false,
+      ),
+      SyncOutboxActionType.undoItem => await _retryCompletionMutation(
+        mutation,
+        payload,
+        isUndo: true,
+      ),
+    };
+  }
+
+  Future<RemoteBackedMutationResolution?> _retryCompletionMutation(
+    SyncOutboxEntry mutation,
+    Map<String, Object?> payload, {
+    required bool isUndo,
+  }) async {
+    final remoteItemId = await _resolveRemoteItemId(mutation, payload);
+    final localCompletionId =
+        _intPayload(payload, 'localCompletionId') ?? mutation.localEntityId;
+    if (remoteItemId == null || localCompletionId == null) {
+      return null;
+    }
+    return isUndo
+        ? _retryUndo(
+            mutation,
+            localCompletionId: localCompletionId,
+            remoteItemId: remoteItemId,
+          )
+        : _retryComplete(
+            mutation,
+            localCompletionId: localCompletionId,
+            remoteItemId: remoteItemId,
+          );
+  }
+
+  Future<RemoteBackedMutationResolution?> _retryCreateItem(
+    SyncOutboxEntry mutation,
+    Map<String, Object?> payload,
+  ) async {
+    final remotePackId =
+        mutation.remotePackId ?? _stringPayload(payload, 'remotePackId');
+    final localItemId =
+        _intPayload(payload, 'localItemId') ?? mutation.localEntityId;
+    final fields = _mapPayload(payload, 'fields');
+    final title = _stringPayload(fields, 'title');
+    if (remotePackId == null || localItemId == null || title == null) {
+      return null;
+    }
+    final result = await _remoteClient.createRemoteItemForPack(
+      remotePackId: remotePackId,
+      title: title,
+      note: _stringPayload(fields, 'note'),
+      clientMutationId: mutation.clientMutationId,
+    );
+    if (!result.isSuccess) {
+      final resolution = _failureResolution(result.failureReason);
+      await _markFailed(mutation, resolution, result.failureReason?.name);
+      if (_isAccessLostResolution(resolution)) {
+        await _markPackAccessLost(mutation, result.failureReason?.name);
+      }
+      return resolution;
+    }
+    final created = result.value!;
+    final now = _clock().millisecondsSinceEpoch;
+    await _dao.attachedDatabase.transaction(() async {
+      await _dao.upsertSyncMapping(
+        SyncMappingsCompanion.insert(
+          localEntityType: RemoteSharedPackRepository.localEntityItem,
+          localEntityId: localItemId,
+          remoteTable: RemoteSharedPackRepository.remoteTableItems,
+          remoteEntityId: created.itemId,
+          syncState: SyncMappingState.pushed.storageValue,
+          lastPushedAt: Value(now),
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      final metadata = await _dao.getRemoteItemSyncMetadataForLocalItem(
+        localItemId,
+      );
+      if (metadata != null) {
+        await _dao.updateRemoteItemSyncMetadata(
+          metadata.id,
+          RemoteItemSyncMetadataCompanion(
+            remoteItemId: Value(created.itemId),
+            remotePackId: Value(remotePackId),
+            syncState: Value(RemoteItemSyncState.stale.storageValue),
+            remoteStatus: const Value('active'),
+            lastPushedAt: Value(now),
+            lastSyncError: const Value(null),
+            updatedAt: Value(now),
+          ),
+        );
+      }
+      await _dao.updateSyncOutboxEntry(
+        mutation.id,
+        SyncOutboxCompanion(
+          remoteEntityId: Value(created.itemId),
+          status: Value(SyncOutboxStatus.synced.storageValue),
+          resolvedAt: Value(now),
+          lastError: const Value(null),
+          updatedAt: Value(now),
+        ),
+      );
+    });
+    await _markPackAndItemStale(mutation, localItemIdOverride: localItemId);
+    return RemoteBackedMutationResolution.synced;
+  }
+
+  Future<RemoteBackedMutationResolution?> _retryUpdateItem(
+    SyncOutboxEntry mutation,
+    Map<String, Object?> payload,
+  ) async {
+    final remoteItemId = await _resolveRemoteItemId(mutation, payload);
+    final fields = _mapPayload(payload, 'fields');
+    final title = _stringPayload(fields, 'title');
+    if (remoteItemId == null || title == null) {
+      return null;
+    }
+    final result = await _remoteClient.updateRemoteItemById(
+      remoteItemId: remoteItemId,
+      title: title,
+      note: _stringPayload(fields, 'note'),
+      assignedToUserId: _stringPayload(fields, 'assignedToUserId'),
+      clientMutationId: mutation.clientMutationId,
+    );
+    if (!result.isSuccess) {
+      final resolution = _failureResolution(result.failureReason);
+      await _markFailed(mutation, resolution, result.failureReason?.name);
+      if (_isAccessLostResolution(resolution)) {
+        await _markPackAccessLost(mutation, result.failureReason?.name);
+      }
+      return resolution;
+    }
+    await _markItemMutationSynced(
+      mutation,
+      localItemId: _intPayload(payload, 'localItemId'),
+      remoteStatus: 'active',
+    );
+    return RemoteBackedMutationResolution.synced;
+  }
+
+  Future<RemoteBackedMutationResolution?> _retryArchiveItem(
+    SyncOutboxEntry mutation,
+    Map<String, Object?> payload,
+  ) async {
+    final remoteItemId = await _resolveRemoteItemId(mutation, payload);
+    if (remoteItemId == null) {
+      return null;
+    }
+    final result = await _remoteClient.archiveRemoteItemById(
+      remoteItemId: remoteItemId,
+      clientMutationId: mutation.clientMutationId,
+    );
+    if (!result.isSuccess) {
+      final resolution = _failureResolution(result.failureReason);
+      await _markFailed(mutation, resolution, result.failureReason?.name);
+      if (_isAccessLostResolution(resolution)) {
+        await _markPackAccessLost(mutation, result.failureReason?.name);
+      }
+      return resolution;
+    }
+    await _markItemMutationSynced(
+      mutation,
+      localItemId: _intPayload(payload, 'localItemId'),
+      remoteStatus: 'archived',
+      itemState: RemoteItemSyncState.archived,
+    );
+    return RemoteBackedMutationResolution.synced;
   }
 
   Future<RemoteBackedMutationResolution> _retryComplete(
@@ -289,6 +467,45 @@ class RemoteBackedOutboxRetryService {
     }
   }
 
+  Future<void> _markItemMutationSynced(
+    SyncOutboxEntry mutation, {
+    required int? localItemId,
+    required String remoteStatus,
+    RemoteItemSyncState itemState = RemoteItemSyncState.stale,
+  }) async {
+    final now = _clock().millisecondsSinceEpoch;
+    await _dao.updateSyncOutboxEntry(
+      mutation.id,
+      SyncOutboxCompanion(
+        status: Value(SyncOutboxStatus.synced.storageValue),
+        resolvedAt: Value(now),
+        lastError: const Value(null),
+        updatedAt: Value(now),
+      ),
+    );
+    if (localItemId != null) {
+      final metadata = await _dao.getRemoteItemSyncMetadataForLocalItem(
+        localItemId,
+      );
+      if (metadata != null) {
+        await _dao.updateRemoteItemSyncMetadata(
+          metadata.id,
+          RemoteItemSyncMetadataCompanion(
+            syncState: Value(itemState.storageValue),
+            remoteStatus: Value(remoteStatus),
+            lastPushedAt: Value(now),
+            lastSyncError: const Value(null),
+            archivedAt: itemState == RemoteItemSyncState.archived
+                ? Value(now)
+                : const Value.absent(),
+            updatedAt: Value(now),
+          ),
+        );
+      }
+    }
+    await _markPackAndItemStale(mutation, localItemIdOverride: localItemId);
+  }
+
   Future<void> _markFailed(
     SyncOutboxEntry mutation,
     RemoteBackedMutationResolution resolution,
@@ -324,9 +541,13 @@ class RemoteBackedOutboxRetryService {
     }
   }
 
-  Future<void> _markPackAndItemStale(SyncOutboxEntry mutation) async {
+  Future<void> _markPackAndItemStale(
+    SyncOutboxEntry mutation, {
+    int? localItemIdOverride,
+  }) async {
     final payload = _decodePayload(mutation.payloadJson);
-    final localItemId = _intPayload(payload, 'localItemId');
+    final localItemId =
+        localItemIdOverride ?? _intPayload(payload, 'localItemId');
     if (localItemId != null) {
       final itemMetadata = await _dao.getRemoteItemSyncMetadataForLocalItem(
         localItemId,
@@ -534,5 +755,27 @@ class RemoteBackedOutboxRetryService {
       return value.toInt();
     }
     return null;
+  }
+
+  String? _stringPayload(Map<String, Object?> payload, String key) {
+    final value = payload[key];
+    if (value is String && value.isNotEmpty) {
+      return value;
+    }
+    return null;
+  }
+
+  Map<String, Object?> _mapPayload(Map<String, Object?> payload, String key) {
+    final value = payload[key];
+    if (value is Map<String, Object?>) {
+      return value;
+    }
+    if (value is Map<String, dynamic>) {
+      return Map<String, Object?>.from(value);
+    }
+    if (value is Map) {
+      return Map<String, Object?>.from(value);
+    }
+    return const {};
   }
 }

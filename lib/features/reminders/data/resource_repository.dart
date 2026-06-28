@@ -59,6 +59,7 @@ class ResourceRepository {
     ResourceLifecycleStatus.active,
     ResourceLifecycleStatus.paused,
   };
+  static const remoteBackedUnsupportedMessage = '共同生活場景暫時只能完成或復原事項。其他修改會在之後支援。';
 
   final ReminderDao _dao;
   final ResourceStatusService _statusService;
@@ -195,6 +196,9 @@ class ResourceRepository {
     if (existing == null || existing.resource.type != input.type) {
       return false;
     }
+    if (await _dao.isRemoteBackedPack(existing.resource.packId)) {
+      return false;
+    }
     final now = _clock();
     final packId = input.packId ?? existing.resource.packId;
     await _assertPackCanAcceptResources(packId, existing: existing.resource);
@@ -242,6 +246,10 @@ class ResourceRepository {
         existing.resource.status == ResourceLifecycleStatus.archived) {
       return false;
     }
+    if (await _dao.isRemoteBackedPack(existing.resource.packId) ||
+        await _dao.isRemoteBackedPack(targetPackId)) {
+      return false;
+    }
     await _assertPackCanAcceptResources(
       targetPackId,
       existing: existing.resource,
@@ -259,7 +267,12 @@ class ResourceRepository {
     });
   }
 
-  Future<bool> archiveResource(int resourceId) {
+  Future<bool> archiveResource(int resourceId) async {
+    final existing = await getResourceById(resourceId);
+    if (existing == null ||
+        await _dao.isRemoteBackedPack(existing.resource.packId)) {
+      return false;
+    }
     final now = _clock();
     return _dao.updateResourceFields(
       resourceId,
@@ -279,6 +292,9 @@ class ResourceRepository {
   }) async {
     final existing = await getResourceById(resourceId);
     if (existing == null) {
+      return false;
+    }
+    if (await _dao.isRemoteBackedPack(existing.resource.packId)) {
       return false;
     }
     final now = _clock();
@@ -370,6 +386,9 @@ class ResourceRepository {
     final existing = await getResourceById(resourceId);
     if (existing == null ||
         existing.resource.config is! QuantityBasedResourceConfig) {
+      return false;
+    }
+    if (await _dao.isRemoteBackedPack(existing.resource.packId)) {
       return false;
     }
     final now = _clock();
@@ -478,6 +497,9 @@ class ResourceRepository {
         existing.resource.config is! QuantityBasedResourceConfig) {
       return false;
     }
+    if (await _dao.isRemoteBackedPack(existing.resource.packId)) {
+      return false;
+    }
     final now = _clock();
     final actionDate = _normalizeDate(actionAt ?? now);
     final actor = await _resolveActorId(actorUserId);
@@ -540,6 +562,13 @@ class ResourceRepository {
   }
 
   Future<int> createConsumptionRule(ResourceConsumptionRuleInput input) async {
+    final resource = await _dao.getResourceBundleById(input.resourceId);
+    final item = await _dao.getItemBundleById(input.itemId);
+    if ((resource != null &&
+            await _dao.isRemoteBackedPack(resource.resource.packId)) ||
+        (item != null && await _dao.isRemoteBackedPack(item.item.packId))) {
+      throw StateError(remoteBackedUnsupportedMessage);
+    }
     final now = _clock();
     return _dao.insertResourceConsumptionRule(
       ResourceConsumptionRulesCompanion.insert(
@@ -691,6 +720,9 @@ class ResourceRepository {
     final pack = await _dao.getItemPackById(packId);
     if (pack == null) {
       throw StateError('Item pack not found.');
+    }
+    if (await _dao.isRemoteBackedPack(pack.id)) {
+      throw StateError(remoteBackedUnsupportedMessage);
     }
     if (pack.status == ItemPackStatus.active) {
       return;

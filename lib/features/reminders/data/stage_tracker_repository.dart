@@ -35,6 +35,7 @@ class StageTrackerRepository {
   final Future<String> Function()? _currentActorId;
 
   static const systemDefaultKey = AppDatabase.systemDefaultStageTrackerKey;
+  static const remoteBackedUnsupportedMessage = '共同生活場景暫時只能完成或復原事項。其他修改會在之後支援。';
 
   Stream<List<StageTracker>> watchStageTrackers() {
     return _dao.watchStageTrackers();
@@ -211,6 +212,9 @@ class StageTrackerRepository {
         tracker.isSystemDefault) {
       return 0;
     }
+    if (await _dao.isRemoteBackedPack(tracker.packId)) {
+      return 0;
+    }
     return _insertRule(stageTrackerId, input, _clock());
   }
 
@@ -222,6 +226,9 @@ class StageTrackerRepository {
     if (tracker == null ||
         tracker.status == StageTrackerStatus.archived ||
         tracker.isSystemDefault) {
+      return 0;
+    }
+    if (await _dao.isRemoteBackedPack(tracker.packId)) {
       return 0;
     }
     final now = _clock();
@@ -256,6 +263,9 @@ class StageTrackerRepository {
     if (tracker == null ||
         tracker.status == StageTrackerStatus.archived ||
         tracker.isSystemDefault) {
+      return false;
+    }
+    if (await _dao.isRemoteBackedPack(tracker.packId)) {
       return false;
     }
     final now = _clock();
@@ -306,6 +316,10 @@ class StageTrackerRepository {
     if (tracker == null ||
         tracker.status == StageTrackerStatus.archived ||
         tracker.isSystemDefault) {
+      return false;
+    }
+    if (await _dao.isRemoteBackedPack(tracker.packId) ||
+        await _dao.isRemoteBackedPack(targetPackId)) {
       return false;
     }
     final now = _clock();
@@ -399,6 +413,9 @@ class StageTrackerRepository {
         tracker.isSystemDefault) {
       return false;
     }
+    if (await _dao.isRemoteBackedPack(tracker.packId)) {
+      return false;
+    }
     if (input.intervalValue <= 0) {
       throw ArgumentError.value(input.intervalValue, 'intervalValue');
     }
@@ -428,6 +445,9 @@ class StageTrackerRepository {
     if (tracker == null ||
         tracker.status == StageTrackerStatus.archived ||
         tracker.isSystemDefault) {
+      return false;
+    }
+    if (await _dao.isRemoteBackedPack(tracker.packId)) {
       return false;
     }
     final now = _clock();
@@ -463,6 +483,9 @@ class StageTrackerRepository {
         tracker.isSystemDefault) {
       return false;
     }
+    if (await _dao.isRemoteBackedPack(tracker.packId)) {
+      return false;
+    }
     final now = _clock();
     return _dao.updateStageRecordRecord(
       StageRecordRow(
@@ -493,6 +516,9 @@ class StageTrackerRepository {
     final actor = await _resolveActorId(actorUserId);
     final tracker = await getStageTrackerById(occurrence.stageTrackerId);
     if (tracker == null || !await _canActOnPack(tracker.packId, actor)) {
+      return;
+    }
+    if (await _dao.isRemoteBackedPack(tracker.packId)) {
       return;
     }
     final now = _clock();
@@ -527,6 +553,10 @@ class StageTrackerRepository {
   }
 
   Future<void> ignoreOccurrence(StageOccurrence occurrence) async {
+    final tracker = await getStageTrackerById(occurrence.stageTrackerId);
+    if (tracker == null || await _dao.isRemoteBackedPack(tracker.packId)) {
+      return;
+    }
     await _upsertGeneratedOccurrenceRecord(
       occurrence,
       StageRecordStatus.ignored,
@@ -538,6 +568,9 @@ class StageTrackerRepository {
     if (tracker == null ||
         tracker.status == StageTrackerStatus.archived ||
         tracker.isSystemDefault) {
+      return false;
+    }
+    if (await _dao.isRemoteBackedPack(tracker.packId)) {
       return false;
     }
     final now = _clock();
@@ -698,6 +731,9 @@ class StageTrackerRepository {
     final pack = await _dao.getItemPackById(resolvedPackId);
     if (pack == null) {
       throw StateError('Item pack not found.');
+    }
+    if (await _dao.isRemoteBackedPack(pack.id)) {
+      throw StateError(remoteBackedUnsupportedMessage);
     }
     if (pack.status != ItemPackStatus.active) {
       throw StateError('Archived item pack cannot accept stage trackers.');

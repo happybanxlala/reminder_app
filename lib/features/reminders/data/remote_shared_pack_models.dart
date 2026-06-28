@@ -90,6 +90,22 @@ class RemoteItemPushSummary {
   final int failedCount;
 }
 
+class RemoteItemCreateResult {
+  const RemoteItemCreateResult({required this.itemId, this.status = 'created'});
+
+  final String itemId;
+  final String status;
+}
+
+class RemoteItemMutationResult {
+  const RemoteItemMutationResult({required this.itemId, required this.status});
+
+  final String itemId;
+  final String status;
+
+  bool get isNoOp => status == 'already_archived' || status == 'not_changed';
+}
+
 enum RemoteItemCompletionStatus { completed, alreadyCompleted }
 
 class RemoteItemCompletionResult {

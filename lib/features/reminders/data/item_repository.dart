@@ -21,6 +21,7 @@ import 'home_models.dart';
 import 'local/app_database.dart';
 import 'local/reminder_dao.dart';
 import 'remote_backed_item_action_service.dart';
+import 'remote_shared_pack_repository.dart';
 import 'resource_repository.dart';
 
 class ItemInput {
@@ -139,6 +140,8 @@ class ItemRepository {
     ItemActionType.done,
     ItemActionType.skipped,
   };
+  static const remoteBackedUnsupportedMessage = '共同生活場景暫時只能完成或復原事項。其他修改會在之後支援。';
+  static const _pendingRemoteItemIdPrefix = 'pending:';
 
   final ReminderDao _dao;
   final ItemStatusService _statusService;
@@ -260,6 +263,14 @@ class ItemRepository {
     final actor = await _resolveActorId(actorUserId);
     return _dao.attachedDatabase.transaction(() async {
       final packId = await _resolvePackId(input.packId, now);
+      if (await _dao.isRemoteBackedPack(packId)) {
+        return _createRemoteBackedItemLocally(
+          _copyItemInput(input, packId: packId),
+          actorUserId: actor,
+          resourceBindings: resourceBindings,
+          now: now,
+        );
+      }
       final itemId = await _createItemRecord(
         _copyItemInput(input, packId: packId),
         now: now,
@@ -302,6 +313,14 @@ class ItemRepository {
               ),
             );
       final packId = createdPackId ?? await _resolvePackId(item.packId, now);
+      if (createdPackId == null && await _dao.isRemoteBackedPack(packId)) {
+        return _createRemoteBackedItemLocally(
+          _copyItemInput(item, packId: packId),
+          actorUserId: actor,
+          resourceBindings: resourceBindings,
+          now: now,
+        );
+      }
       final itemId = await _createItemRecord(
         _copyItemInput(item, packId: packId),
         now: now,
@@ -342,6 +361,21 @@ class ItemRepository {
     final now = _clock();
     final packId = input.packId ?? existing.item.packId;
     await _assertPackCanAcceptItems(packId, existingItem: existing.item);
+    final existingRemoteBacked = await _dao.isRemoteBackedPack(
+      existing.item.packId,
+    );
+    final targetRemoteBacked = await _dao.isRemoteBackedPack(packId);
+    if (existingRemoteBacked || targetRemoteBacked) {
+      if (!existingRemoteBacked ||
+          !targetRemoteBacked ||
+          packId != existing.item.packId ||
+          resourceBindings.isNotEmpty ||
+          input.attentionPolicySource != existing.item.attentionPolicySource ||
+          !_sameItemConfig(existing.item.config, input.config)) {
+        return false;
+      }
+      return _updateRemoteBackedItemLocally(existing, input, now: now);
+    }
     return _dao.attachedDatabase.transaction(() async {
       final updated = await _dao.updateItemRecord(
         _itemRowForUpdate(existing.item, input, packId: packId, now: now),
@@ -374,6 +408,9 @@ class ItemRepository {
     final existing = await getItemById(itemId);
     if (existing == null ||
         existing.item.status == ItemLifecycleStatus.archived) {
+      return false;
+    }
+    if (await _dao.isRemoteBackedPack(existing.pack.id)) {
       return false;
     }
     final now = _clock();
@@ -416,6 +453,10 @@ class ItemRepository {
     final existing = await getItemById(itemId);
     if (existing == null ||
         existing.item.status == ItemLifecycleStatus.archived) {
+      return false;
+    }
+    if (await _dao.isRemoteBackedPack(existing.item.packId) ||
+        await _dao.isRemoteBackedPack(targetPackId)) {
       return false;
     }
     await _assertPackCanAcceptItems(targetPackId, existingItem: existing.item);
@@ -493,6 +534,9 @@ class ItemRepository {
   }) async {
     final existing = await getItemById(id);
     if (existing == null) {
+      return false;
+    }
+    if (await _dao.isRemoteBackedPack(existing.pack.id)) {
       return false;
     }
     final action = _actionService.planSkip(
@@ -703,6 +747,9 @@ class ItemRepository {
         existing.status == ItemPackStatus.archived) {
       return false;
     }
+    if (await _dao.isRemoteBackedPack(id)) {
+      return false;
+    }
     final now = _clock();
     return _dao.updateItemPackRecord(
       ItemPackRow(
@@ -757,6 +804,9 @@ class ItemRepository {
     if (existing == null || !await canArchivePack(id)) {
       return false;
     }
+    if (await _dao.isRemoteBackedPack(id)) {
+      return false;
+    }
     final now = _clock();
     return _dao.attachedDatabase.transaction(() async {
       final updated = await _archivePackRecord(existing, now);
@@ -779,6 +829,9 @@ class ItemRepository {
   Future<bool> archivePackAndMoveContentsToDefault(int id) async {
     final existing = await getPackById(id);
     if (existing == null || !await canArchivePack(id)) {
+      return false;
+    }
+    if (await _dao.isRemoteBackedPack(id)) {
       return false;
     }
     final now = _clock();
@@ -809,6 +862,9 @@ class ItemRepository {
         existing.item.status != ItemLifecycleStatus.active) {
       return false;
     }
+    if (await _dao.isRemoteBackedPack(existing.item.packId)) {
+      return false;
+    }
     return _dao.updateItemStatus(id, ItemLifecycleStatus.paused);
   }
 
@@ -816,6 +872,9 @@ class ItemRepository {
     final existing = await getItemById(id);
     if (existing == null ||
         existing.item.status != ItemLifecycleStatus.paused) {
+      return false;
+    }
+    if (await _dao.isRemoteBackedPack(existing.item.packId)) {
       return false;
     }
     return _dao.updateItemStatus(id, ItemLifecycleStatus.active);
@@ -826,6 +885,9 @@ class ItemRepository {
     if (existing == null ||
         existing.item.status == ItemLifecycleStatus.archived) {
       return false;
+    }
+    if (await _dao.isRemoteBackedPack(existing.item.packId)) {
+      return _archiveRemoteBackedItemLocally(existing, now: _clock());
     }
     return _dao.updateItemStatus(id, ItemLifecycleStatus.archived);
   }
@@ -1179,6 +1241,391 @@ class ItemRepository {
     final packId = input.packId ?? await _ensureDefaultPackId(now);
     await _assertPackCanAcceptItems(packId);
     return _dao.insertItem(_itemCompanion(input, packId: packId, now: now));
+  }
+
+  Future<int> _createRemoteBackedItemLocally(
+    ItemInput input, {
+    required String actorUserId,
+    required List<ItemResourceBindingInput> resourceBindings,
+    required DateTime now,
+  }) async {
+    if (resourceBindings.isNotEmpty) {
+      throw StateError(remoteBackedUnsupportedMessage);
+    }
+    _validateItemInput(input);
+    final packId = input.packId!;
+    final packMetadata = await _dao.getRemotePackSyncMetadataForLocalPack(
+      packId,
+    );
+    if (packMetadata == null ||
+        packMetadata.syncKind != RemotePackSyncKind.remoteBacked ||
+        _isRemoteAccessLost(packMetadata)) {
+      throw StateError(remoteBackedUnsupportedMessage);
+    }
+    final actor = await _resolveActorUser(actorUserId);
+    final clientMutationId = _remoteBackedClientMutationId(
+      'create_item',
+      packId,
+      now,
+    );
+    final itemId = await _dao.insertItem(
+      _itemCompanion(input, packId: packId, now: now),
+    );
+    await _insertCreatedAction(itemId, now: now);
+    await _insertActivityEvent(
+      packId: packId,
+      actorUserId: actor.id,
+      entityType: 'item',
+      entityId: itemId,
+      action: 'item_created',
+      metadataJson: _jsonObject({
+        'remoteBackedPending': true,
+        'syncActionType': SyncOutboxActionType.createItem.storageValue,
+        'clientMutationId': clientMutationId,
+      }),
+      now: now,
+    );
+    final pendingRemoteItemId = '$_pendingRemoteItemIdPrefix$clientMutationId';
+    await _dao.insertRemoteItemSyncMetadata(
+      RemoteItemSyncMetadataCompanion.insert(
+        localItemId: itemId,
+        localPackId: packId,
+        remoteItemId: pendingRemoteItemId,
+        remotePackId: packMetadata.remotePackId,
+        syncState: RemoteItemSyncState.pendingPush.storageValue,
+        remoteStatus: const Value('active'),
+        lastSyncError: const Value(null),
+        createdAt: now.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
+      ),
+    );
+    await _enqueueRemoteBackedItemMutation(
+      actionType: SyncOutboxActionType.createItem,
+      localPackId: packId,
+      remotePackId: packMetadata.remotePackId,
+      localItemId: itemId,
+      remoteItemId: null,
+      clientMutationId: clientMutationId,
+      actor: actor,
+      actionAt: now,
+      fields: {
+        'title': input.title,
+        'note': input.description,
+        'assignedToUserId': await _remoteUserIdForLocalUser(
+          input.assignedToUserId,
+        ),
+      },
+    );
+    await _markRemoteBackedPackStale(packMetadata, now);
+    return itemId;
+  }
+
+  Future<bool> _updateRemoteBackedItemLocally(
+    ItemBundle existing,
+    ItemInput input, {
+    required DateTime now,
+  }) async {
+    final remoteItemId = await _remoteItemIdForLocalItem(existing.item.id);
+    if (remoteItemId == null) {
+      return false;
+    }
+    final packMetadata = await _dao.getRemotePackSyncMetadataForLocalPack(
+      existing.item.packId,
+    );
+    if (packMetadata == null || _isRemoteAccessLost(packMetadata)) {
+      return false;
+    }
+    final actor = await _resolveActorUser(await _resolveActorId(null));
+    final clientMutationId = _remoteBackedClientMutationId(
+      'update_item',
+      existing.item.id,
+      now,
+    );
+    return _dao.attachedDatabase.transaction(() async {
+      final updated = await _dao.updateItemFields(
+        existing.item.id,
+        ItemsCompanion(
+          title: Value(input.title),
+          description: Value(input.description),
+          assignedToUserId: Value(input.assignedToUserId),
+          updatedAt: Value(now.millisecondsSinceEpoch),
+        ),
+      );
+      if (!updated) {
+        return false;
+      }
+      await _insertActivityEvent(
+        packId: existing.item.packId,
+        actorUserId: actor.id,
+        entityType: 'item',
+        entityId: existing.item.id,
+        action: 'item_updated',
+        beforeJson: _jsonObject({
+          'title': existing.item.title,
+          'note': existing.item.description,
+          'assigned_to_user_id': existing.item.assignedToUserId,
+        }),
+        afterJson: _jsonObject({
+          'title': input.title,
+          'note': input.description,
+          'assigned_to_user_id': input.assignedToUserId,
+        }),
+        metadataJson: _jsonObject({
+          'remoteBackedPending': true,
+          'syncActionType': SyncOutboxActionType.updateItem.storageValue,
+          'clientMutationId': clientMutationId,
+        }),
+        now: now,
+      );
+      await _markRemoteBackedItemPendingPush(existing.item.id, now);
+      await _enqueueRemoteBackedItemMutation(
+        actionType: SyncOutboxActionType.updateItem,
+        localPackId: existing.item.packId,
+        remotePackId: packMetadata.remotePackId,
+        localItemId: existing.item.id,
+        remoteItemId: remoteItemId,
+        clientMutationId: clientMutationId,
+        actor: actor,
+        actionAt: now,
+        fields: {
+          'title': input.title,
+          'note': input.description,
+          'assignedToUserId': await _remoteUserIdForLocalUser(
+            input.assignedToUserId,
+          ),
+        },
+      );
+      await _markRemoteBackedPackStale(packMetadata, now);
+      return true;
+    });
+  }
+
+  Future<bool> _archiveRemoteBackedItemLocally(
+    ItemBundle existing, {
+    required DateTime now,
+  }) async {
+    final remoteItemId = await _remoteItemIdForLocalItem(existing.item.id);
+    if (remoteItemId == null) {
+      return false;
+    }
+    final packMetadata = await _dao.getRemotePackSyncMetadataForLocalPack(
+      existing.item.packId,
+    );
+    if (packMetadata == null || _isRemoteAccessLost(packMetadata)) {
+      return false;
+    }
+    final actor = await _resolveActorUser(await _resolveActorId(null));
+    final clientMutationId = _remoteBackedClientMutationId(
+      'archive_item',
+      existing.item.id,
+      now,
+    );
+    return _dao.attachedDatabase.transaction(() async {
+      final updated = await _dao.updateItemStatus(
+        existing.item.id,
+        ItemLifecycleStatus.archived,
+      );
+      if (!updated) {
+        return false;
+      }
+      await _insertActivityEvent(
+        packId: existing.item.packId,
+        actorUserId: actor.id,
+        entityType: 'item',
+        entityId: existing.item.id,
+        action: 'item_archived',
+        metadataJson: _jsonObject({
+          'remoteBackedPending': true,
+          'syncActionType': SyncOutboxActionType.archiveItem.storageValue,
+          'clientMutationId': clientMutationId,
+        }),
+        now: now,
+      );
+      await _markRemoteBackedItemPendingPush(existing.item.id, now);
+      await _enqueueRemoteBackedItemMutation(
+        actionType: SyncOutboxActionType.archiveItem,
+        localPackId: existing.item.packId,
+        remotePackId: packMetadata.remotePackId,
+        localItemId: existing.item.id,
+        remoteItemId: remoteItemId,
+        clientMutationId: clientMutationId,
+        actor: actor,
+        actionAt: now,
+        fields: const {'status': 'archived'},
+      );
+      await _markRemoteBackedPackStale(packMetadata, now);
+      return true;
+    });
+  }
+
+  Future<LocalUser> _resolveActorUser(String actorUserId) async {
+    final user = await _dao.getLocalUserById(actorUserId);
+    if (user != null) {
+      return user;
+    }
+    final fallback = await _dao.getLocalUserById(AppDatabase.defaultHostUserId);
+    if (fallback != null) {
+      return fallback;
+    }
+    final fallbackNow = DateTime.fromMillisecondsSinceEpoch(0);
+    return LocalUser(
+      id: actorUserId,
+      displayName: '你',
+      remoteUserId: null,
+      remoteProvider: null,
+      identityKind: LocalUserIdentityKind.local,
+      linkedAt: null,
+      createdAt: fallbackNow,
+      updatedAt: fallbackNow,
+    );
+  }
+
+  Future<String?> _remoteUserIdForLocalUser(String? localUserId) async {
+    if (localUserId == null) {
+      return null;
+    }
+    final user = await _dao.getLocalUserById(localUserId);
+    return user?.remoteUserId;
+  }
+
+  Future<void> _enqueueRemoteBackedItemMutation({
+    required SyncOutboxActionType actionType,
+    required int localPackId,
+    required String remotePackId,
+    required int localItemId,
+    required String? remoteItemId,
+    required String clientMutationId,
+    required LocalUser actor,
+    required DateTime actionAt,
+    required Map<String, Object?> fields,
+  }) {
+    final now = _clock();
+    return _dao
+        .insertSyncOutbox(
+          SyncOutboxCompanion.insert(
+            localPackId: localPackId,
+            remotePackId: Value(remotePackId),
+            localEntityType: RemoteSharedPackRepository.localEntityItem,
+            localEntityId: Value(localItemId),
+            remoteEntityId: Value(remoteItemId),
+            actionType: actionType.storageValue,
+            payloadJson: jsonEncode({
+              'remotePackId': remotePackId,
+              'remoteItemId': remoteItemId,
+              'localPackId': localPackId,
+              'localItemId': localItemId,
+              'clientMutationId': clientMutationId,
+              'actorLocalUserId': actor.id,
+              'actorRemoteUserId': actor.remoteUserId,
+              'actionAt': actionAt.toIso8601String(),
+              'fields': fields,
+            }),
+            clientMutationId: clientMutationId,
+            actorLocalUserId: actor.id,
+            actorRemoteUserId: Value(actor.remoteUserId),
+            createdAt: now.millisecondsSinceEpoch,
+            updatedAt: now.millisecondsSinceEpoch,
+            status: SyncOutboxStatus.pending.storageValue,
+          ),
+        )
+        .then((_) {});
+  }
+
+  Future<void> _markRemoteBackedItemPendingPush(
+    int localItemId,
+    DateTime now,
+  ) async {
+    final metadata = await _dao.getRemoteItemSyncMetadataForLocalItem(
+      localItemId,
+    );
+    if (metadata == null) {
+      return;
+    }
+    await _dao.updateRemoteItemSyncMetadata(
+      metadata.id,
+      RemoteItemSyncMetadataCompanion(
+        syncState: Value(RemoteItemSyncState.pendingPush.storageValue),
+        lastSyncError: const Value(null),
+        updatedAt: Value(now.millisecondsSinceEpoch),
+      ),
+    );
+  }
+
+  Future<void> _markRemoteBackedPackStale(
+    RemotePackSyncMetadataEntry metadata,
+    DateTime now,
+  ) {
+    return _dao
+        .updateRemotePackSyncMetadata(
+          metadata.id,
+          RemotePackSyncMetadataCompanion(
+            syncState: Value(RemotePackSyncState.stale.storageValue),
+            lastSyncError: const Value(null),
+            updatedAt: Value(now.millisecondsSinceEpoch),
+          ),
+        )
+        .then((_) {});
+  }
+
+  Future<String?> _remoteItemIdForLocalItem(int localItemId) async {
+    final metadata = await _dao.getRemoteItemSyncMetadataForLocalItem(
+      localItemId,
+    );
+    final remoteItemId = metadata?.remoteItemId;
+    if (remoteItemId != null &&
+        !remoteItemId.startsWith(_pendingRemoteItemIdPrefix)) {
+      return remoteItemId;
+    }
+    final mapping = await _dao.getSyncMapping(
+      localEntityType: RemoteSharedPackRepository.localEntityItem,
+      localEntityId: localItemId,
+      remoteTable: RemoteSharedPackRepository.remoteTableItems,
+    );
+    return mapping?.remoteEntityId;
+  }
+
+  bool _isRemoteAccessLost(RemotePackSyncMetadataEntry metadata) {
+    return metadata.syncState == RemotePackSyncState.accessLost ||
+        metadata.syncState == RemotePackSyncState.removed ||
+        metadata.currentUserRemoteStatus == RemoteUserStatus.removed;
+  }
+
+  String _remoteBackedClientMutationId(
+    String action,
+    int localId,
+    DateTime now,
+  ) {
+    return 'phase1_${action}_${localId}_${now.microsecondsSinceEpoch}';
+  }
+
+  bool _sameItemConfig(ItemConfig left, ItemConfig right) {
+    if (left.runtimeType != right.runtimeType || left.type != right.type) {
+      return false;
+    }
+    if (left is FixedItemConfig && right is FixedItemConfig) {
+      return left.scheduleType == right.scheduleType &&
+          left.scheduleInterval == right.scheduleInterval &&
+          left.monthlyDay == right.monthlyDay &&
+          left.repeatRuleV2?.encode() == right.repeatRuleV2?.encode() &&
+          _sameDate(left.anchorDate, right.anchorDate) &&
+          _sameDate(left.dueDate, right.dueDate) &&
+          left.timeOfDay == right.timeOfDay &&
+          left.overduePolicy == right.overduePolicy &&
+          left.infoBefore == right.infoBefore &&
+          left.warningBefore == right.warningBefore &&
+          left.dangerBefore == right.dangerBefore;
+    }
+    if (left is StateBasedItemConfig && right is StateBasedItemConfig) {
+      return _sameDate(left.anchorDate, right.anchorDate) &&
+          left.infoAfter == right.infoAfter &&
+          left.warningAfter == right.warningAfter &&
+          left.dangerAfter == right.dangerAfter;
+    }
+    return false;
+  }
+
+  bool _sameDate(DateTime? left, DateTime? right) {
+    return left?.millisecondsSinceEpoch == right?.millisecondsSinceEpoch;
   }
 
   Future<int> _resolvePackId(int? packId, DateTime now) async {

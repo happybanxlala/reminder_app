@@ -19,6 +19,8 @@ enum RemoteUserStatus { active, removed, pending, unknown }
 enum RemoteItemSyncState {
   linked,
   pendingImport,
+  pendingPush,
+  syncing,
   importing,
   synced,
   stale,
@@ -47,7 +49,13 @@ enum RemoteCompletionState {
   failed,
 }
 
-enum SyncOutboxActionType { completeItem, undoItem }
+enum SyncOutboxActionType {
+  completeItem,
+  undoItem,
+  createItem,
+  updateItem,
+  archiveItem,
+}
 
 enum SyncOutboxStatus {
   pending,
@@ -203,6 +211,8 @@ extension RemoteItemSyncStateStorage on RemoteItemSyncState {
     return switch (this) {
       RemoteItemSyncState.linked => 'linked',
       RemoteItemSyncState.pendingImport => 'pending_import',
+      RemoteItemSyncState.pendingPush => 'pending_push',
+      RemoteItemSyncState.syncing => 'syncing',
       RemoteItemSyncState.importing => 'importing',
       RemoteItemSyncState.synced => 'synced',
       RemoteItemSyncState.stale => 'stale',
@@ -216,6 +226,8 @@ extension RemoteItemSyncStateStorage on RemoteItemSyncState {
   static RemoteItemSyncState parse(String value) {
     return switch (value) {
       'pending_import' => RemoteItemSyncState.pendingImport,
+      'pending_push' => RemoteItemSyncState.pendingPush,
+      'syncing' => RemoteItemSyncState.syncing,
       'importing' => RemoteItemSyncState.importing,
       'synced' => RemoteItemSyncState.synced,
       'stale' => RemoteItemSyncState.stale,
@@ -283,12 +295,18 @@ extension SyncOutboxActionTypeStorage on SyncOutboxActionType {
     return switch (this) {
       SyncOutboxActionType.completeItem => 'complete_item',
       SyncOutboxActionType.undoItem => 'undo_item',
+      SyncOutboxActionType.createItem => 'create_item',
+      SyncOutboxActionType.updateItem => 'update_item',
+      SyncOutboxActionType.archiveItem => 'archive_item',
     };
   }
 
   static SyncOutboxActionType parse(String value) {
     return switch (value) {
       'undo_item' => SyncOutboxActionType.undoItem,
+      'create_item' => SyncOutboxActionType.createItem,
+      'update_item' => SyncOutboxActionType.updateItem,
+      'archive_item' => SyncOutboxActionType.archiveItem,
       _ => SyncOutboxActionType.completeItem,
     };
   }
