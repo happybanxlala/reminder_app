@@ -15918,6 +15918,924 @@ class RemoteItemSyncMetadataCompanion
   }
 }
 
+class $RemoteResourceSyncMetadataTable extends RemoteResourceSyncMetadata
+    with
+        TableInfo<
+          $RemoteResourceSyncMetadataTable,
+          RemoteResourceSyncMetadataRow
+        > {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RemoteResourceSyncMetadataTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _localResourceIdMeta = const VerificationMeta(
+    'localResourceId',
+  );
+  @override
+  late final GeneratedColumn<int> localResourceId = GeneratedColumn<int>(
+    'local_resource_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES resources (id)',
+    ),
+  );
+  static const VerificationMeta _localPackIdMeta = const VerificationMeta(
+    'localPackId',
+  );
+  @override
+  late final GeneratedColumn<int> localPackId = GeneratedColumn<int>(
+    'local_pack_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES item_packs (id)',
+    ),
+  );
+  static const VerificationMeta _remoteResourceIdMeta = const VerificationMeta(
+    'remoteResourceId',
+  );
+  @override
+  late final GeneratedColumn<String> remoteResourceId = GeneratedColumn<String>(
+    'remote_resource_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _remotePackIdMeta = const VerificationMeta(
+    'remotePackId',
+  );
+  @override
+  late final GeneratedColumn<String> remotePackId = GeneratedColumn<String>(
+    'remote_pack_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _syncStateMeta = const VerificationMeta(
+    'syncState',
+  );
+  @override
+  late final GeneratedColumn<String> syncState = GeneratedColumn<String>(
+    'sync_state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _remoteStatusMeta = const VerificationMeta(
+    'remoteStatus',
+  );
+  @override
+  late final GeneratedColumn<String> remoteStatus = GeneratedColumn<String>(
+    'remote_status',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> remoteUpdatedAt = GeneratedColumn<int>(
+    'remote_updated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastPulledAtMeta = const VerificationMeta(
+    'lastPulledAt',
+  );
+  @override
+  late final GeneratedColumn<int> lastPulledAt = GeneratedColumn<int>(
+    'last_pulled_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastPushedAtMeta = const VerificationMeta(
+    'lastPushedAt',
+  );
+  @override
+  late final GeneratedColumn<int> lastPushedAt = GeneratedColumn<int>(
+    'last_pushed_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastSyncErrorMeta = const VerificationMeta(
+    'lastSyncError',
+  );
+  @override
+  late final GeneratedColumn<String> lastSyncError = GeneratedColumn<String>(
+    'last_sync_error',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _archivedAtMeta = const VerificationMeta(
+    'archivedAt',
+  );
+  @override
+  late final GeneratedColumn<int> archivedAt = GeneratedColumn<int>(
+    'archived_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<int> deletedAt = GeneratedColumn<int>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    localResourceId,
+    localPackId,
+    remoteResourceId,
+    remotePackId,
+    syncState,
+    remoteStatus,
+    remoteUpdatedAt,
+    lastPulledAt,
+    lastPushedAt,
+    lastSyncError,
+    createdAt,
+    updatedAt,
+    archivedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'remote_resource_sync_metadata';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<RemoteResourceSyncMetadataRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('local_resource_id')) {
+      context.handle(
+        _localResourceIdMeta,
+        localResourceId.isAcceptableOrUnknown(
+          data['local_resource_id']!,
+          _localResourceIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_localResourceIdMeta);
+    }
+    if (data.containsKey('local_pack_id')) {
+      context.handle(
+        _localPackIdMeta,
+        localPackId.isAcceptableOrUnknown(
+          data['local_pack_id']!,
+          _localPackIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_localPackIdMeta);
+    }
+    if (data.containsKey('remote_resource_id')) {
+      context.handle(
+        _remoteResourceIdMeta,
+        remoteResourceId.isAcceptableOrUnknown(
+          data['remote_resource_id']!,
+          _remoteResourceIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_remoteResourceIdMeta);
+    }
+    if (data.containsKey('remote_pack_id')) {
+      context.handle(
+        _remotePackIdMeta,
+        remotePackId.isAcceptableOrUnknown(
+          data['remote_pack_id']!,
+          _remotePackIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_remotePackIdMeta);
+    }
+    if (data.containsKey('sync_state')) {
+      context.handle(
+        _syncStateMeta,
+        syncState.isAcceptableOrUnknown(data['sync_state']!, _syncStateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_syncStateMeta);
+    }
+    if (data.containsKey('remote_status')) {
+      context.handle(
+        _remoteStatusMeta,
+        remoteStatus.isAcceptableOrUnknown(
+          data['remote_status']!,
+          _remoteStatusMeta,
+        ),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_pulled_at')) {
+      context.handle(
+        _lastPulledAtMeta,
+        lastPulledAt.isAcceptableOrUnknown(
+          data['last_pulled_at']!,
+          _lastPulledAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_pushed_at')) {
+      context.handle(
+        _lastPushedAtMeta,
+        lastPushedAt.isAcceptableOrUnknown(
+          data['last_pushed_at']!,
+          _lastPushedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_sync_error')) {
+      context.handle(
+        _lastSyncErrorMeta,
+        lastSyncError.isAcceptableOrUnknown(
+          data['last_sync_error']!,
+          _lastSyncErrorMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('archived_at')) {
+      context.handle(
+        _archivedAtMeta,
+        archivedAt.isAcceptableOrUnknown(data['archived_at']!, _archivedAtMeta),
+      );
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {localResourceId},
+    {remoteResourceId},
+  ];
+  @override
+  RemoteResourceSyncMetadataRow map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RemoteResourceSyncMetadataRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      localResourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}local_resource_id'],
+      )!,
+      localPackId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}local_pack_id'],
+      )!,
+      remoteResourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_resource_id'],
+      )!,
+      remotePackId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_pack_id'],
+      )!,
+      syncState: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_state'],
+      )!,
+      remoteStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_status'],
+      ),
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
+      lastPulledAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_pulled_at'],
+      ),
+      lastPushedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_pushed_at'],
+      ),
+      lastSyncError: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_sync_error'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      archivedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}archived_at'],
+      ),
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $RemoteResourceSyncMetadataTable createAlias(String alias) {
+    return $RemoteResourceSyncMetadataTable(attachedDatabase, alias);
+  }
+}
+
+class RemoteResourceSyncMetadataRow extends DataClass
+    implements Insertable<RemoteResourceSyncMetadataRow> {
+  final int id;
+  final int localResourceId;
+  final int localPackId;
+  final String remoteResourceId;
+  final String remotePackId;
+  final String syncState;
+  final String? remoteStatus;
+  final int? remoteUpdatedAt;
+  final int? lastPulledAt;
+  final int? lastPushedAt;
+  final String? lastSyncError;
+  final int createdAt;
+  final int updatedAt;
+  final int? archivedAt;
+  final int? deletedAt;
+  const RemoteResourceSyncMetadataRow({
+    required this.id,
+    required this.localResourceId,
+    required this.localPackId,
+    required this.remoteResourceId,
+    required this.remotePackId,
+    required this.syncState,
+    this.remoteStatus,
+    this.remoteUpdatedAt,
+    this.lastPulledAt,
+    this.lastPushedAt,
+    this.lastSyncError,
+    required this.createdAt,
+    required this.updatedAt,
+    this.archivedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['local_resource_id'] = Variable<int>(localResourceId);
+    map['local_pack_id'] = Variable<int>(localPackId);
+    map['remote_resource_id'] = Variable<String>(remoteResourceId);
+    map['remote_pack_id'] = Variable<String>(remotePackId);
+    map['sync_state'] = Variable<String>(syncState);
+    if (!nullToAbsent || remoteStatus != null) {
+      map['remote_status'] = Variable<String>(remoteStatus);
+    }
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<int>(remoteUpdatedAt);
+    }
+    if (!nullToAbsent || lastPulledAt != null) {
+      map['last_pulled_at'] = Variable<int>(lastPulledAt);
+    }
+    if (!nullToAbsent || lastPushedAt != null) {
+      map['last_pushed_at'] = Variable<int>(lastPushedAt);
+    }
+    if (!nullToAbsent || lastSyncError != null) {
+      map['last_sync_error'] = Variable<String>(lastSyncError);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || archivedAt != null) {
+      map['archived_at'] = Variable<int>(archivedAt);
+    }
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<int>(deletedAt);
+    }
+    return map;
+  }
+
+  RemoteResourceSyncMetadataCompanion toCompanion(bool nullToAbsent) {
+    return RemoteResourceSyncMetadataCompanion(
+      id: Value(id),
+      localResourceId: Value(localResourceId),
+      localPackId: Value(localPackId),
+      remoteResourceId: Value(remoteResourceId),
+      remotePackId: Value(remotePackId),
+      syncState: Value(syncState),
+      remoteStatus: remoteStatus == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteStatus),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
+      lastPulledAt: lastPulledAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastPulledAt),
+      lastPushedAt: lastPushedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastPushedAt),
+      lastSyncError: lastSyncError == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSyncError),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      archivedAt: archivedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(archivedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory RemoteResourceSyncMetadataRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RemoteResourceSyncMetadataRow(
+      id: serializer.fromJson<int>(json['id']),
+      localResourceId: serializer.fromJson<int>(json['localResourceId']),
+      localPackId: serializer.fromJson<int>(json['localPackId']),
+      remoteResourceId: serializer.fromJson<String>(json['remoteResourceId']),
+      remotePackId: serializer.fromJson<String>(json['remotePackId']),
+      syncState: serializer.fromJson<String>(json['syncState']),
+      remoteStatus: serializer.fromJson<String?>(json['remoteStatus']),
+      remoteUpdatedAt: serializer.fromJson<int?>(json['remoteUpdatedAt']),
+      lastPulledAt: serializer.fromJson<int?>(json['lastPulledAt']),
+      lastPushedAt: serializer.fromJson<int?>(json['lastPushedAt']),
+      lastSyncError: serializer.fromJson<String?>(json['lastSyncError']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      archivedAt: serializer.fromJson<int?>(json['archivedAt']),
+      deletedAt: serializer.fromJson<int?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'localResourceId': serializer.toJson<int>(localResourceId),
+      'localPackId': serializer.toJson<int>(localPackId),
+      'remoteResourceId': serializer.toJson<String>(remoteResourceId),
+      'remotePackId': serializer.toJson<String>(remotePackId),
+      'syncState': serializer.toJson<String>(syncState),
+      'remoteStatus': serializer.toJson<String?>(remoteStatus),
+      'remoteUpdatedAt': serializer.toJson<int?>(remoteUpdatedAt),
+      'lastPulledAt': serializer.toJson<int?>(lastPulledAt),
+      'lastPushedAt': serializer.toJson<int?>(lastPushedAt),
+      'lastSyncError': serializer.toJson<String?>(lastSyncError),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'archivedAt': serializer.toJson<int?>(archivedAt),
+      'deletedAt': serializer.toJson<int?>(deletedAt),
+    };
+  }
+
+  RemoteResourceSyncMetadataRow copyWith({
+    int? id,
+    int? localResourceId,
+    int? localPackId,
+    String? remoteResourceId,
+    String? remotePackId,
+    String? syncState,
+    Value<String?> remoteStatus = const Value.absent(),
+    Value<int?> remoteUpdatedAt = const Value.absent(),
+    Value<int?> lastPulledAt = const Value.absent(),
+    Value<int?> lastPushedAt = const Value.absent(),
+    Value<String?> lastSyncError = const Value.absent(),
+    int? createdAt,
+    int? updatedAt,
+    Value<int?> archivedAt = const Value.absent(),
+    Value<int?> deletedAt = const Value.absent(),
+  }) => RemoteResourceSyncMetadataRow(
+    id: id ?? this.id,
+    localResourceId: localResourceId ?? this.localResourceId,
+    localPackId: localPackId ?? this.localPackId,
+    remoteResourceId: remoteResourceId ?? this.remoteResourceId,
+    remotePackId: remotePackId ?? this.remotePackId,
+    syncState: syncState ?? this.syncState,
+    remoteStatus: remoteStatus.present ? remoteStatus.value : this.remoteStatus,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
+    lastPulledAt: lastPulledAt.present ? lastPulledAt.value : this.lastPulledAt,
+    lastPushedAt: lastPushedAt.present ? lastPushedAt.value : this.lastPushedAt,
+    lastSyncError: lastSyncError.present
+        ? lastSyncError.value
+        : this.lastSyncError,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  RemoteResourceSyncMetadataRow copyWithCompanion(
+    RemoteResourceSyncMetadataCompanion data,
+  ) {
+    return RemoteResourceSyncMetadataRow(
+      id: data.id.present ? data.id.value : this.id,
+      localResourceId: data.localResourceId.present
+          ? data.localResourceId.value
+          : this.localResourceId,
+      localPackId: data.localPackId.present
+          ? data.localPackId.value
+          : this.localPackId,
+      remoteResourceId: data.remoteResourceId.present
+          ? data.remoteResourceId.value
+          : this.remoteResourceId,
+      remotePackId: data.remotePackId.present
+          ? data.remotePackId.value
+          : this.remotePackId,
+      syncState: data.syncState.present ? data.syncState.value : this.syncState,
+      remoteStatus: data.remoteStatus.present
+          ? data.remoteStatus.value
+          : this.remoteStatus,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
+      lastPulledAt: data.lastPulledAt.present
+          ? data.lastPulledAt.value
+          : this.lastPulledAt,
+      lastPushedAt: data.lastPushedAt.present
+          ? data.lastPushedAt.value
+          : this.lastPushedAt,
+      lastSyncError: data.lastSyncError.present
+          ? data.lastSyncError.value
+          : this.lastSyncError,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      archivedAt: data.archivedAt.present
+          ? data.archivedAt.value
+          : this.archivedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RemoteResourceSyncMetadataRow(')
+          ..write('id: $id, ')
+          ..write('localResourceId: $localResourceId, ')
+          ..write('localPackId: $localPackId, ')
+          ..write('remoteResourceId: $remoteResourceId, ')
+          ..write('remotePackId: $remotePackId, ')
+          ..write('syncState: $syncState, ')
+          ..write('remoteStatus: $remoteStatus, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('lastPulledAt: $lastPulledAt, ')
+          ..write('lastPushedAt: $lastPushedAt, ')
+          ..write('lastSyncError: $lastSyncError, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('archivedAt: $archivedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    localResourceId,
+    localPackId,
+    remoteResourceId,
+    remotePackId,
+    syncState,
+    remoteStatus,
+    remoteUpdatedAt,
+    lastPulledAt,
+    lastPushedAt,
+    lastSyncError,
+    createdAt,
+    updatedAt,
+    archivedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RemoteResourceSyncMetadataRow &&
+          other.id == this.id &&
+          other.localResourceId == this.localResourceId &&
+          other.localPackId == this.localPackId &&
+          other.remoteResourceId == this.remoteResourceId &&
+          other.remotePackId == this.remotePackId &&
+          other.syncState == this.syncState &&
+          other.remoteStatus == this.remoteStatus &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt &&
+          other.lastPulledAt == this.lastPulledAt &&
+          other.lastPushedAt == this.lastPushedAt &&
+          other.lastSyncError == this.lastSyncError &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.archivedAt == this.archivedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class RemoteResourceSyncMetadataCompanion
+    extends UpdateCompanion<RemoteResourceSyncMetadataRow> {
+  final Value<int> id;
+  final Value<int> localResourceId;
+  final Value<int> localPackId;
+  final Value<String> remoteResourceId;
+  final Value<String> remotePackId;
+  final Value<String> syncState;
+  final Value<String?> remoteStatus;
+  final Value<int?> remoteUpdatedAt;
+  final Value<int?> lastPulledAt;
+  final Value<int?> lastPushedAt;
+  final Value<String?> lastSyncError;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> archivedAt;
+  final Value<int?> deletedAt;
+  const RemoteResourceSyncMetadataCompanion({
+    this.id = const Value.absent(),
+    this.localResourceId = const Value.absent(),
+    this.localPackId = const Value.absent(),
+    this.remoteResourceId = const Value.absent(),
+    this.remotePackId = const Value.absent(),
+    this.syncState = const Value.absent(),
+    this.remoteStatus = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.lastPulledAt = const Value.absent(),
+    this.lastPushedAt = const Value.absent(),
+    this.lastSyncError = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.archivedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+  });
+  RemoteResourceSyncMetadataCompanion.insert({
+    this.id = const Value.absent(),
+    required int localResourceId,
+    required int localPackId,
+    required String remoteResourceId,
+    required String remotePackId,
+    required String syncState,
+    this.remoteStatus = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.lastPulledAt = const Value.absent(),
+    this.lastPushedAt = const Value.absent(),
+    this.lastSyncError = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.archivedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+  }) : localResourceId = Value(localResourceId),
+       localPackId = Value(localPackId),
+       remoteResourceId = Value(remoteResourceId),
+       remotePackId = Value(remotePackId),
+       syncState = Value(syncState),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<RemoteResourceSyncMetadataRow> custom({
+    Expression<int>? id,
+    Expression<int>? localResourceId,
+    Expression<int>? localPackId,
+    Expression<String>? remoteResourceId,
+    Expression<String>? remotePackId,
+    Expression<String>? syncState,
+    Expression<String>? remoteStatus,
+    Expression<int>? remoteUpdatedAt,
+    Expression<int>? lastPulledAt,
+    Expression<int>? lastPushedAt,
+    Expression<String>? lastSyncError,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? archivedAt,
+    Expression<int>? deletedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (localResourceId != null) 'local_resource_id': localResourceId,
+      if (localPackId != null) 'local_pack_id': localPackId,
+      if (remoteResourceId != null) 'remote_resource_id': remoteResourceId,
+      if (remotePackId != null) 'remote_pack_id': remotePackId,
+      if (syncState != null) 'sync_state': syncState,
+      if (remoteStatus != null) 'remote_status': remoteStatus,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
+      if (lastPulledAt != null) 'last_pulled_at': lastPulledAt,
+      if (lastPushedAt != null) 'last_pushed_at': lastPushedAt,
+      if (lastSyncError != null) 'last_sync_error': lastSyncError,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (archivedAt != null) 'archived_at': archivedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+    });
+  }
+
+  RemoteResourceSyncMetadataCompanion copyWith({
+    Value<int>? id,
+    Value<int>? localResourceId,
+    Value<int>? localPackId,
+    Value<String>? remoteResourceId,
+    Value<String>? remotePackId,
+    Value<String>? syncState,
+    Value<String?>? remoteStatus,
+    Value<int?>? remoteUpdatedAt,
+    Value<int?>? lastPulledAt,
+    Value<int?>? lastPushedAt,
+    Value<String?>? lastSyncError,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int?>? archivedAt,
+    Value<int?>? deletedAt,
+  }) {
+    return RemoteResourceSyncMetadataCompanion(
+      id: id ?? this.id,
+      localResourceId: localResourceId ?? this.localResourceId,
+      localPackId: localPackId ?? this.localPackId,
+      remoteResourceId: remoteResourceId ?? this.remoteResourceId,
+      remotePackId: remotePackId ?? this.remotePackId,
+      syncState: syncState ?? this.syncState,
+      remoteStatus: remoteStatus ?? this.remoteStatus,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
+      lastPulledAt: lastPulledAt ?? this.lastPulledAt,
+      lastPushedAt: lastPushedAt ?? this.lastPushedAt,
+      lastSyncError: lastSyncError ?? this.lastSyncError,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      archivedAt: archivedAt ?? this.archivedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (localResourceId.present) {
+      map['local_resource_id'] = Variable<int>(localResourceId.value);
+    }
+    if (localPackId.present) {
+      map['local_pack_id'] = Variable<int>(localPackId.value);
+    }
+    if (remoteResourceId.present) {
+      map['remote_resource_id'] = Variable<String>(remoteResourceId.value);
+    }
+    if (remotePackId.present) {
+      map['remote_pack_id'] = Variable<String>(remotePackId.value);
+    }
+    if (syncState.present) {
+      map['sync_state'] = Variable<String>(syncState.value);
+    }
+    if (remoteStatus.present) {
+      map['remote_status'] = Variable<String>(remoteStatus.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<int>(remoteUpdatedAt.value);
+    }
+    if (lastPulledAt.present) {
+      map['last_pulled_at'] = Variable<int>(lastPulledAt.value);
+    }
+    if (lastPushedAt.present) {
+      map['last_pushed_at'] = Variable<int>(lastPushedAt.value);
+    }
+    if (lastSyncError.present) {
+      map['last_sync_error'] = Variable<String>(lastSyncError.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (archivedAt.present) {
+      map['archived_at'] = Variable<int>(archivedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<int>(deletedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RemoteResourceSyncMetadataCompanion(')
+          ..write('id: $id, ')
+          ..write('localResourceId: $localResourceId, ')
+          ..write('localPackId: $localPackId, ')
+          ..write('remoteResourceId: $remoteResourceId, ')
+          ..write('remotePackId: $remotePackId, ')
+          ..write('syncState: $syncState, ')
+          ..write('remoteStatus: $remoteStatus, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('lastPulledAt: $lastPulledAt, ')
+          ..write('lastPushedAt: $lastPushedAt, ')
+          ..write('lastSyncError: $lastSyncError, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('archivedAt: $archivedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $RemoteCompletionSyncMetadataTable extends RemoteCompletionSyncMetadata
     with
         TableInfo<
@@ -18676,6 +19594,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $RemotePackSyncMetadataTable(this);
   late final $RemoteItemSyncMetadataTable remoteItemSyncMetadata =
       $RemoteItemSyncMetadataTable(this);
+  late final $RemoteResourceSyncMetadataTable remoteResourceSyncMetadata =
+      $RemoteResourceSyncMetadataTable(this);
   late final $RemoteCompletionSyncMetadataTable remoteCompletionSyncMetadata =
       $RemoteCompletionSyncMetadataTable(this);
   late final $SyncOutboxTable syncOutbox = $SyncOutboxTable(this);
@@ -18709,6 +19629,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     syncMappings,
     remotePackSyncMetadata,
     remoteItemSyncMetadata,
+    remoteResourceSyncMetadata,
     remoteCompletionSyncMetadata,
     syncOutbox,
     appSettingsEntries,
@@ -20404,6 +21325,34 @@ final class $$ItemPacksTableReferences
   }
 
   static MultiTypedResultKey<
+    $RemoteResourceSyncMetadataTable,
+    List<RemoteResourceSyncMetadataRow>
+  >
+  _remoteResourceSyncMetadataRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.remoteResourceSyncMetadata,
+        aliasName: $_aliasNameGenerator(
+          db.itemPacks.id,
+          db.remoteResourceSyncMetadata.localPackId,
+        ),
+      );
+
+  $$RemoteResourceSyncMetadataTableProcessedTableManager
+  get remoteResourceSyncMetadataRefs {
+    final manager = $$RemoteResourceSyncMetadataTableTableManager(
+      $_db,
+      $_db.remoteResourceSyncMetadata,
+    ).filter((f) => f.localPackId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _remoteResourceSyncMetadataRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
     $RemoteCompletionSyncMetadataTable,
     List<RemoteCompletionSyncMetadataRow>
   >
@@ -20776,6 +21725,33 @@ class $$ItemPacksTableFilterComposer
               }) => $$RemoteItemSyncMetadataTableFilterComposer(
                 $db: $db,
                 $table: $db.remoteItemSyncMetadata,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<bool> remoteResourceSyncMetadataRefs(
+    Expression<bool> Function($$RemoteResourceSyncMetadataTableFilterComposer f)
+    f,
+  ) {
+    final $$RemoteResourceSyncMetadataTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.remoteResourceSyncMetadata,
+          getReferencedColumn: (t) => t.localPackId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$RemoteResourceSyncMetadataTableFilterComposer(
+                $db: $db,
+                $table: $db.remoteResourceSyncMetadata,
                 $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
                 joinBuilder: joinBuilder,
                 $removeJoinBuilderFromRootComposer:
@@ -21244,6 +22220,35 @@ class $$ItemPacksTableAnnotationComposer
     return f(composer);
   }
 
+  Expression<T> remoteResourceSyncMetadataRefs<T extends Object>(
+    Expression<T> Function(
+      $$RemoteResourceSyncMetadataTableAnnotationComposer a,
+    )
+    f,
+  ) {
+    final $$RemoteResourceSyncMetadataTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.remoteResourceSyncMetadata,
+          getReferencedColumn: (t) => t.localPackId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$RemoteResourceSyncMetadataTableAnnotationComposer(
+                $db: $db,
+                $table: $db.remoteResourceSyncMetadata,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
   Expression<T> remoteCompletionSyncMetadataRefs<T extends Object>(
     Expression<T> Function(
       $$RemoteCompletionSyncMetadataTableAnnotationComposer a,
@@ -21324,6 +22329,7 @@ class $$ItemPacksTableTableManager
             bool activityEventsRefs,
             bool remotePackSyncMetadataRefs,
             bool remoteItemSyncMetadataRefs,
+            bool remoteResourceSyncMetadataRefs,
             bool remoteCompletionSyncMetadataRefs,
             bool syncOutboxRefs,
           })
@@ -21412,6 +22418,7 @@ class $$ItemPacksTableTableManager
                 activityEventsRefs = false,
                 remotePackSyncMetadataRefs = false,
                 remoteItemSyncMetadataRefs = false,
+                remoteResourceSyncMetadataRefs = false,
                 remoteCompletionSyncMetadataRefs = false,
                 syncOutboxRefs = false,
               }) {
@@ -21428,6 +22435,8 @@ class $$ItemPacksTableTableManager
                     if (activityEventsRefs) db.activityEvents,
                     if (remotePackSyncMetadataRefs) db.remotePackSyncMetadata,
                     if (remoteItemSyncMetadataRefs) db.remoteItemSyncMetadata,
+                    if (remoteResourceSyncMetadataRefs)
+                      db.remoteResourceSyncMetadata,
                     if (remoteCompletionSyncMetadataRefs)
                       db.remoteCompletionSyncMetadata,
                     if (syncOutboxRefs) db.syncOutbox,
@@ -21676,6 +22685,27 @@ class $$ItemPacksTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (remoteResourceSyncMetadataRefs)
+                        await $_getPrefetchedData<
+                          ItemPackRow,
+                          $ItemPacksTable,
+                          RemoteResourceSyncMetadataRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ItemPacksTableReferences
+                              ._remoteResourceSyncMetadataRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ItemPacksTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).remoteResourceSyncMetadataRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.localPackId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                       if (remoteCompletionSyncMetadataRefs)
                         await $_getPrefetchedData<
                           ItemPackRow,
@@ -21750,6 +22780,7 @@ typedef $$ItemPacksTableProcessedTableManager =
         bool activityEventsRefs,
         bool remotePackSyncMetadataRefs,
         bool remoteItemSyncMetadataRefs,
+        bool remoteResourceSyncMetadataRefs,
         bool remoteCompletionSyncMetadataRefs,
         bool syncOutboxRefs,
       })
@@ -24743,6 +25774,34 @@ final class $$ResourcesTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<
+    $RemoteResourceSyncMetadataTable,
+    List<RemoteResourceSyncMetadataRow>
+  >
+  _remoteResourceSyncMetadataRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.remoteResourceSyncMetadata,
+        aliasName: $_aliasNameGenerator(
+          db.resources.id,
+          db.remoteResourceSyncMetadata.localResourceId,
+        ),
+      );
+
+  $$RemoteResourceSyncMetadataTableProcessedTableManager
+  get remoteResourceSyncMetadataRefs {
+    final manager = $$RemoteResourceSyncMetadataTableTableManager(
+      $_db,
+      $_db.remoteResourceSyncMetadata,
+    ).filter((f) => f.localResourceId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _remoteResourceSyncMetadataRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$ResourcesTableFilterComposer
@@ -24942,6 +26001,33 @@ class $$ResourcesTableFilterComposer
                 $removeJoinBuilderFromRootComposer,
           ),
     );
+    return f(composer);
+  }
+
+  Expression<bool> remoteResourceSyncMetadataRefs(
+    Expression<bool> Function($$RemoteResourceSyncMetadataTableFilterComposer f)
+    f,
+  ) {
+    final $$RemoteResourceSyncMetadataTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.remoteResourceSyncMetadata,
+          getReferencedColumn: (t) => t.localResourceId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$RemoteResourceSyncMetadataTableFilterComposer(
+                $db: $db,
+                $table: $db.remoteResourceSyncMetadata,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
     return f(composer);
   }
 }
@@ -25256,6 +26342,35 @@ class $$ResourcesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> remoteResourceSyncMetadataRefs<T extends Object>(
+    Expression<T> Function(
+      $$RemoteResourceSyncMetadataTableAnnotationComposer a,
+    )
+    f,
+  ) {
+    final $$RemoteResourceSyncMetadataTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.remoteResourceSyncMetadata,
+          getReferencedColumn: (t) => t.localResourceId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$RemoteResourceSyncMetadataTableAnnotationComposer(
+                $db: $db,
+                $table: $db.remoteResourceSyncMetadata,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$ResourcesTableTableManager
@@ -25276,6 +26391,7 @@ class $$ResourcesTableTableManager
             bool resourceConsumptionRulesRefs,
             bool resourceActionRecordsRefs,
             bool resourceEventsRefs,
+            bool remoteResourceSyncMetadataRefs,
           })
         > {
   $$ResourcesTableTableManager(_$AppDatabase db, $ResourcesTable table)
@@ -25387,6 +26503,7 @@ class $$ResourcesTableTableManager
                 resourceConsumptionRulesRefs = false,
                 resourceActionRecordsRefs = false,
                 resourceEventsRefs = false,
+                remoteResourceSyncMetadataRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -25395,6 +26512,8 @@ class $$ResourcesTableTableManager
                       db.resourceConsumptionRules,
                     if (resourceActionRecordsRefs) db.resourceActionRecords,
                     if (resourceEventsRefs) db.resourceEvents,
+                    if (remoteResourceSyncMetadataRefs)
+                      db.remoteResourceSyncMetadata,
                   ],
                   addJoins:
                       <
@@ -25493,6 +26612,27 @@ class $$ResourcesTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (remoteResourceSyncMetadataRefs)
+                        await $_getPrefetchedData<
+                          ResourceRow,
+                          $ResourcesTable,
+                          RemoteResourceSyncMetadataRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ResourcesTableReferences
+                              ._remoteResourceSyncMetadataRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ResourcesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).remoteResourceSyncMetadataRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.localResourceId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -25518,6 +26658,7 @@ typedef $$ResourcesTableProcessedTableManager =
         bool resourceConsumptionRulesRefs,
         bool resourceActionRecordsRefs,
         bool resourceEventsRefs,
+        bool remoteResourceSyncMetadataRefs,
       })
     >;
 typedef $$ResourceConsumptionRulesTableCreateCompanionBuilder =
@@ -33776,6 +34917,649 @@ typedef $$RemoteItemSyncMetadataTableProcessedTableManager =
       RemoteItemSyncMetadataRow,
       PrefetchHooks Function({bool localItemId, bool localPackId})
     >;
+typedef $$RemoteResourceSyncMetadataTableCreateCompanionBuilder =
+    RemoteResourceSyncMetadataCompanion Function({
+      Value<int> id,
+      required int localResourceId,
+      required int localPackId,
+      required String remoteResourceId,
+      required String remotePackId,
+      required String syncState,
+      Value<String?> remoteStatus,
+      Value<int?> remoteUpdatedAt,
+      Value<int?> lastPulledAt,
+      Value<int?> lastPushedAt,
+      Value<String?> lastSyncError,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> archivedAt,
+      Value<int?> deletedAt,
+    });
+typedef $$RemoteResourceSyncMetadataTableUpdateCompanionBuilder =
+    RemoteResourceSyncMetadataCompanion Function({
+      Value<int> id,
+      Value<int> localResourceId,
+      Value<int> localPackId,
+      Value<String> remoteResourceId,
+      Value<String> remotePackId,
+      Value<String> syncState,
+      Value<String?> remoteStatus,
+      Value<int?> remoteUpdatedAt,
+      Value<int?> lastPulledAt,
+      Value<int?> lastPushedAt,
+      Value<String?> lastSyncError,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> archivedAt,
+      Value<int?> deletedAt,
+    });
+
+final class $$RemoteResourceSyncMetadataTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $RemoteResourceSyncMetadataTable,
+          RemoteResourceSyncMetadataRow
+        > {
+  $$RemoteResourceSyncMetadataTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $ResourcesTable _localResourceIdTable(_$AppDatabase db) =>
+      db.resources.createAlias(
+        $_aliasNameGenerator(
+          db.remoteResourceSyncMetadata.localResourceId,
+          db.resources.id,
+        ),
+      );
+
+  $$ResourcesTableProcessedTableManager get localResourceId {
+    final $_column = $_itemColumn<int>('local_resource_id')!;
+
+    final manager = $$ResourcesTableTableManager(
+      $_db,
+      $_db.resources,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_localResourceIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ItemPacksTable _localPackIdTable(_$AppDatabase db) =>
+      db.itemPacks.createAlias(
+        $_aliasNameGenerator(
+          db.remoteResourceSyncMetadata.localPackId,
+          db.itemPacks.id,
+        ),
+      );
+
+  $$ItemPacksTableProcessedTableManager get localPackId {
+    final $_column = $_itemColumn<int>('local_pack_id')!;
+
+    final manager = $$ItemPacksTableTableManager(
+      $_db,
+      $_db.itemPacks,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_localPackIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$RemoteResourceSyncMetadataTableFilterComposer
+    extends Composer<_$AppDatabase, $RemoteResourceSyncMetadataTable> {
+  $$RemoteResourceSyncMetadataTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remoteResourceId => $composableBuilder(
+    column: $table.remoteResourceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remotePackId => $composableBuilder(
+    column: $table.remotePackId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncState => $composableBuilder(
+    column: $table.syncState,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remoteStatus => $composableBuilder(
+    column: $table.remoteStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastPulledAt => $composableBuilder(
+    column: $table.lastPulledAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastPushedAt => $composableBuilder(
+    column: $table.lastPushedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastSyncError => $composableBuilder(
+    column: $table.lastSyncError,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$ResourcesTableFilterComposer get localResourceId {
+    final $$ResourcesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.localResourceId,
+      referencedTable: $db.resources,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ResourcesTableFilterComposer(
+            $db: $db,
+            $table: $db.resources,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemPacksTableFilterComposer get localPackId {
+    final $$ItemPacksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.localPackId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableFilterComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RemoteResourceSyncMetadataTableOrderingComposer
+    extends Composer<_$AppDatabase, $RemoteResourceSyncMetadataTable> {
+  $$RemoteResourceSyncMetadataTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get remoteResourceId => $composableBuilder(
+    column: $table.remoteResourceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get remotePackId => $composableBuilder(
+    column: $table.remotePackId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncState => $composableBuilder(
+    column: $table.syncState,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get remoteStatus => $composableBuilder(
+    column: $table.remoteStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastPulledAt => $composableBuilder(
+    column: $table.lastPulledAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastPushedAt => $composableBuilder(
+    column: $table.lastPushedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastSyncError => $composableBuilder(
+    column: $table.lastSyncError,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ResourcesTableOrderingComposer get localResourceId {
+    final $$ResourcesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.localResourceId,
+      referencedTable: $db.resources,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ResourcesTableOrderingComposer(
+            $db: $db,
+            $table: $db.resources,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemPacksTableOrderingComposer get localPackId {
+    final $$ItemPacksTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.localPackId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableOrderingComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RemoteResourceSyncMetadataTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RemoteResourceSyncMetadataTable> {
+  $$RemoteResourceSyncMetadataTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get remoteResourceId => $composableBuilder(
+    column: $table.remoteResourceId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get remotePackId => $composableBuilder(
+    column: $table.remotePackId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get syncState =>
+      $composableBuilder(column: $table.syncState, builder: (column) => column);
+
+  GeneratedColumn<String> get remoteStatus => $composableBuilder(
+    column: $table.remoteStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastPulledAt => $composableBuilder(
+    column: $table.lastPulledAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastPushedAt => $composableBuilder(
+    column: $table.lastPushedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastSyncError => $composableBuilder(
+    column: $table.lastSyncError,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  $$ResourcesTableAnnotationComposer get localResourceId {
+    final $$ResourcesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.localResourceId,
+      referencedTable: $db.resources,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ResourcesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.resources,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemPacksTableAnnotationComposer get localPackId {
+    final $$ItemPacksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.localPackId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RemoteResourceSyncMetadataTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $RemoteResourceSyncMetadataTable,
+          RemoteResourceSyncMetadataRow,
+          $$RemoteResourceSyncMetadataTableFilterComposer,
+          $$RemoteResourceSyncMetadataTableOrderingComposer,
+          $$RemoteResourceSyncMetadataTableAnnotationComposer,
+          $$RemoteResourceSyncMetadataTableCreateCompanionBuilder,
+          $$RemoteResourceSyncMetadataTableUpdateCompanionBuilder,
+          (
+            RemoteResourceSyncMetadataRow,
+            $$RemoteResourceSyncMetadataTableReferences,
+          ),
+          RemoteResourceSyncMetadataRow,
+          PrefetchHooks Function({bool localResourceId, bool localPackId})
+        > {
+  $$RemoteResourceSyncMetadataTableTableManager(
+    _$AppDatabase db,
+    $RemoteResourceSyncMetadataTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RemoteResourceSyncMetadataTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$RemoteResourceSyncMetadataTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$RemoteResourceSyncMetadataTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> localResourceId = const Value.absent(),
+                Value<int> localPackId = const Value.absent(),
+                Value<String> remoteResourceId = const Value.absent(),
+                Value<String> remotePackId = const Value.absent(),
+                Value<String> syncState = const Value.absent(),
+                Value<String?> remoteStatus = const Value.absent(),
+                Value<int?> remoteUpdatedAt = const Value.absent(),
+                Value<int?> lastPulledAt = const Value.absent(),
+                Value<int?> lastPushedAt = const Value.absent(),
+                Value<String?> lastSyncError = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> archivedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+              }) => RemoteResourceSyncMetadataCompanion(
+                id: id,
+                localResourceId: localResourceId,
+                localPackId: localPackId,
+                remoteResourceId: remoteResourceId,
+                remotePackId: remotePackId,
+                syncState: syncState,
+                remoteStatus: remoteStatus,
+                remoteUpdatedAt: remoteUpdatedAt,
+                lastPulledAt: lastPulledAt,
+                lastPushedAt: lastPushedAt,
+                lastSyncError: lastSyncError,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                archivedAt: archivedAt,
+                deletedAt: deletedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int localResourceId,
+                required int localPackId,
+                required String remoteResourceId,
+                required String remotePackId,
+                required String syncState,
+                Value<String?> remoteStatus = const Value.absent(),
+                Value<int?> remoteUpdatedAt = const Value.absent(),
+                Value<int?> lastPulledAt = const Value.absent(),
+                Value<int?> lastPushedAt = const Value.absent(),
+                Value<String?> lastSyncError = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> archivedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+              }) => RemoteResourceSyncMetadataCompanion.insert(
+                id: id,
+                localResourceId: localResourceId,
+                localPackId: localPackId,
+                remoteResourceId: remoteResourceId,
+                remotePackId: remotePackId,
+                syncState: syncState,
+                remoteStatus: remoteStatus,
+                remoteUpdatedAt: remoteUpdatedAt,
+                lastPulledAt: lastPulledAt,
+                lastPushedAt: lastPushedAt,
+                lastSyncError: lastSyncError,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                archivedAt: archivedAt,
+                deletedAt: deletedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$RemoteResourceSyncMetadataTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({localResourceId = false, localPackId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (localResourceId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.localResourceId,
+                                referencedTable:
+                                    $$RemoteResourceSyncMetadataTableReferences
+                                        ._localResourceIdTable(db),
+                                referencedColumn:
+                                    $$RemoteResourceSyncMetadataTableReferences
+                                        ._localResourceIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+                    if (localPackId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.localPackId,
+                                referencedTable:
+                                    $$RemoteResourceSyncMetadataTableReferences
+                                        ._localPackIdTable(db),
+                                referencedColumn:
+                                    $$RemoteResourceSyncMetadataTableReferences
+                                        ._localPackIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$RemoteResourceSyncMetadataTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $RemoteResourceSyncMetadataTable,
+      RemoteResourceSyncMetadataRow,
+      $$RemoteResourceSyncMetadataTableFilterComposer,
+      $$RemoteResourceSyncMetadataTableOrderingComposer,
+      $$RemoteResourceSyncMetadataTableAnnotationComposer,
+      $$RemoteResourceSyncMetadataTableCreateCompanionBuilder,
+      $$RemoteResourceSyncMetadataTableUpdateCompanionBuilder,
+      (
+        RemoteResourceSyncMetadataRow,
+        $$RemoteResourceSyncMetadataTableReferences,
+      ),
+      RemoteResourceSyncMetadataRow,
+      PrefetchHooks Function({bool localResourceId, bool localPackId})
+    >;
 typedef $$RemoteCompletionSyncMetadataTableCreateCompanionBuilder =
     RemoteCompletionSyncMetadataCompanion Function({
       Value<int> id,
@@ -35587,6 +37371,12 @@ class $AppDatabaseManager {
       $$RemoteItemSyncMetadataTableTableManager(
         _db,
         _db.remoteItemSyncMetadata,
+      );
+  $$RemoteResourceSyncMetadataTableTableManager
+  get remoteResourceSyncMetadata =>
+      $$RemoteResourceSyncMetadataTableTableManager(
+        _db,
+        _db.remoteResourceSyncMetadata,
       );
   $$RemoteCompletionSyncMetadataTableTableManager
   get remoteCompletionSyncMetadata =>

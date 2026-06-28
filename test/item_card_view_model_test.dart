@@ -284,12 +284,24 @@ void main() {
       ),
       now: DateTime(2026, 4, 8),
     );
+    final syncing = ItemCardViewModel.fromEntry(
+      _entry(
+        status: ItemStatus.warning,
+        item: _stateItem(id: 17),
+        syncStatus: const HomeItemSyncStatus(
+          isRemoteBacked: true,
+          pendingMutationStatus: SyncOutboxStatus.syncing,
+        ),
+      ),
+      now: DateTime(2026, 4, 8),
+    );
 
     expect(pending.syncStatusLabel, '等待同步');
     expect(pending.canSkip, isFalse);
+    expect(syncing.syncStatusLabel, '正在同步');
     expect(failed.syncStatusLabel, '同步失敗');
-    expect(stale.syncStatusLabel, '需要刷新共同資料');
-    expect(accessLost.syncStatusLabel, '已失去遠端存取權');
+    expect(stale.syncStatusLabel, '有新的更新，請刷新');
+    expect(accessLost.syncStatusLabel, '已無法存取');
     expect(accessLost.canComplete, isFalse);
   });
 }

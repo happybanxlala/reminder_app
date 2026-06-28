@@ -472,7 +472,7 @@ void main() {
 
       expect(find.text(ReminderUiText.debugInfoSectionTitle), findsOneWidget);
       expect(find.text(ReminderUiText.databaseVersionLabel), findsOneWidget);
-      expect(find.text('9'), findsOneWidget);
+      expect(find.text('10'), findsOneWidget);
       expect(
         find.byKey(const Key('settings-debug-device-data-label')),
         findsOneWidget,
@@ -1636,6 +1636,61 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
     String? clientMutationId,
   }) async {
     return RemoteItemMutationResult(itemId: itemId, status: 'archived');
+  }
+
+  @override
+  Future<RemoteResourceCreateResult> createPackResource({
+    required String packId,
+    required String title,
+    String? description,
+    required String type,
+    Map<String, Object?>? config,
+    String? clientMutationId,
+  }) async {
+    return const RemoteResourceCreateResult(resourceId: 'remote_resource_1');
+  }
+
+  @override
+  Future<RemoteResourceMutationResult> updatePackResource({
+    required String resourceId,
+    required String title,
+    String? description,
+    Map<String, Object?>? config,
+    String? clientMutationId,
+  }) async {
+    return RemoteResourceMutationResult(
+      resourceId: resourceId,
+      status: 'updated',
+    );
+  }
+
+  @override
+  Future<RemoteResourceMutationResult> archivePackResource({
+    required String resourceId,
+    String? clientMutationId,
+  }) async {
+    return RemoteResourceMutationResult(
+      resourceId: resourceId,
+      status: 'archived',
+    );
+  }
+
+  @override
+  Future<RemoteResourceEventResult> applyResourceEvent({
+    required String resourceId,
+    required String changeType,
+    int? deltaValue,
+    int? newValue,
+    String? unit,
+    String? clientMutationId,
+    Map<String, Object?>? metadata,
+  }) async {
+    return RemoteResourceEventResult(
+      resourceId: resourceId,
+      eventId: 'remote_resource_event_1',
+      status: 'applied',
+      currentValue: newValue,
+    );
   }
 
   @override

@@ -245,6 +245,158 @@ void main() {
   });
 
   test(
+    'remote-backed create resource is local-first and flushes to remote',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final env = await _seedRemoteBackedMirror(db, withCompletion: false);
+      final repository = ResourceRepository(
+        db.reminderDao,
+        currentActorId: () async => env.currentUser.id,
+      );
+
+      final resourceId = await repository.createResource(
+        ResourceInput(
+          title: 'Cat food',
+          type: ResourceType.quantityBased,
+          config: const QuantityBasedResourceConfig(
+            currentQuantity: 3,
+            unitLabel: '包',
+            warningThreshold: 1,
+            dangerThreshold: 0,
+          ),
+          packId: env.localPackId,
+        ),
+      );
+
+      final metadata = await db.reminderDao
+          .getRemoteResourceSyncMetadataForLocalResource(resourceId);
+      expect(metadata!.syncState, RemoteResourceSyncState.pendingPush);
+      expect(metadata.remoteResourceId, startsWith('pending_resource:'));
+      final outbox = await db.reminderDao.listPendingSyncOutboxEntries();
+      expect(outbox.single.actionType, SyncOutboxActionType.createResource);
+      final payload = jsonDecode(outbox.single.payloadJson) as Map;
+      expect((payload['fields'] as Map)['title'], 'Cat food');
+
+      final remote = _FakeRemoteClient(
+        createResourceResult: const RemotePocResult.success(
+          RemoteResourceCreateResult(resourceId: 'remote-resource-created'),
+        ),
+      );
+      final result = await RemoteBackedOutboxFlushService(
+        dao: db.reminderDao,
+        remoteClient: remote,
+      ).flushPendingRemoteBackedMutations();
+
+      expect(result.synced, 1);
+      expect(remote.createResourceCalls, 1);
+      final mapping = await db.reminderDao.getSyncMapping(
+        localEntityType: RemoteSharedPackRepository.localEntityResource,
+        localEntityId: resourceId,
+        remoteTable: RemoteSharedPackRepository.remoteTableResources,
+      );
+      expect(mapping!.remoteEntityId, 'remote-resource-created');
+    },
+  );
+
+  test('remote-backed resource update and archive enqueue mutations', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final env = await _seedRemoteBackedMirror(db, withCompletion: false);
+    final resourceId = await _seedRemoteBackedResource(db, env);
+    final repository = ResourceRepository(
+      db.reminderDao,
+      currentActorId: () async => env.currentUser.id,
+    );
+
+    expect(
+      await repository.updateResource(
+        resourceId,
+        ResourceInput(
+          title: 'Cat food updated',
+          type: ResourceType.quantityBased,
+          config: const QuantityBasedResourceConfig(
+            currentQuantity: 3,
+            unitLabel: '包',
+            warningThreshold: 1,
+            dangerThreshold: 0,
+          ),
+          packId: env.localPackId,
+        ),
+      ),
+      isTrue,
+    );
+    var pending = await db.reminderDao.listPendingSyncOutboxEntries();
+    expect(pending.single.actionType, SyncOutboxActionType.updateResource);
+
+    final remote = _FakeRemoteClient(
+      updateResourceResult: const RemotePocResult.success(
+        RemoteResourceMutationResult(
+          resourceId: 'remote-resource-1',
+          status: 'updated',
+        ),
+      ),
+    );
+    await RemoteBackedOutboxFlushService(
+      dao: db.reminderDao,
+      remoteClient: remote,
+    ).flushPendingRemoteBackedMutations();
+    expect(remote.updateResourceCalls, 1);
+
+    expect(await repository.archiveResource(resourceId), isTrue);
+    pending = await db.reminderDao.listPendingSyncOutboxEntries();
+    expect(pending.single.actionType, SyncOutboxActionType.archiveResource);
+  });
+
+  test(
+    'remote-backed resource refill and adjust enqueue resource events',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final env = await _seedRemoteBackedMirror(db, withCompletion: false);
+      final resourceId = await _seedRemoteBackedResource(db, env);
+      final repository = ResourceRepository(
+        db.reminderDao,
+        currentActorId: () async => env.currentUser.id,
+      );
+
+      expect(
+        await repository.refillResource(resourceId, addedQuantity: 2),
+        isTrue,
+      );
+      var pending = await db.reminderDao.listPendingSyncOutboxEntries();
+      expect(pending.single.actionType, SyncOutboxActionType.resourceIncrement);
+      var payload = jsonDecode(pending.single.payloadJson) as Map;
+      expect((payload['event'] as Map)['deltaValue'], 2);
+
+      final remote = _FakeRemoteClient(
+        resourceEventResult: const RemotePocResult.success(
+          RemoteResourceEventResult(
+            resourceId: 'remote-resource-1',
+            eventId: 'remote-resource-event-1',
+            status: 'applied',
+            currentValue: 5,
+          ),
+        ),
+      );
+      await RemoteBackedOutboxFlushService(
+        dao: db.reminderDao,
+        remoteClient: remote,
+      ).flushPendingRemoteBackedMutations();
+      expect(remote.resourceEventCalls, 1);
+
+      expect(
+        await repository.adjustResourceQuantity(resourceId, newQuantity: 4),
+        isTrue,
+      );
+      pending = await db.reminderDao.listPendingSyncOutboxEntries();
+      expect(pending.single.actionType, SyncOutboxActionType.resourceAdjust);
+      payload = jsonDecode(pending.single.payloadJson) as Map;
+      expect((payload['event'] as Map)['newValue'], 4);
+    },
+  );
+
+  test(
     'remote-backed unsupported CRUD fails closed without local mutation',
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -274,20 +426,41 @@ void main() {
       expect(packAfter.title, packBefore.title);
       expect(packAfter.status, packBefore.status);
 
-      final resourceRepository = ResourceRepository(db.reminderDao);
+      final resourceRepository = ResourceRepository(
+        db.reminderDao,
+        currentActorId: () async => env.currentUser.id,
+      );
+      final resourceId = await resourceRepository.createResource(
+        ResourceInput(
+          title: 'Litter',
+          type: ResourceType.quantityBased,
+          config: const QuantityBasedResourceConfig(
+            currentQuantity: 1,
+            unitLabel: 'bag',
+          ),
+          packId: env.localPackId,
+        ),
+      );
       await expectLater(
-        resourceRepository.createResource(
-          ResourceInput(
-            title: 'Litter',
-            type: ResourceType.quantityBased,
-            config: const QuantityBasedResourceConfig(
-              currentQuantity: 1,
-              unitLabel: 'bag',
+        repository.createItem(
+          ItemInput(
+            title: 'Use litter',
+            type: ItemType.stateBased,
+            config: const StateBasedItemConfig(
+              warningAfter: Duration(days: 1),
+              dangerAfter: Duration(days: 2),
             ),
             packId: env.localPackId,
           ),
+          resourceBindings: [
+            ItemResourceBindingInput.existing(resourceId: resourceId),
+          ],
         ),
         throwsA(isA<StateError>()),
+      );
+      expect(
+        await resourceRepository.listRulesForItem(env.localItemId),
+        isEmpty,
       );
 
       final stageRepository = StageTrackerRepository(db.reminderDao);
@@ -879,6 +1052,50 @@ RemotePackSnapshot _snapshot({
   );
 }
 
+Future<int> _seedRemoteBackedResource(
+  AppDatabase db,
+  _RemoteMirrorEnv env,
+) async {
+  final now = DateTime(2026, 6, 22, 9);
+  final resourceId = await db.reminderDao.insertResource(
+    ResourcesCompanion.insert(
+      packId: env.localPackId,
+      title: 'Cat food',
+      type: ResourceType.quantityBased.name,
+      quantityCurrent: const Value(3),
+      quantityUnitLabel: const Value('包'),
+      quantityWarningThreshold: const Value(1),
+      quantityDangerThreshold: const Value(0),
+      createdAt: now.millisecondsSinceEpoch,
+      updatedAt: now.millisecondsSinceEpoch,
+    ),
+  );
+  await db.reminderDao.upsertSyncMapping(
+    SyncMappingsCompanion.insert(
+      localEntityType: RemoteSharedPackRepository.localEntityResource,
+      localEntityId: resourceId,
+      remoteTable: RemoteSharedPackRepository.remoteTableResources,
+      remoteEntityId: 'remote-resource-1',
+      syncState: SyncMappingState.linked.storageValue,
+      createdAt: now.millisecondsSinceEpoch,
+      updatedAt: now.millisecondsSinceEpoch,
+    ),
+  );
+  await db.reminderDao.insertRemoteResourceSyncMetadata(
+    RemoteResourceSyncMetadataCompanion.insert(
+      localResourceId: resourceId,
+      localPackId: env.localPackId,
+      remoteResourceId: 'remote-resource-1',
+      remotePackId: 'remote-pack-1',
+      syncState: RemoteResourceSyncState.synced.storageValue,
+      remoteStatus: const Value('active'),
+      createdAt: now.millisecondsSinceEpoch,
+      updatedAt: now.millisecondsSinceEpoch,
+    ),
+  );
+  return resourceId;
+}
+
 class _RemoteMirrorEnv {
   const _RemoteMirrorEnv({
     required this.currentUser,
@@ -898,6 +1115,9 @@ class _FakeRemoteClient implements RemoteBackedOutboxRemoteClient {
     this.createResult,
     this.updateResult,
     this.archiveResult,
+    this.createResourceResult,
+    this.updateResourceResult,
+    this.resourceEventResult,
     this.completeResult,
     this.undoResult,
   });
@@ -905,11 +1125,19 @@ class _FakeRemoteClient implements RemoteBackedOutboxRemoteClient {
   RemotePocResult<RemoteItemCreateResult>? createResult;
   RemotePocResult<RemoteItemMutationResult>? updateResult;
   RemotePocResult<RemoteItemMutationResult>? archiveResult;
+  RemotePocResult<RemoteResourceCreateResult>? createResourceResult;
+  RemotePocResult<RemoteResourceMutationResult>? updateResourceResult;
+  RemotePocResult<RemoteResourceMutationResult>? archiveResourceResult;
+  RemotePocResult<RemoteResourceEventResult>? resourceEventResult;
   RemotePocResult<RemoteItemCompletionResult>? completeResult;
   RemotePocResult<RemoteItemUndoResult>? undoResult;
   int createCalls = 0;
   int updateCalls = 0;
   int archiveCalls = 0;
+  int createResourceCalls = 0;
+  int updateResourceCalls = 0;
+  int archiveResourceCalls = 0;
+  int resourceEventCalls = 0;
   int completeCalls = 0;
   int undoCalls = 0;
 
@@ -949,6 +1177,70 @@ class _FakeRemoteClient implements RemoteBackedOutboxRemoteClient {
   }) async {
     archiveCalls++;
     return archiveResult ??
+        const RemotePocResult.failure(
+          RemoteSharedPackFailureReason.remoteUnknownFailure,
+        );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteResourceCreateResult>>
+  createRemoteResourceForPack({
+    required String remotePackId,
+    required String title,
+    String? description,
+    required String type,
+    Map<String, Object?>? config,
+    String? clientMutationId,
+  }) async {
+    createResourceCalls++;
+    return createResourceResult ??
+        const RemotePocResult.failure(
+          RemoteSharedPackFailureReason.remoteUnknownFailure,
+        );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteResourceMutationResult>>
+  updateRemoteResourceById({
+    required String remoteResourceId,
+    required String title,
+    String? description,
+    Map<String, Object?>? config,
+    String? clientMutationId,
+  }) async {
+    updateResourceCalls++;
+    return updateResourceResult ??
+        const RemotePocResult.failure(
+          RemoteSharedPackFailureReason.remoteUnknownFailure,
+        );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteResourceMutationResult>>
+  archiveRemoteResourceById({
+    required String remoteResourceId,
+    String? clientMutationId,
+  }) async {
+    archiveResourceCalls++;
+    return archiveResourceResult ??
+        const RemotePocResult.failure(
+          RemoteSharedPackFailureReason.remoteUnknownFailure,
+        );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteResourceEventResult>>
+  applyRemoteResourceEventById({
+    required String remoteResourceId,
+    required String changeType,
+    int? deltaValue,
+    int? newValue,
+    String? unit,
+    String? clientMutationId,
+    Map<String, Object?>? metadata,
+  }) async {
+    resourceEventCalls++;
+    return resourceEventResult ??
         const RemotePocResult.failure(
           RemoteSharedPackFailureReason.remoteUnknownFailure,
         );

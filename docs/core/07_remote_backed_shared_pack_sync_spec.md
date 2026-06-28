@@ -629,20 +629,50 @@ Phase 5 completes the remote-backed shared pack local-first MVP. It intentionall
 - Pack update/archive, item skip/pause/resume/move/assign, resource CRUD, and stage CRUD fail closed for remote-backed packs so local mirrors are not silently forked.
 - Supabase RPC draft lives in `docs/core/sql/phase6_remote_backed_item_crud_mvp.sql`.
 
+### Phase 6B：Production Foreground Sync Loop
+
+- Adds `RemoteBackedSyncCoordinator` as the production glue between existing local-first outbox writes, outbox flush, and remote snapshot refresh/import.
+- Supported production actions are remote-backed item create, basic update, archive, complete, and undo. Each action writes local state first, enqueues `sync_outbox`, then normal UI flow starts a best-effort foreground flush.
+- Home, item management, pack management, and `一起照顧` refresh flows flush pending mutations first, then refresh each visible remote-backed pack sequentially through `RemoteBackedPackRefreshService.refreshPack(localPackId)`.
+- Refresh/import preserves unresolved pending or failed local outbox state using the existing refresh service stale/pending handling. Failed flushes do not roll back optimistic local state.
+- Member visibility uses the existing snapshot/member mirror: opening or refreshing `一起照顧` pulls/imports the remote pack snapshot so newly joined active members can appear in the member list.
+- Production copy remains user-facing: `等待同步`, `正在同步`, `同步失敗，稍後會再試`, `共同生活場景已更新`, and `暫時無法更新共同生活場景`. Production UI must not expose Supabase, RPC, outbox, mutation, remote-backed, sync metadata, or POC wording.
+- Phase 6B does not add resource sync, stage sync, realtime auto-sync, background sync, startup sync, widget remote CRUD, notification remote actions, hard delete, member role management, complex conflict UI, or a new shared-pack dashboard.
+- Manual verification lives in `docs/core/manual_tests/phase6b_production_sync_loop_smoke_test.md`.
+
+### Phase 6C：Pack + Items Sharing MVP
+
+- Hardens the existing foreground-only Pack + Items shared path. Supported shared entities are pack membership mirror, item create / basic update / archive, item complete / undo, and basic item activity/history.
+- Remote snapshot fetch/import includes completion rows with `undone_at`. Import updates existing local completions and marks the local done action reverted when a remote undo is imported, while preserving `completed_by` and `undone_by` actors.
+- Member import preserves display name, active/removed status, and host/member roles. The `一起照顧` member list reads active local mirror members only, so removed members remain history but do not appear in the active care list.
+- Imported remote item activity events are idempotently mapped through sync mappings and can be projected as user-facing messages for `item_created`, `item_updated`, `item_archived`, `item_completed`, and `item_undone`.
+- Sync labels are compact and production-facing: `等待同步`, `正在同步`, `同步失敗`, `有新的更新，請刷新`, and `已無法存取`. Healthy synced rows stay quiet.
+- Remote-backed pack metadata editing and pack archive/delete/leave remain guarded with copy that explains shared scene details cannot be changed yet, while item create/edit/archive/complete/undo remain supported.
+- Phase 6C does not add resource sharing, stage sharing, realtime auto-import, background sync, app-start sync, widget remote CRUD, notification remote sync, hard delete, member role management/removal, ownership transfer, complex conflict UI, or a shared dashboard redesign.
+- Manual verification lives in `docs/core/manual_tests/phase6c_pack_items_sharing_mvp_smoke_test.md`.
+
+### Phase 6D：Resource Sharing MVP
+
+- Adds foreground-only Resource sharing for remote-backed packs. Supported Resource operations are create, basic update, archive, quantity increment, quantity decrement, quantity adjust, and refill.
+- Supported Resource actions are local-first: `ResourceRepository` updates Drift optimistically, writes `sync_outbox`, and normal UI flow starts a best-effort `RemoteBackedSyncCoordinator.syncAfterRemoteBackedMutation(localPackId)` flush.
+- New Resource outbox actions are `create_resource`, `update_resource`, `archive_resource`, `resource_increment`, `resource_adjust`, and `resource_decrement`. Flush/retry updates `remote_resource_sync_metadata`, sync mappings, pack stale state, retryable failure state, and access-lost state.
+- Remote snapshot refresh imports `resources` and `resource_events` idempotently, maps remote Resource ids through `sync_mappings`, preserves local id != remote id, updates local Resource mirrors, and projects Resource events into local Resource history.
+- Imported `activity_events` with `entity_type = resource` map through Resource sync mappings and can render actor-based messages such as `{name} 新增了「{resourceTitle}」`, `{name} 補充了「{resourceTitle}」`, `{name} 調整了「{resourceTitle}」`, `{name} 扣除了「{resourceTitle}」`, and `{name} 封存了「{resourceTitle}」`.
+- Resource sync labels match item labels and stay quiet when healthy: `等待同步`, `正在同步`, `同步失敗`, `有新的更新，請刷新`, and `已無法存取`. Access-lost Resource rows disable Resource actions.
+- Item-linked Resource consumption remains guarded. Creating or editing item-resource bindings in remote-backed packs fails closed with `共同生活場景暫時未支援這個資源操作`, and remote-backed item completion does not silently perform local-only Resource consumption.
+- Phase 6D does not add Stage sharing, hard delete, Resource pack move, Resource type change, pack/member management, realtime auto-import, background sync, app-start sync, widget remote CRUD, notification remote sync, item-linked atomic completion/consumption, or a new dashboard.
+- Supabase RPC draft lives in `docs/core/sql/phase6d_remote_backed_resource_mvp.sql`.
+- Manual verification lives in `docs/core/manual_tests/phase6d_resource_sharing_mvp_smoke_test.md`.
+
 ### Phase 6 Backlog
 
-None of these are implemented in Phase 5M.
+None of these are implemented in Phase 5M. Phase 6B foreground production sync loop, Phase 6C Pack + Items sharing MVP, and Phase 6D Resource sharing MVP are now implemented after Phase 5M. Remaining later phases:
 
-- Phase 6A：Background Sync Design Spec.
-- Phase 6B：Automatic Refresh / Pull Sync MVP.
-- Phase 6C：Automatic Outbox Retry MVP.
-- Phase 6D：Conflict Resolution UX.
-- Phase 6E：Remote Item Edit / Delete / Archive Sync.
-- Phase 6F：Resource / Stage Remote Sync.
-- Phase 6G：Apple / Google Binding.
-- Phase 6H：Account Switching / Multi-account Safety.
-- Phase 6I：Production Observability / Error Reporting.
-- Additional later work：local/remote merge, backup legacy removal, richer notification scheduling, notification action bridge, richer freshness history/management, and full two-way sync.
+- Phase 6E：Stage sharing.
+- Phase 6F：Unified Activity / Sync hardening.
+- Phase 6G：Multi-device QA / polish.
+- Historical backlog marker retained for Phase 5 acceptance: Phase 6A：Background Sync Design Spec. Background sync remains later work and is not part of Phase 6B, 6C, or 6D.
+- Additional later work：automatic/background sync, app-start sync, realtime auto-import, widget remote CRUD, notification remote sync, hard delete, member role management/removal, ownership transfer, account switching, local/remote merge, backup legacy removal, richer notification scheduling, notification action bridge, richer freshness history/management, and full two-way sync.
 
 ## 19. Open Questions
 

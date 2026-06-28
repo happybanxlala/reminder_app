@@ -36,6 +36,54 @@ abstract class RemoteSharedPackDataSource {
     required String itemId,
     String? clientMutationId,
   });
+  Future<RemoteResourceCreateResult> createPackResource({
+    required String packId,
+    required String title,
+    String? description,
+    required String type,
+    Map<String, Object?>? config,
+    String? clientMutationId,
+  }) {
+    throw const RemoteSharedPackException(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  Future<RemoteResourceMutationResult> updatePackResource({
+    required String resourceId,
+    required String title,
+    String? description,
+    Map<String, Object?>? config,
+    String? clientMutationId,
+  }) {
+    throw const RemoteSharedPackException(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  Future<RemoteResourceMutationResult> archivePackResource({
+    required String resourceId,
+    String? clientMutationId,
+  }) {
+    throw const RemoteSharedPackException(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  Future<RemoteResourceEventResult> applyResourceEvent({
+    required String resourceId,
+    required String changeType,
+    int? deltaValue,
+    int? newValue,
+    String? unit,
+    String? clientMutationId,
+    Map<String, Object?>? metadata,
+  }) {
+    throw const RemoteSharedPackException(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
   Future<RemoteItemCompletionResult> completePackItem({
     required String itemId,
     String? clientMutationId,
@@ -143,6 +191,50 @@ class DisabledRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   Future<RemoteItemMutationResult> archivePackItem({
     required String itemId,
     String? clientMutationId,
+  }) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<RemoteResourceCreateResult> createPackResource({
+    required String packId,
+    required String title,
+    String? description,
+    required String type,
+    Map<String, Object?>? config,
+    String? clientMutationId,
+  }) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<RemoteResourceMutationResult> updatePackResource({
+    required String resourceId,
+    required String title,
+    String? description,
+    Map<String, Object?>? config,
+    String? clientMutationId,
+  }) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<RemoteResourceMutationResult> archivePackResource({
+    required String resourceId,
+    String? clientMutationId,
+  }) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<RemoteResourceEventResult> applyResourceEvent({
+    required String resourceId,
+    required String changeType,
+    int? deltaValue,
+    int? newValue,
+    String? unit,
+    String? clientMutationId,
+    Map<String, Object?>? metadata,
   }) {
     throw RemoteSharedPackException(reason);
   }
@@ -526,6 +618,141 @@ class SupabaseRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   }
 
   @override
+  Future<RemoteResourceCreateResult> createPackResource({
+    required String packId,
+    required String title,
+    String? description,
+    required String type,
+    Map<String, Object?>? config,
+    String? clientMutationId,
+  }) async {
+    try {
+      final result = await _client.rpc(
+        'create_pack_resource',
+        params: {
+          'target_pack_id': packId,
+          'title': title,
+          'description': description,
+          'resource_type': type,
+          'config_json': config,
+          'client_mutation_id': clientMutationId,
+        },
+      );
+      final row = _mapRpcResult(result);
+      return RemoteResourceCreateResult(
+        resourceId: _requiredString(row, 'resource_id'),
+        status: _optionalString(row, 'status') ?? 'created',
+      );
+    } catch (error) {
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        operationName: 'create_pack_resource',
+      );
+    }
+  }
+
+  @override
+  Future<RemoteResourceMutationResult> updatePackResource({
+    required String resourceId,
+    required String title,
+    String? description,
+    Map<String, Object?>? config,
+    String? clientMutationId,
+  }) async {
+    try {
+      final result = await _client.rpc(
+        'update_pack_resource',
+        params: {
+          'target_resource_id': resourceId,
+          'title': title,
+          'description': description,
+          'config_json': config,
+          'client_mutation_id': clientMutationId,
+        },
+      );
+      final row = _mapRpcResult(result);
+      return RemoteResourceMutationResult(
+        resourceId: _requiredString(row, 'resource_id'),
+        status: _optionalString(row, 'status') ?? 'updated',
+      );
+    } catch (error) {
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        operationName: 'update_pack_resource',
+      );
+    }
+  }
+
+  @override
+  Future<RemoteResourceMutationResult> archivePackResource({
+    required String resourceId,
+    String? clientMutationId,
+  }) async {
+    try {
+      final result = await _client.rpc(
+        'archive_pack_resource',
+        params: {
+          'target_resource_id': resourceId,
+          'client_mutation_id': clientMutationId,
+        },
+      );
+      final row = _mapRpcResult(result);
+      return RemoteResourceMutationResult(
+        resourceId: _requiredString(row, 'resource_id'),
+        status: _optionalString(row, 'status') ?? 'archived',
+      );
+    } catch (error) {
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        operationName: 'archive_pack_resource',
+      );
+    }
+  }
+
+  @override
+  Future<RemoteResourceEventResult> applyResourceEvent({
+    required String resourceId,
+    required String changeType,
+    int? deltaValue,
+    int? newValue,
+    String? unit,
+    String? clientMutationId,
+    Map<String, Object?>? metadata,
+  }) async {
+    try {
+      final result = await _client.rpc(
+        'apply_resource_event',
+        params: {
+          'target_resource_id': resourceId,
+          'change_type': changeType,
+          'delta_value': deltaValue,
+          'new_value': newValue,
+          'unit': unit,
+          'client_mutation_id': clientMutationId,
+          'metadata_json': metadata,
+        },
+      );
+      final row = _mapRpcResult(result);
+      return RemoteResourceEventResult(
+        resourceId: _requiredString(row, 'resource_id'),
+        eventId: _requiredString(row, 'event_id'),
+        status: _optionalString(row, 'status') ?? 'applied',
+        currentValue: _optionalInt(row, 'current_value'),
+        updatedAt: _optionalDate(row, 'updated_at'),
+      );
+    } catch (error) {
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        operationName: 'apply_resource_event',
+      );
+    }
+  }
+
+  @override
   Future<RemoteItemCompletionResult> completePackItem({
     required String itemId,
     String? clientMutationId,
@@ -605,12 +832,21 @@ class SupabaseRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
           .select()
           .eq('pack_id', remotePackId)
           .order('created_at');
+      final resources = await _client
+          .from('resources')
+          .select()
+          .eq('pack_id', remotePackId)
+          .order('created_at');
       final completions = await _client
           .from('item_completions')
           .select()
           .eq('pack_id', remotePackId)
-          .filter('undone_at', 'is', null)
           .order('completed_at');
+      final resourceEvents = await _client
+          .from('resource_events')
+          .select()
+          .eq('pack_id', remotePackId)
+          .order('created_at');
       final events = await _client
           .from('activity_events')
           .select()
@@ -620,7 +856,9 @@ class SupabaseRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
         pack: Map<String, Object?>.from(pack),
         members: _listOfMaps(members),
         items: _listOfMaps(items),
+        resources: _listOfMaps(resources),
         completions: _listOfMaps(completions),
+        resourceEvents: _listOfMaps(resourceEvents),
         events: _listOfMaps(events),
       );
     } catch (error) {
@@ -723,7 +961,9 @@ RemotePackSnapshot _snapshotFromRows({
   required Map<String, Object?> pack,
   required List<Map<String, Object?>> members,
   required List<Map<String, Object?>> items,
+  required List<Map<String, Object?>> resources,
   required List<Map<String, Object?>> completions,
+  required List<Map<String, Object?>> resourceEvents,
   required List<Map<String, Object?>> events,
 }) {
   return RemotePackSnapshot(
@@ -736,7 +976,11 @@ RemotePackSnapshot _snapshotFromRows({
     updatedAt: _requiredDate(pack, 'updated_at'),
     members: members.map(_memberFromRow).toList(growable: false),
     items: items.map(_itemFromRow).toList(growable: false),
+    resources: resources.map(_resourceFromRow).toList(growable: false),
     completions: completions.map(_completionFromRow).toList(growable: false),
+    resourceEvents: resourceEvents
+        .map(_resourceEventFromRow)
+        .toList(growable: false),
     activityEvents: events.map(_activityEventFromRow).toList(growable: false),
   );
 }
@@ -819,6 +1063,55 @@ RemoteItemCompletionSnapshot _completionFromRow(Map<String, Object?> row) {
   );
 }
 
+RemoteResourceSnapshot _resourceFromRow(Map<String, Object?> row) {
+  return RemoteResourceSnapshot(
+    id: _requiredString(row, 'id'),
+    packId: _requiredString(row, 'pack_id'),
+    title: _requiredString(row, 'title', fallbackKey: 'name'),
+    description: row['description'] as String?,
+    status: _requiredString(row, 'status'),
+    type: _requiredString(row, 'type'),
+    timeAnchorDate: _optionalDate(row, 'time_anchor_date'),
+    timeDurationDays: _optionalInt(row, 'time_duration_days'),
+    timeExpectedBeforeDays: _optionalInt(row, 'time_expected_before_days'),
+    timeWarningBeforeDays: _optionalInt(row, 'time_warning_before_days'),
+    timeDangerBeforeDays: _optionalInt(row, 'time_danger_before_days'),
+    quantityCurrent:
+        _optionalInt(row, 'quantity_current') ??
+        _optionalInt(row, 'current_value'),
+    quantityUnitLabel:
+        row['quantity_unit_label'] as String? ?? row['unit'] as String?,
+    quantityExpectedThreshold: _optionalInt(row, 'quantity_expected_threshold'),
+    quantityWarningThreshold:
+        _optionalInt(row, 'quantity_warning_threshold') ??
+        _optionalInt(row, 'warning_threshold'),
+    quantityDangerThreshold:
+        _optionalInt(row, 'quantity_danger_threshold') ??
+        _optionalInt(row, 'danger_threshold'),
+    lastRefilledAt: _optionalDate(row, 'last_refilled_at'),
+    createdByUserId: _requiredString(row, 'created_by_user_id'),
+    updatedByUserId: _requiredString(row, 'updated_by_user_id'),
+    createdAt: _requiredDate(row, 'created_at'),
+    updatedAt: _requiredDate(row, 'updated_at'),
+  );
+}
+
+RemoteResourceEventSnapshot _resourceEventFromRow(Map<String, Object?> row) {
+  return RemoteResourceEventSnapshot(
+    id: _requiredString(row, 'id'),
+    packId: _requiredString(row, 'pack_id'),
+    resourceId: _requiredString(row, 'resource_id'),
+    actorUserId: _requiredString(row, 'actor_user_id'),
+    changeType: _requiredString(row, 'change_type'),
+    previousValue: _optionalInt(row, 'previous_value'),
+    newValue: _optionalInt(row, 'new_value'),
+    deltaValue: _optionalInt(row, 'delta_value'),
+    unit: row['unit'] as String?,
+    metadataJson: _jsonMap(row['metadata_json']),
+    createdAt: _requiredDate(row, 'created_at'),
+  );
+}
+
 RemoteActivityEventSnapshot _activityEventFromRow(Map<String, Object?> row) {
   return RemoteActivityEventSnapshot(
     id: _requiredString(row, 'id'),
@@ -878,8 +1171,12 @@ bool _optionalBool(Map<String, Object?> row, String key) {
   return false;
 }
 
-String _requiredString(Map<String, Object?> row, String key) {
-  final value = row[key];
+String _requiredString(
+  Map<String, Object?> row,
+  String key, {
+  String? fallbackKey,
+}) {
+  final value = row[key] ?? (fallbackKey == null ? null : row[fallbackKey]);
   if (value is String && value.isNotEmpty) {
     return value;
   }
@@ -909,6 +1206,17 @@ int _requiredInt(Map<String, Object?> row, String key) {
   throw const RemoteSharedPackException(
     RemoteSharedPackFailureReason.malformedRemoteData,
   );
+}
+
+int? _optionalInt(Map<String, Object?> row, String key) {
+  final value = row[key];
+  if (value is int) {
+    return value;
+  }
+  if (value is num) {
+    return value.toInt();
+  }
+  return null;
 }
 
 DateTime? _optionalDate(Map<String, Object?> row, String key) {

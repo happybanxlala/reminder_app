@@ -278,7 +278,7 @@ void main() {
     await tester.tap(find.byKey(Key('pack-care-refresh-shared-state-$packId')));
     await tester.pumpAndSettle();
 
-    expect(find.text(ReminderUiText.packCareRefreshSuccess), findsOneWidget);
+    expect(find.text(ReminderUiText.packCareUpdated), findsOneWidget);
     expect(find.textContaining('remote_pack_1'), findsNothing);
     expect(remote.snapshotCount, 1);
   });
@@ -497,6 +497,61 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
     String? clientMutationId,
   }) async {
     return RemoteItemMutationResult(itemId: itemId, status: 'archived');
+  }
+
+  @override
+  Future<RemoteResourceCreateResult> createPackResource({
+    required String packId,
+    required String title,
+    String? description,
+    required String type,
+    Map<String, Object?>? config,
+    String? clientMutationId,
+  }) async {
+    return const RemoteResourceCreateResult(resourceId: 'remote_resource_1');
+  }
+
+  @override
+  Future<RemoteResourceMutationResult> updatePackResource({
+    required String resourceId,
+    required String title,
+    String? description,
+    Map<String, Object?>? config,
+    String? clientMutationId,
+  }) async {
+    return RemoteResourceMutationResult(
+      resourceId: resourceId,
+      status: 'updated',
+    );
+  }
+
+  @override
+  Future<RemoteResourceMutationResult> archivePackResource({
+    required String resourceId,
+    String? clientMutationId,
+  }) async {
+    return RemoteResourceMutationResult(
+      resourceId: resourceId,
+      status: 'archived',
+    );
+  }
+
+  @override
+  Future<RemoteResourceEventResult> applyResourceEvent({
+    required String resourceId,
+    required String changeType,
+    int? deltaValue,
+    int? newValue,
+    String? unit,
+    String? clientMutationId,
+    Map<String, Object?>? metadata,
+  }) async {
+    return RemoteResourceEventResult(
+      resourceId: resourceId,
+      eventId: 'remote_resource_event_1',
+      status: 'applied',
+      currentValue: newValue,
+    );
   }
 
   @override

@@ -106,6 +106,44 @@ class RemoteItemMutationResult {
   bool get isNoOp => status == 'already_archived' || status == 'not_changed';
 }
 
+class RemoteResourceCreateResult {
+  const RemoteResourceCreateResult({
+    required this.resourceId,
+    this.status = 'created',
+  });
+
+  final String resourceId;
+  final String status;
+}
+
+class RemoteResourceMutationResult {
+  const RemoteResourceMutationResult({
+    required this.resourceId,
+    required this.status,
+  });
+
+  final String resourceId;
+  final String status;
+
+  bool get isNoOp => status == 'already_archived' || status == 'not_changed';
+}
+
+class RemoteResourceEventResult {
+  const RemoteResourceEventResult({
+    required this.resourceId,
+    required this.eventId,
+    required this.status,
+    this.currentValue,
+    this.updatedAt,
+  });
+
+  final String resourceId;
+  final String eventId;
+  final String status;
+  final int? currentValue;
+  final DateTime? updatedAt;
+}
+
 enum RemoteItemCompletionStatus { completed, alreadyCompleted }
 
 class RemoteItemCompletionResult {
@@ -242,7 +280,9 @@ class RemotePackSnapshot {
     required this.updatedAt,
     required this.members,
     required this.items,
+    this.resources = const [],
     required this.completions,
+    this.resourceEvents = const [],
     required this.activityEvents,
   });
 
@@ -255,7 +295,9 @@ class RemotePackSnapshot {
   final DateTime updatedAt;
   final List<RemotePackMemberSnapshot> members;
   final List<RemoteItemSnapshot> items;
+  final List<RemoteResourceSnapshot> resources;
   final List<RemoteItemCompletionSnapshot> completions;
+  final List<RemoteResourceEventSnapshot> resourceEvents;
   final List<RemoteActivityEventSnapshot> activityEvents;
 }
 
@@ -326,6 +368,82 @@ class RemoteItemCompletionSnapshot {
   final String? undoneByUserId;
   final DateTime? undoneAt;
   final String? clientMutationId;
+  final DateTime createdAt;
+}
+
+class RemoteResourceSnapshot {
+  const RemoteResourceSnapshot({
+    required this.id,
+    required this.packId,
+    required this.title,
+    this.description,
+    required this.status,
+    required this.type,
+    this.timeAnchorDate,
+    this.timeDurationDays,
+    this.timeExpectedBeforeDays,
+    this.timeWarningBeforeDays,
+    this.timeDangerBeforeDays,
+    this.quantityCurrent,
+    this.quantityUnitLabel,
+    this.quantityExpectedThreshold,
+    this.quantityWarningThreshold,
+    this.quantityDangerThreshold,
+    this.lastRefilledAt,
+    required this.createdByUserId,
+    required this.updatedByUserId,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  final String id;
+  final String packId;
+  final String title;
+  final String? description;
+  final String status;
+  final String type;
+  final DateTime? timeAnchorDate;
+  final int? timeDurationDays;
+  final int? timeExpectedBeforeDays;
+  final int? timeWarningBeforeDays;
+  final int? timeDangerBeforeDays;
+  final int? quantityCurrent;
+  final String? quantityUnitLabel;
+  final int? quantityExpectedThreshold;
+  final int? quantityWarningThreshold;
+  final int? quantityDangerThreshold;
+  final DateTime? lastRefilledAt;
+  final String createdByUserId;
+  final String updatedByUserId;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+}
+
+class RemoteResourceEventSnapshot {
+  const RemoteResourceEventSnapshot({
+    required this.id,
+    required this.packId,
+    required this.resourceId,
+    required this.actorUserId,
+    required this.changeType,
+    this.previousValue,
+    this.newValue,
+    this.deltaValue,
+    this.unit,
+    this.metadataJson,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String packId;
+  final String resourceId;
+  final String actorUserId;
+  final String changeType;
+  final int? previousValue;
+  final int? newValue;
+  final int? deltaValue;
+  final String? unit;
+  final Map<String, Object?>? metadataJson;
   final DateTime createdAt;
 }
 

@@ -251,6 +251,13 @@ class _CreateItemDialogState extends ConsumerState<_CreateItemDialog> {
             .map((draft) => draft.toInput())
             .toList(growable: false),
       );
+      if (packId != null && await repository.isRemoteBackedPack(packId)) {
+        unawaited(
+          ref
+              .read(remoteBackedSyncCoordinatorProvider)
+              .syncAfterRemoteBackedMutation(packId),
+        );
+      }
       if (mounted) {
         Navigator.of(context).pop();
       }

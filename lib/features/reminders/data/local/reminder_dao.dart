@@ -67,6 +67,27 @@ class ItemActivityEntry {
   ItemBundle get bundle => ItemBundle(item: item, pack: pack);
 }
 
+class SharedItemActivityEntry {
+  const SharedItemActivityEntry({
+    required this.event,
+    required this.item,
+    required this.pack,
+    required this.actor,
+  });
+
+  final ActivityEvent event;
+  final Item item;
+  final ItemPack pack;
+  final LocalUser actor;
+
+  int get itemId => item.id;
+  int get packId => pack.id;
+  String get itemTitle => item.title;
+  String get packTitle => pack.title;
+  String get actorDisplayName => actor.displayName;
+  DateTime get occurredAt => event.createdAt;
+}
+
 class ItemActionEntry {
   const ItemActionEntry({
     required this.record,
@@ -195,6 +216,7 @@ class StageRelatedItemEntry {
     SyncMappings,
     RemotePackSyncMetadata,
     RemoteItemSyncMetadata,
+    RemoteResourceSyncMetadata,
     RemoteCompletionSyncMetadata,
     SyncOutbox,
     AppSettingsEntries,
@@ -293,6 +315,17 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     return into(packMembers).insertOnConflictUpdate(entry);
   }
 
+  Future<bool> updatePackMemberStatus({
+    required int packId,
+    required String userId,
+    required PackMemberStatus status,
+  }) async {
+    return (await (update(packMembers)
+              ..where((t) => t.packId.equals(packId) & t.userId.equals(userId)))
+            .write(PackMembersCompanion(status: Value(status.name)))) >
+        0;
+  }
+
   Future<List<PackMember>> listPackMembers(int packId) async {
     final rows =
         await (select(packMembers)
@@ -342,6 +375,23 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
               ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
             .get();
     return rows.map(_toActivityEvent).toList(growable: false);
+  }
+
+  Future<List<SharedItemActivityEntry>> listSharedItemActivityEntries({
+    int limit = 20,
+    int offset = 0,
+    String? query,
+    DateTime? createdAtFrom,
+    DateTime? createdAtBefore,
+  }) async {
+    final rows = await _sharedItemActivityEntryQuery(
+      query: query,
+      createdAtFrom: createdAtFrom,
+      createdAtBefore: createdAtBefore,
+      limit: limit,
+      offset: offset,
+    ).get();
+    return rows.map(_mapSharedItemActivityEntry).toList(growable: false);
   }
 
   Future<SyncMapping?> getSyncMapping({
@@ -513,6 +563,49 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
   watchRemoteItemSyncMetadataEntries() {
     return select(remoteItemSyncMetadata).watch().map(
       (rows) => rows.map(_toRemoteItemSyncMetadata).toList(growable: false),
+    );
+  }
+
+  Future<int> insertRemoteResourceSyncMetadata(
+    RemoteResourceSyncMetadataCompanion entry,
+  ) {
+    return into(remoteResourceSyncMetadata).insert(entry);
+  }
+
+  Future<RemoteResourceSyncMetadataEntry?>
+  getRemoteResourceSyncMetadataForLocalResource(int localResourceId) async {
+    final row =
+        await (select(remoteResourceSyncMetadata)
+              ..where((t) => t.localResourceId.equals(localResourceId)))
+            .getSingleOrNull();
+    return row == null ? null : _toRemoteResourceSyncMetadata(row);
+  }
+
+  Future<RemoteResourceSyncMetadataEntry?>
+  getRemoteResourceSyncMetadataForRemoteResource(
+    String remoteResourceId,
+  ) async {
+    final row =
+        await (select(remoteResourceSyncMetadata)
+              ..where((t) => t.remoteResourceId.equals(remoteResourceId)))
+            .getSingleOrNull();
+    return row == null ? null : _toRemoteResourceSyncMetadata(row);
+  }
+
+  Future<bool> updateRemoteResourceSyncMetadata(
+    int id,
+    RemoteResourceSyncMetadataCompanion entry,
+  ) async {
+    return (await (update(
+          remoteResourceSyncMetadata,
+        )..where((t) => t.id.equals(id))).write(entry)) >
+        0;
+  }
+
+  Stream<List<RemoteResourceSyncMetadataEntry>>
+  watchRemoteResourceSyncMetadataEntries() {
+    return select(remoteResourceSyncMetadata).watch().map(
+      (rows) => rows.map(_toRemoteResourceSyncMetadata).toList(growable: false),
     );
   }
 
@@ -1067,6 +1160,13 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     return into(itemCompletions).insert(entry);
   }
 
+  Future<ItemCompletion?> getItemCompletionById(int id) async {
+    final row = await (select(
+      itemCompletions,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _toItemCompletion(row);
+  }
+
   Future<List<ItemCompletion>> listItemCompletions(int itemId) async {
     final rows =
         await (select(itemCompletions)
@@ -1118,6 +1218,22 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     return (await (update(
           itemCompletions,
         )..where((t) => t.id.equals(id))).write(entry)) >
+        0;
+  }
+
+  Future<bool> markItemCompletionUndoneById({
+    required int completionId,
+    required String undoneByUserId,
+    required DateTime undoneAt,
+  }) async {
+    return (await (update(
+          itemCompletions,
+        )..where((t) => t.id.equals(completionId) & t.undoneAt.isNull())).write(
+          ItemCompletionsCompanion(
+            undoneByUserId: Value(undoneByUserId),
+            undoneAt: Value(undoneAt.millisecondsSinceEpoch),
+          ),
+        )) >
         0;
   }
 
@@ -2447,6 +2563,72 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     return activityQuery;
   }
 
+  JoinedSelectStatement<HasResultSet, dynamic> _sharedItemActivityEntryQuery({
+    String? query,
+    DateTime? createdAtFrom,
+    DateTime? createdAtBefore,
+    int? limit,
+    int offset = 0,
+  }) {
+    const supportedActions = [
+      'item_created',
+      'item_updated',
+      'item_archived',
+      'item_completed',
+      'item_undone',
+    ];
+    final activityQuery =
+        select(activityEvents).join([
+          innerJoin(items, items.id.equalsExp(activityEvents.entityId)),
+          innerJoin(itemPacks, itemPacks.id.equalsExp(activityEvents.packId)),
+          innerJoin(
+            localUsers,
+            localUsers.id.equalsExp(activityEvents.actorUserId),
+          ),
+        ])..where(
+          activityEvents.entityType.equals('item') &
+              activityEvents.action.isIn(supportedActions),
+        );
+
+    if (createdAtFrom != null) {
+      activityQuery.where(
+        activityEvents.createdAt.isBiggerOrEqualValue(
+          createdAtFrom.millisecondsSinceEpoch,
+        ),
+      );
+    }
+    if (createdAtBefore != null) {
+      activityQuery.where(
+        activityEvents.createdAt.isSmallerThanValue(
+          createdAtBefore.millisecondsSinceEpoch,
+        ),
+      );
+    }
+
+    final trimmedQuery = query?.trim();
+    if (trimmedQuery != null && trimmedQuery.isNotEmpty) {
+      final pattern = '%$trimmedQuery%';
+      final actionNames = _matchingSharedItemActivityActions(trimmedQuery);
+      activityQuery.where(
+        items.title.like(pattern) |
+            itemPacks.title.like(pattern) |
+            localUsers.displayName.like(pattern) |
+            (actionNames.isEmpty
+                ? const Constant(false)
+                : activityEvents.action.isIn(actionNames)),
+      );
+    }
+
+    activityQuery.orderBy([
+      OrderingTerm.desc(activityEvents.createdAt),
+      OrderingTerm.desc(activityEvents.id),
+    ]);
+    if (limit != null) {
+      activityQuery.limit(limit, offset: offset);
+    }
+    return activityQuery;
+  }
+
   JoinedSelectStatement<HasResultSet, dynamic> _itemActionEntryQuery({
     required Set<ItemActionType> actionTypes,
     required DateTime actionDateFrom,
@@ -2524,6 +2706,15 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
       record: _toItemActionRecord(row.readTable(itemActionRecords)),
       item: _toItem(row.readTable(items)),
       pack: _toItemPack(row.readTable(itemPacks)),
+    );
+  }
+
+  SharedItemActivityEntry _mapSharedItemActivityEntry(TypedResult row) {
+    return SharedItemActivityEntry(
+      event: _toActivityEvent(row.readTable(activityEvents)),
+      item: _toItem(row.readTable(items)),
+      pack: _toItemPack(row.readTable(itemPacks)),
+      actor: _toLocalUser(row.readTable(localUsers)),
     );
   }
 
@@ -2867,6 +3058,7 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
   Future<void> _clearUserData() async {
     await customStatement('DELETE FROM sync_outbox');
     await customStatement('DELETE FROM remote_completion_sync_metadata');
+    await customStatement('DELETE FROM remote_resource_sync_metadata');
     await customStatement('DELETE FROM remote_item_sync_metadata');
     await customStatement('DELETE FROM remote_pack_sync_metadata');
     await customStatement('DELETE FROM sync_mappings');
@@ -3348,6 +3540,30 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     return matches;
   }
 
+  List<String> _matchingSharedItemActivityActions(String query) {
+    final normalized = query.trim().toLowerCase();
+    if (normalized.isEmpty) {
+      return const <String>[];
+    }
+
+    final matches = <String>[];
+    void maybeAdd(String action, List<String> keywords) {
+      if (keywords.any(
+        (keyword) =>
+            keyword.contains(normalized) || normalized.contains(keyword),
+      )) {
+        matches.add(action);
+      }
+    }
+
+    maybeAdd('item_created', ['created', 'create', '新增']);
+    maybeAdd('item_updated', ['updated', 'update', '編輯', '更新']);
+    maybeAdd('item_archived', ['archived', 'archive', '封存', '刪除']);
+    maybeAdd('item_completed', ['completed', 'complete', 'done', '完成']);
+    maybeAdd('item_undone', ['undone', 'undo', '復原', '恢復']);
+    return matches;
+  }
+
   LocalUser _toLocalUser(LocalUserRow row) {
     return LocalUser(
       id: row.id,
@@ -3461,6 +3677,28 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
       remoteItemId: row.remoteItemId,
       remotePackId: row.remotePackId,
       syncState: RemoteItemSyncStateStorage.parse(row.syncState),
+      remoteStatus: row.remoteStatus,
+      remoteUpdatedAt: _dateFromMillis(row.remoteUpdatedAt),
+      lastPulledAt: _dateFromMillis(row.lastPulledAt),
+      lastPushedAt: _dateFromMillis(row.lastPushedAt),
+      lastSyncError: row.lastSyncError,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
+      archivedAt: _dateFromMillis(row.archivedAt),
+      deletedAt: _dateFromMillis(row.deletedAt),
+    );
+  }
+
+  RemoteResourceSyncMetadataEntry _toRemoteResourceSyncMetadata(
+    RemoteResourceSyncMetadataRow row,
+  ) {
+    return RemoteResourceSyncMetadataEntry(
+      id: row.id,
+      localResourceId: row.localResourceId,
+      localPackId: row.localPackId,
+      remoteResourceId: row.remoteResourceId,
+      remotePackId: row.remotePackId,
+      syncState: RemoteResourceSyncStateStorage.parse(row.syncState),
       remoteStatus: row.remoteStatus,
       remoteUpdatedAt: _dateFromMillis(row.remoteUpdatedAt),
       lastPulledAt: _dateFromMillis(row.lastPulledAt),

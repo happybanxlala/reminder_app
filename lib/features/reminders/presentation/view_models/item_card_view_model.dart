@@ -1,5 +1,6 @@
 import '../../data/home_models.dart';
 import '../../domain/item.dart';
+import '../../domain/remote_sync.dart';
 import '../../domain/item_status_service.dart';
 import '../../domain/stage_occurrence.dart';
 import '../formatters/reminder_formatters.dart';
@@ -224,7 +225,10 @@ class ItemCardViewModel {
         (status.lastSyncError?.trim().isNotEmpty ?? false)) {
       return ReminderUiText.syncFailedLabel;
     }
-    if (status.hasPendingMutation) {
+    if (status.pendingMutationStatus == SyncOutboxStatus.syncing) {
+      return ReminderUiText.syncSyncingLabel;
+    }
+    if (status.pendingMutationStatus == SyncOutboxStatus.pending) {
       return ReminderUiText.syncPendingLabel;
     }
     if (status.isStale) {

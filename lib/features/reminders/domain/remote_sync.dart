@@ -30,6 +30,20 @@ enum RemoteItemSyncState {
   deleted,
 }
 
+enum RemoteResourceSyncState {
+  linked,
+  pendingImport,
+  pendingPush,
+  syncing,
+  importing,
+  synced,
+  stale,
+  failed,
+  conflict,
+  archived,
+  deleted,
+}
+
 enum RemoteCompletionSyncState {
   pendingPush,
   syncing,
@@ -55,6 +69,12 @@ enum SyncOutboxActionType {
   createItem,
   updateItem,
   archiveItem,
+  createResource,
+  updateResource,
+  archiveResource,
+  resourceIncrement,
+  resourceAdjust,
+  resourceDecrement,
 }
 
 enum SyncOutboxStatus {
@@ -240,6 +260,40 @@ extension RemoteItemSyncStateStorage on RemoteItemSyncState {
   }
 }
 
+extension RemoteResourceSyncStateStorage on RemoteResourceSyncState {
+  String get storageValue {
+    return switch (this) {
+      RemoteResourceSyncState.linked => 'linked',
+      RemoteResourceSyncState.pendingImport => 'pending_import',
+      RemoteResourceSyncState.pendingPush => 'pending_push',
+      RemoteResourceSyncState.syncing => 'syncing',
+      RemoteResourceSyncState.importing => 'importing',
+      RemoteResourceSyncState.synced => 'synced',
+      RemoteResourceSyncState.stale => 'stale',
+      RemoteResourceSyncState.failed => 'failed',
+      RemoteResourceSyncState.conflict => 'conflict',
+      RemoteResourceSyncState.archived => 'archived',
+      RemoteResourceSyncState.deleted => 'deleted',
+    };
+  }
+
+  static RemoteResourceSyncState parse(String value) {
+    return switch (value) {
+      'pending_import' => RemoteResourceSyncState.pendingImport,
+      'pending_push' => RemoteResourceSyncState.pendingPush,
+      'syncing' => RemoteResourceSyncState.syncing,
+      'importing' => RemoteResourceSyncState.importing,
+      'synced' => RemoteResourceSyncState.synced,
+      'stale' => RemoteResourceSyncState.stale,
+      'failed' => RemoteResourceSyncState.failed,
+      'conflict' => RemoteResourceSyncState.conflict,
+      'archived' => RemoteResourceSyncState.archived,
+      'deleted' => RemoteResourceSyncState.deleted,
+      _ => RemoteResourceSyncState.linked,
+    };
+  }
+}
+
 extension RemoteCompletionSyncStateStorage on RemoteCompletionSyncState {
   String get storageValue {
     return switch (this) {
@@ -298,6 +352,12 @@ extension SyncOutboxActionTypeStorage on SyncOutboxActionType {
       SyncOutboxActionType.createItem => 'create_item',
       SyncOutboxActionType.updateItem => 'update_item',
       SyncOutboxActionType.archiveItem => 'archive_item',
+      SyncOutboxActionType.createResource => 'create_resource',
+      SyncOutboxActionType.updateResource => 'update_resource',
+      SyncOutboxActionType.archiveResource => 'archive_resource',
+      SyncOutboxActionType.resourceIncrement => 'resource_increment',
+      SyncOutboxActionType.resourceAdjust => 'resource_adjust',
+      SyncOutboxActionType.resourceDecrement => 'resource_decrement',
     };
   }
 
@@ -307,6 +367,12 @@ extension SyncOutboxActionTypeStorage on SyncOutboxActionType {
       'create_item' => SyncOutboxActionType.createItem,
       'update_item' => SyncOutboxActionType.updateItem,
       'archive_item' => SyncOutboxActionType.archiveItem,
+      'create_resource' => SyncOutboxActionType.createResource,
+      'update_resource' => SyncOutboxActionType.updateResource,
+      'archive_resource' => SyncOutboxActionType.archiveResource,
+      'resource_increment' => SyncOutboxActionType.resourceIncrement,
+      'resource_adjust' => SyncOutboxActionType.resourceAdjust,
+      'resource_decrement' => SyncOutboxActionType.resourceDecrement,
       _ => SyncOutboxActionType.completeItem,
     };
   }
@@ -397,6 +463,42 @@ class RemoteItemSyncMetadataEntry {
   final String remoteItemId;
   final String remotePackId;
   final RemoteItemSyncState syncState;
+  final String? remoteStatus;
+  final DateTime? remoteUpdatedAt;
+  final DateTime? lastPulledAt;
+  final DateTime? lastPushedAt;
+  final String? lastSyncError;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? archivedAt;
+  final DateTime? deletedAt;
+}
+
+class RemoteResourceSyncMetadataEntry {
+  const RemoteResourceSyncMetadataEntry({
+    required this.id,
+    required this.localResourceId,
+    required this.localPackId,
+    required this.remoteResourceId,
+    required this.remotePackId,
+    required this.syncState,
+    this.remoteStatus,
+    this.remoteUpdatedAt,
+    this.lastPulledAt,
+    this.lastPushedAt,
+    this.lastSyncError,
+    required this.createdAt,
+    required this.updatedAt,
+    this.archivedAt,
+    this.deletedAt,
+  });
+
+  final int id;
+  final int localResourceId;
+  final int localPackId;
+  final String remoteResourceId;
+  final String remotePackId;
+  final RemoteResourceSyncState syncState;
   final String? remoteStatus;
   final DateTime? remoteUpdatedAt;
   final DateTime? lastPulledAt;

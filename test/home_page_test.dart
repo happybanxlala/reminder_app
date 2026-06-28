@@ -19,6 +19,7 @@ import 'package:reminder_app/features/reminders/domain/resource.dart';
 import 'package:reminder_app/features/reminders/domain/stage_occurrence.dart';
 import 'package:reminder_app/features/reminders/domain/stage_tracker.dart';
 import 'package:reminder_app/features/reminders/providers/attention_summary_providers.dart';
+import 'package:reminder_app/features/reminders/providers/database_providers.dart';
 import 'package:reminder_app/features/reminders/providers/developer_settings_providers.dart';
 import 'package:reminder_app/features/reminders/providers/home_providers.dart';
 import 'package:reminder_app/features/reminders/providers/item_providers.dart';
@@ -216,6 +217,7 @@ Future<_HomeFixture> _pumpHome(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        appDatabaseProvider.overrideWithValue(db),
         effectivePreviewDateProvider.overrideWith(
           (ref) => DateTime(2026, 5, 2),
         ),
@@ -252,6 +254,9 @@ Future<_HomeFixture> _pumpHome(
         ),
         resourcesProvider.overrideWith(
           (ref) => Stream.value([catResource, homeResource]),
+        ),
+        resourceSyncStatusProvider.overrideWith(
+          (ref, resourceId) => ResourceSyncStatus.localOnly,
         ),
         itemRepositoryProvider.overrideWith(
           (ref) => _UndoItemRepository(

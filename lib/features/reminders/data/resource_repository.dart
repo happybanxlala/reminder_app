@@ -4,12 +4,14 @@ import 'package:drift/drift.dart';
 
 import '../domain/item_action_record.dart';
 import '../domain/item_pack.dart';
+import '../domain/remote_sync.dart';
 import '../domain/resource.dart';
 import '../domain/resource_refill_service.dart';
 import '../domain/resource_status_service.dart';
 import '../domain/shared_pack.dart';
 import 'local/app_database.dart';
 import 'local/reminder_dao.dart';
+import 'remote_shared_pack_repository.dart';
 
 class ResourceInput {
   const ResourceInput({
@@ -59,7 +61,8 @@ class ResourceRepository {
     ResourceLifecycleStatus.active,
     ResourceLifecycleStatus.paused,
   };
-  static const remoteBackedUnsupportedMessage = '共同生活場景暫時只能完成或復原事項。其他修改會在之後支援。';
+  static const remoteBackedUnsupportedMessage = '共同生活場景暫時未支援這個資源操作';
+  static const _pendingRemoteResourceIdPrefix = 'pending_resource:';
 
   final ReminderDao _dao;
   final ResourceStatusService _statusService;
@@ -174,6 +177,13 @@ class ResourceRepository {
     final now = _clock();
     return _dao.attachedDatabase.transaction(() async {
       final packId = input.packId ?? await _ensureDefaultPackId(now);
+      if (await _dao.isRemoteBackedPack(packId)) {
+        return _createRemoteBackedResourceLocally(
+          input,
+          packId: packId,
+          now: now,
+        );
+      }
       await _assertPackCanAcceptResources(packId);
       final resourceId = await _dao.insertResource(
         _resourceCompanion(input, packId: packId, now: now),
@@ -196,11 +206,20 @@ class ResourceRepository {
     if (existing == null || existing.resource.type != input.type) {
       return false;
     }
-    if (await _dao.isRemoteBackedPack(existing.resource.packId)) {
-      return false;
-    }
     final now = _clock();
     final packId = input.packId ?? existing.resource.packId;
+    final existingRemoteBacked = await _dao.isRemoteBackedPack(
+      existing.resource.packId,
+    );
+    final targetRemoteBacked = await _dao.isRemoteBackedPack(packId);
+    if (existingRemoteBacked || targetRemoteBacked) {
+      if (!existingRemoteBacked ||
+          !targetRemoteBacked ||
+          packId != existing.resource.packId) {
+        return false;
+      }
+      return _updateRemoteBackedResourceLocally(existing, input, now: now);
+    }
     await _assertPackCanAcceptResources(packId, existing: existing.resource);
     return _dao.attachedDatabase.transaction(() async {
       final updated = await _dao.updateResourceRecord(
@@ -269,9 +288,11 @@ class ResourceRepository {
 
   Future<bool> archiveResource(int resourceId) async {
     final existing = await getResourceById(resourceId);
-    if (existing == null ||
-        await _dao.isRemoteBackedPack(existing.resource.packId)) {
+    if (existing == null) {
       return false;
+    }
+    if (await _dao.isRemoteBackedPack(existing.resource.packId)) {
+      return _archiveRemoteBackedResourceLocally(existing, now: _clock());
     }
     final now = _clock();
     return _dao.updateResourceFields(
@@ -295,7 +316,13 @@ class ResourceRepository {
       return false;
     }
     if (await _dao.isRemoteBackedPack(existing.resource.packId)) {
-      return false;
+      return _refillRemoteBackedResourceLocally(
+        existing,
+        actionAt: actionAt,
+        addedDays: addedDays,
+        addedQuantity: addedQuantity,
+        remark: remark,
+      );
     }
     final now = _clock();
     final actionDate = _normalizeDate(actionAt ?? now);
@@ -389,7 +416,13 @@ class ResourceRepository {
       return false;
     }
     if (await _dao.isRemoteBackedPack(existing.resource.packId)) {
-      return false;
+      return _adjustRemoteBackedQuantityLocally(
+        existing,
+        newQuantity: newQuantity,
+        actionAt: actionAt,
+        remark: remark,
+        actorUserId: actorUserId,
+      );
     }
     final now = _clock();
     final actionDate = _normalizeDate(actionAt ?? now);
@@ -498,7 +531,14 @@ class ResourceRepository {
       return false;
     }
     if (await _dao.isRemoteBackedPack(existing.resource.packId)) {
-      return false;
+      return _changeRemoteBackedQuantityByDeltaLocally(
+        existing,
+        amount: amount,
+        changeType: changeType,
+        actionAt: actionAt,
+        remark: remark,
+        actorUserId: actorUserId,
+      );
     }
     final now = _clock();
     final actionDate = _normalizeDate(actionAt ?? now);
@@ -583,6 +623,604 @@ class ResourceRepository {
     );
   }
 
+  Future<int> _createRemoteBackedResourceLocally(
+    ResourceInput input, {
+    required int packId,
+    required DateTime now,
+  }) async {
+    final packMetadata = await _dao.getRemotePackSyncMetadataForLocalPack(
+      packId,
+    );
+    if (packMetadata == null ||
+        packMetadata.syncKind != RemotePackSyncKind.remoteBacked ||
+        _isRemoteAccessLost(packMetadata)) {
+      throw StateError(remoteBackedUnsupportedMessage);
+    }
+    final actor = await _resolveActorUser(await _resolveActorId(null));
+    final clientMutationId = _remoteBackedClientMutationId(
+      'create_resource',
+      packId,
+      now,
+    );
+    final resourceId = await _dao.insertResource(
+      _resourceCompanion(input, packId: packId, now: now),
+    );
+    await _dao.insertResourceActionRecord(
+      ResourceActionRecordsCompanion.insert(
+        resourceId: resourceId,
+        actionType: ResourceActionType.created.name,
+        actionDate: _normalizeDate(now).millisecondsSinceEpoch,
+        resultingQuantity: Value(_quantityCurrent(input.config)),
+        resultingDurationDays: Value(_timeDurationDays(input.config)),
+        createdAt: now.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
+      ),
+    );
+    await _insertActivityEvent(
+      packId: packId,
+      actorUserId: actor.id,
+      entityType: 'resource',
+      entityId: resourceId,
+      action: 'resource_created',
+      metadataJson: _jsonObject({
+        'remoteBackedPending': true,
+        'syncActionType': SyncOutboxActionType.createResource.storageValue,
+        'clientMutationId': clientMutationId,
+      }),
+      now: now,
+    );
+    await _dao.insertRemoteResourceSyncMetadata(
+      RemoteResourceSyncMetadataCompanion.insert(
+        localResourceId: resourceId,
+        localPackId: packId,
+        remoteResourceId: '$_pendingRemoteResourceIdPrefix$clientMutationId',
+        remotePackId: packMetadata.remotePackId,
+        syncState: RemoteResourceSyncState.pendingPush.storageValue,
+        remoteStatus: const Value('active'),
+        lastSyncError: const Value(null),
+        createdAt: now.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
+      ),
+    );
+    await _enqueueRemoteBackedResourceMutation(
+      actionType: SyncOutboxActionType.createResource,
+      localPackId: packId,
+      remotePackId: packMetadata.remotePackId,
+      localResourceId: resourceId,
+      remoteResourceId: null,
+      clientMutationId: clientMutationId,
+      actor: actor,
+      actionAt: now,
+      fields: _resourceFields(input),
+    );
+    await _markRemoteBackedPackStale(packMetadata, now);
+    return resourceId;
+  }
+
+  Future<bool> _updateRemoteBackedResourceLocally(
+    ResourceBundle existing,
+    ResourceInput input, {
+    required DateTime now,
+  }) async {
+    final remoteResourceId = await _remoteResourceIdForLocalResource(
+      existing.resource.id,
+    );
+    if (remoteResourceId == null) {
+      return false;
+    }
+    final packMetadata = await _dao.getRemotePackSyncMetadataForLocalPack(
+      existing.resource.packId,
+    );
+    if (packMetadata == null || _isRemoteAccessLost(packMetadata)) {
+      return false;
+    }
+    final actor = await _resolveActorUser(await _resolveActorId(null));
+    final clientMutationId = _remoteBackedClientMutationId(
+      'update_resource',
+      existing.resource.id,
+      now,
+    );
+    return _dao.attachedDatabase.transaction(() async {
+      final updated = await _dao.updateResourceRecord(
+        ResourceRow(
+          id: existing.resource.id,
+          packId: existing.resource.packId,
+          title: input.title,
+          description: input.description,
+          status: existing.resource.status.name,
+          type: input.type.name,
+          timeAnchorDate: _timeAnchorDate(input.config),
+          timeDurationDays: _timeDurationDays(input.config),
+          timeExpectedBeforeDays: _timeInfoBeforeDays(input.config),
+          timeWarningBeforeDays: _timeWarningBeforeDays(input.config),
+          timeDangerBeforeDays: _timeDangerBeforeDays(input.config),
+          quantityCurrent: _quantityCurrent(input.config),
+          quantityUnitLabel: _quantityUnitLabel(input.config),
+          quantityExpectedThreshold: _quantityInfoThreshold(input.config),
+          quantityWarningThreshold: _quantityWarningThreshold(input.config),
+          quantityDangerThreshold: _quantityDangerThreshold(input.config),
+          lastRefilledAt:
+              existing.resource.lastRefilledAt?.millisecondsSinceEpoch,
+          createdAt: existing.resource.createdAt.millisecondsSinceEpoch,
+          updatedAt: now.millisecondsSinceEpoch,
+        ),
+      );
+      if (!updated) {
+        return false;
+      }
+      await _insertActivityEvent(
+        packId: existing.resource.packId,
+        actorUserId: actor.id,
+        entityType: 'resource',
+        entityId: existing.resource.id,
+        action: 'resource_updated',
+        beforeJson: _jsonObject(_resourceSnapshotFields(existing.resource)),
+        afterJson: _jsonObject(_resourceFields(input)),
+        metadataJson: _jsonObject({
+          'remoteBackedPending': true,
+          'syncActionType': SyncOutboxActionType.updateResource.storageValue,
+          'clientMutationId': clientMutationId,
+        }),
+        now: now,
+      );
+      await _markRemoteBackedResourcePendingPush(existing.resource.id, now);
+      await _enqueueRemoteBackedResourceMutation(
+        actionType: SyncOutboxActionType.updateResource,
+        localPackId: existing.resource.packId,
+        remotePackId: packMetadata.remotePackId,
+        localResourceId: existing.resource.id,
+        remoteResourceId: remoteResourceId,
+        clientMutationId: clientMutationId,
+        actor: actor,
+        actionAt: now,
+        fields: _resourceFields(input),
+      );
+      await _markRemoteBackedPackStale(packMetadata, now);
+      return true;
+    });
+  }
+
+  Future<bool> _archiveRemoteBackedResourceLocally(
+    ResourceBundle existing, {
+    required DateTime now,
+  }) async {
+    final remoteResourceId = await _remoteResourceIdForLocalResource(
+      existing.resource.id,
+    );
+    if (remoteResourceId == null) {
+      return false;
+    }
+    final packMetadata = await _dao.getRemotePackSyncMetadataForLocalPack(
+      existing.resource.packId,
+    );
+    if (packMetadata == null || _isRemoteAccessLost(packMetadata)) {
+      return false;
+    }
+    final actor = await _resolveActorUser(await _resolveActorId(null));
+    final clientMutationId = _remoteBackedClientMutationId(
+      'archive_resource',
+      existing.resource.id,
+      now,
+    );
+    return _dao.attachedDatabase.transaction(() async {
+      final updated = await _dao.updateResourceFields(
+        existing.resource.id,
+        ResourcesCompanion(
+          status: Value(ResourceLifecycleStatus.archived.name),
+          updatedAt: Value(now.millisecondsSinceEpoch),
+        ),
+      );
+      if (!updated) {
+        return false;
+      }
+      await _insertActivityEvent(
+        packId: existing.resource.packId,
+        actorUserId: actor.id,
+        entityType: 'resource',
+        entityId: existing.resource.id,
+        action: 'resource_archived',
+        metadataJson: _jsonObject({
+          'remoteBackedPending': true,
+          'syncActionType': SyncOutboxActionType.archiveResource.storageValue,
+          'clientMutationId': clientMutationId,
+        }),
+        now: now,
+      );
+      await _markRemoteBackedResourcePendingPush(existing.resource.id, now);
+      await _enqueueRemoteBackedResourceMutation(
+        actionType: SyncOutboxActionType.archiveResource,
+        localPackId: existing.resource.packId,
+        remotePackId: packMetadata.remotePackId,
+        localResourceId: existing.resource.id,
+        remoteResourceId: remoteResourceId,
+        clientMutationId: clientMutationId,
+        actor: actor,
+        actionAt: now,
+        fields: const {'status': 'archived'},
+      );
+      await _markRemoteBackedPackStale(packMetadata, now);
+      return true;
+    });
+  }
+
+  Future<bool> _refillRemoteBackedResourceLocally(
+    ResourceBundle existing, {
+    DateTime? actionAt,
+    int? addedDays,
+    int? addedQuantity,
+    String? remark,
+  }) async {
+    final now = _clock();
+    final actionDate = _normalizeDate(actionAt ?? now);
+    final actor = await _resolveActorUser(await _resolveActorId(null));
+    if (!await _canActOnPack(existing.pack, actor.id)) {
+      return false;
+    }
+    final packMetadata = await _dao.getRemotePackSyncMetadataForLocalPack(
+      existing.resource.packId,
+    );
+    final remoteResourceId = await _remoteResourceIdForLocalResource(
+      existing.resource.id,
+    );
+    if (packMetadata == null ||
+        _isRemoteAccessLost(packMetadata) ||
+        remoteResourceId == null) {
+      return false;
+    }
+    return switch (existing.resource.config) {
+      TimeBasedResourceConfig config => _refillRemoteBackedTimeResource(
+        existing,
+        config: config,
+        addedDays: addedDays,
+        actionDate: actionDate,
+        remark: remark,
+        actor: actor,
+        packMetadata: packMetadata,
+        remoteResourceId: remoteResourceId,
+        now: now,
+      ),
+      QuantityBasedResourceConfig _ =>
+        _changeRemoteBackedQuantityByDeltaLocally(
+          existing,
+          amount: addedQuantity ?? 0,
+          changeType: ResourceEventChangeType.increment,
+          actionAt: actionDate,
+          remark: remark,
+          actorUserId: actor.id,
+        ),
+      _ => Future.value(false),
+    };
+  }
+
+  Future<bool> _refillRemoteBackedTimeResource(
+    ResourceBundle existing, {
+    required TimeBasedResourceConfig config,
+    required int? addedDays,
+    required DateTime actionDate,
+    required String? remark,
+    required LocalUser actor,
+    required RemotePackSyncMetadataEntry packMetadata,
+    required String remoteResourceId,
+    required DateTime now,
+  }) async {
+    final days = addedDays ?? 0;
+    if (days <= 0) {
+      return false;
+    }
+    final refill = _refillService.refillTimeBased(
+      config,
+      actionDate: actionDate,
+      addedDays: days,
+    );
+    final clientMutationId = _remoteBackedClientMutationId(
+      'resource_increment',
+      existing.resource.id,
+      now,
+    );
+    return _dao.attachedDatabase.transaction(() async {
+      final updated = await _dao.updateResourceFields(
+        existing.resource.id,
+        ResourcesCompanion(
+          timeAnchorDate: Value(refill.anchorDate.millisecondsSinceEpoch),
+          timeDurationDays: Value(refill.durationDays),
+          lastRefilledAt: Value(actionDate.millisecondsSinceEpoch),
+          updatedAt: Value(now.millisecondsSinceEpoch),
+        ),
+      );
+      if (!updated) {
+        return false;
+      }
+      await _dao.insertResourceActionRecord(
+        ResourceActionRecordsCompanion.insert(
+          resourceId: existing.resource.id,
+          actionType: ResourceActionType.refilled.name,
+          actionDate: actionDate.millisecondsSinceEpoch,
+          addedDays: Value(days),
+          resultingDurationDays: Value(refill.durationDays),
+          remark: Value(remark),
+          createdAt: now.millisecondsSinceEpoch,
+          updatedAt: now.millisecondsSinceEpoch,
+        ),
+      );
+      await _insertResourceEvent(
+        resourceId: existing.resource.id,
+        packId: existing.resource.packId,
+        actorUserId: actor.id,
+        changeType: ResourceEventChangeType.increment,
+        previousValue: config.durationDays,
+        newValue: refill.durationDays,
+        deltaValue: days,
+        unit: '天',
+        metadata: {
+          'resource_action': ResourceActionType.refilled.name,
+          'clientMutationId': clientMutationId,
+        },
+        now: now,
+      );
+      await _insertActivityEvent(
+        packId: existing.resource.packId,
+        actorUserId: actor.id,
+        entityType: 'resource',
+        entityId: existing.resource.id,
+        action: 'resource_incremented',
+        beforeJson: _jsonObject({'durationDays': config.durationDays}),
+        afterJson: _jsonObject({'durationDays': refill.durationDays}),
+        metadataJson: _jsonObject({'clientMutationId': clientMutationId}),
+        now: now,
+      );
+      await _markRemoteBackedResourcePendingPush(existing.resource.id, now);
+      await _enqueueRemoteBackedResourceMutation(
+        actionType: SyncOutboxActionType.resourceIncrement,
+        localPackId: existing.resource.packId,
+        remotePackId: packMetadata.remotePackId,
+        localResourceId: existing.resource.id,
+        remoteResourceId: remoteResourceId,
+        clientMutationId: clientMutationId,
+        actor: actor,
+        actionAt: actionDate,
+        event: {
+          'changeType': ResourceEventChangeType.increment.name,
+          'deltaValue': days,
+          'newValue': refill.durationDays,
+          'unit': '天',
+          'metadata': {'resource_action': ResourceActionType.refilled.name},
+        },
+      );
+      await _markRemoteBackedPackStale(packMetadata, now);
+      return true;
+    });
+  }
+
+  Future<bool> _adjustRemoteBackedQuantityLocally(
+    ResourceBundle existing, {
+    required int newQuantity,
+    DateTime? actionAt,
+    String? remark,
+    String? actorUserId,
+  }) async {
+    final config = existing.resource.config;
+    if (config is! QuantityBasedResourceConfig) {
+      return false;
+    }
+    final now = _clock();
+    final actionDate = _normalizeDate(actionAt ?? now);
+    final actor = await _resolveActorUser(await _resolveActorId(actorUserId));
+    if (!await _canActOnPack(existing.pack, actor.id)) {
+      return false;
+    }
+    final packMetadata = await _dao.getRemotePackSyncMetadataForLocalPack(
+      existing.resource.packId,
+    );
+    final remoteResourceId = await _remoteResourceIdForLocalResource(
+      existing.resource.id,
+    );
+    if (packMetadata == null ||
+        _isRemoteAccessLost(packMetadata) ||
+        remoteResourceId == null) {
+      return false;
+    }
+    final resultingQuantity = _refillService.adjustQuantity(newQuantity);
+    final clientMutationId = _remoteBackedClientMutationId(
+      'resource_adjust',
+      existing.resource.id,
+      now,
+    );
+    return _dao.attachedDatabase.transaction(() async {
+      final updated = await _dao.updateResourceFields(
+        existing.resource.id,
+        ResourcesCompanion(
+          quantityCurrent: Value(resultingQuantity),
+          updatedAt: Value(now.millisecondsSinceEpoch),
+        ),
+      );
+      if (!updated) {
+        return false;
+      }
+      await _dao.insertResourceActionRecord(
+        ResourceActionRecordsCompanion.insert(
+          resourceId: existing.resource.id,
+          actionType: ResourceActionType.adjusted.name,
+          actionDate: actionDate.millisecondsSinceEpoch,
+          resultingQuantity: Value(resultingQuantity),
+          remark: Value(remark),
+          createdAt: now.millisecondsSinceEpoch,
+          updatedAt: now.millisecondsSinceEpoch,
+        ),
+      );
+      await _insertResourceEvent(
+        resourceId: existing.resource.id,
+        packId: existing.resource.packId,
+        actorUserId: actor.id,
+        changeType: ResourceEventChangeType.adjust,
+        previousValue: config.currentQuantity,
+        newValue: resultingQuantity,
+        deltaValue: null,
+        unit: config.unitLabel,
+        metadata: {
+          'resource_action': ResourceActionType.adjusted.name,
+          'clientMutationId': clientMutationId,
+        },
+        now: now,
+      );
+      await _insertActivityEvent(
+        packId: existing.resource.packId,
+        actorUserId: actor.id,
+        entityType: 'resource',
+        entityId: existing.resource.id,
+        action: 'resource_adjusted',
+        beforeJson: _jsonObject({'quantity': config.currentQuantity}),
+        afterJson: _jsonObject({'quantity': resultingQuantity}),
+        metadataJson: _jsonObject({'clientMutationId': clientMutationId}),
+        now: now,
+      );
+      await _markRemoteBackedResourcePendingPush(existing.resource.id, now);
+      await _enqueueRemoteBackedResourceMutation(
+        actionType: SyncOutboxActionType.resourceAdjust,
+        localPackId: existing.resource.packId,
+        remotePackId: packMetadata.remotePackId,
+        localResourceId: existing.resource.id,
+        remoteResourceId: remoteResourceId,
+        clientMutationId: clientMutationId,
+        actor: actor,
+        actionAt: actionDate,
+        event: {
+          'changeType': ResourceEventChangeType.adjust.name,
+          'newValue': resultingQuantity,
+          'unit': config.unitLabel,
+          'metadata': {'resource_action': ResourceActionType.adjusted.name},
+        },
+      );
+      await _markRemoteBackedPackStale(packMetadata, now);
+      return true;
+    });
+  }
+
+  Future<bool> _changeRemoteBackedQuantityByDeltaLocally(
+    ResourceBundle existing, {
+    required int amount,
+    required ResourceEventChangeType changeType,
+    DateTime? actionAt,
+    String? remark,
+    String? actorUserId,
+  }) async {
+    if (amount == 0) {
+      return false;
+    }
+    final config = existing.resource.config;
+    if (config is! QuantityBasedResourceConfig) {
+      return false;
+    }
+    final now = _clock();
+    final actionDate = _normalizeDate(actionAt ?? now);
+    final actor = await _resolveActorUser(await _resolveActorId(actorUserId));
+    if (!await _canActOnPack(existing.pack, actor.id)) {
+      return false;
+    }
+    final packMetadata = await _dao.getRemotePackSyncMetadataForLocalPack(
+      existing.resource.packId,
+    );
+    final remoteResourceId = await _remoteResourceIdForLocalResource(
+      existing.resource.id,
+    );
+    if (packMetadata == null ||
+        _isRemoteAccessLost(packMetadata) ||
+        remoteResourceId == null) {
+      return false;
+    }
+    final resultingQuantity = _refillService.adjustQuantity(
+      config.currentQuantity + amount,
+    );
+    final actionType = amount > 0
+        ? SyncOutboxActionType.resourceIncrement
+        : SyncOutboxActionType.resourceDecrement;
+    final clientMutationId = _remoteBackedClientMutationId(
+      actionType.storageValue,
+      existing.resource.id,
+      now,
+    );
+    return _dao.attachedDatabase.transaction(() async {
+      final updated = await _dao.updateResourceFields(
+        existing.resource.id,
+        ResourcesCompanion(
+          quantityCurrent: Value(resultingQuantity),
+          lastRefilledAt: amount > 0
+              ? Value(actionDate.millisecondsSinceEpoch)
+              : const Value.absent(),
+          updatedAt: Value(now.millisecondsSinceEpoch),
+        ),
+      );
+      if (!updated) {
+        return false;
+      }
+      await _dao.insertResourceActionRecord(
+        ResourceActionRecordsCompanion.insert(
+          resourceId: existing.resource.id,
+          actionType: amount > 0
+              ? ResourceActionType.refilled.name
+              : ResourceActionType.adjusted.name,
+          actionDate: actionDate.millisecondsSinceEpoch,
+          amount: Value(amount.abs()),
+          resultingQuantity: Value(resultingQuantity),
+          remark: Value(remark),
+          createdAt: now.millisecondsSinceEpoch,
+          updatedAt: now.millisecondsSinceEpoch,
+        ),
+      );
+      await _insertResourceEvent(
+        resourceId: existing.resource.id,
+        packId: existing.resource.packId,
+        actorUserId: actor.id,
+        changeType: changeType,
+        previousValue: config.currentQuantity,
+        newValue: resultingQuantity,
+        deltaValue: amount,
+        unit: config.unitLabel,
+        metadata: {
+          'resource_action': amount > 0
+              ? ResourceActionType.refilled.name
+              : ResourceActionType.adjusted.name,
+          'clientMutationId': clientMutationId,
+        },
+        now: now,
+      );
+      await _insertActivityEvent(
+        packId: existing.resource.packId,
+        actorUserId: actor.id,
+        entityType: 'resource',
+        entityId: existing.resource.id,
+        action: amount > 0 ? 'resource_incremented' : 'resource_decremented',
+        beforeJson: _jsonObject({'quantity': config.currentQuantity}),
+        afterJson: _jsonObject({'quantity': resultingQuantity}),
+        metadataJson: _jsonObject({'clientMutationId': clientMutationId}),
+        now: now,
+      );
+      await _markRemoteBackedResourcePendingPush(existing.resource.id, now);
+      await _enqueueRemoteBackedResourceMutation(
+        actionType: actionType,
+        localPackId: existing.resource.packId,
+        remotePackId: packMetadata.remotePackId,
+        localResourceId: existing.resource.id,
+        remoteResourceId: remoteResourceId,
+        clientMutationId: clientMutationId,
+        actor: actor,
+        actionAt: actionDate,
+        event: {
+          'changeType': changeType.name,
+          'deltaValue': amount,
+          'newValue': resultingQuantity,
+          'unit': config.unitLabel,
+          'metadata': {
+            'resource_action': amount > 0
+                ? ResourceActionType.refilled.name
+                : ResourceActionType.adjusted.name,
+          },
+        },
+      );
+      await _markRemoteBackedPackStale(packMetadata, now);
+      return true;
+    });
+  }
+
   Future<bool> disableConsumptionRule(int id) {
     final now = _clock();
     return _dao.updateResourceConsumptionRuleFields(
@@ -592,6 +1230,180 @@ class ResourceRepository {
         updatedAt: Value(now.millisecondsSinceEpoch),
       ),
     );
+  }
+
+  Future<LocalUser> _resolveActorUser(String actorUserId) async {
+    final user = await _dao.getLocalUserById(actorUserId);
+    if (user != null) {
+      return user;
+    }
+    final fallback = await _dao.getLocalUserById(AppDatabase.defaultHostUserId);
+    if (fallback != null) {
+      return fallback;
+    }
+    final fallbackNow = DateTime.fromMillisecondsSinceEpoch(0);
+    return LocalUser(
+      id: actorUserId,
+      displayName: '你',
+      remoteUserId: null,
+      remoteProvider: null,
+      identityKind: LocalUserIdentityKind.local,
+      linkedAt: null,
+      createdAt: fallbackNow,
+      updatedAt: fallbackNow,
+    );
+  }
+
+  Future<void> _enqueueRemoteBackedResourceMutation({
+    required SyncOutboxActionType actionType,
+    required int localPackId,
+    required String remotePackId,
+    required int localResourceId,
+    required String? remoteResourceId,
+    required String clientMutationId,
+    required LocalUser actor,
+    required DateTime actionAt,
+    Map<String, Object?> fields = const {},
+    Map<String, Object?> event = const {},
+  }) {
+    final now = _clock();
+    return _dao
+        .insertSyncOutbox(
+          SyncOutboxCompanion.insert(
+            localPackId: localPackId,
+            remotePackId: Value(remotePackId),
+            localEntityType: RemoteSharedPackRepository.localEntityResource,
+            localEntityId: Value(localResourceId),
+            remoteEntityId: Value(remoteResourceId),
+            actionType: actionType.storageValue,
+            payloadJson: jsonEncode({
+              'remotePackId': remotePackId,
+              'remoteResourceId': remoteResourceId,
+              'localPackId': localPackId,
+              'localResourceId': localResourceId,
+              'clientMutationId': clientMutationId,
+              'actorLocalUserId': actor.id,
+              'actorRemoteUserId': actor.remoteUserId,
+              'actionAt': actionAt.toIso8601String(),
+              if (fields.isNotEmpty) 'fields': fields,
+              if (event.isNotEmpty) 'event': event,
+            }),
+            clientMutationId: clientMutationId,
+            actorLocalUserId: actor.id,
+            actorRemoteUserId: Value(actor.remoteUserId),
+            createdAt: now.millisecondsSinceEpoch,
+            updatedAt: now.millisecondsSinceEpoch,
+            status: SyncOutboxStatus.pending.storageValue,
+          ),
+        )
+        .then((_) {});
+  }
+
+  Future<void> _markRemoteBackedResourcePendingPush(
+    int localResourceId,
+    DateTime now,
+  ) async {
+    final metadata = await _dao.getRemoteResourceSyncMetadataForLocalResource(
+      localResourceId,
+    );
+    if (metadata == null) {
+      return;
+    }
+    await _dao.updateRemoteResourceSyncMetadata(
+      metadata.id,
+      RemoteResourceSyncMetadataCompanion(
+        syncState: Value(RemoteResourceSyncState.pendingPush.storageValue),
+        lastSyncError: const Value(null),
+        updatedAt: Value(now.millisecondsSinceEpoch),
+      ),
+    );
+  }
+
+  Future<void> _markRemoteBackedPackStale(
+    RemotePackSyncMetadataEntry metadata,
+    DateTime now,
+  ) {
+    return _dao
+        .updateRemotePackSyncMetadata(
+          metadata.id,
+          RemotePackSyncMetadataCompanion(
+            syncState: Value(RemotePackSyncState.stale.storageValue),
+            lastSyncError: const Value(null),
+            updatedAt: Value(now.millisecondsSinceEpoch),
+          ),
+        )
+        .then((_) {});
+  }
+
+  Future<String?> _remoteResourceIdForLocalResource(int localResourceId) async {
+    final metadata = await _dao.getRemoteResourceSyncMetadataForLocalResource(
+      localResourceId,
+    );
+    final remoteResourceId = metadata?.remoteResourceId;
+    if (remoteResourceId != null &&
+        !remoteResourceId.startsWith(_pendingRemoteResourceIdPrefix)) {
+      return remoteResourceId;
+    }
+    final mapping = await _dao.getSyncMapping(
+      localEntityType: RemoteSharedPackRepository.localEntityResource,
+      localEntityId: localResourceId,
+      remoteTable: RemoteSharedPackRepository.remoteTableResources,
+    );
+    return mapping?.remoteEntityId;
+  }
+
+  bool _isRemoteAccessLost(RemotePackSyncMetadataEntry metadata) {
+    return metadata.syncState == RemotePackSyncState.accessLost ||
+        metadata.syncState == RemotePackSyncState.removed ||
+        metadata.currentUserRemoteStatus == RemoteUserStatus.removed;
+  }
+
+  String _remoteBackedClientMutationId(
+    String action,
+    int localId,
+    DateTime now,
+  ) {
+    return 'phase6d_${action}_${localId}_${now.microsecondsSinceEpoch}';
+  }
+
+  Map<String, Object?> _resourceFields(ResourceInput input) {
+    return {
+      'title': input.title,
+      'description': input.description,
+      'type': input.type.name,
+      'config': _resourceConfigPayload(input.config),
+    };
+  }
+
+  Map<String, Object?> _resourceSnapshotFields(Resource resource) {
+    return {
+      'title': resource.title,
+      'description': resource.description,
+      'type': resource.type.name,
+      'config': _resourceConfigPayload(resource.config),
+    };
+  }
+
+  Map<String, Object?> _resourceConfigPayload(ResourceConfig config) {
+    return switch (config) {
+      TimeBasedResourceConfig time => {
+        'timeAnchorDate': time.anchorDate?.toUtc().toIso8601String(),
+        'timeDurationDays': time.durationDays,
+        'timeExpectedBeforeDays': time.infoBeforeDays,
+        'timeWarningBeforeDays': time.warningBeforeDays,
+        'timeDangerBeforeDays': time.dangerBeforeDays,
+      },
+      QuantityBasedResourceConfig quantity => {
+        'quantityCurrent': _refillService.adjustQuantity(
+          quantity.currentQuantity,
+        ),
+        'quantityUnitLabel': quantity.unitLabel,
+        'quantityExpectedThreshold': quantity.infoThreshold,
+        'quantityWarningThreshold': quantity.warningThreshold,
+        'quantityDangerThreshold': quantity.dangerThreshold,
+      },
+      _ => const <String, Object?>{},
+    };
   }
 
   Future<void> _insertResourceEvent({

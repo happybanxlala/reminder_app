@@ -140,7 +140,8 @@ class ItemRepository {
     ItemActionType.done,
     ItemActionType.skipped,
   };
-  static const remoteBackedUnsupportedMessage = '共同生活場景暫時只能完成或復原事項。其他修改會在之後支援。';
+  static const remoteBackedUnsupportedMessage =
+      '共同生活場景暫時未支援修改場景資料。你仍可以新增、編輯、封存、完成或復原事項。';
   static const _pendingRemoteItemIdPrefix = 'pending:';
 
   final ReminderDao _dao;
@@ -242,9 +243,34 @@ class ItemRepository {
     );
   }
 
+  Future<List<SharedItemActivityEntry>> listSharedItemActivityFeed({
+    int limit = 20,
+    int offset = 0,
+    String? query,
+    int? recentDays,
+    DateTime? now,
+    DateTime? actionDateBefore,
+  }) {
+    final current = _normalizeDate(now ?? _clock());
+    final createdAtFrom = recentDays == null
+        ? null
+        : current.subtract(Duration(days: recentDays - 1));
+    return _dao.listSharedItemActivityEntries(
+      limit: limit,
+      offset: offset,
+      query: query,
+      createdAtFrom: createdAtFrom,
+      createdAtBefore: actionDateBefore == null
+          ? null
+          : _normalizeDate(actionDateBefore),
+    );
+  }
+
   Future<ItemBundle?> getItemById(int id) => _dao.getItemBundleById(id);
 
   Future<ItemPack?> getPackById(int id) => _dao.getItemPackById(id);
+
+  Future<bool> isRemoteBackedPack(int id) => _dao.isRemoteBackedPack(id);
 
   Future<bool> isRemoteBackedItem(int itemId) async {
     final bundle = await getItemById(itemId);

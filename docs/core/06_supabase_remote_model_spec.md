@@ -1604,6 +1604,7 @@ Phase 5M completes the remote-backed shared pack local-first MVP acceptance pass
 - `complete_pack_item` verifies active membership, uses `auth.uid()` as `completed_by_user_id`, returns `completed / already_completed`, writes `item_completed`, and relies on the active-completion unique index.
 - `undo_pack_item_completion` verifies active membership, returns `undone / already_not_completed`, writes `undone_by_user_id` / `undone_at`, writes `item_undone`, and does not delete completion history.
 - Remote-backed CRUD Boundary Phase 1 adds `create_pack_item_v2`, `update_pack_item`, and `archive_pack_item` in `docs/core/sql/phase6_remote_backed_item_crud_mvp.sql` for manual `sync_outbox` flush of item create, basic title/note/assigned-user update, and soft archive.
+- Phase 6D adds Resource sharing RPCs in `docs/core/sql/phase6d_remote_backed_resource_mvp.sql`: `create_pack_resource`, `update_pack_resource`, `archive_pack_resource`, and `apply_resource_event`. They enforce `auth.uid()`, active same-pack membership, idempotent `client_mutation_id`, actor preservation, no hard delete, `activity_events`, and `resource_events`.
 - `create_pack_invite` is host-only and returns plaintext invite code once; database stores only `code_hash`.
 - `join_pack_with_invite` returns `joined / already_member`; a removed member can rejoin only through a valid active invite.
 - `revoke_pack_invite` returns `revoked / already_revoked`.
@@ -1621,6 +1622,8 @@ Phase 5M completes the remote-backed shared pack local-first MVP acceptance pass
 - `pack_members`: active members can read same pack; host manages members; join goes through invite RPC.
 - `items`: active members can read/create/update allowed fields; completion permission is not limited by `assigned_to_user_id`.
 - `item_completions`: active members can read; complete/undo are RPC-controlled; no hard delete policy.
+- `resources`: active members can read; create/update/archive are RPC-controlled for the Phase 6D Resource sharing MVP; no hard delete policy.
+- `resource_events`: active members can read; insert/update are RPC-controlled through `apply_resource_event`; no hard delete policy.
 - `pack_invites`: host can select/manage; plaintext invite code is never stored; join goes through RPC.
 - `activity_events`: active members can read; POC inserts require active membership and `actor_user_id = auth.uid()`; long-term production should move shared writes behind stricter RPC/trigger paths.
 

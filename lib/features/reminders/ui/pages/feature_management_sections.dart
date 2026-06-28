@@ -1,13 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/reminder_theme.dart';
+import '../../data/home_models.dart';
 import '../../data/item_repository.dart';
 import '../../data/local/reminder_dao.dart';
 import '../../data/resource_repository.dart';
 import '../../domain/item.dart';
 import '../../domain/item_pack.dart';
+import '../../domain/remote_sync.dart';
 import '../../domain/resource.dart';
 import '../../domain/resource_refill_service.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
@@ -17,6 +21,7 @@ import '../../providers/developer_settings_providers.dart';
 import '../../providers/item_providers.dart';
 import '../../providers/resource_providers.dart';
 import '../../providers/settings_providers.dart';
+import '../../providers/shared_pack_care_providers.dart';
 import 'item_edit_page.dart';
 import 'item_history_page.dart';
 import 'resource_edit_page.dart';
@@ -122,6 +127,13 @@ class _ItemsManagementContentState
   }
 
   Future<void> _refresh() async {
+    final groups = ref.read(itemManagementGroupsProvider).valueOrNull;
+    final packIds =
+        groups?.map((group) => group.pack.id).toList(growable: false) ??
+        const <int>[];
+    await ref
+        .read(remoteBackedSyncCoordinatorProvider)
+        .refreshVisibleRemoteBackedPacks(packIds);
     ref.invalidate(activeItemPacksProvider);
     ref.invalidate(packManagementItemsProvider);
     await Future<void>.delayed(Duration.zero);

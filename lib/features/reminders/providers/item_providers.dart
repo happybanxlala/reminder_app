@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/home_models.dart';
 import '../domain/item_action_record.dart';
 import '../data/item_repository.dart';
 import '../data/local/reminder_dao.dart';
@@ -52,6 +53,12 @@ final itemsProvider = StreamProvider<List<ItemBundle>>((ref) {
 
 final packManagementItemsProvider = StreamProvider<List<ItemBundle>>((ref) {
   return ref.watch(itemRepositoryProvider).watchPackManagementItems();
+});
+
+final itemSyncStatusesProvider = StreamProvider<Map<int, HomeItemSyncStatus>>((
+  ref,
+) {
+  return ref.watch(itemRepositoryProvider).watchHomeItemSyncStatuses();
 });
 
 final itemManagementGroupsProvider =
@@ -113,24 +120,28 @@ final itemPackProvider = FutureProvider.family<ItemPack?, int>((ref, id) {
 class ItemActivityFeedState {
   const ItemActivityFeedState({
     this.query = '',
-    this.items = const <ItemActivityEntry>[],
+    this.items = const <ItemActivityFeedEntry>[],
     this.isLoading = true,
     this.isLoadingMore = false,
     this.hasMore = false,
     this.errorMessage,
-    this.recentOffset = 0,
-    this.olderOffset = 0,
+    this.localRecentOffset = 0,
+    this.sharedRecentOffset = 0,
+    this.localOlderOffset = 0,
+    this.sharedOlderOffset = 0,
     this.usingOlderWindow = false,
   });
 
   final String query;
-  final List<ItemActivityEntry> items;
+  final List<ItemActivityFeedEntry> items;
   final bool isLoading;
   final bool isLoadingMore;
   final bool hasMore;
   final String? errorMessage;
-  final int recentOffset;
-  final int olderOffset;
+  final int localRecentOffset;
+  final int sharedRecentOffset;
+  final int localOlderOffset;
+  final int sharedOlderOffset;
   final bool usingOlderWindow;
 
   bool get isSearching => query.trim().isNotEmpty;
@@ -143,14 +154,16 @@ class ItemActivityFeedState {
 
   ItemActivityFeedState copyWith({
     String? query,
-    List<ItemActivityEntry>? items,
+    List<ItemActivityFeedEntry>? items,
     bool? isLoading,
     bool? isLoadingMore,
     bool? hasMore,
     String? errorMessage,
     bool clearErrorMessage = false,
-    int? recentOffset,
-    int? olderOffset,
+    int? localRecentOffset,
+    int? sharedRecentOffset,
+    int? localOlderOffset,
+    int? sharedOlderOffset,
     bool? usingOlderWindow,
   }) {
     return ItemActivityFeedState(
@@ -162,11 +175,92 @@ class ItemActivityFeedState {
       errorMessage: clearErrorMessage
           ? null
           : errorMessage ?? this.errorMessage,
-      recentOffset: recentOffset ?? this.recentOffset,
-      olderOffset: olderOffset ?? this.olderOffset,
+      localRecentOffset: localRecentOffset ?? this.localRecentOffset,
+      sharedRecentOffset: sharedRecentOffset ?? this.sharedRecentOffset,
+      localOlderOffset: localOlderOffset ?? this.localOlderOffset,
+      sharedOlderOffset: sharedOlderOffset ?? this.sharedOlderOffset,
       usingOlderWindow: usingOlderWindow ?? this.usingOlderWindow,
     );
   }
+}
+
+sealed class ItemActivityFeedEntry {
+  const ItemActivityFeedEntry();
+
+  DateTime get occurredAt;
+  String get itemTitle;
+  String get packTitle;
+  ItemBundle get bundle;
+  String get stableKey;
+}
+
+class LocalItemActivityFeedEntry extends ItemActivityFeedEntry {
+  const LocalItemActivityFeedEntry(this.entry);
+
+  final ItemActivityEntry entry;
+
+  @override
+  DateTime get occurredAt => entry.record.actionDate;
+
+  @override
+  String get itemTitle => entry.itemTitle;
+
+  @override
+  String get packTitle => entry.packTitle;
+
+  @override
+  ItemBundle get bundle => entry.bundle;
+
+  @override
+  String get stableKey => 'local-${entry.record.id}';
+}
+
+class SharedRemoteItemActivityFeedEntry extends ItemActivityFeedEntry {
+  const SharedRemoteItemActivityFeedEntry(this.entry);
+
+  final SharedItemActivityEntry entry;
+
+  @override
+  DateTime get occurredAt => entry.occurredAt;
+
+  @override
+  String get itemTitle => entry.itemTitle;
+
+  @override
+  String get packTitle => entry.packTitle;
+
+  @override
+  ItemBundle get bundle => ItemBundle(item: entry.item, pack: entry.pack);
+
+  @override
+  String get stableKey => 'shared-${entry.event.id}';
+
+  String get message {
+    final name = entry.actorDisplayName.trim().isEmpty
+        ? '照顧成員'
+        : entry.actorDisplayName.trim();
+    final title = entry.itemTitle;
+    return switch (entry.event.action) {
+      'item_created' => '$name 新增了「$title」',
+      'item_updated' => '$name 更新了「$title」',
+      'item_archived' => '$name 封存了「$title」',
+      'item_completed' => '$name 完成了「$title」',
+      'item_undone' => '$name 復原了「$title」',
+      _ => '$name 更新了「$title」',
+    };
+  }
+}
+
+class _ItemActivityPageResult {
+  const _ItemActivityPageResult({
+    required this.items,
+    required this.localCount,
+    required this.sharedCount,
+  });
+
+  final List<ItemActivityFeedEntry> items;
+  final int localCount;
+  final int sharedCount;
 }
 
 final itemActivityFeedControllerProvider =
@@ -240,53 +334,70 @@ class ItemActivityFeedController extends StateNotifier<ItemActivityFeedState> {
 
   Future<void> _loadInitial() async {
     state = state.copyWith(
-      items: const <ItemActivityEntry>[],
+      items: const <ItemActivityFeedEntry>[],
       isLoading: true,
       isLoadingMore: false,
       hasMore: false,
       clearErrorMessage: true,
-      recentOffset: 0,
-      olderOffset: 0,
+      localRecentOffset: 0,
+      sharedRecentOffset: 0,
+      localOlderOffset: 0,
+      sharedOlderOffset: 0,
       usingOlderWindow: false,
     );
     try {
       final trimmedQuery = state.query.trim();
       if (trimmedQuery.isNotEmpty) {
-        final items = await _loadRecentPage(query: trimmedQuery, offset: 0);
+        final page = await _loadRecentPage(
+          query: trimmedQuery,
+          localOffset: 0,
+          sharedOffset: 0,
+        );
         final hasMore =
-            items.length == pageSize ||
-            await _hasMoreRecent(query: trimmedQuery, offset: items.length);
+            page.items.length == pageSize ||
+            await _hasMoreRecent(
+              query: trimmedQuery,
+              localOffset: page.localCount,
+              sharedOffset: page.sharedCount,
+            );
         if (!mounted) {
           return;
         }
         state = state.copyWith(
-          items: items,
+          items: page.items,
           isLoading: false,
           hasMore: hasMore,
-          recentOffset: items.length,
-          olderOffset: 0,
+          localRecentOffset: page.localCount,
+          sharedRecentOffset: page.sharedCount,
+          localOlderOffset: 0,
+          sharedOlderOffset: 0,
           usingOlderWindow: false,
           clearErrorMessage: true,
         );
         return;
       }
 
-      final recentItems = await _loadRecentPage(offset: 0);
+      final recentPage = await _loadRecentPage(localOffset: 0, sharedOffset: 0);
       final hasMoreRecent =
-          recentItems.length == pageSize ||
-          await _hasMoreRecent(offset: recentItems.length);
+          recentPage.items.length == pageSize ||
+          await _hasMoreRecent(
+            localOffset: recentPage.localCount,
+            sharedOffset: recentPage.sharedCount,
+          );
       final hasOlder = hasMoreRecent
           ? false
-          : await _hasOlderResults(offset: 0);
+          : await _hasOlderResults(localOffset: 0, sharedOffset: 0);
       if (!mounted) {
         return;
       }
       state = state.copyWith(
-        items: recentItems,
+        items: recentPage.items,
         isLoading: false,
         hasMore: hasMoreRecent || hasOlder,
-        recentOffset: recentItems.length,
-        olderOffset: 0,
+        localRecentOffset: recentPage.localCount,
+        sharedRecentOffset: recentPage.sharedCount,
+        localOlderOffset: 0,
+        sharedOlderOffset: 0,
         usingOlderWindow: !hasMoreRecent && hasOlder,
         clearErrorMessage: true,
       );
@@ -300,14 +411,21 @@ class ItemActivityFeedController extends StateNotifier<ItemActivityFeedState> {
 
   Future<void> _loadMoreSearchResults() async {
     final trimmedQuery = state.query.trim();
-    final nextItems = await _loadRecentPage(
+    final page = await _loadRecentPage(
       query: trimmedQuery,
-      offset: state.recentOffset,
+      localOffset: state.localRecentOffset,
+      sharedOffset: state.sharedRecentOffset,
     );
-    final combined = [...state.items, ...nextItems];
+    final combined = [...state.items, ...page.items];
+    final nextLocalOffset = state.localRecentOffset + page.localCount;
+    final nextSharedOffset = state.sharedRecentOffset + page.sharedCount;
     final hasMore =
-        nextItems.length == pageSize ||
-        await _hasMoreRecent(query: trimmedQuery, offset: combined.length);
+        page.items.length == pageSize ||
+        await _hasMoreRecent(
+          query: trimmedQuery,
+          localOffset: nextLocalOffset,
+          sharedOffset: nextSharedOffset,
+        );
     if (!mounted) {
       return;
     }
@@ -315,22 +433,32 @@ class ItemActivityFeedController extends StateNotifier<ItemActivityFeedState> {
       items: combined,
       isLoadingMore: false,
       hasMore: hasMore,
-      recentOffset: combined.length,
+      localRecentOffset: nextLocalOffset,
+      sharedRecentOffset: nextSharedOffset,
       clearErrorMessage: true,
     );
   }
 
   Future<void> _loadMoreDefaultResults() async {
     if (!state.usingOlderWindow) {
-      final nextRecent = await _loadRecentPage(offset: state.recentOffset);
-      if (nextRecent.isNotEmpty) {
-        final combined = [...state.items, ...nextRecent];
+      final recentPage = await _loadRecentPage(
+        localOffset: state.localRecentOffset,
+        sharedOffset: state.sharedRecentOffset,
+      );
+      if (recentPage.items.isNotEmpty) {
+        final combined = [...state.items, ...recentPage.items];
+        final nextLocalOffset = state.localRecentOffset + recentPage.localCount;
+        final nextSharedOffset =
+            state.sharedRecentOffset + recentPage.sharedCount;
         final hasMoreRecent =
-            nextRecent.length == pageSize ||
-            await _hasMoreRecent(offset: combined.length);
+            recentPage.items.length == pageSize ||
+            await _hasMoreRecent(
+              localOffset: nextLocalOffset,
+              sharedOffset: nextSharedOffset,
+            );
         final hasOlder = hasMoreRecent
             ? false
-            : await _hasOlderResults(offset: 0);
+            : await _hasOlderResults(localOffset: 0, sharedOffset: 0);
         if (!mounted) {
           return;
         }
@@ -338,7 +466,8 @@ class ItemActivityFeedController extends StateNotifier<ItemActivityFeedState> {
           items: combined,
           isLoadingMore: false,
           hasMore: hasMoreRecent || hasOlder,
-          recentOffset: combined.length,
+          localRecentOffset: nextLocalOffset,
+          sharedRecentOffset: nextSharedOffset,
           usingOlderWindow: !hasMoreRecent && hasOlder,
           clearErrorMessage: true,
         );
@@ -346,12 +475,20 @@ class ItemActivityFeedController extends StateNotifier<ItemActivityFeedState> {
       }
     }
 
-    final nextOlder = await _loadOlderPage(offset: state.olderOffset);
-    final combined = [...state.items, ...nextOlder];
-    final nextOlderOffset = state.olderOffset + nextOlder.length;
+    final olderPage = await _loadOlderPage(
+      localOffset: state.localOlderOffset,
+      sharedOffset: state.sharedOlderOffset,
+    );
+    final combined = [...state.items, ...olderPage.items];
+    final nextLocalOlderOffset = state.localOlderOffset + olderPage.localCount;
+    final nextSharedOlderOffset =
+        state.sharedOlderOffset + olderPage.sharedCount;
     final hasMoreOlder =
-        nextOlder.length == pageSize ||
-        await _hasOlderResults(offset: nextOlderOffset);
+        olderPage.items.length == pageSize ||
+        await _hasOlderResults(
+          localOffset: nextLocalOlderOffset,
+          sharedOffset: nextSharedOlderOffset,
+        );
     if (!mounted) {
       return;
     }
@@ -359,52 +496,121 @@ class ItemActivityFeedController extends StateNotifier<ItemActivityFeedState> {
       items: combined,
       isLoadingMore: false,
       hasMore: hasMoreOlder,
-      olderOffset: nextOlderOffset,
+      localOlderOffset: nextLocalOlderOffset,
+      sharedOlderOffset: nextSharedOlderOffset,
       usingOlderWindow: true,
       clearErrorMessage: true,
     );
   }
 
-  Future<List<ItemActivityEntry>> _loadRecentPage({
+  Future<_ItemActivityPageResult> _loadRecentPage({
     String? query,
-    required int offset,
+    required int localOffset,
+    required int sharedOffset,
+  }) async {
+    final local = await _repository.listActivityFeed(
+      limit: pageSize,
+      offset: localOffset,
+      query: query,
+      recentDays: recentDays,
+      now: _previewDate,
+    );
+    final shared = await _repository.listSharedItemActivityFeed(
+      limit: pageSize,
+      offset: sharedOffset,
+      query: query,
+      recentDays: recentDays,
+      now: _previewDate,
+    );
+    return _mergeActivityPage(local: local, shared: shared);
+  }
+
+  Future<_ItemActivityPageResult> _loadOlderPage({
+    required int localOffset,
+    required int sharedOffset,
+  }) async {
+    final local = await _repository.listActivityFeed(
+      limit: pageSize,
+      offset: localOffset,
+      actionDateBefore: _recentWindowStart,
+      now: _previewDate,
+    );
+    final shared = await _repository.listSharedItemActivityFeed(
+      limit: pageSize,
+      offset: sharedOffset,
+      actionDateBefore: _recentWindowStart,
+      now: _previewDate,
+    );
+    return _mergeActivityPage(local: local, shared: shared);
+  }
+
+  Future<bool> _hasMoreRecent({
+    String? query,
+    required int localOffset,
+    required int sharedOffset,
+  }) async {
+    final local = await _repository.listActivityFeed(
+      limit: 1,
+      offset: localOffset,
+      query: query,
+      recentDays: recentDays,
+      now: _previewDate,
+    );
+    if (local.isNotEmpty) {
+      return true;
+    }
+    final shared = await _repository.listSharedItemActivityFeed(
+      limit: 1,
+      offset: sharedOffset,
+      query: query,
+      recentDays: recentDays,
+      now: _previewDate,
+    );
+    return shared.isNotEmpty;
+  }
+
+  Future<bool> _hasOlderResults({
+    required int localOffset,
+    required int sharedOffset,
+  }) async {
+    final local = await _repository.listActivityFeed(
+      limit: 1,
+      offset: localOffset,
+      actionDateBefore: _recentWindowStart,
+      now: _previewDate,
+    );
+    if (local.isNotEmpty) {
+      return true;
+    }
+    final shared = await _repository.listSharedItemActivityFeed(
+      limit: 1,
+      offset: sharedOffset,
+      actionDateBefore: _recentWindowStart,
+      now: _previewDate,
+    );
+    return shared.isNotEmpty;
+  }
+
+  _ItemActivityPageResult _mergeActivityPage({
+    required List<ItemActivityEntry> local,
+    required List<SharedItemActivityEntry> shared,
   }) {
-    return _repository.listActivityFeed(
-      limit: pageSize,
-      offset: offset,
-      query: query,
-      recentDays: recentDays,
-      now: _previewDate,
+    final merged =
+        <ItemActivityFeedEntry>[
+          ...local.map(LocalItemActivityFeedEntry.new),
+          ...shared.map(SharedRemoteItemActivityFeedEntry.new),
+        ]..sort((a, b) {
+          final timeCompare = b.occurredAt.compareTo(a.occurredAt);
+          if (timeCompare != 0) {
+            return timeCompare;
+          }
+          return b.stableKey.compareTo(a.stableKey);
+        });
+    final page = merged.take(pageSize).toList(growable: false);
+    return _ItemActivityPageResult(
+      items: page,
+      localCount: page.whereType<LocalItemActivityFeedEntry>().length,
+      sharedCount: page.whereType<SharedRemoteItemActivityFeedEntry>().length,
     );
-  }
-
-  Future<List<ItemActivityEntry>> _loadOlderPage({required int offset}) {
-    return _repository.listActivityFeed(
-      limit: pageSize,
-      offset: offset,
-      actionDateBefore: _recentWindowStart,
-      now: _previewDate,
-    );
-  }
-
-  Future<bool> _hasMoreRecent({String? query, required int offset}) async {
-    final result = await _repository.listActivityFeed(
-      limit: 1,
-      offset: offset,
-      query: query,
-      recentDays: recentDays,
-      now: _previewDate,
-    );
-    return result.isNotEmpty;
-  }
-
-  Future<bool> _hasOlderResults({required int offset}) async {
-    final result = await _repository.listActivityFeed(
-      limit: 1,
-      offset: offset,
-      actionDateBefore: _recentWindowStart,
-      now: _previewDate,
-    );
-    return result.isNotEmpty;
   }
 }

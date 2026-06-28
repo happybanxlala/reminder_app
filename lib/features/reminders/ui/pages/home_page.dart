@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +10,7 @@ import '../../data/local/reminder_dao.dart';
 import '../../domain/attention_summary.dart';
 import '../../domain/item_pack.dart';
 import '../../domain/resource.dart';
+import '../../domain/remote_sync.dart';
 import '../../domain/stage_tracker.dart';
 import '../../domain/stage_occurrence.dart';
 import '../../providers/developer_settings_providers.dart';
@@ -17,6 +20,7 @@ import '../../presentation/view_models/item_card_view_model.dart';
 import '../../providers/home_providers.dart';
 import '../../providers/item_providers.dart';
 import '../../providers/resource_providers.dart';
+import '../../providers/shared_pack_care_providers.dart';
 import '../../providers/stage_tracker_providers.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import 'feature_page.dart';
@@ -213,6 +217,13 @@ class _HomeContentState extends ConsumerState<HomeContent> {
   }
 
   Future<void> _refresh() async {
+    final visiblePackIds = _selectedPackId == null
+        ? (ref.read(activeItemPacksProvider).valueOrNull ?? const <ItemPack>[])
+              .map((pack) => pack.id)
+        : <int>[_selectedPackId!];
+    await ref
+        .read(remoteBackedSyncCoordinatorProvider)
+        .refreshVisibleRemoteBackedPacks(visiblePackIds);
     ref.invalidate(attentionSummaryProvider);
     ref.invalidate(dangerHomeAttentionEntriesProvider);
     ref.invalidate(warningHomeAttentionEntriesProvider);
@@ -680,9 +691,16 @@ class _ItemCard extends ConsumerWidget {
     WidgetRef ref,
     ItemCardViewModel viewModel,
   ) async {
-    await ref
+    final completed = await ref
         .read(itemRepositoryProvider)
         .markDone(viewModel.id, doneAt: previewDate);
+    if (completed && entry.syncStatus.isRemoteBacked) {
+      unawaited(
+        ref
+            .read(remoteBackedSyncCoordinatorProvider)
+            .syncAfterRemoteBackedMutation(entry.bundle.item.packId),
+      );
+    }
   }
 }
 
@@ -773,6 +791,13 @@ class _ResourceCard extends ConsumerWidget {
     final repository = ref.watch(resourceRepositoryProvider);
     final resource = bundle.resource;
     final status = repository.statusFor(resource, now: now);
+    final syncStatus = ref
+        .watch(resourceSyncStatusProvider(resource.id))
+        .maybeWhen(
+          data: (value) => value,
+          orElse: () => ResourceSyncStatus.localOnly,
+        );
+    final syncLabel = _resourceSyncStatusLabel(syncStatus);
     return ReminderRailCard(
       key: Key('resource-card-${resource.id}'),
       railColor: _resourceStatusColor(status, palette),
@@ -796,11 +821,24 @@ class _ResourceCard extends ConsumerWidget {
                         _PackEmojiChip(pack: bundle.pack),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: Text(
-                            resource.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleMedium,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                resource.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              if (syncLabel != null)
+                                Text(
+                                  syncLabel,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.labelSmall
+                                      ?.copyWith(color: palette.textSecondary),
+                                ),
+                            ],
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -825,8 +863,9 @@ class _ResourceCard extends ConsumerWidget {
               const SizedBox(width: 4),
               IconButton(
                 key: Key('resource-refill-${resource.id}'),
-                onPressed: () =>
-                    _showResourceRefillDialog(context, ref, resource),
+                onPressed: syncStatus.isAccessLost
+                    ? null
+                    : () => _showResourceRefillDialog(context, ref, resource),
                 tooltip: '補充',
                 icon: const Icon(Icons.add_rounded),
                 visualDensity: VisualDensity.compact,
@@ -901,7 +940,7 @@ class _ResourceCard extends ConsumerWidget {
     if (input == null || !context.mounted) {
       return;
     }
-    await ref
+    final updated = await ref
         .read(resourceRepositoryProvider)
         .refillResource(
           resource.id,
@@ -911,6 +950,13 @@ class _ResourceCard extends ConsumerWidget {
               ? input
               : null,
         );
+    if (updated) {
+      unawaited(
+        ref
+            .read(remoteBackedSyncCoordinatorProvider)
+            .syncAfterRemoteBackedMutation(resource.packId),
+      );
+    }
   }
 }
 
@@ -979,6 +1025,29 @@ Color _resourceStatusColor(ResourceStatus status, ReminderPalette palette) {
     ResourceStatus.danger => palette.statusDanger,
     ResourceStatus.unknown => palette.statusUnknown,
   };
+}
+
+String? _resourceSyncStatusLabel(ResourceSyncStatus status) {
+  if (!status.isRemoteBacked) {
+    return null;
+  }
+  if (status.isAccessLost) {
+    return ReminderUiText.syncAccessLostLabel;
+  }
+  if (status.hasFailedMutation ||
+      (status.lastSyncError?.trim().isNotEmpty ?? false)) {
+    return ReminderUiText.syncFailedLabel;
+  }
+  if (status.pendingMutationStatus == SyncOutboxStatus.syncing) {
+    return ReminderUiText.syncSyncingLabel;
+  }
+  if (status.pendingMutationStatus == SyncOutboxStatus.pending) {
+    return ReminderUiText.syncPendingLabel;
+  }
+  if (status.isStale) {
+    return ReminderUiText.syncNeedsRefreshLabel;
+  }
+  return null;
 }
 
 class _StageList extends ConsumerWidget {
@@ -1274,7 +1343,10 @@ class _TodayCompletedRow extends ConsumerWidget {
         (status.lastSyncError?.trim().isNotEmpty ?? false)) {
       return ReminderUiText.syncFailedLabel;
     }
-    if (status.hasPendingMutation) {
+    if (status.pendingMutationStatus == SyncOutboxStatus.syncing) {
+      return ReminderUiText.syncSyncingLabel;
+    }
+    if (status.pendingMutationStatus == SyncOutboxStatus.pending) {
       return ReminderUiText.syncPendingLabel;
     }
     if (status.isStale) {
@@ -1294,6 +1366,13 @@ class _TodayCompletedRow extends ConsumerWidget {
         .undoDone(record.id, revertedAt: previewDate);
     if (!context.mounted || !success) {
       return;
+    }
+    if (entry.itemSyncStatus.isRemoteBacked) {
+      unawaited(
+        ref
+            .read(remoteBackedSyncCoordinatorProvider)
+            .syncAfterRemoteBackedMutation(entry.packId),
+      );
     }
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text(ReminderUiText.restoredIncompleteMessage)),

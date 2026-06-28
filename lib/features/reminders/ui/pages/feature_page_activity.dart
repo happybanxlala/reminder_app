@@ -148,28 +148,36 @@ class _ItemActivityContentState extends ConsumerState<ItemActivityContent> {
 class _ActivityEntryCard extends StatelessWidget {
   const _ActivityEntryCard({required this.entry, required this.previewDate});
 
-  final ItemActivityEntry entry;
+  final ItemActivityFeedEntry entry;
   final DateTime previewDate;
 
   @override
   Widget build(BuildContext context) {
-    final packTitle = entry.pack.isSystemDefault
+    final bundle = entry.bundle;
+    final packTitle = bundle.pack.isSystemDefault
         ? ReminderUiText.unassignedPackTitle
-        : entry.pack.title;
-    final actionLabel = ReminderFormatters.itemActionType(
-      entry.record.actionType,
-    );
+        : bundle.pack.title;
+    final sharedEntry = entry is SharedRemoteItemActivityFeedEntry
+        ? entry as SharedRemoteItemActivityFeedEntry
+        : null;
+    final localEntry = entry is LocalItemActivityFeedEntry
+        ? entry as LocalItemActivityFeedEntry
+        : null;
+    final title = sharedEntry?.message ?? entry.itemTitle;
+    final actionLabel = localEntry == null
+        ? entry.itemTitle
+        : ReminderFormatters.itemActionType(localEntry.entry.record.actionType);
+    final actionIcon = localEntry == null
+        ? itemActivityActionIcon(_remoteActivityActionType(sharedEntry!.entry))
+        : itemActivityActionIcon(localEntry.entry.record.actionType);
 
     return Card(
       child: ListTile(
-        key: Key('item-activity-entry-${entry.record.id}'),
-        onTap: () => showItemSummaryDialog(
-          context,
-          entry.bundle,
-          previewDate: previewDate,
-        ),
-        leading: Icon(itemActivityActionIcon(entry.record.actionType)),
-        title: Text(entry.itemTitle),
+        key: Key('item-activity-entry-${entry.stableKey}'),
+        onTap: () =>
+            showItemSummaryDialog(context, bundle, previewDate: previewDate),
+        leading: Icon(actionIcon),
+        title: Text(title),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -177,12 +185,21 @@ class _ActivityEntryCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(actionLabel),
             Text(
-              '${ReminderUiText.itemActivityTimeLabel}：${ReminderFormatters.dateTime(entry.record.updatedAt)}',
+              '${ReminderUiText.itemActivityTimeLabel}：${ReminderFormatters.dateTime(entry.occurredAt)}',
             ),
             Text('${ReminderUiText.itemActivityPackLabel}：$packTitle'),
           ],
         ),
       ),
     );
+  }
+
+  ItemActionType? _remoteActivityActionType(SharedItemActivityEntry entry) {
+    return switch (entry.event.action) {
+      'item_created' => ItemActionType.created,
+      'item_completed' => ItemActionType.done,
+      'item_undone' => ItemActionType.reverted,
+      _ => null,
+    };
   }
 }

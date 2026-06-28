@@ -39,6 +39,9 @@ class ResourceManagementContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return ReminderRefreshable(
       onRefresh: () async {
+        final coordinator = ref.read(remoteBackedSyncCoordinatorProvider);
+        final packIds = await coordinator.listRemoteBackedPackIds();
+        await coordinator.refreshVisibleRemoteBackedPacks(packIds);
         ref.invalidate(managedResourcesProvider);
         await Future<void>.delayed(Duration.zero);
       },
@@ -68,7 +71,19 @@ class ResourceManagementSection extends ConsumerWidget {
               builder: (dialogContext) => const _ResourceFormDialog(),
             );
             if (input != null && context.mounted) {
-              await ref.read(resourceRepositoryProvider).createResource(input);
+              final resourceId = await ref
+                  .read(resourceRepositoryProvider)
+                  .createResource(input);
+              final bundle = await ref
+                  .read(resourceRepositoryProvider)
+                  .getResourceById(resourceId);
+              if (bundle != null) {
+                unawaited(
+                  ref
+                      .read(remoteBackedSyncCoordinatorProvider)
+                      .syncAfterRemoteBackedMutation(bundle.resource.packId),
+                );
+              }
             }
           },
         ),
@@ -193,6 +208,13 @@ class _ManagedResourceCard extends ConsumerWidget {
     final repository = ref.watch(resourceRepositoryProvider);
     final resource = bundle.resource;
     final status = repository.statusFor(resource, now: previewDate);
+    final syncStatus = ref
+        .watch(resourceSyncStatusProvider(resource.id))
+        .maybeWhen(
+          data: (value) => value,
+          orElse: () => ResourceSyncStatus.localOnly,
+        );
+    final syncLabel = _resourceSyncStatusLabel(syncStatus);
     final palette = context.reminderPalette;
     return ReminderRailCard(
       key: Key('resource-card-${resource.id}'),
@@ -217,36 +239,53 @@ class _ManagedResourceCard extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _ResourcePackEmojiChip(pack: bundle.pack),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          resource.title,
-                          key: Key('resource-title-${resource.id}'),
+                      Row(
+                        children: [
+                          _ResourcePackEmojiChip(pack: bundle.pack),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              resource.title,
+                              key: Key('resource-title-${resource.id}'),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            ReminderFormatters.resourceCompactRemainingSummary(
+                              resource,
+                              now: previewDate,
+                            ),
+                            key: Key('resource-compact-summary-${resource.id}'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: _resourceManagementStatusColor(
+                                    status,
+                                    palette,
+                                  ),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                        ],
+                      ),
+                      if (syncLabel != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          syncLabel,
+                          key: Key('resource-sync-label-${resource.id}'),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleMedium,
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(color: palette.textSecondary),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        ReminderFormatters.resourceCompactRemainingSummary(
-                          resource,
-                          now: previewDate,
-                        ),
-                        key: Key('resource-compact-summary-${resource.id}'),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: _resourceManagementStatusColor(
-                            status,
-                            palette,
-                          ),
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                      ],
                     ],
                   ),
                 ],
@@ -256,7 +295,9 @@ class _ManagedResourceCard extends ConsumerWidget {
           const SizedBox(width: 4),
           IconButton(
             key: Key('resource-refill-${resource.id}'),
-            onPressed: () => _showResourceRefillDialog(context, ref, resource),
+            onPressed: syncStatus.isAccessLost
+                ? null
+                : () => _showResourceRefillDialog(context, ref, resource),
             tooltip: '補充',
             icon: const Icon(Icons.add_rounded),
             visualDensity: VisualDensity.compact,
@@ -265,6 +306,7 @@ class _ManagedResourceCard extends ConsumerWidget {
           PopupMenuButton<_ManagedResourceMenuAction>(
             key: Key('resource-overflow-${resource.id}'),
             tooltip: ReminderUiText.itemActionMenuTitle,
+            enabled: !syncStatus.isAccessLost,
             onSelected: (action) => _handleResourceMenuAction(
               context,
               ref,
@@ -342,9 +384,16 @@ class _ManagedResourceCard extends ConsumerWidget {
           isDestructive: true,
         );
         if (confirmed == true) {
-          await ref
+          final archived = await ref
               .read(resourceRepositoryProvider)
               .archiveResource(resource.id);
+          if (archived) {
+            unawaited(
+              ref
+                  .read(remoteBackedSyncCoordinatorProvider)
+                  .syncAfterRemoteBackedMutation(resource.packId),
+            );
+          }
         }
         return;
     }
@@ -363,7 +412,7 @@ class _ManagedResourceCard extends ConsumerWidget {
     if (input == null) {
       return;
     }
-    await ref
+    final updated = await ref
         .read(resourceRepositoryProvider)
         .refillResource(
           resource.id,
@@ -376,6 +425,13 @@ class _ManagedResourceCard extends ConsumerWidget {
               : null,
           remark: input.remark,
         );
+    if (updated) {
+      unawaited(
+        ref
+            .read(remoteBackedSyncCoordinatorProvider)
+            .syncAfterRemoteBackedMutation(resource.packId),
+      );
+    }
   }
 
   Future<void> _showResourceAdjustDialog(
@@ -395,7 +451,7 @@ class _ManagedResourceCard extends ConsumerWidget {
     if (input == null) {
       return;
     }
-    await ref
+    final updated = await ref
         .read(resourceRepositoryProvider)
         .adjustResourceQuantity(
           resource.id,
@@ -403,6 +459,13 @@ class _ManagedResourceCard extends ConsumerWidget {
           actionAt: previewDate,
           remark: input.remark,
         );
+    if (updated) {
+      unawaited(
+        ref
+            .read(remoteBackedSyncCoordinatorProvider)
+            .syncAfterRemoteBackedMutation(resource.packId),
+      );
+    }
   }
 }
 
@@ -416,6 +479,29 @@ Color _resourceManagementStatusColor(
     ResourceStatus.danger => palette.statusDanger,
     ResourceStatus.unknown => palette.statusUnknown,
   };
+}
+
+String? _resourceSyncStatusLabel(ResourceSyncStatus status) {
+  if (!status.isRemoteBacked) {
+    return null;
+  }
+  if (status.isAccessLost) {
+    return ReminderUiText.syncAccessLostLabel;
+  }
+  if (status.hasFailedMutation ||
+      (status.lastSyncError?.trim().isNotEmpty ?? false)) {
+    return ReminderUiText.syncFailedLabel;
+  }
+  if (status.pendingMutationStatus == SyncOutboxStatus.syncing) {
+    return ReminderUiText.syncSyncingLabel;
+  }
+  if (status.pendingMutationStatus == SyncOutboxStatus.pending) {
+    return ReminderUiText.syncPendingLabel;
+  }
+  if (status.isStale) {
+    return ReminderUiText.syncNeedsRefreshLabel;
+  }
+  return null;
 }
 
 Future<void> _showResourceDetailDialog(

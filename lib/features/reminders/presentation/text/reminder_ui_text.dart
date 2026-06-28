@@ -87,10 +87,16 @@ class ReminderUiText {
   static const noResourceHistory = '目前沒有資源變動紀錄。';
   static const noItems = '目前沒有要照顧的事。';
   static const syncPendingLabel = '等待同步';
+  static const syncSyncingLabel = '正在同步';
   static const syncFailedLabel = '同步失敗';
+  static const syncRetryLaterLabel = '同步失敗，稍後會再試';
+  static const syncUpdatedLabel = '已更新';
+  static const syncNewUpdatesRefreshLabel = '有新的更新，請刷新';
   static const syncStaleLabel = '遠端狀態可能已更新';
-  static const syncNeedsRefreshLabel = '需要刷新共同資料';
-  static const syncAccessLostLabel = '已失去遠端存取權';
+  static const syncNeedsRefreshLabel = '有新的更新，請刷新';
+  static const syncAccessLostLabel = '已無法存取';
+  static const remoteBackedPackMetadataUnsupported =
+      '共同生活場景暫時未支援修改場景資料。你仍可以新增、編輯、封存、完成或復原事項。';
   static const packCareAction = '一起照顧';
   static const packCareInviteAction = '邀請一起照顧';
   static const packCareInviteMoreAction = '邀請更多人';
@@ -122,6 +128,10 @@ class ReminderUiText {
   static const packCareSyncFailedBanner = '同步失敗，請稍後再試。';
   static const packCareSyncStaleBanner = '需要刷新共同資料，才能確認最新狀態。';
   static const packCareRefreshSharedState = '刷新共享狀態';
+  static const packCareUpdating = '正在更新共同生活場景……';
+  static const packCareUpdated = '共同生活場景已更新';
+  static const packCareUpdateFailed = '暫時無法更新共同生活場景';
+  static const packCareMemberUpdateFailed = '暫時無法更新成員，請稍後再試';
   static const packCareRefreshSuccess = '已刷新共同資料';
   static const packCareRefreshPendingWarning = '仍有等待同步的本機操作';
   static const packCareRefreshFailed = '同步失敗，稍後再試';
@@ -134,7 +144,8 @@ class ReminderUiText {
   static const packCareAccessLostGuard = '為了避免資料錯亂，暫時不能完成或復原這裡的提醒。';
   static const packCareDataProtectionNote =
       '可先綁定 Email 保護共享資料；Apple / Google 會在後續階段開放。';
-  static const remoteBackedUnsupportedAction = '共同生活場景暫時只能完成或復原事項。其他修改會在之後支援。';
+  static const remoteBackedUnsupportedAction =
+      '共同生活場景暫時未支援修改場景資料。你仍可以新增、編輯、封存、完成或復原事項。';
   static const noItemPacks = '目前沒有生活場景。';
   static const noStageTrackers = '目前沒有階段追蹤。';
   static const noDefaultItemPack = '目前沒有生活場景。';

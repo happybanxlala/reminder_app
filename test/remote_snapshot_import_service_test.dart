@@ -11,6 +11,7 @@ import 'package:reminder_app/features/reminders/data/reminder_backup_service.dar
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_action_record.dart';
 import 'package:reminder_app/features/reminders/domain/remote_sync.dart';
+import 'package:reminder_app/features/reminders/domain/resource.dart';
 import 'package:reminder_app/features/reminders/domain/shared_pack.dart';
 
 void main() {
@@ -112,6 +113,180 @@ void main() {
     expect(await db.select(db.activityEvents).get(), hasLength(1));
   });
 
+  test('import updates remote undone completion into local history', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final identity = IdentityRepository(db.reminderDao);
+    final currentUser = await identity.linkRemoteIdentity(
+      remoteUserId: 'remote-user-current',
+      provider: AuthProviderType.supabaseAnonymous,
+    );
+    final service = RemoteSnapshotImportService(
+      dao: db.reminderDao,
+      identityRepository: identity,
+      clock: () => DateTime(2026, 6, 21, 12),
+    );
+
+    final first = await service.importRemotePackSnapshot(
+      snapshot: _snapshot(),
+      source: RemoteSnapshotImportSource.joinedRemotePack,
+    );
+    final itemMapping = await db.reminderDao.getSyncMappingByRemote(
+      localEntityType: 'item',
+      remoteTable: 'items',
+      remoteEntityId: 'remote-item-1',
+    );
+    expect(first.succeeded, isTrue);
+    expect(itemMapping, isNotNull);
+
+    final undoneAt = DateTime(2026, 6, 21, 11, 30);
+    final second = await service.importRemotePackSnapshot(
+      snapshot: _snapshot(
+        completions: [
+          RemoteItemCompletionSnapshot(
+            id: 'remote-completion-1',
+            packId: 'remote-pack-1',
+            itemId: 'remote-item-1',
+            completedByUserId: 'remote-user-other',
+            completedAt: DateTime(2026, 6, 21, 11, 5),
+            undoneByUserId: 'remote-user-current',
+            undoneAt: undoneAt,
+            createdAt: DateTime(2026, 6, 21, 11, 5),
+          ),
+        ],
+        activityEvents: [
+          RemoteActivityEventSnapshot(
+            id: 'remote-activity-undone',
+            packId: 'remote-pack-1',
+            actorUserId: 'remote-user-current',
+            actorDisplayNameSnapshot: 'Current',
+            entityType: 'item',
+            entityId: 'remote-item-1',
+            action: 'item_undone',
+            createdAt: undoneAt,
+          ),
+        ],
+      ),
+      source: RemoteSnapshotImportSource.localMappedPack,
+    );
+
+    expect(second.succeeded, isTrue);
+    final completions = await db.reminderDao.listItemCompletions(
+      itemMapping!.localEntityId,
+    );
+    expect(completions.single.undoneByUserId, currentUser.id);
+    expect(completions.single.undoneAt, undoneAt);
+    final actions = await db.reminderDao.listItemActionRecordsForItem(
+      itemMapping.localEntityId,
+    );
+    final done = actions.singleWhere(
+      (record) => record.actionType == ItemActionType.done,
+    );
+    final reverted = actions.singleWhere(
+      (record) => record.actionType == ItemActionType.reverted,
+    );
+    expect(done.isReverted, isTrue);
+    expect(done.revertedAt, undoneAt);
+    expect(done.revertedByActionRecordId, reverted.id);
+  });
+
+  test('import marks missing active members as removed', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final identity = IdentityRepository(db.reminderDao);
+    await identity.linkRemoteIdentity(
+      remoteUserId: 'remote-user-current',
+      provider: AuthProviderType.supabaseAnonymous,
+    );
+    final service = RemoteSnapshotImportService(
+      dao: db.reminderDao,
+      identityRepository: identity,
+    );
+
+    final first = await service.importRemotePackSnapshot(
+      snapshot: _snapshot(),
+      source: RemoteSnapshotImportSource.joinedRemotePack,
+    );
+    final second = await service.importRemotePackSnapshot(
+      snapshot: _snapshot(
+        members: [
+          RemotePackMemberSnapshot(
+            id: 'remote-member-1',
+            packId: 'remote-pack-1',
+            userId: 'remote-user-current',
+            displayName: 'Current',
+            role: 'host',
+            status: 'active',
+            joinedAt: DateTime(2026, 6, 21, 10),
+          ),
+        ],
+      ),
+      source: RemoteSnapshotImportSource.localMappedPack,
+    );
+
+    expect(first.localPackId, isNotNull);
+    expect(second.succeeded, isTrue);
+    final members = await db.reminderDao.listPackMembers(first.localPackId!);
+    expect(
+      members.where((member) => member.status == PackMemberStatus.active),
+      hasLength(1),
+    );
+    expect(
+      members.where((member) => member.status == PackMemberStatus.removed),
+      hasLength(1),
+    );
+  });
+
+  test(
+    'shared item activity projection is actor-aware and idempotent',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final identity = IdentityRepository(db.reminderDao);
+      await identity.linkRemoteIdentity(
+        remoteUserId: 'remote-user-current',
+        provider: AuthProviderType.supabaseAnonymous,
+      );
+      final service = RemoteSnapshotImportService(
+        dao: db.reminderDao,
+        identityRepository: identity,
+      );
+      final repository = ItemRepository(db.reminderDao);
+      final snapshot = _snapshot(
+        activityEvents: [
+          RemoteActivityEventSnapshot(
+            id: 'remote-activity-created',
+            packId: 'remote-pack-1',
+            actorUserId: 'remote-user-other',
+            actorDisplayNameSnapshot: 'Other',
+            entityType: 'item',
+            entityId: 'remote-item-1',
+            action: 'item_created',
+            createdAt: DateTime(2026, 6, 21, 11, 6),
+          ),
+        ],
+      );
+
+      await service.importRemotePackSnapshot(
+        snapshot: snapshot,
+        source: RemoteSnapshotImportSource.joinedRemotePack,
+      );
+      await service.importRemotePackSnapshot(
+        snapshot: snapshot,
+        source: RemoteSnapshotImportSource.localMappedPack,
+      );
+
+      final entries = await repository.listSharedItemActivityFeed(
+        now: DateTime(2026, 6, 21, 12),
+        recentDays: 30,
+      );
+      expect(entries, hasLength(1));
+      expect(entries.single.actorDisplayName, 'Other');
+      expect(entries.single.itemTitle, 'Remote item');
+      expect(entries.single.event.action, 'item_created');
+    },
+  );
+
   test(
     'remote-backed imported items are read-only for local done and undo',
     () async {
@@ -195,9 +370,109 @@ void main() {
       expect(exported, isNot(contains('sync_outbox')));
     },
   );
+
+  test('imports remote resources and resource events idempotently', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final identity = IdentityRepository(db.reminderDao);
+    await identity.linkRemoteIdentity(
+      remoteUserId: 'remote-user-current',
+      provider: AuthProviderType.supabaseAnonymous,
+    );
+    final service = RemoteSnapshotImportService(
+      dao: db.reminderDao,
+      identityRepository: identity,
+    );
+    final snapshot = _snapshot(
+      resources: [
+        RemoteResourceSnapshot(
+          id: 'remote-resource-1',
+          packId: 'remote-pack-1',
+          title: 'Cat food',
+          status: 'active',
+          type: ResourceType.quantityBased.name,
+          quantityCurrent: 5,
+          quantityUnitLabel: '包',
+          quantityWarningThreshold: 1,
+          quantityDangerThreshold: 0,
+          createdByUserId: 'remote-user-current',
+          updatedByUserId: 'remote-user-other',
+          createdAt: DateTime(2026, 6, 21, 10),
+          updatedAt: DateTime(2026, 6, 21, 11),
+        ),
+      ],
+      resourceEvents: [
+        RemoteResourceEventSnapshot(
+          id: 'remote-resource-event-1',
+          packId: 'remote-pack-1',
+          resourceId: 'remote-resource-1',
+          actorUserId: 'remote-user-other',
+          changeType: ResourceEventChangeType.increment.name,
+          previousValue: 3,
+          newValue: 5,
+          deltaValue: 2,
+          unit: '包',
+          metadataJson: const {'resource_action': 'refilled'},
+          createdAt: DateTime(2026, 6, 21, 11, 10),
+        ),
+      ],
+      activityEvents: [
+        RemoteActivityEventSnapshot(
+          id: 'remote-resource-activity-1',
+          packId: 'remote-pack-1',
+          actorUserId: 'remote-user-other',
+          actorDisplayNameSnapshot: 'Other',
+          entityType: 'resource',
+          entityId: 'remote-resource-1',
+          action: 'resource_incremented',
+          createdAt: DateTime(2026, 6, 21, 11, 11),
+        ),
+      ],
+    );
+
+    await service.importRemotePackSnapshot(
+      snapshot: snapshot,
+      source: RemoteSnapshotImportSource.manualDeveloperImport,
+    );
+    await service.importRemotePackSnapshot(
+      snapshot: snapshot,
+      source: RemoteSnapshotImportSource.manualDeveloperImport,
+    );
+
+    final mapping = await db.reminderDao.getSyncMappingByRemote(
+      localEntityType: 'resource',
+      remoteTable: 'resources',
+      remoteEntityId: 'remote-resource-1',
+    );
+    expect(mapping, isNotNull);
+    final bundle = await db.reminderDao.getResourceBundleById(
+      mapping!.localEntityId,
+    );
+    expect(bundle!.resource.title, 'Cat food');
+    expect(
+      (bundle.resource.config as QuantityBasedResourceConfig).currentQuantity,
+      5,
+    );
+    final events = await db.reminderDao.listResourceEventsForResource(
+      mapping.localEntityId,
+    );
+    expect(events, hasLength(1));
+    expect(events.single.deltaValue, 2);
+    final actions = await db.reminderDao.listResourceActionRecordsForResource(
+      mapping.localEntityId,
+    );
+    expect(actions, hasLength(1));
+    expect(actions.single.actionType, ResourceActionType.refilled);
+  });
 }
 
-RemotePackSnapshot _snapshot() {
+RemotePackSnapshot _snapshot({
+  List<RemotePackMemberSnapshot>? members,
+  List<RemoteResourceSnapshot>? resources,
+  List<RemoteItemCompletionSnapshot>? completions,
+  List<RemoteResourceEventSnapshot>? resourceEvents,
+  List<RemoteActivityEventSnapshot>? activityEvents,
+}) {
   final created = DateTime(2026, 6, 21, 10);
   final updated = DateTime(2026, 6, 21, 11);
   return RemotePackSnapshot(
@@ -208,26 +483,28 @@ RemotePackSnapshot _snapshot() {
     status: 'active',
     createdAt: created,
     updatedAt: updated,
-    members: [
-      RemotePackMemberSnapshot(
-        id: 'remote-member-1',
-        packId: 'remote-pack-1',
-        userId: 'remote-user-current',
-        displayName: 'Current',
-        role: 'host',
-        status: 'active',
-        joinedAt: created,
-      ),
-      RemotePackMemberSnapshot(
-        id: 'remote-member-2',
-        packId: 'remote-pack-1',
-        userId: 'remote-user-other',
-        displayName: 'Other',
-        role: 'member',
-        status: 'active',
-        joinedAt: created,
-      ),
-    ],
+    members:
+        members ??
+        [
+          RemotePackMemberSnapshot(
+            id: 'remote-member-1',
+            packId: 'remote-pack-1',
+            userId: 'remote-user-current',
+            displayName: 'Current',
+            role: 'host',
+            status: 'active',
+            joinedAt: created,
+          ),
+          RemotePackMemberSnapshot(
+            id: 'remote-member-2',
+            packId: 'remote-pack-1',
+            userId: 'remote-user-other',
+            displayName: 'Other',
+            role: 'member',
+            status: 'active',
+            joinedAt: created,
+          ),
+        ],
     items: [
       RemoteItemSnapshot(
         id: 'remote-item-1',
@@ -242,28 +519,34 @@ RemotePackSnapshot _snapshot() {
         updatedAt: updated,
       ),
     ],
-    completions: [
-      RemoteItemCompletionSnapshot(
-        id: 'remote-completion-1',
-        packId: 'remote-pack-1',
-        itemId: 'remote-item-1',
-        completedByUserId: 'remote-user-other',
-        completedAt: DateTime(2026, 6, 21, 11, 5),
-        createdAt: DateTime(2026, 6, 21, 11, 5),
-      ),
-    ],
-    activityEvents: [
-      RemoteActivityEventSnapshot(
-        id: 'remote-activity-1',
-        packId: 'remote-pack-1',
-        actorUserId: 'remote-user-other',
-        actorDisplayNameSnapshot: 'Other',
-        entityType: 'item',
-        entityId: 'remote-item-1',
-        action: 'completed',
-        metadataJson: const {'source': 'test'},
-        createdAt: DateTime(2026, 6, 21, 11, 6),
-      ),
-    ],
+    resources: resources ?? const [],
+    completions:
+        completions ??
+        [
+          RemoteItemCompletionSnapshot(
+            id: 'remote-completion-1',
+            packId: 'remote-pack-1',
+            itemId: 'remote-item-1',
+            completedByUserId: 'remote-user-other',
+            completedAt: DateTime(2026, 6, 21, 11, 5),
+            createdAt: DateTime(2026, 6, 21, 11, 5),
+          ),
+        ],
+    resourceEvents: resourceEvents ?? const [],
+    activityEvents:
+        activityEvents ??
+        [
+          RemoteActivityEventSnapshot(
+            id: 'remote-activity-1',
+            packId: 'remote-pack-1',
+            actorUserId: 'remote-user-other',
+            actorDisplayNameSnapshot: 'Other',
+            entityType: 'item',
+            entityId: 'remote-item-1',
+            action: 'completed',
+            metadataJson: const {'source': 'test'},
+            createdAt: DateTime(2026, 6, 21, 11, 6),
+          ),
+        ],
   );
 }

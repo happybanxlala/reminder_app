@@ -7,6 +7,7 @@ import '../domain/item.dart';
 import '../domain/item_action_record.dart';
 import '../domain/item_pack.dart';
 import '../domain/remote_sync.dart';
+import '../domain/resource.dart';
 import '../domain/shared_pack.dart';
 import 'identity_repository.dart';
 import 'local/app_database.dart';
@@ -75,8 +76,10 @@ class RemoteSnapshotImportService {
        _clock = clock ?? DateTime.now;
 
   static const localEntityCompletion = 'item_completion';
+  static const localEntityResourceEvent = 'resource_event';
   static const localEntityActivity = 'activity_event';
   static const remoteTableCompletions = 'item_completions';
+  static const remoteTableResourceEvents = 'resource_events';
   static const remoteTableActivityEvents = 'activity_events';
 
   final ReminderDao _dao;
@@ -110,6 +113,7 @@ class RemoteSnapshotImportService {
         );
 
         final userMap = <String, LocalUser>{};
+        final snapshotLocalUserIds = <String>{};
         for (final member in snapshot.members) {
           final before = await _dao.getLocalUserByRemoteUserId(member.userId);
           final localUser = await _ensureRemoteUser(
@@ -118,6 +122,7 @@ class RemoteSnapshotImportService {
             currentUser: currentUser,
           );
           userMap[member.userId] = localUser;
+          snapshotLocalUserIds.add(localUser.id);
           if (before == null && localUser.id.startsWith(_placeholderPrefix)) {
             membersCreated++;
           }
@@ -135,6 +140,20 @@ class RemoteSnapshotImportService {
             ),
           );
           previousMember == null ? membersCreated++ : membersUpdated++;
+        }
+        final localMembers = await _dao.listPackMembers(packId);
+        for (final member in localMembers) {
+          if (member.status == PackMemberStatus.active &&
+              !snapshotLocalUserIds.contains(member.userId)) {
+            final updated = await _dao.updatePackMemberStatus(
+              packId: packId,
+              userId: member.userId,
+              status: PackMemberStatus.removed,
+            );
+            if (updated) {
+              membersUpdated++;
+            }
+          }
         }
 
         final hostUser = userMap[snapshot.hostUserId];
@@ -180,6 +199,36 @@ class RemoteSnapshotImportService {
           );
         }
 
+        final resourceIdsByRemoteId = <String, int>{};
+        for (final resource in snapshot.resources) {
+          final existingId = await _findLocalEntityId(
+            localEntityType: RemoteSharedPackRepository.localEntityResource,
+            remoteTable: RemoteSharedPackRepository.remoteTableResources,
+            remoteEntityId: resource.id,
+          );
+          final localResourceId =
+              existingId ??
+              await _insertLocalResource(
+                snapshot: resource,
+                localPackId: packId,
+              );
+          if (existingId == null) {
+            itemsCreated++;
+          } else {
+            itemsUpdated++;
+            await _updateLocalResource(
+              localResourceId: localResourceId,
+              snapshot: resource,
+            );
+          }
+          resourceIdsByRemoteId[resource.id] = localResourceId;
+          await _upsertResourceMappingAndMetadata(
+            snapshot: resource,
+            localPackId: packId,
+            localResourceId: localResourceId,
+          );
+        }
+
         final completionIdsByRemoteId = <String, int>{};
         for (final completion in snapshot.completions) {
           final localItemId = itemIdsByRemoteId[completion.itemId];
@@ -221,7 +270,17 @@ class RemoteSnapshotImportService {
             completionsCreated++;
           } else {
             completionsUpdated++;
+            await _updateLocalCompletion(
+              localCompletionId: localCompletionId,
+              snapshot: completion,
+              undoneByUserId: undoneBy?.id,
+            );
           }
+          await _projectRemoteCompletionUndo(
+            localCompletionId: localCompletionId,
+            snapshot: completion,
+            undoneByUserId: undoneBy?.id,
+          );
           completionIdsByRemoteId[completion.id] = localCompletionId;
           await _upsertCompletionMappingAndMetadata(
             snapshot: completion,
@@ -231,11 +290,55 @@ class RemoteSnapshotImportService {
           );
         }
 
+        for (final event in snapshot.resourceEvents) {
+          final localResourceId = resourceIdsByRemoteId[event.resourceId];
+          if (localResourceId == null) {
+            skipped++;
+            warnings.add(
+              'Skipped resource event ${event.id}: remote resource is not mapped.',
+            );
+            continue;
+          }
+          final existingId = await _findLocalEntityId(
+            localEntityType: localEntityResourceEvent,
+            remoteTable: remoteTableResourceEvents,
+            remoteEntityId: event.id,
+          );
+          if (existingId != null) {
+            activityUpdated++;
+            continue;
+          }
+          final actor = await _ensureRemoteUser(
+            remoteUserId: event.actorUserId,
+            displayName: null,
+            currentUser: currentUser,
+          );
+          final localEventId = await _insertLocalResourceEvent(
+            snapshot: event,
+            localPackId: packId,
+            localResourceId: localResourceId,
+            actorUserId: actor.id,
+          );
+          await _insertLocalResourceActionFromEvent(
+            snapshot: event,
+            localResourceId: localResourceId,
+          );
+          await _upsertSyncMapping(
+            localEntityType: localEntityResourceEvent,
+            localEntityId: localEventId,
+            remoteTable: remoteTableResourceEvents,
+            remoteEntityId: event.id,
+            now: _clock(),
+          );
+          activityCreated++;
+        }
+
         for (final event in snapshot.activityEvents) {
           final localEntityId = _activityEntityId(
             event: event,
             localPackId: packId,
             itemIdsByRemoteId: itemIdsByRemoteId,
+            resourceIdsByRemoteId: resourceIdsByRemoteId,
             completionIdsByRemoteId: completionIdsByRemoteId,
           );
           if (localEntityId == null) {
@@ -389,6 +492,107 @@ class RemoteSnapshotImportService {
     );
   }
 
+  Future<int> _insertLocalResource({
+    required RemoteResourceSnapshot snapshot,
+    required int localPackId,
+  }) {
+    return _dao.insertResource(
+      ResourcesCompanion.insert(
+        packId: localPackId,
+        title: snapshot.title,
+        description: Value(snapshot.description),
+        status: Value(_localResourceStatus(snapshot.status).name),
+        type: _localResourceType(snapshot.type).name,
+        timeAnchorDate: Value(_millisOrNull(snapshot.timeAnchorDate)),
+        timeDurationDays: Value(snapshot.timeDurationDays),
+        timeExpectedBeforeDays: Value(snapshot.timeExpectedBeforeDays),
+        timeWarningBeforeDays: Value(snapshot.timeWarningBeforeDays),
+        timeDangerBeforeDays: Value(snapshot.timeDangerBeforeDays),
+        quantityCurrent: Value(snapshot.quantityCurrent),
+        quantityUnitLabel: Value(snapshot.quantityUnitLabel),
+        quantityExpectedThreshold: Value(snapshot.quantityExpectedThreshold),
+        quantityWarningThreshold: Value(snapshot.quantityWarningThreshold),
+        quantityDangerThreshold: Value(snapshot.quantityDangerThreshold),
+        lastRefilledAt: Value(_millisOrNull(snapshot.lastRefilledAt)),
+        createdAt: _millis(snapshot.createdAt),
+        updatedAt: _millis(snapshot.updatedAt),
+      ),
+    );
+  }
+
+  Future<void> _updateLocalResource({
+    required int localResourceId,
+    required RemoteResourceSnapshot snapshot,
+  }) async {
+    await _dao.updateResourceFields(
+      localResourceId,
+      ResourcesCompanion(
+        title: Value(snapshot.title),
+        description: Value(snapshot.description),
+        status: Value(_localResourceStatus(snapshot.status).name),
+        timeAnchorDate: Value(_millisOrNull(snapshot.timeAnchorDate)),
+        timeDurationDays: Value(snapshot.timeDurationDays),
+        timeExpectedBeforeDays: Value(snapshot.timeExpectedBeforeDays),
+        timeWarningBeforeDays: Value(snapshot.timeWarningBeforeDays),
+        timeDangerBeforeDays: Value(snapshot.timeDangerBeforeDays),
+        quantityCurrent: Value(snapshot.quantityCurrent),
+        quantityUnitLabel: Value(snapshot.quantityUnitLabel),
+        quantityExpectedThreshold: Value(snapshot.quantityExpectedThreshold),
+        quantityWarningThreshold: Value(snapshot.quantityWarningThreshold),
+        quantityDangerThreshold: Value(snapshot.quantityDangerThreshold),
+        lastRefilledAt: Value(_millisOrNull(snapshot.lastRefilledAt)),
+        updatedAt: Value(_millis(snapshot.updatedAt)),
+      ),
+    );
+  }
+
+  Future<int> _insertLocalResourceEvent({
+    required RemoteResourceEventSnapshot snapshot,
+    required int localPackId,
+    required int localResourceId,
+    required String actorUserId,
+  }) {
+    return _dao.insertResourceEvent(
+      ResourceEventsCompanion.insert(
+        resourceId: localResourceId,
+        packId: localPackId,
+        actorUserId: actorUserId,
+        changeType: _localResourceEventChangeType(snapshot.changeType).name,
+        previousValue: Value(snapshot.previousValue),
+        newValue: Value(snapshot.newValue),
+        deltaValue: Value(snapshot.deltaValue),
+        unit: Value(snapshot.unit),
+        createdAt: _millis(snapshot.createdAt),
+        metadataJson: Value(
+          _encodeMap({
+            'remoteResourceEventId': snapshot.id,
+            'remoteResourceId': snapshot.resourceId,
+            'actorRemoteUserId': snapshot.actorUserId,
+            'remoteMetadata': snapshot.metadataJson,
+          }),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _insertLocalResourceActionFromEvent({
+    required RemoteResourceEventSnapshot snapshot,
+    required int localResourceId,
+  }) async {
+    await _dao.insertResourceActionRecord(
+      ResourceActionRecordsCompanion.insert(
+        resourceId: localResourceId,
+        actionType: _resourceActionTypeFromEvent(snapshot).name,
+        actionDate: _millis(snapshot.createdAt),
+        amount: Value(snapshot.deltaValue?.abs()),
+        resultingQuantity: Value(snapshot.newValue),
+        remark: Value(_remoteResourceEventRemark(snapshot)),
+        createdAt: _millis(snapshot.createdAt),
+        updatedAt: _millis(snapshot.createdAt),
+      ),
+    );
+  }
+
   Future<int> _insertLocalCompletion({
     required RemoteItemCompletionSnapshot snapshot,
     required int localPackId,
@@ -424,6 +628,83 @@ class RemoteSnapshotImportService {
         clientMutationId: Value(snapshot.clientMutationId),
         createdAt: _millis(snapshot.createdAt),
       ),
+    );
+  }
+
+  Future<void> _updateLocalCompletion({
+    required int localCompletionId,
+    required RemoteItemCompletionSnapshot snapshot,
+    required String? undoneByUserId,
+  }) async {
+    await _dao.updateItemCompletionFields(
+      localCompletionId,
+      ItemCompletionsCompanion(
+        undoneByUserId: Value(undoneByUserId),
+        undoneAt: Value(_millisOrNull(snapshot.undoneAt)),
+        clientMutationId: Value(snapshot.clientMutationId),
+      ),
+    );
+  }
+
+  Future<void> _projectRemoteCompletionUndo({
+    required int localCompletionId,
+    required RemoteItemCompletionSnapshot snapshot,
+    required String? undoneByUserId,
+  }) async {
+    if (snapshot.undoneAt == null || undoneByUserId == null) {
+      return;
+    }
+    final completion = await _dao.getItemCompletionById(localCompletionId);
+    if (completion == null) {
+      return;
+    }
+    final doneRecord = await _dao.getItemActionRecordById(
+      completion.itemActionRecordId,
+    );
+    if (doneRecord == null || doneRecord.actionType != ItemActionType.done) {
+      return;
+    }
+    if (doneRecord.isReverted &&
+        doneRecord.revertedAt?.isAtSameMomentAs(snapshot.undoneAt!) == true) {
+      return;
+    }
+
+    final now = _clock();
+    var revertedRecordId = doneRecord.revertedByActionRecordId;
+    revertedRecordId ??= await _dao.insertItemActionRecord(
+      ItemActionRecordsCompanion.insert(
+        itemId: doneRecord.itemId,
+        actionType: ItemActionType.reverted.name,
+        actionDate: snapshot.undoneAt!.millisecondsSinceEpoch,
+        payload: Value(
+          ItemActionRecord.encodePayload({
+            'remoteImported': true,
+            'remoteCompletionId': snapshot.id,
+            'remoteItemId': snapshot.itemId,
+            'remotePackId': snapshot.packId,
+            'reason': 'remote_undo',
+            'revertedActionRecordId': doneRecord.id,
+            'undoneByRemoteUserId': snapshot.undoneByUserId,
+          }),
+        ),
+        createdAt: now.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
+      ),
+    );
+
+    await _dao.updateItemActionRecordFields(
+      doneRecord.id,
+      ItemActionRecordsCompanion(
+        isReverted: const Value(true),
+        revertedAt: Value(snapshot.undoneAt!.millisecondsSinceEpoch),
+        revertedByActionRecordId: Value(revertedRecordId),
+        updatedAt: Value(now.millisecondsSinceEpoch),
+      ),
+    );
+    await _dao.markItemCompletionUndoneById(
+      completionId: localCompletionId,
+      undoneByUserId: undoneByUserId,
+      undoneAt: snapshot.undoneAt!,
     );
   }
 
@@ -571,6 +852,60 @@ class RemoteSnapshotImportService {
     }
   }
 
+  Future<void> _upsertResourceMappingAndMetadata({
+    required RemoteResourceSnapshot snapshot,
+    required int localPackId,
+    required int localResourceId,
+  }) async {
+    final now = _clock();
+    await _upsertSyncMapping(
+      localEntityType: RemoteSharedPackRepository.localEntityResource,
+      localEntityId: localResourceId,
+      remoteTable: RemoteSharedPackRepository.remoteTableResources,
+      remoteEntityId: snapshot.id,
+      now: now,
+    );
+    final syncState = switch (snapshot.status) {
+      'archived' => RemoteResourceSyncState.archived,
+      'deleted' => RemoteResourceSyncState.deleted,
+      _ => RemoteResourceSyncState.synced,
+    };
+    final existing = await _dao.getRemoteResourceSyncMetadataForLocalResource(
+      localResourceId,
+    );
+    if (existing == null) {
+      await _dao.insertRemoteResourceSyncMetadata(
+        RemoteResourceSyncMetadataCompanion.insert(
+          localResourceId: localResourceId,
+          localPackId: localPackId,
+          remoteResourceId: snapshot.id,
+          remotePackId: snapshot.packId,
+          syncState: syncState.storageValue,
+          remoteStatus: Value(snapshot.status),
+          remoteUpdatedAt: Value(_millis(snapshot.updatedAt)),
+          lastPulledAt: Value(now.millisecondsSinceEpoch),
+          createdAt: now.millisecondsSinceEpoch,
+          updatedAt: now.millisecondsSinceEpoch,
+        ),
+      );
+    } else {
+      await _dao.updateRemoteResourceSyncMetadata(
+        existing.id,
+        RemoteResourceSyncMetadataCompanion(
+          syncState: Value(syncState.storageValue),
+          remoteStatus: Value(snapshot.status),
+          remoteUpdatedAt: Value(_millis(snapshot.updatedAt)),
+          lastPulledAt: Value(now.millisecondsSinceEpoch),
+          lastSyncError: const Value(null),
+          archivedAt: syncState == RemoteResourceSyncState.archived
+              ? Value(_millis(snapshot.updatedAt))
+              : const Value.absent(),
+          updatedAt: Value(now.millisecondsSinceEpoch),
+        ),
+      );
+    }
+  }
+
   Future<void> _upsertCompletionMappingAndMetadata({
     required RemoteItemCompletionSnapshot snapshot,
     required int localPackId,
@@ -671,6 +1006,11 @@ class RemoteSnapshotImportService {
       );
       return metadata?.localItemId;
     }
+    if (localEntityType == RemoteSharedPackRepository.localEntityResource) {
+      final metadata = await _dao
+          .getRemoteResourceSyncMetadataForRemoteResource(remoteEntityId);
+      return metadata?.localResourceId;
+    }
     if (localEntityType == localEntityCompletion) {
       final metadata = await _dao
           .getRemoteCompletionSyncMetadataForRemoteCompletion(remoteEntityId);
@@ -735,11 +1075,13 @@ class RemoteSnapshotImportService {
     required RemoteActivityEventSnapshot event,
     required int localPackId,
     required Map<String, int> itemIdsByRemoteId,
+    required Map<String, int> resourceIdsByRemoteId,
     required Map<String, int> completionIdsByRemoteId,
   }) {
     return switch (event.entityType) {
       'pack' => localPackId,
       'item' => itemIdsByRemoteId[event.entityId],
+      'resource' => resourceIdsByRemoteId[event.entityId],
       'item_completion' => completionIdsByRemoteId[event.entityId],
       _ => null,
     };
@@ -763,6 +1105,57 @@ class RemoteSnapshotImportService {
       'archived' || 'deleted' => ItemLifecycleStatus.archived,
       _ => ItemLifecycleStatus.active,
     };
+  }
+
+  ResourceLifecycleStatus _localResourceStatus(String remoteStatus) {
+    return switch (remoteStatus) {
+      'archived' || 'deleted' => ResourceLifecycleStatus.archived,
+      'paused' => ResourceLifecycleStatus.paused,
+      _ => ResourceLifecycleStatus.active,
+    };
+  }
+
+  ResourceType _localResourceType(String remoteType) {
+    return remoteType == ResourceType.timeBased.name ||
+            remoteType == 'time_based'
+        ? ResourceType.timeBased
+        : ResourceType.quantityBased;
+  }
+
+  ResourceEventChangeType _localResourceEventChangeType(String remoteType) {
+    return switch (remoteType) {
+      'increment' ||
+      'refill' ||
+      'refilled' => ResourceEventChangeType.increment,
+      'decrement' ||
+      'consume' ||
+      'consumed' => ResourceEventChangeType.decrement,
+      _ => ResourceEventChangeType.adjust,
+    };
+  }
+
+  ResourceActionType _resourceActionTypeFromEvent(
+    RemoteResourceEventSnapshot snapshot,
+  ) {
+    final action = snapshot.metadataJson?['resource_action'];
+    if (action is String) {
+      return switch (action) {
+        'refilled' => ResourceActionType.refilled,
+        'consumed' => ResourceActionType.consumed,
+        'reverted' => ResourceActionType.reverted,
+        _ => ResourceActionType.adjusted,
+      };
+    }
+    return switch (_localResourceEventChangeType(snapshot.changeType)) {
+      ResourceEventChangeType.increment => ResourceActionType.refilled,
+      ResourceEventChangeType.decrement => ResourceActionType.adjusted,
+      ResourceEventChangeType.adjust => ResourceActionType.adjusted,
+    };
+  }
+
+  String? _remoteResourceEventRemark(RemoteResourceEventSnapshot snapshot) {
+    final remark = snapshot.metadataJson?['remark'];
+    return remark is String && remark.trim().isNotEmpty ? remark : null;
   }
 
   PackMemberRole _localMemberRole(String remoteRole) {

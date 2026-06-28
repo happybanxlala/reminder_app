@@ -271,6 +271,13 @@ class _ManagedItemCard extends ConsumerWidget {
       bundle,
       now: previewDate,
     );
+    final syncStatus = ref
+        .watch(itemSyncStatusesProvider)
+        .maybeWhen(
+          data: (statuses) => statuses[bundle.item.id],
+          orElse: () => null,
+        );
+    final syncStatusLabel = _managementSyncStatusLabel(syncStatus);
 
     return ReminderRailCard(
       key: Key('item-card-${bundle.item.id}'),
@@ -309,19 +316,34 @@ class _ManagedItemCard extends ConsumerWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
+                    if (syncStatusLabel != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        syncStatusLabel,
+                        key: Key('managed-item-sync-status-${bundle.item.id}'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: context.reminderPalette.textMuted,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
               const SizedBox(width: 4),
               IconButton(
                 key: Key('item-overflow-${bundle.item.id}'),
-                onPressed: () => _showManagedItemActionSheet(
-                  context,
-                  ref,
-                  bundle,
-                  previewDate,
-                  viewModel,
-                ),
+                onPressed: syncStatus?.isAccessLost == true
+                    ? null
+                    : () => _showManagedItemActionSheet(
+                        context,
+                        ref,
+                        bundle,
+                        previewDate,
+                        viewModel,
+                      ),
                 tooltip: ReminderUiText.itemActionMenuTitle,
                 icon: const Icon(Icons.more_vert),
                 visualDensity: VisualDensity.compact,
@@ -336,6 +358,29 @@ class _ManagedItemCard extends ConsumerWidget {
       ),
     );
   }
+}
+
+String? _managementSyncStatusLabel(HomeItemSyncStatus? status) {
+  if (status == null || !status.isRemoteBacked) {
+    return null;
+  }
+  if (status.isAccessLost) {
+    return ReminderUiText.syncAccessLostLabel;
+  }
+  if (status.hasFailedMutation ||
+      (status.lastSyncError?.trim().isNotEmpty ?? false)) {
+    return ReminderUiText.syncFailedLabel;
+  }
+  if (status.pendingMutationStatus == SyncOutboxStatus.syncing) {
+    return ReminderUiText.syncSyncingLabel;
+  }
+  if (status.pendingMutationStatus == SyncOutboxStatus.pending) {
+    return ReminderUiText.syncPendingLabel;
+  }
+  if (status.isStale) {
+    return ReminderUiText.syncNeedsRefreshLabel;
+  }
+  return null;
 }
 
 enum _ManagedItemMenuAction {
@@ -472,6 +517,7 @@ Future<void> _showManagedItemActionSheet(
     case _ManagedItemMenuAction.complete:
       await _handleManagedItemComplete(
         context,
+        ref,
         repository,
         bundle,
         previewDate,
@@ -507,7 +553,15 @@ Future<void> _showManagedItemActionSheet(
         isDestructive: true,
       );
       if (confirmed == true) {
-        await repository.archiveItem(bundle.item.id);
+        final archived = await repository.archiveItem(bundle.item.id);
+        if (archived &&
+            await repository.isRemoteBackedPack(bundle.item.packId)) {
+          unawaited(
+            ref
+                .read(remoteBackedSyncCoordinatorProvider)
+                .syncAfterRemoteBackedMutation(bundle.item.packId),
+          );
+        }
       }
       return;
   }
@@ -515,6 +569,7 @@ Future<void> _showManagedItemActionSheet(
 
 Future<void> _handleManagedItemComplete(
   BuildContext context,
+  WidgetRef ref,
   ItemRepository repository,
   ItemBundle bundle,
   DateTime previewDate,
@@ -536,7 +591,17 @@ Future<void> _handleManagedItemComplete(
     }
   }
 
-  await repository.markDone(bundle.item.id, doneAt: previewDate);
+  final completed = await repository.markDone(
+    bundle.item.id,
+    doneAt: previewDate,
+  );
+  if (completed && await repository.isRemoteBackedPack(bundle.item.packId)) {
+    unawaited(
+      ref
+          .read(remoteBackedSyncCoordinatorProvider)
+          .syncAfterRemoteBackedMutation(bundle.item.packId),
+    );
+  }
 }
 
 Future<bool?> _showItemActionConfirmation(

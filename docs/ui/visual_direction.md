@@ -1077,3 +1077,24 @@ flutter test
 - Active invite cards expose `分享邀請碼`, `複製`, and `刷新邀請碼`; refresh uses a short confirmation dialog because it invalidates the previous code.
 - Only-host copy uses `目前只有你可以看到這個生活場景。`; member lists show the current user as `你 / 建立者` rather than device-data wording.
 - Pack rows may show `邀請碼有效中`, but full invite codes must not appear in the pack list.
+
+### 19.26 Remote-backed Production Sync Loop 2026-06-28
+
+- Shared-pack sync feedback stays compact and non-technical in existing surfaces. Use `等待同步`, `正在同步`, `同步失敗，稍後會再試`, `共同生活場景已更新`, and `暫時無法更新共同生活場景`.
+- Home, item management, pack management, and `一起照顧` refresh continue using existing pull-to-refresh / bottom-sheet patterns; Phase 6B does not add a new dashboard, bottom navigation item, or developer-style sync panel.
+- Production copy must not expose Supabase, RPC, outbox, mutation, remote-backed, sync metadata, or POC wording.
+
+### 19.27 Pack + Items Sharing MVP 2026-06-28
+
+- Shared item sync labels stay quiet unless action is needed: `等待同步`, `正在同步`, `同步失敗`, `有新的更新，請刷新`, and `已無法存取`.
+- Item management rows may show the same compact sync label under the existing item summary; access-lost rows disable the action menu rather than adding conflict UI.
+- Shared item activity can show actor-based factual copy such as `{name} 新增了「{itemTitle}」`, `{name} 更新了「{itemTitle}」`, `{name} 封存了「{itemTitle}」`, `{name} 完成了「{itemTitle}」`, and `{name} 復原了「{itemTitle}」`.
+- `一起照顧` member copy stays non-technical: `目前只有你可以看到這個生活場景`, `{memberCount} 人正在一起照顧這個生活場景`, and `暫時無法更新成員，請稍後再試`.
+- Remote-backed pack metadata edit/archive remains blocked with friendly copy; Phase 6C still does not add a shared dashboard, new navigation, resource/stage sharing UI, realtime import UI, or background sync UI.
+
+### 19.28 Resource Sharing MVP 2026-06-28
+
+- Shared Resource rows use the same compact sync labels as shared item rows: `等待同步`, `正在同步`, `同步失敗`, `有新的更新，請刷新`, and `已無法存取`. Healthy synced rows stay quiet.
+- Access-lost Resource rows keep their content visible but disable Resource actions. Unsupported Resource operations use `共同生活場景暫時未支援這個資源操作`.
+- Resource activity copy is actor-based and factual: `{name} 新增了「{resourceTitle}」`, `{name} 更新了「{resourceTitle}」`, `{name} 補充了「{resourceTitle}」`, `{name} 調整了「{resourceTitle}」`, `{name} 扣除了「{resourceTitle}」`, and `{name} 封存了「{resourceTitle}」`. Compact value detail such as `+2 包` or `至 3 包` can be shown when available.
+- Resource sharing reuses existing Home and resource-management surfaces. Phase 6D does not add a shared dashboard, new navigation, realtime import UI, background sync UI, widget remote controls, or notification remote controls.

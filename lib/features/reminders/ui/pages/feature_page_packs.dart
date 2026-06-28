@@ -25,6 +25,12 @@ class PackManagementContent extends ConsumerWidget {
     final packsAsync = ref.watch(activeItemPacksProvider);
     return ReminderRefreshable(
       onRefresh: () async {
+        final packs = ref.read(activeItemPacksProvider).valueOrNull;
+        await ref
+            .read(remoteBackedSyncCoordinatorProvider)
+            .refreshVisibleRemoteBackedPacks(
+              (packs ?? const <ItemPack>[]).map((pack) => pack.id),
+            );
         ref.invalidate(activeItemPacksProvider);
         await Future<void>.delayed(Duration.zero);
       },
@@ -112,6 +118,16 @@ class PackManagementContent extends ConsumerWidget {
     if (pack == null) {
       await repository.createPack(input);
     } else {
+      if (await repository.isRemoteBackedPack(pack.id)) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(ReminderUiText.remoteBackedPackMetadataUnsupported),
+            ),
+          );
+        }
+        return;
+      }
       await repository.updatePack(pack.id, input);
     }
   }
@@ -326,11 +342,32 @@ class _PackManagementTile extends ConsumerWidget {
     if (input == null || !context.mounted) {
       return;
     }
-    await ref.read(itemRepositoryProvider).updatePack(pack.id, input);
+    final repository = ref.read(itemRepositoryProvider);
+    if (await repository.isRemoteBackedPack(pack.id)) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(ReminderUiText.remoteBackedPackMetadataUnsupported),
+          ),
+        );
+      }
+      return;
+    }
+    await repository.updatePack(pack.id, input);
   }
 
   Future<void> _showArchiveDialog(BuildContext context, WidgetRef ref) async {
     final repository = ref.read(itemRepositoryProvider);
+    if (await repository.isRemoteBackedPack(pack.id)) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(ReminderUiText.remoteBackedPackMetadataUnsupported),
+          ),
+        );
+      }
+      return;
+    }
     final contentCount = await repository.countPackManagedContents(pack.id);
     if (!context.mounted) {
       return;
@@ -494,8 +531,10 @@ class _PackCareSheetState extends State<_PackCareSheet> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.sync),
-                    label: const Text(
-                      ReminderUiText.packCareRefreshSharedState,
+                    label: Text(
+                      _isRefreshingSharedState
+                          ? ReminderUiText.packCareUpdating
+                          : ReminderUiText.packCareRefreshSharedState,
                     ),
                   ),
                   if (viewModel.retryableFailedMutationCount > 0)

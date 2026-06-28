@@ -49,6 +49,12 @@ Shared Pack UIUX v1 adds production-facing shared-care entry points inside `生�
 
 Remote-backed CRUD Boundary Phase 1 adds the first guarded item CRUD sync boundary after the Phase 5M acceptance pass. Remote-backed item create / basic update / archive now use local-first `sync_outbox` rows and manual flush/retry to Supabase RPCs defined in `docs/core/sql/phase6_remote_backed_item_crud_mvp.sql`. Pack update/archive, item skip/pause/resume/move/assign, resource mutations, and stage mutations fail closed for remote-backed packs to prevent silent local-only mirror edits. Phase 1 does not add resource sync, stage sync, hard delete, complex schedule merge, member role management, automatic background sync, widget remote CRUD beyond existing complete/undo routing, or full two-way sync.
 
+Phase 6B adds the minimal production foreground sync loop for existing remote-backed shared-pack actions. Supported item create / basic update / archive / complete / undo still write local-first state and `sync_outbox` rows first, then normal app flows trigger a best-effort `RemoteBackedSyncCoordinator` flush without requiring Developer Settings. Normal Home, item management, pack management, and `一起照顧` refresh paths flush pending local mutations before pulling/importing the remote pack snapshot, so another device can see shared item changes, completion state, and active members after a user refresh. Phase 6B remains foreground-only: no timers, app-start sync, background task, realtime import, widget remote CRUD, notification remote action, resource sync, stage sync, hard delete, conflict UI, or new shared dashboard.
+
+Phase 6C hardens the foreground Pack + Items sharing MVP. Remote snapshot refresh now treats pack membership, item create / basic update / archive, item complete / undo, and basic item activity as the supported shared surface. Imported completion rows include undone history so cross-device undo clears active completion locally while preserving completed-by and undone-by actors. Imported item activity can be projected with member names for item created / updated / archived / completed / undone messages. Remote-backed pack metadata editing, pack archive/delete/leave, member management, resource sync, stage sync, realtime import, background sync, widget remote CRUD, and notification remote sync remain out of scope.
+
+Phase 6D adds the foreground Resource sharing MVP for remote-backed shared packs. Resource create / basic update / archive, quantity increment / decrement / adjust, and refill now write local-first Drift state plus `sync_outbox` rows, trigger the same best-effort foreground flush loop, and import remote Resource mirrors, Resource events, and Resource activity through manual snapshot refresh. Item-linked Resource consumption, item-resource binding edits, Resource pack moves, Resource type changes, hard delete, Stage sharing, realtime import, background sync, widget remote CRUD, notification remote sync, and cross-domain atomic completion/consumption remain guarded or out of scope.
+
 ## 1. 總覽
 
 ### 1.1 產品北極星
@@ -116,6 +122,7 @@ Domain 必須保持分離。Home 可以在 presentation layer 聚合 `Item`、`R
 - `RemotePackSyncMetadata`
 - `RemoteItemSyncMetadata`
 - `RemoteCompletionSyncMetadata`
+- `RemoteResourceSyncMetadata`
 - `SyncOutbox`
 
 ### 1.4 已實作 enum 清單
@@ -152,7 +159,8 @@ Domain 必須保持分離。Home 可以在 presentation layer 聚合 `Item`、`R
 - `RemoteItemSyncState { linked, pendingImport, importing, synced, stale, failed, conflict, archived, deleted }`
 - `RemoteCompletionSyncState { pendingPush, syncing, synced, failed, conflict, noOp }`
 - `RemoteCompletionState { pendingLocal, confirmedRemote, remoteImported, undoneRemote, noOp, conflict, failed }`
-- `SyncOutboxActionType { completeItem, undoItem, createItem, updateItem, archiveItem }`
+- `RemoteResourceSyncState { linked, pendingImport, pendingPush, syncing, importing, synced, stale, failed, conflict, archived, deleted }`
+- `SyncOutboxActionType { completeItem, undoItem, createItem, updateItem, archiveItem, createResource, updateResource, archiveResource, resourceIncrement, resourceAdjust, resourceDecrement }`
 - `SyncOutboxStatus { pending, syncing, synced, failed, conflict, cancelled, noOp }`
 
 ## 2. 已實作模型

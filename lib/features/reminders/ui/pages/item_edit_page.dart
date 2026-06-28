@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,6 +16,7 @@ import '../../presentation/text/reminder_ui_text.dart';
 import '../../providers/item_providers.dart';
 import '../../providers/resource_providers.dart';
 import '../../providers/settings_providers.dart';
+import '../../providers/shared_pack_care_providers.dart';
 import '../../providers/stage_tracker_providers.dart';
 import '../widgets/editor_common_fields.dart';
 import '../widgets/editor_form_components.dart';
@@ -429,6 +432,16 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     } catch (_) {
       _showSaveError(ReminderUiText.saveFailedPrefix);
       return;
+    }
+
+    final localPackId = input.packId;
+    if (localPackId != null &&
+        await repository.isRemoteBackedPack(localPackId)) {
+      unawaited(
+        ref
+            .read(remoteBackedSyncCoordinatorProvider)
+            .syncAfterRemoteBackedMutation(localPackId),
+      );
     }
 
     if (mounted) {

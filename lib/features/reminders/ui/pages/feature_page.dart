@@ -12,6 +12,7 @@ import '../../data/supabase_config.dart';
 import '../../domain/account_protection.dart';
 import '../../domain/attention_policy.dart';
 import '../../domain/item.dart';
+import '../../domain/item_action_record.dart';
 import '../../domain/item_pack.dart';
 import '../../domain/pack_template.dart';
 import '../../domain/remote_backed_recovery.dart';

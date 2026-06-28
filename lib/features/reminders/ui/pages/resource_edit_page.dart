@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,6 +13,7 @@ import '../../presentation/text/reminder_ui_text.dart';
 import '../../providers/developer_settings_providers.dart';
 import '../../providers/item_providers.dart';
 import '../../providers/resource_providers.dart';
+import '../../providers/shared_pack_care_providers.dart';
 import '../widgets/editor_common_fields.dart';
 import '../widgets/editor_form_components.dart';
 import '../widgets/pack_picker.dart';
@@ -352,6 +355,11 @@ class _ResourceEditPageState extends ConsumerState<ResourceEditPage> {
       return;
     }
     if (mounted) {
+      unawaited(
+        ref
+            .read(remoteBackedSyncCoordinatorProvider)
+            .syncAfterRemoteBackedMutation(resource.packId),
+      );
       _markClean();
       await _popWithoutPrompt();
     }

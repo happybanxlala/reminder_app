@@ -14,12 +14,15 @@ import '../domain/remote_pack_freshness.dart';
 import '../domain/remote_sync.dart';
 import '../domain/shared_pack.dart';
 import '../presentation/text/reminder_ui_text.dart';
+import 'attention_summary_providers.dart';
 import 'attention_service_providers.dart';
 import 'database_providers.dart';
 import 'home_providers.dart';
 import 'identity_providers.dart';
 import 'item_providers.dart';
+import 'remote_backed_sync_coordinator.dart';
 import 'remote_shared_pack_providers.dart';
+import 'resource_providers.dart';
 import 'shared_pack_providers.dart';
 
 class PackCareMemberView {
@@ -177,6 +180,20 @@ class PackCareRetryResult {
   bool get succeeded => errorMessage == null;
 }
 
+final remoteBackedSyncCoordinatorProvider =
+    Provider<RemoteBackedSyncCoordinator>((ref) {
+      return RemoteBackedSyncCoordinator(
+        dao: ref.watch(appDatabaseProvider).reminderDao,
+        flushService: ref.watch(remoteBackedOutboxFlushServiceProvider),
+        refreshService: ref.watch(remoteBackedPackRefreshServiceProvider),
+        onLocalDataChanged: (localPackId) {
+          _invalidateRemoteBackedSyncSurfaces(ref, localPackId);
+        },
+        refreshDerivedLocalSurfaces: () =>
+            _refreshDerivedRemoteBackedSurfaces(ref),
+      );
+    });
+
 class SharedPackCareController {
   const SharedPackCareController(this._ref);
 
@@ -326,22 +343,22 @@ class SharedPackCareController {
     }
 
     final result = await _ref
-        .read(remoteBackedPackRefreshServiceProvider)
-        .refreshPack(pack.id);
-    _invalidatePackCare(result.summary.localPackId);
+        .read(remoteBackedSyncCoordinatorProvider)
+        .refreshRemoteBackedPack(pack.id);
+    _invalidatePackCare(result.refreshResult?.summary.localPackId ?? pack.id);
     if (result.succeeded) {
       _refreshDerivedLocalSurfaces();
       return PackCareRefreshResult.success(
-        message: ReminderUiText.packCareRefreshSuccess,
+        message: result.message,
         warningMessage:
-            result.status ==
+            result.refreshResult?.status ==
                 RemoteBackedPackRefreshStatus.hasPendingLocalMutations
             ? ReminderUiText.packCareRefreshPendingWarning
             : null,
       );
     }
 
-    return PackCareRefreshResult.failure(_refreshFailureMessage(result.status));
+    return PackCareRefreshResult.failure(result.message);
   }
 
   Future<PackCareRetryResult> retrySyncForPack(ItemPack pack) async {
@@ -405,22 +422,53 @@ class SharedPackCareController {
   }
 
   void _refreshDerivedLocalSurfaces() {
-    unawaited(
-      _bestEffort(() async {
-        await _ref.read(homeWidgetActionServiceProvider).refreshSnapshot();
-      }),
-    );
-    unawaited(
-      _bestEffort(() => _ref.read(attentionSyncServiceProvider).refresh()),
-    );
+    unawaited(_refreshDerivedRemoteBackedSurfaces(_ref));
   }
+}
 
-  Future<void> _bestEffort(Future<void> Function() action) async {
-    try {
-      await action();
-    } catch (_) {
-      // Derived surfaces are refreshed opportunistically from local data.
-    }
+void _invalidateRemoteBackedSyncSurfaces(Ref ref, int? localPackId) {
+  ref.invalidate(attentionSummaryProvider);
+  ref.invalidate(liveAttentionSummaryProvider);
+  ref.invalidate(liveNotificationAttentionSummaryProvider);
+  ref.invalidate(dangerHomeAttentionEntriesProvider);
+  ref.invalidate(warningHomeAttentionEntriesProvider);
+  ref.invalidate(dangerHomeEntriesProvider);
+  ref.invalidate(warningHomeEntriesProvider);
+  ref.invalidate(todayCompletedEntriesProvider);
+  ref.invalidate(upcomingStagesProvider);
+  ref.invalidate(activeItemPacksProvider);
+  ref.invalidate(itemPacksProvider);
+  ref.invalidate(itemsProvider);
+  ref.invalidate(resourcesProvider);
+  ref.invalidate(managedResourcesProvider);
+  ref.invalidate(packManagementItemsProvider);
+  ref.invalidate(itemManagementGroupsProvider);
+  ref.invalidate(itemActivityFeedControllerProvider);
+  ref.invalidate(packCareViewModelProvider);
+  ref.invalidate(remoteBackedOutboxSummaryProvider);
+  ref.invalidate(remoteBackedRecoverySummaryProvider);
+  ref.invalidate(currentAppUserProvider);
+  ref.invalidate(currentAppUserIdProvider);
+  if (localPackId != null) {
+    ref.invalidate(remoteBackedPackRecoverySummaryProvider(localPackId));
+    ref.invalidate(packMembersProvider(localPackId));
+  }
+}
+
+Future<void> _refreshDerivedRemoteBackedSurfaces(Ref ref) async {
+  await Future.wait([
+    _bestEffort(
+      () => ref.read(homeWidgetActionServiceProvider).refreshSnapshot(),
+    ),
+    _bestEffort(() => ref.read(attentionSyncServiceProvider).refresh()),
+  ]);
+}
+
+Future<void> _bestEffort(Future<void> Function() action) async {
+  try {
+    await action();
+  } catch (_) {
+    // Derived surfaces are refreshed opportunistically from local data.
   }
 }
 
@@ -596,26 +644,5 @@ String _sharedCareFailureMessage(RemoteSharedPackFailureReason? reason) {
     RemoteSharedPackFailureReason.remoteItemAlreadyCompleted ||
     RemoteSharedPackFailureReason.remotePackAlreadyLinked ||
     null => ReminderUiText.packCareRemoteUnavailable,
-  };
-}
-
-String _refreshFailureMessage(RemoteBackedPackRefreshStatus status) {
-  return switch (status) {
-    RemoteBackedPackRefreshStatus.accessLost =>
-      ReminderUiText.packCareRefreshAccessLost,
-    RemoteBackedPackRefreshStatus.configMissing ||
-    RemoteBackedPackRefreshStatus.remoteAuthRequired ||
-    RemoteBackedPackRefreshStatus.remoteRlsRejected ||
-    RemoteBackedPackRefreshStatus.networkFailed ||
-    RemoteBackedPackRefreshStatus.importFailed ||
-    RemoteBackedPackRefreshStatus.partialImport ||
-    RemoteBackedPackRefreshStatus.unknownFailure =>
-      ReminderUiText.packCareRefreshFailed,
-    RemoteBackedPackRefreshStatus.notRemoteBacked ||
-    RemoteBackedPackRefreshStatus.missingRemoteMapping =>
-      ReminderUiText.packCareRemoteUnavailable,
-    RemoteBackedPackRefreshStatus.refreshed ||
-    RemoteBackedPackRefreshStatus.hasPendingLocalMutations =>
-      ReminderUiText.packCareRefreshSuccess,
   };
 }
