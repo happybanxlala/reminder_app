@@ -1120,6 +1120,7 @@ Pack 管理 route：`/feature/item-packs-management`，route name：`item-packs-
 - 對自訂 Pack 使用「上」「下」調整排序。
 - 封存自訂 Pack。
 - system default pack 顯示但不可編輯、不可封存。
+- Shared Pack Restart Phase 1 只提供 future-ready UX shell：現有 Pack 仍顯示並行為為個人 Pack；自訂 Pack 可從 overflow 查看該 Pack context 內的 disabled/mock 成員與邀請碼 UI；Settings 顯示 disabled/mock「輸入邀請碼」全域入口，但日後邀請碼應解析到單一 specific Pack。此階段不新增 schema、domain 欄位、repository 行為、remote request、實際加入、sync 或 account binding。
 
 ## 5. Drift Schema
 

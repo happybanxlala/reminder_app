@@ -165,6 +165,20 @@ class SettingsPage extends ConsumerWidget {
               ],
             ),
           ],
+          const SizedBox(height: 12),
+          ReminderEditorSection(
+            key: const Key('settings-shared-pack-section'),
+            title: ReminderUiText.sharedPackLabel,
+            children: [
+              _SettingsActionRow(
+                key: const Key('settings-enter-invite-code-row'),
+                label: ReminderUiText.sharedPackEnterInviteCodeLabel,
+                value: ReminderUiText.sharedPackUnavailableLabel,
+                icon: Icons.group_add_outlined,
+                onTap: () => _showSharedPackJoinShell(context),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -238,6 +252,13 @@ class SettingsPage extends ConsumerWidget {
     }
     ref.read(developerDateOverrideProvider.notifier).state =
         normalizePreviewDate(selected);
+  }
+
+  Future<void> _showSharedPackJoinShell(BuildContext context) {
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) => const _SharedPackJoinShellDialog(),
+    );
   }
 
   Future<void> _backupData(BuildContext context, WidgetRef ref) async {
@@ -456,6 +477,55 @@ String _formatTimeOfDay(TimeOfDay value) {
   final hour = value.hour.toString().padLeft(2, '0');
   final minute = value.minute.toString().padLeft(2, '0');
   return '$hour:$minute';
+}
+
+class _SharedPackJoinShellDialog extends StatelessWidget {
+  const _SharedPackJoinShellDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.reminderPalette;
+    return AlertDialog(
+      title: const Text(ReminderUiText.sharedPackJoinShellTitle),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(ReminderUiText.sharedPackJoinShellMessage),
+            const SizedBox(height: 12),
+            TextField(
+              key: const Key('shared-pack-invite-code-field'),
+              enabled: false,
+              decoration: const InputDecoration(
+                labelText: ReminderUiText.sharedPackInviteCodeFieldLabel,
+                hintText: ReminderUiText.sharedPackInviteCodePreviewValue,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              ReminderUiText.sharedPackInviteDisabledMessage,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: palette.textSecondary),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(MaterialLocalizations.of(context).closeButtonLabel),
+        ),
+        FilledButton(
+          key: const Key('shared-pack-join-button'),
+          onPressed: null,
+          child: const Text(ReminderUiText.sharedPackJoinLabel),
+        ),
+      ],
+    );
+  }
 }
 
 class _SettingsToneOption extends StatelessWidget {

@@ -36,6 +36,8 @@ class PackManagementContent extends ConsumerWidget {
             onTap: () => _showPackTemplatePicker(context, ref),
           ),
           const SizedBox(height: 12),
+          const _SharedPackShellCard(),
+          const SizedBox(height: 12),
           Align(
             alignment: Alignment.centerLeft,
             child: FilledButton.icon(
@@ -128,7 +130,9 @@ class _PackManagementTile extends ConsumerWidget {
         ),
         title: Text(pack.title),
         subtitle: Text(
-          isSystemDefault ? ReminderUiText.systemDefaultPackLabel : '自訂生活場景',
+          isSystemDefault
+              ? '${ReminderUiText.personalPackLabel}・${ReminderUiText.systemDefaultPackLabel}'
+              : '${ReminderUiText.personalPackLabel}・自訂生活場景',
         ),
         trailing: isSystemDefault
             ? null
@@ -163,6 +167,10 @@ class _PackManagementTile extends ConsumerWidget {
                         _handleMenuAction(context, ref, action),
                     itemBuilder: (menuContext) => [
                       const PopupMenuItem(
+                        value: _PackManagementMenuAction.members,
+                        child: Text(ReminderUiText.sharedPackMembersLabel),
+                      ),
+                      const PopupMenuItem(
                         value: _PackManagementMenuAction.edit,
                         child: Text(ReminderUiText.editAction),
                       ),
@@ -193,6 +201,9 @@ class _PackManagementTile extends ConsumerWidget {
     _PackManagementMenuAction action,
   ) async {
     switch (action) {
+      case _PackManagementMenuAction.members:
+        await _showSharedPackMembersShell(context);
+        return;
       case _PackManagementMenuAction.edit:
         await _showEditDialog(context, ref);
         return;
@@ -270,7 +281,145 @@ class _PackManagementTile extends ConsumerWidget {
 
 enum _ArchivePackAction { archive, move, cancel }
 
-enum _PackManagementMenuAction { edit, saveAsTemplate, archive }
+enum _PackManagementMenuAction { members, edit, saveAsTemplate, archive }
+
+class _SharedPackShellCard extends StatelessWidget {
+  const _SharedPackShellCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.reminderPalette;
+    return ReminderPaperCard(
+      key: const Key('shared-pack-shell-card'),
+      backgroundColor: palette.surfaceWarm,
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          ReminderIconBubble(
+            backgroundColor: palette.primaryWarmContainer,
+            child: Icon(Icons.group_outlined, color: palette.primaryWarm),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        ReminderUiText.sharedPackShellTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ReminderBadge(
+                      label: ReminderUiText.sharedPackUnavailableLabel,
+                      color: palette.textSecondary,
+                      backgroundColor: palette.surfaceCard,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  ReminderUiText.sharedPackShellSubtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: palette.textSecondary),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Future<void> _showSharedPackMembersShell(BuildContext context) {
+  return showDialog<void>(
+    context: context,
+    builder: (dialogContext) => const _SharedPackMembersShellDialog(),
+  );
+}
+
+class _SharedPackMembersShellDialog extends StatelessWidget {
+  const _SharedPackMembersShellDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.reminderPalette;
+    return AlertDialog(
+      title: const Text(ReminderUiText.sharedPackMembersShellTitle),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(ReminderUiText.sharedPackMembersShellMessage),
+            const SizedBox(height: 12),
+            ReminderPaperCard(
+              key: const Key('shared-pack-member-state-card'),
+              padding: const EdgeInsets.all(12),
+              backgroundColor: palette.surfaceWarm,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.person_outline,
+                    size: 18,
+                    color: palette.primaryWarm,
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(ReminderUiText.sharedPackMembersLabel),
+                  ),
+                  const Text(
+                    ReminderUiText.sharedPackOnlyYouMemberState,
+                    key: Key('shared-pack-member-state'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '${ReminderUiText.sharedPackInviteCodePreviewLabel}：'
+              '${ReminderUiText.sharedPackInviteCodePreviewValue}',
+              key: const Key('shared-pack-invite-code-preview'),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              ReminderUiText.sharedPackInviteDisabledMessage,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: palette.textSecondary),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(MaterialLocalizations.of(context).closeButtonLabel),
+        ),
+        FilledButton.icon(
+          key: const Key('shared-pack-invite-member-button'),
+          onPressed: null,
+          icon: const Icon(Icons.person_add_alt_outlined),
+          label: const Text(ReminderUiText.sharedPackInviteMemberLabel),
+        ),
+      ],
+    );
+  }
+}
 
 class _PackTemplateEntryCard extends StatelessWidget {
   const _PackTemplateEntryCard({required this.onTap});

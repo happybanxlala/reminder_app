@@ -237,6 +237,27 @@ class ReminderUiText {
   static const packTemplateEmptyPackMessage = '這個生活場景沒有可保存的事項。';
   static const packTemplateCreatedMessageTemplate = '已建立「{packName}」';
   static const packTemplateViewAction = '查看';
+  static const personalPackLabel = '個人 Pack';
+  static const sharedPackLabel = '共享 Pack';
+  static const sharedPackMembersLabel = '成員';
+  static const sharedPackInviteMemberLabel = '邀請成員';
+  static const sharedPackEnterInviteCodeLabel = '輸入邀請碼';
+  static const sharedPackJoinLabel = '加入共享 Pack';
+  static const sharedPackUnavailableLabel = '尚未啟用';
+  static const sharedPackOnlyYouMemberState = '只有你';
+  static const sharedPackShellTitle = '共享 Pack';
+  static const sharedPackShellSubtitle = '目前所有生活場景會先保持個人 Pack。';
+  static const sharedPackMembersShellTitle = '成員';
+  static const sharedPackMembersShellMessage =
+      '共享 Pack 尚未啟用。這裡會用來邀請成員一起照顧這個 Pack。';
+  static const sharedPackInviteCodePreviewLabel = '示意邀請碼';
+  static const sharedPackInviteCodePreviewValue = 'K7M 4Q9';
+  static const sharedPackInviteDisabledMessage =
+      '邀請碼目前只是示意；日後每個共享 Pack 會各自管理，不會產生、複製或保存。';
+  static const sharedPackJoinShellTitle = '加入共享 Pack';
+  static const sharedPackJoinShellMessage =
+      '輸入邀請碼加入共享 Pack 尚未啟用。日後邀請碼會找到一個對應的 Pack。';
+  static const sharedPackInviteCodeFieldLabel = '邀請碼';
   static String packTemplateItemsCount(int count) => '$count 個事項';
   static String packTemplateCreatedMessage(String packName) =>
       packTemplateCreatedMessageTemplate.replaceFirst('{packName}', packName);
