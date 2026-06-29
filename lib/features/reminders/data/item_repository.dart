@@ -142,6 +142,8 @@ class ItemRepository {
   };
   static const remoteBackedUnsupportedMessage =
       '共同生活場景暫時未支援修改場景資料。你仍可以新增、編輯、封存、完成或復原事項。';
+  static const remoteBackedIdentityRequiredMessage =
+      '目前找不到遠端共同資料身份，暫時不能同步這個變更。請稍後再試。';
   static const _pendingRemoteItemIdPrefix = 'pending:';
 
   final ReminderDao _dao;
@@ -1288,7 +1290,7 @@ class ItemRepository {
         _isRemoteAccessLost(packMetadata)) {
       throw StateError(remoteBackedUnsupportedMessage);
     }
-    final actor = await _resolveActorUser(actorUserId);
+    final actor = await _resolveRemoteBackedActorUser(actorUserId);
     final clientMutationId = _remoteBackedClientMutationId(
       'create_item',
       packId,
@@ -1361,7 +1363,9 @@ class ItemRepository {
     if (packMetadata == null || _isRemoteAccessLost(packMetadata)) {
       return false;
     }
-    final actor = await _resolveActorUser(await _resolveActorId(null));
+    final actor = await _resolveRemoteBackedActorUser(
+      await _resolveActorId(null),
+    );
     final clientMutationId = _remoteBackedClientMutationId(
       'update_item',
       existing.item.id,
@@ -1440,7 +1444,9 @@ class ItemRepository {
     if (packMetadata == null || _isRemoteAccessLost(packMetadata)) {
       return false;
     }
-    final actor = await _resolveActorUser(await _resolveActorId(null));
+    final actor = await _resolveRemoteBackedActorUser(
+      await _resolveActorId(null),
+    );
     final clientMutationId = _remoteBackedClientMutationId(
       'archive_item',
       existing.item.id,
@@ -1504,6 +1510,14 @@ class ItemRepository {
       createdAt: fallbackNow,
       updatedAt: fallbackNow,
     );
+  }
+
+  Future<LocalUser> _resolveRemoteBackedActorUser(String actorUserId) async {
+    final actor = await _resolveActorUser(actorUserId);
+    if ((actor.remoteUserId ?? '').trim().isEmpty) {
+      throw StateError(remoteBackedIdentityRequiredMessage);
+    }
+    return actor;
   }
 
   Future<String?> _remoteUserIdForLocalUser(String? localUserId) async {

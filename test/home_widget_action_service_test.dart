@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/home_widget/application/home_widget_action_service.dart';
@@ -17,6 +18,7 @@ import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_action_record.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/remote_sync.dart';
+import 'package:reminder_app/features/reminders/domain/shared_pack.dart';
 
 void main() {
   test(
@@ -93,6 +95,7 @@ void main() {
       ),
     );
     await _markRemoteBacked(db, localPackId: packId, localItemId: itemId);
+    await _linkRemoteActor(db);
     final store = _MemoryHomeWidgetSnapshotStore();
     store.snapshot = HomeWidgetSnapshot(
       schemaVersion: HomeWidgetSnapshot.currentSchemaVersion,
@@ -155,6 +158,7 @@ void main() {
         itemId,
       )).firstWhere((record) => record.actionType == ItemActionType.done);
       await _markRemoteBacked(db, localPackId: packId, localItemId: itemId);
+      await _linkRemoteActor(db);
       final store = _MemoryHomeWidgetSnapshotStore();
       store.snapshot = HomeWidgetSnapshot(
         schemaVersion: HomeWidgetSnapshot.currentSchemaVersion,
@@ -408,6 +412,24 @@ void main() {
 
     expect(await service.undoCompletedEntry('item-done-1'), isFalse);
   });
+}
+
+Future<void> _linkRemoteActor(AppDatabase db) async {
+  await IdentityRepository(db.reminderDao).linkRemoteIdentity(
+    remoteUserId: 'remote-user-current',
+    provider: AuthProviderType.supabaseAnonymous,
+  );
+  final now = DateTime(2026, 5, 2).millisecondsSinceEpoch;
+  await db.reminderDao.updateLocalUserFields(
+    AppDatabase.defaultHostUserId,
+    LocalUsersCompanion(
+      identityKind: Value(LocalUserIdentityKind.anonymousRemote.storageValue),
+      remoteUserId: const Value('remote-user-current'),
+      remoteProvider: Value(AuthProviderType.supabaseAnonymous.storageValue),
+      linkedAt: Value(now),
+      updatedAt: Value(now),
+    ),
+  );
 }
 
 HomeWidgetActionService _actionService(

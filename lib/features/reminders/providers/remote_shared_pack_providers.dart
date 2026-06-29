@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../home_widget/providers/home_widget_providers.dart';
 import '../data/anonymous_remote_identity_service.dart';
+import '../data/local/app_database.dart';
 import '../data/local/reminder_dao.dart';
 import '../data/remote_backed_outbox_flush_service.dart';
 import '../data/remote_backed_outbox_retry_service.dart';
@@ -148,6 +150,46 @@ class RemoteBackedOutboxSummary {
 
   int get total =>
       pendingCount + syncingCount + failedCount + conflictOrNoOpCount;
+}
+
+class RemoteSyncDebugSnapshot {
+  const RemoteSyncDebugSnapshot({
+    required this.currentLocalUser,
+    required this.supabaseCurrentUserId,
+    required this.supabaseSessionExists,
+    required this.packs,
+    required this.recentOutboxEntries,
+  });
+
+  final LocalUser currentLocalUser;
+  final String? supabaseCurrentUserId;
+  final bool supabaseSessionExists;
+  final List<RemoteSyncDebugPack> packs;
+  final List<SyncOutboxEntry> recentOutboxEntries;
+}
+
+class RemoteSyncDebugPack {
+  const RemoteSyncDebugPack({
+    required this.localPackId,
+    required this.remotePackId,
+    required this.syncState,
+    required this.currentUserRemoteStatus,
+    required this.currentUserRemoteRole,
+    required this.pendingOutboxCount,
+    required this.syncingOutboxCount,
+    required this.failedOutboxCount,
+    required this.lastFailedError,
+  });
+
+  final int localPackId;
+  final String remotePackId;
+  final RemotePackSyncState syncState;
+  final RemoteUserStatus? currentUserRemoteStatus;
+  final RemoteUserRole? currentUserRemoteRole;
+  final int pendingOutboxCount;
+  final int syncingOutboxCount;
+  final int failedOutboxCount;
+  final String? lastFailedError;
 }
 
 class RemotePocFreshnessSummary {
@@ -676,6 +718,67 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
     });
   }
 
+  Future<String> refreshRemoteSyncDebugSnapshot() async {
+    _ref.invalidate(remoteSyncDebugSnapshotProvider);
+    return 'Remote sync debug 已刷新';
+  }
+
+  Future<String> resetStuckSyncingRemoteBackedOutbox() async {
+    return _run('重設卡住的 remote-backed outbox', () async {
+      final dao = _ref.read(appDatabaseProvider).reminderDao;
+      final now = DateTime.now();
+      final cutoff = now.subtract(const Duration(seconds: 30));
+      final metadata = await dao.listRemotePackSyncMetadataEntries();
+      final resettablePackIds = metadata
+          .where(
+            (entry) =>
+                entry.syncKind == RemotePackSyncKind.remoteBacked &&
+                entry.syncState != RemotePackSyncState.accessLost &&
+                entry.syncState != RemotePackSyncState.removed &&
+                entry.currentUserRemoteStatus != RemoteUserStatus.removed,
+          )
+          .map((entry) => entry.localPackId)
+          .toSet();
+      if (resettablePackIds.isEmpty) {
+        _invalidateRemoteSyncDebug();
+        return const _RemotePocOutcome(
+          succeeded: true,
+          message: '沒有可重設的 remote-backed outbox',
+        );
+      }
+
+      final entries = await dao.listSyncOutboxEntries(
+        statuses: {SyncOutboxStatus.syncing},
+      );
+      var resetCount = 0;
+      final nowMillis = now.millisecondsSinceEpoch;
+      for (final entry in entries) {
+        if (!resettablePackIds.contains(entry.localPackId) ||
+            entry.resolvedAt != null) {
+          continue;
+        }
+        final lastTouched = entry.lastAttemptAt ?? entry.updatedAt;
+        if (!lastTouched.isBefore(cutoff)) {
+          continue;
+        }
+        await dao.updateSyncOutboxEntry(
+          entry.id,
+          SyncOutboxCompanion(
+            status: Value(SyncOutboxStatus.pending.storageValue),
+            lastError: const Value('debug_reset_stuck_syncing'),
+            updatedAt: Value(nowMillis),
+          ),
+        );
+        resetCount++;
+      }
+      _invalidateRemoteSyncDebug();
+      return _RemotePocOutcome(
+        succeeded: true,
+        message: '已重設 $resetCount 筆卡住的 outbox',
+      );
+    });
+  }
+
   Future<String> completeFirstMappedItem(int? localPackId) {
     return _run('完成遠端 Item POC', () async {
       if (localPackId == null) {
@@ -921,9 +1024,7 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
       final result = await _ref
           .read(remoteBackedOutboxRetryServiceProvider)
           .retryAllRetryableFailedMutations();
-      _ref.invalidate(remoteBackedOutboxSummaryProvider);
-      _ref.invalidate(remoteBackedRecoverySummaryProvider);
-      _ref.invalidate(remoteBackedPackRecoverySummaryProvider);
+      _invalidateRemoteSyncDebug();
       return _RemotePocOutcome(
         succeeded: !result.hasFailure,
         message:
@@ -960,8 +1061,7 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
           failed++;
         }
       }
-      _ref.invalidate(remoteBackedRecoverySummaryProvider);
-      _ref.invalidate(remoteBackedPackRecoverySummaryProvider);
+      _invalidateRemoteSyncDebug();
       return _RemotePocOutcome(
         succeeded: failed == 0,
         message:
@@ -1065,6 +1165,7 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
       final result = await _ref
           .read(remoteBackedOutboxFlushServiceProvider)
           .flushPendingRemoteBackedMutations();
+      _invalidateRemoteSyncDebug();
       return _RemotePocOutcome(
         succeeded: result.failed == 0,
         message:
@@ -1323,11 +1424,17 @@ class RemotePocController extends StateNotifier<RemotePocOperationState> {
   }
 
   void _invalidateRecoveredLocalSurfaces(List<int> localPackIds) {
-    _ref.invalidate(remoteBackedOutboxSummaryProvider);
-    _ref.invalidate(remoteBackedRecoverySummaryProvider);
+    _invalidateRemoteSyncDebug();
     for (final localPackId in localPackIds) {
       _ref.invalidate(remoteBackedPackRecoverySummaryProvider(localPackId));
     }
+  }
+
+  void _invalidateRemoteSyncDebug() {
+    _ref.invalidate(remoteSyncDebugSnapshotProvider);
+    _ref.invalidate(remoteBackedOutboxSummaryProvider);
+    _ref.invalidate(remoteBackedRecoverySummaryProvider);
+    _ref.invalidate(remoteBackedPackRecoverySummaryProvider);
   }
 
   Future<void> _refreshDerivedLocalSurfaces() async {
@@ -1453,6 +1560,67 @@ final remoteBackedOutboxSummaryProvider =
         conflictOrNoOpCount: conflictOrNoOp,
       );
     });
+
+final remoteSyncDebugSnapshotProvider = FutureProvider<RemoteSyncDebugSnapshot>(
+  (ref) async {
+    final dao = ref.watch(appDatabaseProvider).reminderDao;
+    final currentLocalUser = await ref
+        .watch(identityRepositoryProvider)
+        .getCurrentAppUser();
+    final runtime = ref.watch(supabaseRuntimeProvider);
+    final entries = await dao.listSyncOutboxEntries();
+    final metadata = await dao.listRemotePackSyncMetadataEntries();
+    final remoteBackedPacks = metadata
+        .where((entry) => entry.syncKind == RemotePackSyncKind.remoteBacked)
+        .toList(growable: false);
+    final packs = <RemoteSyncDebugPack>[];
+
+    for (final pack in remoteBackedPacks) {
+      final packEntries = entries
+          .where((entry) => entry.localPackId == pack.localPackId)
+          .toList(growable: false);
+      SyncOutboxEntry? lastFailed;
+      for (final entry in packEntries) {
+        if (entry.status != SyncOutboxStatus.failed ||
+            entry.lastError == null) {
+          continue;
+        }
+        if (lastFailed == null ||
+            entry.updatedAt.isAfter(lastFailed.updatedAt)) {
+          lastFailed = entry;
+        }
+      }
+      packs.add(
+        RemoteSyncDebugPack(
+          localPackId: pack.localPackId,
+          remotePackId: pack.remotePackId,
+          syncState: pack.syncState,
+          currentUserRemoteStatus: pack.currentUserRemoteStatus,
+          currentUserRemoteRole: pack.currentUserRemoteRole,
+          pendingOutboxCount: packEntries
+              .where((entry) => entry.status == SyncOutboxStatus.pending)
+              .length,
+          syncingOutboxCount: packEntries
+              .where((entry) => entry.status == SyncOutboxStatus.syncing)
+              .length,
+          failedOutboxCount: packEntries
+              .where((entry) => entry.status == SyncOutboxStatus.failed)
+              .length,
+          lastFailedError: lastFailed?.lastError,
+        ),
+      );
+    }
+
+    final recentOutbox = entries.reversed.take(10).toList(growable: false);
+    return RemoteSyncDebugSnapshot(
+      currentLocalUser: currentLocalUser,
+      supabaseCurrentUserId: runtime.client?.auth.currentUser?.id,
+      supabaseSessionExists: runtime.client?.auth.currentSession != null,
+      packs: packs,
+      recentOutboxEntries: recentOutbox,
+    );
+  },
+);
 
 final remoteBackedRecoverySummaryProvider =
     FutureProvider<RemoteBackedSyncProblemSummary>((ref) async {

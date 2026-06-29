@@ -145,8 +145,19 @@ void main() {
       expect(metadata.remoteItemId, startsWith('pending:'));
       final outbox = await db.reminderDao.listPendingSyncOutboxEntries();
       expect(outbox.single.actionType, SyncOutboxActionType.createItem);
+      expect(outbox.single.remoteEntityId, isNull);
+      expect(outbox.single.actorRemoteUserId, 'remote-user-current');
       final payload = jsonDecode(outbox.single.payloadJson) as Map;
-      expect((payload['fields'] as Map)['title'], 'Buy litter');
+      expect(payload['remotePackId'], 'remote-pack-1');
+      expect(payload['localPackId'], env.localPackId);
+      expect(payload['localItemId'], itemId);
+      expect(payload['clientMutationId'], outbox.single.clientMutationId);
+      expect(payload['actorLocalUserId'], env.currentUser.id);
+      expect(payload['actorRemoteUserId'], 'remote-user-current');
+      final fields = payload['fields'] as Map;
+      expect(fields['title'], 'Buy litter');
+      expect(fields['note'], 'Shared note');
+      expect(fields, contains('assignedToUserId'));
 
       final remote = _FakeRemoteClient(
         createResult: const RemotePocResult.success(
@@ -200,6 +211,20 @@ void main() {
     expect(local.title, 'Updated remote mirror');
     final outbox = await db.reminderDao.listPendingSyncOutboxEntries();
     expect(outbox.single.actionType, SyncOutboxActionType.updateItem);
+    expect(outbox.single.remoteEntityId, 'remote-item-1');
+    expect(outbox.single.actorRemoteUserId, 'remote-user-current');
+    final payload = jsonDecode(outbox.single.payloadJson) as Map;
+    expect(payload['remotePackId'], 'remote-pack-1');
+    expect(payload['remoteItemId'], 'remote-item-1');
+    expect(payload['localPackId'], env.localPackId);
+    expect(payload['localItemId'], env.localItemId);
+    expect(payload['clientMutationId'], outbox.single.clientMutationId);
+    expect(payload['actorLocalUserId'], env.currentUser.id);
+    expect(payload['actorRemoteUserId'], 'remote-user-current');
+    final fields = payload['fields'] as Map;
+    expect(fields['title'], 'Updated remote mirror');
+    expect(fields['note'], 'Updated note');
+    expect(fields, contains('assignedToUserId'));
     final remote = _FakeRemoteClient(
       updateResult: const RemotePocResult.success(
         RemoteItemMutationResult(itemId: 'remote-item-1', status: 'updated'),
@@ -213,6 +238,97 @@ void main() {
     expect(result.synced, 1);
     expect(remote.updateCalls, 1);
   });
+
+  test(
+    'remote-backed item mutations fail closed without remote actor',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final env = await _seedRemoteBackedMirror(
+        db,
+        withCompletion: false,
+        linkCurrentUserRemote: false,
+      );
+      final repository = ItemRepository(
+        db.reminderDao,
+        remoteBackedItemActionService: env.actionService,
+        currentActorId: () async => env.currentUser.id,
+      );
+
+      await expectLater(
+        repository.createItem(
+          ItemInput(
+            title: 'Local-only must not happen',
+            type: ItemType.stateBased,
+            config: const StateBasedItemConfig(
+              warningAfter: Duration(days: 3),
+              dangerAfter: Duration(days: 5),
+            ),
+            packId: env.localPackId,
+          ),
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            ItemRepository.remoteBackedIdentityRequiredMessage,
+          ),
+        ),
+      );
+      expect(await db.reminderDao.listPendingSyncOutboxEntries(), isEmpty);
+      expect(await db.select(db.items).get(), hasLength(1));
+
+      final bundle = (await repository.getItemById(env.localItemId))!;
+      await expectLater(
+        repository.updateItem(
+          env.localItemId,
+          ItemInput(
+            title: 'Should not be saved',
+            description: 'Should not be saved',
+            type: bundle.item.type,
+            config: bundle.item.config,
+            attentionPolicySource: bundle.item.attentionPolicySource,
+            packId: bundle.item.packId,
+          ),
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            ItemRepository.remoteBackedIdentityRequiredMessage,
+          ),
+        ),
+      );
+      final afterUpdateAttempt = (await repository.getItemById(
+        env.localItemId,
+      ))!.item;
+      expect(afterUpdateAttempt.title, bundle.item.title);
+      expect(await db.reminderDao.listPendingSyncOutboxEntries(), isEmpty);
+
+      await expectLater(
+        repository.archiveItem(env.localItemId),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            ItemRepository.remoteBackedIdentityRequiredMessage,
+          ),
+        ),
+      );
+      final afterArchiveAttempt = (await repository.getItemById(
+        env.localItemId,
+      ))!.item;
+      expect(afterArchiveAttempt.status, ItemLifecycleStatus.active);
+      expect(await db.reminderDao.listPendingSyncOutboxEntries(), isEmpty);
+
+      final completed = await env.actionService.completeRemoteBackedItemLocally(
+        env.localItemId,
+        actorLocalUserId: env.currentUser.id,
+      );
+      expect(completed.status, RemoteBackedItemLocalActionStatus.failed);
+      expect(await db.reminderDao.listPendingSyncOutboxEntries(), isEmpty);
+    },
+  );
 
   test('remote-backed archive item enqueues archive mutation', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -242,6 +358,166 @@ void main() {
 
     expect(result.synced, 1);
     expect(remote.archiveCalls, 1);
+  });
+
+  test(
+    'stale syncing item mutations are retried by foreground flush',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final env = await _seedRemoteBackedMirror(db, withCompletion: false);
+      final repository = ItemRepository(
+        db.reminderDao,
+        remoteBackedItemActionService: env.actionService,
+        currentActorId: () async => env.currentUser.id,
+      );
+
+      final createdItemId = await repository.createItem(
+        ItemInput(
+          title: 'Stale syncing create',
+          type: ItemType.stateBased,
+          config: const StateBasedItemConfig(
+            warningAfter: Duration(days: 3),
+            dangerAfter: Duration(days: 5),
+          ),
+          packId: env.localPackId,
+        ),
+      );
+      final old = DateTime(2026, 6, 22, 8).millisecondsSinceEpoch;
+      final createOutbox =
+          (await db.reminderDao.listPendingSyncOutboxEntries()).single;
+      await db.reminderDao.updateSyncOutboxEntry(
+        createOutbox.id,
+        SyncOutboxCompanion(
+          status: Value(SyncOutboxStatus.syncing.storageValue),
+          lastAttemptAt: Value(old),
+          updatedAt: Value(old),
+        ),
+      );
+
+      final remote = _FakeRemoteClient(
+        createResult: const RemotePocResult.success(
+          RemoteItemCreateResult(itemId: 'remote-stale-create'),
+        ),
+      );
+      final result = await RemoteBackedOutboxFlushService(
+        dao: db.reminderDao,
+        remoteClient: remote,
+        clock: () => DateTime(2026, 6, 22, 8, 3),
+      ).flushPendingRemoteBackedMutations();
+
+      expect(result.synced, 1);
+      expect(remote.createCalls, 1);
+      var entries = await db.reminderDao.listSyncOutboxEntries();
+      expect(entries.single.status, SyncOutboxStatus.synced);
+      expect(entries.single.remoteEntityId, 'remote-stale-create');
+
+      final bundle = (await repository.getItemById(env.localItemId))!;
+      expect(
+        await repository.updateItem(
+          env.localItemId,
+          ItemInput(
+            title: 'Stale syncing update',
+            description: 'Retry update',
+            type: bundle.item.type,
+            config: bundle.item.config,
+            attentionPolicySource: bundle.item.attentionPolicySource,
+            packId: bundle.item.packId,
+          ),
+        ),
+        isTrue,
+      );
+      final updateOutbox =
+          (await db.reminderDao.listPendingSyncOutboxEntries()).single;
+      await db.reminderDao.updateSyncOutboxEntry(
+        updateOutbox.id,
+        SyncOutboxCompanion(
+          status: Value(SyncOutboxStatus.syncing.storageValue),
+          lastAttemptAt: Value(old),
+          updatedAt: Value(old),
+        ),
+      );
+
+      remote.updateResult = const RemotePocResult.success(
+        RemoteItemMutationResult(itemId: 'remote-item-1', status: 'updated'),
+      );
+      final updateResult = await RemoteBackedOutboxFlushService(
+        dao: db.reminderDao,
+        remoteClient: remote,
+        clock: () => DateTime(2026, 6, 22, 8, 3),
+      ).flushPendingRemoteBackedMutations();
+      expect(updateResult.synced, 1);
+      expect(remote.updateCalls, 1);
+
+      expect(await repository.archiveItem(env.localItemId), isTrue);
+      final archiveOutbox =
+          (await db.reminderDao.listPendingSyncOutboxEntries()).single;
+      await db.reminderDao.updateSyncOutboxEntry(
+        archiveOutbox.id,
+        SyncOutboxCompanion(
+          status: Value(SyncOutboxStatus.syncing.storageValue),
+          lastAttemptAt: Value(old),
+          updatedAt: Value(old),
+        ),
+      );
+      remote.archiveResult = const RemotePocResult.success(
+        RemoteItemMutationResult(itemId: 'remote-item-1', status: 'archived'),
+      );
+      final archiveResult = await RemoteBackedOutboxFlushService(
+        dao: db.reminderDao,
+        remoteClient: remote,
+        clock: () => DateTime(2026, 6, 22, 8, 3),
+      ).flushPendingRemoteBackedMutations();
+      expect(archiveResult.synced, 1);
+      expect(remote.archiveCalls, 1);
+
+      final mapping = await db.reminderDao.getSyncMapping(
+        localEntityType: RemoteSharedPackRepository.localEntityItem,
+        localEntityId: createdItemId,
+        remoteTable: RemoteSharedPackRepository.remoteTableItems,
+      );
+      expect(mapping!.remoteEntityId, 'remote-stale-create');
+      entries = await db.reminderDao.listSyncOutboxEntries();
+      expect(
+        entries.where((entry) => entry.status == SyncOutboxStatus.syncing),
+        isEmpty,
+      );
+    },
+  );
+
+  test('thrown remote client exception marks outbox failed safely', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final env = await _seedRemoteBackedMirror(db, withCompletion: false);
+    final repository = ItemRepository(
+      db.reminderDao,
+      remoteBackedItemActionService: env.actionService,
+      currentActorId: () async => env.currentUser.id,
+    );
+    await repository.createItem(
+      ItemInput(
+        title: 'Throws during RPC',
+        type: ItemType.stateBased,
+        config: const StateBasedItemConfig(
+          warningAfter: Duration(days: 3),
+          dangerAfter: Duration(days: 5),
+        ),
+        packId: env.localPackId,
+      ),
+    );
+
+    final remote = _FakeRemoteClient()..throwOnCreate = true;
+    final result = await RemoteBackedOutboxFlushService(
+      dao: db.reminderDao,
+      remoteClient: remote,
+    ).flushPendingRemoteBackedMutations();
+
+    expect(result.failed, 1);
+    expect(remote.createCalls, 1);
+    final outbox = await db.reminderDao.listSyncOutboxEntries();
+    expect(outbox.single.status, SyncOutboxStatus.failed);
+    expect(outbox.single.lastError, 'unknown_exception');
+    expect(outbox.single.lastError, isNot(contains('secret')));
   });
 
   test(
@@ -1013,12 +1289,15 @@ Future<_RemoteMirrorEnv> _seedRemoteBackedMirror(
   String remotePackId = 'remote-pack-1',
   String remoteItemId = 'remote-item-1',
   String remoteCompletionId = 'remote-completion-1',
+  bool linkCurrentUserRemote = true,
 }) async {
   final identity = IdentityRepository(db.reminderDao);
-  final currentUser = await identity.linkRemoteIdentity(
-    remoteUserId: 'remote-user-current',
-    provider: AuthProviderType.supabaseAnonymous,
-  );
+  final currentUser = linkCurrentUserRemote
+      ? await identity.linkRemoteIdentity(
+          remoteUserId: 'remote-user-current',
+          provider: AuthProviderType.supabaseAnonymous,
+        )
+      : await identity.ensureLocalIdentity();
   final importService = RemoteSnapshotImportService(
     dao: db.reminderDao,
     identityRepository: identity,
@@ -1205,6 +1484,7 @@ class _FakeRemoteClient implements RemoteBackedOutboxRemoteClient {
   int createStageTrackerCalls = 0;
   int completeCalls = 0;
   int undoCalls = 0;
+  bool throwOnCreate = false;
 
   @override
   Future<RemotePocResult<RemoteItemCreateResult>> createRemoteItemForPack({
@@ -1214,6 +1494,9 @@ class _FakeRemoteClient implements RemoteBackedOutboxRemoteClient {
     String? clientMutationId,
   }) async {
     createCalls++;
+    if (throwOnCreate) {
+      throw StateError('secret remote create failure');
+    }
     return createResult ??
         const RemotePocResult.failure(
           RemoteSharedPackFailureReason.remoteUnknownFailure,

@@ -1171,6 +1171,8 @@ class RemoteSnapshotImportService {
       await _dao.updateRemoteItemSyncMetadata(
         existing.id,
         RemoteItemSyncMetadataCompanion(
+          remoteItemId: Value(snapshot.id),
+          remotePackId: Value(snapshot.packId),
           syncState: Value(syncState.storageValue),
           remoteStatus: Value(snapshot.status),
           remoteUpdatedAt: Value(_millis(snapshot.updatedAt)),

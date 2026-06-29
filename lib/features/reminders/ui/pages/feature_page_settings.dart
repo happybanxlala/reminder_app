@@ -70,6 +70,13 @@ class SettingsPage extends ConsumerWidget {
       data: (summary) => summary,
       orElse: () => null,
     );
+    final remoteSyncDebugSnapshotAsync = ref.watch(
+      remoteSyncDebugSnapshotProvider,
+    );
+    final remoteSyncDebugSnapshot = remoteSyncDebugSnapshotAsync.maybeWhen(
+      data: (snapshot) => snapshot,
+      orElse: () => null,
+    );
 
     return ReminderEditorScaffold(
       title: ReminderUiText.settingsTitle,
@@ -589,6 +596,67 @@ class SettingsPage extends ConsumerWidget {
                             (controller) =>
                                 controller.flushRemoteBackedOutbox(),
                           ),
+                  ),
+                  Text(
+                    ReminderUiText.remoteSyncDebugSectionTitle,
+                    key: const Key('settings-remote-sync-debug-title'),
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: context.reminderPalette.textSecondary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  _SettingsActionRow(
+                    key: const Key('settings-remote-sync-debug-refresh-row'),
+                    label: ReminderUiText.remoteSyncDebugRefreshLabel,
+                    value: remoteSyncDebugSnapshotAsync.isLoading
+                        ? 'loading'
+                        : _remotePocDateTimeValue(DateTime.now()),
+                    icon: Icons.refresh_outlined,
+                    enabled: !remotePocState.isRunning,
+                    onTap: () => _runRemotePocAction(
+                      context,
+                      ref,
+                      (controller) =>
+                          controller.refreshRemoteSyncDebugSnapshot(),
+                    ),
+                  ),
+                  _SettingsActionRow(
+                    key: const Key(
+                      'settings-remote-sync-debug-force-flush-row',
+                    ),
+                    label: ReminderUiText.remoteSyncDebugForceFlushLabel,
+                    value: outboxSummary == null
+                        ? ReminderUiText.remotePocNotRun
+                        : '${outboxSummary.pendingCount} pending / ${outboxSummary.syncingCount} syncing',
+                    icon: Icons.sync_outlined,
+                    enabled: !remotePocState.isRunning,
+                    onTap: () => _runRemotePocAction(
+                      context,
+                      ref,
+                      (controller) => controller.flushRemoteBackedOutbox(),
+                    ),
+                  ),
+                  _SettingsActionRow(
+                    key: const Key(
+                      'settings-remote-sync-debug-reset-syncing-row',
+                    ),
+                    label: ReminderUiText.remoteSyncDebugResetSyncingLabel,
+                    value: outboxSummary == null
+                        ? ReminderUiText.remotePocNotRun
+                        : '${outboxSummary.syncingCount} syncing',
+                    icon: Icons.restart_alt,
+                    enabled: !remotePocState.isRunning,
+                    onTap: () => _runRemotePocAction(
+                      context,
+                      ref,
+                      (controller) =>
+                          controller.resetStuckSyncingRemoteBackedOutbox(),
+                    ),
+                  ),
+                  _RemoteSyncDebugPanel(
+                    snapshot: remoteSyncDebugSnapshot,
+                    shortId: _shortUserId,
+                    dateTimeValue: _remotePocDateTimeValue,
                   ),
                   Text(
                     ReminderUiText.remoteRecoverySectionTitle,
@@ -1487,6 +1555,7 @@ class SettingsPage extends ConsumerWidget {
     ref.invalidate(currentAppUserProvider);
     ref.invalidate(currentAppUserIdProvider);
     ref.invalidate(remoteBackedOutboxSummaryProvider);
+    ref.invalidate(remoteSyncDebugSnapshotProvider);
     if (!context.mounted) {
       return;
     }
@@ -1802,6 +1871,156 @@ class _SettingsInputRow extends StatelessWidget {
         fontWeight: FontWeight.w700,
       ),
       onChanged: onChanged,
+    );
+  }
+}
+
+class _RemoteSyncDebugPanel extends StatelessWidget {
+  const _RemoteSyncDebugPanel({
+    required this.snapshot,
+    required this.shortId,
+    required this.dateTimeValue,
+  });
+
+  final RemoteSyncDebugSnapshot? snapshot;
+  final String Function(String value) shortId;
+  final String Function(DateTime? value) dateTimeValue;
+
+  @override
+  Widget build(BuildContext context) {
+    final snapshot = this.snapshot;
+    if (snapshot == null) {
+      return const _SettingsReadOnlyRow(
+        key: Key('settings-remote-sync-debug-loading-row'),
+        label: 'Debug snapshot',
+        value: ReminderUiText.remotePocNotRun,
+      );
+    }
+
+    final currentUser = snapshot.currentLocalUser;
+    return Column(
+      key: const Key('settings-remote-sync-debug-panel'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SettingsReadOnlyRow(
+          key: const Key('settings-remote-sync-debug-local-user-row'),
+          label: 'current local user id',
+          value: currentUser.id,
+        ),
+        _SettingsReadOnlyRow(
+          key: const Key('settings-remote-sync-debug-local-remote-user-row'),
+          label: 'current local user remoteUserId',
+          value: currentUser.remoteUserId == null
+              ? 'missing'
+              : shortId(currentUser.remoteUserId!),
+        ),
+        _SettingsReadOnlyRow(
+          key: const Key('settings-remote-sync-debug-supabase-user-row'),
+          label: 'Supabase current user id',
+          value: snapshot.supabaseCurrentUserId == null
+              ? 'missing'
+              : shortId(snapshot.supabaseCurrentUserId!),
+        ),
+        _SettingsReadOnlyRow(
+          key: const Key('settings-remote-sync-debug-supabase-session-row'),
+          label: 'Supabase session',
+          value: snapshot.supabaseSessionExists ? 'exists' : 'missing',
+        ),
+        if (snapshot.packs.isEmpty)
+          const _SettingsReadOnlyRow(
+            key: Key('settings-remote-sync-debug-no-packs-row'),
+            label: 'remote-backed packs',
+            value: 'none',
+          )
+        else
+          for (final pack in snapshot.packs)
+            _RemoteSyncDebugTextBlock(
+              key: Key('settings-remote-sync-debug-pack-${pack.localPackId}'),
+              title:
+                  'pack local ${pack.localPackId} / remote ${shortId(pack.remotePackId)}',
+              lines: [
+                'localPackId=${pack.localPackId}',
+                'remotePackId=${pack.remotePackId}',
+                'syncState=${pack.syncState.name}',
+                'currentUserRemoteStatus=${pack.currentUserRemoteStatus?.name ?? 'missing'}',
+                'currentUserRemoteRole=${pack.currentUserRemoteRole?.name ?? 'missing'}',
+                'pending=${pack.pendingOutboxCount}, syncing=${pack.syncingOutboxCount}, failed=${pack.failedOutboxCount}',
+                'lastFailedError=${pack.lastFailedError ?? '-'}',
+              ],
+            ),
+        if (snapshot.recentOutboxEntries.isEmpty)
+          const _SettingsReadOnlyRow(
+            key: Key('settings-remote-sync-debug-no-outbox-row'),
+            label: 'recent sync_outbox',
+            value: 'none',
+          )
+        else
+          for (final entry in snapshot.recentOutboxEntries)
+            _RemoteSyncDebugTextBlock(
+              key: Key('settings-remote-sync-debug-outbox-${entry.id}'),
+              title: 'outbox #${entry.id} ${entry.actionType.name}',
+              lines: [
+                'id=${entry.id}',
+                'actionType=${entry.actionType.name}',
+                'status=${entry.status.name}',
+                'localPackId=${entry.localPackId}',
+                'remotePackId=${entry.remotePackId ?? '-'}',
+                'localEntityType=${entry.localEntityType}',
+                'localEntityId=${entry.localEntityId ?? '-'}',
+                'remoteEntityId=${entry.remoteEntityId ?? '-'}',
+                'actorLocalUserId=${entry.actorLocalUserId}',
+                'actorRemoteUserId=${entry.actorRemoteUserId ?? 'missing'}',
+                'clientMutationId=${entry.clientMutationId}',
+                'retryCount=${entry.retryCount}',
+                'lastError=${entry.lastError ?? '-'}',
+                'createdAt=${dateTimeValue(entry.createdAt)}',
+                'updatedAt=${dateTimeValue(entry.updatedAt)}',
+                'lastAttemptAt=${dateTimeValue(entry.lastAttemptAt)}',
+                'resolvedAt=${dateTimeValue(entry.resolvedAt)}',
+              ],
+            ),
+      ],
+    );
+  }
+}
+
+class _RemoteSyncDebugTextBlock extends StatelessWidget {
+  const _RemoteSyncDebugTextBlock({
+    super.key,
+    required this.title,
+    required this.lines,
+  });
+
+  final String title;
+  final List<String> lines;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.reminderPalette;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: palette.textPrimary,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          for (final line in lines)
+            Text(
+              line,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: palette.textMuted),
+            ),
+        ],
+      ),
     );
   }
 }

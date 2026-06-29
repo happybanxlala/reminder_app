@@ -520,6 +520,8 @@ class RemoteSharedPackOutboxRemoteClient
 }
 
 class RemoteBackedOutboxFlushService {
+  static const staleSyncingRetryAfter = Duration(minutes: 2);
+
   const RemoteBackedOutboxFlushService({
     required ReminderDao dao,
     required RemoteBackedOutboxRemoteClient remoteClient,
@@ -534,7 +536,11 @@ class RemoteBackedOutboxFlushService {
 
   Future<RemoteBackedOutboxFlushResult>
   flushPendingRemoteBackedMutations() async {
-    final pending = await _dao.listPendingSyncOutboxEntries();
+    final candidates = await _dao.listSyncOutboxEntries(
+      statuses: {SyncOutboxStatus.pending, SyncOutboxStatus.syncing},
+    );
+    final now = _clock();
+    final staleSyncingCutoff = now.subtract(staleSyncingRetryAfter);
     var processed = 0;
     var synced = 0;
     var noOp = 0;
@@ -542,8 +548,11 @@ class RemoteBackedOutboxFlushService {
     var failed = 0;
     RemoteBackedMutationResolution? lastResolution;
 
-    for (final mutation in pending) {
-      final resolution = await _processMutation(mutation);
+    for (final mutation in candidates) {
+      if (!_isProcessableMutation(mutation, staleSyncingCutoff)) {
+        continue;
+      }
+      final resolution = await _processMutationSafely(mutation);
       if (resolution == null) {
         continue;
       }
@@ -577,13 +586,60 @@ class RemoteBackedOutboxFlushService {
     );
   }
 
+  bool _isProcessableMutation(
+    SyncOutboxEntry mutation,
+    DateTime staleSyncingCutoff,
+  ) {
+    if (mutation.status == SyncOutboxStatus.pending) {
+      return true;
+    }
+    if (mutation.status != SyncOutboxStatus.syncing ||
+        mutation.resolvedAt != null) {
+      return false;
+    }
+    final lastTouched = mutation.lastAttemptAt ?? mutation.updatedAt;
+    return lastTouched.isBefore(staleSyncingCutoff);
+  }
+
+  Future<RemoteBackedMutationResolution?> _processMutationSafely(
+    SyncOutboxEntry mutation,
+  ) async {
+    try {
+      var processable = mutation;
+      if (processable.status == SyncOutboxStatus.syncing) {
+        final now = _clock().millisecondsSinceEpoch;
+        await _dao.updateSyncOutboxEntry(
+          processable.id,
+          SyncOutboxCompanion(
+            status: Value(SyncOutboxStatus.pending.storageValue),
+            lastError: const Value('retry_stale_syncing'),
+            updatedAt: Value(now),
+          ),
+        );
+        final refreshed = await _dao.getSyncOutboxEntryById(processable.id);
+        if (refreshed == null) {
+          return null;
+        }
+        processable = refreshed;
+      }
+      return await _processMutation(processable);
+    } catch (error) {
+      await _markFailed(
+        mutation,
+        RemoteBackedMutationResolution.failed,
+        _sanitizedExceptionReason(error),
+      );
+      return RemoteBackedMutationResolution.failed;
+    }
+  }
+
   Future<RemoteBackedMutationResolution?> _processMutation(
     SyncOutboxEntry mutation,
   ) async {
     if (mutation.status != SyncOutboxStatus.pending) {
       return null;
     }
-    final payload = _decodePayload(mutation.payloadJson);
+    final payload = _decodePayloadOrEmpty(mutation.payloadJson);
     if (mutation.actionType == SyncOutboxActionType.createItem) {
       final remotePackId =
           mutation.remotePackId ?? _stringPayload(payload, 'remotePackId');
@@ -862,6 +918,14 @@ class RemoteBackedOutboxFlushService {
       SyncOutboxActionType.archiveStageRecord ||
       SyncOutboxActionType.stageAcknowledge => throw StateError('unreachable'),
     };
+  }
+
+  Map<String, Object?> _decodePayloadOrEmpty(String source) {
+    try {
+      return _decodePayload(source);
+    } catch (_) {
+      return const {};
+    }
   }
 
   bool _isResourceMutation(SyncOutboxActionType actionType) {
@@ -1973,7 +2037,7 @@ class RemoteBackedOutboxFlushService {
         updatedAt: Value(_clock().millisecondsSinceEpoch),
       ),
     );
-    final payload = _decodePayload(mutation.payloadJson);
+    final payload = _decodePayloadOrEmpty(mutation.payloadJson);
     final completionId =
         _intPayload(payload, 'localCompletionId') ?? mutation.localEntityId;
     if (completionId != null) {
@@ -2380,6 +2444,36 @@ class RemoteBackedOutboxFlushService {
         RemoteBackedMutationResolution.permissionRevoked,
       _ => RemoteBackedMutationResolution.failed,
     };
+  }
+
+  String _sanitizedExceptionReason(Object error) {
+    if (error is RemoteSharedPackException) {
+      return switch (error.reason) {
+        RemoteSharedPackFailureReason.supabaseConfigMissing => 'config_missing',
+        RemoteSharedPackFailureReason.remoteAuthRequired => 'auth_missing',
+        RemoteSharedPackFailureReason.remoteNetworkFailed =>
+          'network_exception',
+        RemoteSharedPackFailureReason.remoteRlsRejected ||
+        RemoteSharedPackFailureReason.localUserNotPackMember ||
+        RemoteSharedPackFailureReason.remoteInviteNotHost =>
+          'supabase_exception',
+        _ => 'remote_exception',
+      };
+    }
+    final type = error.runtimeType.toString().toLowerCase();
+    if (type.contains('postgrest') || type.contains('supabase')) {
+      return 'supabase_exception';
+    }
+    if (type.contains('auth')) {
+      return 'auth_missing';
+    }
+    if (type.contains('socket') ||
+        type.contains('timeout') ||
+        type.contains('network') ||
+        type.contains('clientexception')) {
+      return 'network_exception';
+    }
+    return 'unknown_exception';
   }
 
   Map<String, Object?> _decodePayload(String source) {

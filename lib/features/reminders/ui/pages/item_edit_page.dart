@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,6 +12,7 @@ import '../../domain/resource.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
 import '../../presentation/text/reminder_ui_text.dart';
 import '../../providers/item_providers.dart';
+import '../../providers/remote_backed_sync_coordinator.dart';
 import '../../providers/resource_providers.dart';
 import '../../providers/settings_providers.dart';
 import '../../providers/shared_pack_care_providers.dart';
@@ -387,24 +386,37 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     }
 
     final repository = ref.read(itemRepositoryProvider);
+    final existingForSave = _isEdit && widget.id != null
+        ? await repository.getItemById(widget.id!)
+        : null;
+    final preserveRemoteBackedBasicConfig =
+        existingForSave != null &&
+        await repository.isRemoteBackedPack(existingForSave.item.packId);
     final input = ItemInput(
       title: _titleController.text.trim(),
       description: _normalizeOptionalText(_descriptionController.text),
       type: _configController.type,
-      config: _isEdit
+      config: preserveRemoteBackedBasicConfig
+          ? existingForSave.item.config
+          : _isEdit
           ? _configController.buildConfigForCurrentPolicySource()
           : _configController.buildConfigForCreate(),
-      attentionPolicySource:
-          _configController.type != ItemType.fixed &&
-              _isEdit &&
-              _configController.customizeAttentionPolicy
+      attentionPolicySource: preserveRemoteBackedBasicConfig
+          ? existingForSave.item.attentionPolicySource
+          : _configController.type != ItemType.fixed &&
+                _isEdit &&
+                _configController.customizeAttentionPolicy
           ? AttentionPolicySource.userCustomized
           : AttentionPolicySource.systemDefault,
       packId: widget.lockedPackId ?? _selectedPackId,
     );
+    debugPrint(
+      '[remote-backed-save] ItemEditPage save start mode=${widget.mode.name} localPackId=${input.packId ?? 'none'} itemId=${widget.id ?? 'new'}',
+    );
 
+    var saved = false;
     try {
-      final saved = _isEdit
+      saved = _isEdit
           ? await repository.updateItem(
               widget.id!,
               input,
@@ -422,25 +434,58 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
               ),
               true,
             ).$2;
+      debugPrint(
+        '[remote-backed-save] save result saved=$saved localPackId=${input.packId ?? 'none'}',
+      );
       if (!saved) {
         _showSaveError(ReminderUiText.itemSaveFailedMessage);
         return;
       }
     } on StateError catch (error) {
+      debugPrint(
+        '[remote-backed-save] save exception type=${error.runtimeType} localPackId=${input.packId ?? 'none'}',
+      );
       _showSaveError(_saveErrorMessage(error));
       return;
-    } catch (_) {
+    } catch (error) {
+      debugPrint(
+        '[remote-backed-save] save exception type=${error.runtimeType} localPackId=${input.packId ?? 'none'}',
+      );
       _showSaveError(ReminderUiText.saveFailedPrefix);
       return;
     }
 
     final localPackId = input.packId;
-    if (localPackId != null &&
-        await repository.isRemoteBackedPack(localPackId)) {
-      unawaited(
-        ref
+    final isRemoteBacked =
+        localPackId != null && await repository.isRemoteBackedPack(localPackId);
+    debugPrint(
+      '[remote-backed-save] isRemoteBackedPack=$isRemoteBacked localPackId=${localPackId ?? 'none'}',
+    );
+    if (localPackId != null && isRemoteBacked) {
+      try {
+        debugPrint(
+          '[remote-backed-save] syncAfterRemoteBackedMutation start localPackId=$localPackId',
+        );
+        final syncResult = await ref
             .read(remoteBackedSyncCoordinatorProvider)
-            .syncAfterRemoteBackedMutation(localPackId),
+            .syncAfterRemoteBackedMutation(localPackId);
+        final flushResult = syncResult.flushResult;
+        debugPrint(
+          '[remote-backed-save] syncAfterRemoteBackedMutation result status=${syncResult.status.name} processed=${flushResult?.processed ?? 0} synced=${flushResult?.synced ?? 0} failed=${flushResult?.failed ?? 0} noOp=${flushResult?.noOp ?? 0} lastResolution=${flushResult?.lastResolution?.name ?? 'none'}',
+        );
+        if (syncResult.status == RemoteBackedSyncStatus.failed ||
+            syncResult.status == RemoteBackedSyncStatus.pending) {
+          _showSaveError(ReminderUiText.remoteBackedSavePendingSyncMessage);
+        }
+      } catch (error) {
+        debugPrint(
+          '[remote-backed-save] syncAfterRemoteBackedMutation exception type=${error.runtimeType} localPackId=$localPackId',
+        );
+        _showSaveError(ReminderUiText.remoteBackedSavePendingSyncMessage);
+      }
+    } else {
+      debugPrint(
+        '[remote-backed-save] syncAfterRemoteBackedMutation noOp localPackId=${localPackId ?? 'none'}',
       );
     }
 

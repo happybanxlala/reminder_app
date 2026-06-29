@@ -90,6 +90,7 @@ class ReminderUiText {
   static const syncSyncingLabel = '正在同步';
   static const syncFailedLabel = '同步失敗';
   static const syncRetryLaterLabel = '同步失敗，稍後會再試';
+  static const remoteBackedSavePendingSyncMessage = '已儲存在本機，稍後會再嘗試同步';
   static const syncUpdatedLabel = '已更新';
   static const syncNewUpdatesRefreshLabel = '有新的更新，請刷新';
   static const syncStaleLabel = '有新的更新，請刷新';
@@ -307,6 +308,11 @@ class ReminderUiText {
   static const remotePocOutboxLabel = 'Remote-backed Outbox';
   static const remotePocFlushOutboxLabel =
       'Flush Pending Remote-backed Mutations POC';
+  static const remoteSyncDebugSectionTitle = 'Remote sync debug';
+  static const remoteSyncDebugRefreshLabel = 'Refresh debug snapshot';
+  static const remoteSyncDebugForceFlushLabel = 'Force flush pending outbox';
+  static const remoteSyncDebugResetSyncingLabel =
+      'Reset stuck syncing to pending';
   static const remoteRecoverySectionTitle = 'Remote-backed Recovery';
   static const remoteRecoveryRetryLabel =
       'Retry retryable failed mutations POC';

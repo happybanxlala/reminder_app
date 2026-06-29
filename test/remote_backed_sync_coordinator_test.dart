@@ -213,6 +213,149 @@ void main() {
     },
   );
 
+  test(
+    'refresh flushes pending create before pulling remote snapshot',
+    () async {
+      final env = await _SyncEnv.create();
+      addTearDown(env.close);
+      final newItemId = await env.itemRepository.createItem(
+        ItemInput(
+          title: 'Pending local create',
+          description: 'Must flush before pull',
+          type: ItemType.stateBased,
+          config: _stateConfig(),
+          packId: env.localPackId,
+        ),
+      );
+      env.remoteClient.createResult = const RemotePocResult.success(
+        RemoteItemCreateResult(itemId: 'remote-created-before-refresh'),
+      );
+      env.nextSnapshot = _snapshot(
+        extraItems: [
+          _remoteItemSnapshot(
+            id: 'remote-created-before-refresh',
+            title: 'Pending local create',
+            note: 'Must flush before pull',
+          ),
+        ],
+      );
+
+      final result = await env.coordinator.refreshRemoteBackedPack(
+        env.localPackId,
+      );
+
+      expect(result.status, RemoteBackedSyncStatus.refreshed);
+      expect(env.operations, ['create', 'pull']);
+      expect(env.remoteClient.createCalls, 1);
+      expect(env.pullCalls, 1);
+      final outbox = await env.db.reminderDao.listSyncOutboxEntries();
+      expect(outbox.single.status, SyncOutboxStatus.synced);
+      final metadata = await env.db.reminderDao
+          .getRemoteItemSyncMetadataForLocalItem(newItemId);
+      expect(metadata!.remoteItemId, 'remote-created-before-refresh');
+      expect(metadata.syncState, RemoteItemSyncState.synced);
+    },
+  );
+
+  test(
+    'refresh does not pull when pre-refresh flush leaves failed mutation',
+    () async {
+      final env = await _SyncEnv.create();
+      addTearDown(env.close);
+      final existing = (await env.itemRepository.getItemById(env.localItemId))!;
+      await env.itemRepository.updateItem(
+        env.localItemId,
+        ItemInput(
+          title: 'Pending local title',
+          description: 'Pending local note',
+          type: existing.item.type,
+          config: existing.item.config,
+          packId: env.localPackId,
+        ),
+      );
+      env.nextSnapshot = _snapshot(
+        title: 'Remote stale title',
+        note: 'Remote stale note',
+      );
+
+      final result = await env.coordinator.refreshRemoteBackedPack(
+        env.localPackId,
+      );
+
+      expect(result.status, RemoteBackedSyncStatus.failed);
+      expect(env.operations, ['update']);
+      expect(env.remoteClient.updateCalls, 1);
+      expect(env.pullCalls, 0);
+      final local = (await env.itemRepository.getItemById(
+        env.localItemId,
+      ))!.item;
+      expect(local.title, 'Pending local title');
+      expect(local.description, 'Pending local note');
+      final outbox = await env.db.reminderDao.listSyncOutboxEntries();
+      expect(outbox.single.status, SyncOutboxStatus.failed);
+    },
+  );
+
+  test(
+    'pull-to-refresh imports remote-created item into local mirror',
+    () async {
+      final env = await _SyncEnv.create();
+      addTearDown(env.close);
+      env.nextSnapshot = _snapshot(
+        extraItems: [
+          _remoteItemSnapshot(
+            id: 'remote-item-created-on-a',
+            title: 'Created on A',
+            note: 'Visible on B after refresh',
+          ),
+        ],
+      );
+
+      final result = await env.coordinator.refreshRemoteBackedPack(
+        env.localPackId,
+      );
+
+      expect(result.status, RemoteBackedSyncStatus.refreshed);
+      expect(env.operations, ['pull']);
+      final mapping = await env.db.reminderDao.getSyncMappingByRemote(
+        localEntityType: 'item',
+        remoteTable: 'items',
+        remoteEntityId: 'remote-item-created-on-a',
+      );
+      expect(mapping, isNotNull);
+      final imported = (await env.itemRepository.getItemById(
+        mapping!.localEntityId,
+      ))!.item;
+      expect(imported.title, 'Created on A');
+      expect(imported.description, 'Visible on B after refresh');
+    },
+  );
+
+  test('pull-to-refresh imports remote-updated item title and note', () async {
+    final env = await _SyncEnv.create();
+    addTearDown(env.close);
+    env.nextSnapshot = _snapshot(
+      title: 'Updated on A',
+      note: 'Updated note on A',
+    );
+
+    final result = await env.coordinator.refreshRemoteBackedPack(
+      env.localPackId,
+    );
+
+    expect(result.status, RemoteBackedSyncStatus.refreshed);
+    expect(env.operations, ['pull']);
+    final imported = (await env.itemRepository.getItemById(
+      env.localItemId,
+    ))!.item;
+    expect(imported.title, 'Updated on A');
+    expect(imported.description, 'Updated note on A');
+    final metadata = await env.db.reminderDao
+        .getRemoteItemSyncMetadataForLocalItem(env.localItemId);
+    expect(metadata!.syncState, RemoteItemSyncState.synced);
+    expect(metadata.lastPulledAt, isNotNull);
+  });
+
   test('coordinator flush failure keeps failed sync state visible', () async {
     final env = await _SyncEnv.create();
     addTearDown(env.close);
@@ -245,6 +388,7 @@ class _SyncEnv {
     required this.remoteClient,
     required this.localPackId,
     required this.localItemId,
+    required this.operations,
   });
 
   final AppDatabase db;
@@ -253,7 +397,9 @@ class _SyncEnv {
   final _FakeRemoteClient remoteClient;
   final int localPackId;
   final int localItemId;
+  final List<String> operations;
   RemotePackSnapshot? nextSnapshot;
+  int pullCalls = 0;
 
   static Future<_SyncEnv> create({bool withCompletion = false}) async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -284,7 +430,8 @@ class _SyncEnv {
       remoteBackedItemActionService: actionService,
       currentActorId: () async => currentUser.id,
     );
-    final remoteClient = _FakeRemoteClient();
+    final operations = <String>[];
+    final remoteClient = _FakeRemoteClient(operations);
     late final _SyncEnv env;
     final coordinator = RemoteBackedSyncCoordinator(
       dao: db.reminderDao,
@@ -294,8 +441,11 @@ class _SyncEnv {
       ),
       refreshService: RemoteBackedPackRefreshService(
         dao: db.reminderDao,
-        pullRemotePackSnapshot: (_) async =>
-            RemotePocResult.success(env.nextSnapshot ?? _snapshot()),
+        pullRemotePackSnapshot: (_) async {
+          env.pullCalls++;
+          operations.add('pull');
+          return RemotePocResult.success(env.nextSnapshot ?? _snapshot());
+        },
         importRemotePackSnapshot: importService.importRemotePackSnapshot,
       ),
     );
@@ -306,6 +456,7 @@ class _SyncEnv {
       remoteClient: remoteClient,
       localPackId: importResult.localPackId!,
       localItemId: itemMapping!.localEntityId,
+      operations: operations,
     );
     return env;
   }
@@ -318,6 +469,7 @@ RemotePackSnapshot _snapshot({
   String note = 'Remote note',
   bool withCompletion = false,
   bool includeOtherMember = false,
+  List<RemoteItemSnapshot> extraItems = const [],
 }) {
   final created = DateTime(2026, 6, 21, 10);
   final updated = DateTime(2026, 6, 21, 11);
@@ -351,18 +503,8 @@ RemotePackSnapshot _snapshot({
         ),
     ],
     items: [
-      RemoteItemSnapshot(
-        id: 'remote-item-1',
-        packId: 'remote-pack-1',
-        title: title,
-        note: note,
-        status: 'active',
-        assignedToUserId: null,
-        createdByUserId: 'remote-user-current',
-        updatedByUserId: 'remote-user-current',
-        createdAt: created,
-        updatedAt: updated,
-      ),
+      _remoteItemSnapshot(id: 'remote-item-1', title: title, note: note),
+      ...extraItems,
     ],
     completions: withCompletion
         ? [
@@ -380,7 +522,31 @@ RemotePackSnapshot _snapshot({
   );
 }
 
+RemoteItemSnapshot _remoteItemSnapshot({
+  required String id,
+  required String title,
+  String? note,
+}) {
+  final created = DateTime(2026, 6, 21, 10);
+  final updated = DateTime(2026, 6, 21, 11);
+  return RemoteItemSnapshot(
+    id: id,
+    packId: 'remote-pack-1',
+    title: title,
+    note: note,
+    status: 'active',
+    assignedToUserId: null,
+    createdByUserId: 'remote-user-current',
+    updatedByUserId: 'remote-user-current',
+    createdAt: created,
+    updatedAt: updated,
+  );
+}
+
 class _FakeRemoteClient implements RemoteBackedOutboxRemoteClient {
+  _FakeRemoteClient(this.operations);
+
+  final List<String> operations;
   RemotePocResult<RemoteItemCreateResult>? createResult;
   RemotePocResult<RemoteItemMutationResult>? updateResult;
   RemotePocResult<RemoteItemMutationResult>? archiveResult;
@@ -400,6 +566,7 @@ class _FakeRemoteClient implements RemoteBackedOutboxRemoteClient {
     String? clientMutationId,
   }) async {
     createCalls++;
+    operations.add('create');
     return createResult ??
         const RemotePocResult.failure(
           RemoteSharedPackFailureReason.remoteUnknownFailure,
@@ -415,6 +582,7 @@ class _FakeRemoteClient implements RemoteBackedOutboxRemoteClient {
     String? clientMutationId,
   }) async {
     updateCalls++;
+    operations.add('update');
     return updateResult ??
         const RemotePocResult.failure(
           RemoteSharedPackFailureReason.remoteUnknownFailure,
@@ -427,6 +595,7 @@ class _FakeRemoteClient implements RemoteBackedOutboxRemoteClient {
     String? clientMutationId,
   }) async {
     archiveCalls++;
+    operations.add('archive');
     return archiveResult ??
         const RemotePocResult.failure(
           RemoteSharedPackFailureReason.remoteUnknownFailure,
@@ -618,6 +787,7 @@ class _FakeRemoteClient implements RemoteBackedOutboxRemoteClient {
     String remoteItemId,
   ) async {
     completeCalls++;
+    operations.add('complete');
     return completeResult ??
         const RemotePocResult.failure(
           RemoteSharedPackFailureReason.remoteUnknownFailure,
@@ -629,6 +799,7 @@ class _FakeRemoteClient implements RemoteBackedOutboxRemoteClient {
     String remoteItemId,
   ) async {
     undoCalls++;
+    operations.add('undo');
     return undoResult ??
         const RemotePocResult.failure(
           RemoteSharedPackFailureReason.remoteUnknownFailure,

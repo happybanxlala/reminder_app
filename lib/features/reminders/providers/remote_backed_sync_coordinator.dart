@@ -106,6 +106,22 @@ class RemoteBackedSyncCoordinator {
     }
 
     final flushResult = await flushPendingMutations(localPackId: localPackId);
+    final unresolved = await _unresolvedOutboxSummary(localPackId);
+    if (unresolved.hasFailed) {
+      return RemoteBackedSyncResult(
+        status: RemoteBackedSyncStatus.failed,
+        message: ReminderUiText.syncRetryLaterLabel,
+        flushResult: flushResult.flushResult,
+      );
+    }
+    if (unresolved.hasPending) {
+      return RemoteBackedSyncResult(
+        status: RemoteBackedSyncStatus.pending,
+        message: ReminderUiText.syncPendingLabel,
+        flushResult: flushResult.flushResult,
+      );
+    }
+
     final refreshResult = await _refreshService.refreshPack(localPackId);
     await _afterLocalDataChanged(refreshResult.summary.localPackId);
 
@@ -160,6 +176,40 @@ class RemoteBackedSyncCoordinator {
     }
   }
 
+  Future<_CoordinatorOutboxSummary> _unresolvedOutboxSummary(
+    int localPackId,
+  ) async {
+    final entries = await _dao.listSyncOutboxEntries(
+      statuses: {
+        SyncOutboxStatus.pending,
+        SyncOutboxStatus.syncing,
+        SyncOutboxStatus.failed,
+        SyncOutboxStatus.conflict,
+      },
+    );
+    var pending = 0;
+    var failed = 0;
+    for (final entry in entries) {
+      if (entry.localPackId != localPackId) {
+        continue;
+      }
+      switch (entry.status) {
+        case SyncOutboxStatus.pending || SyncOutboxStatus.syncing:
+          pending++;
+        case SyncOutboxStatus.failed || SyncOutboxStatus.conflict:
+          failed++;
+        case SyncOutboxStatus.synced ||
+            SyncOutboxStatus.cancelled ||
+            SyncOutboxStatus.noOp:
+          break;
+      }
+    }
+    return _CoordinatorOutboxSummary(
+      pendingCount: pending,
+      failedCount: failed,
+    );
+  }
+
   Future<void> _afterLocalDataChanged(int? localPackId) async {
     await _onLocalDataChanged?.call(localPackId);
     final refreshDerived = _refreshDerivedLocalSurfaces;
@@ -207,4 +257,17 @@ class RemoteBackedSyncCoordinator {
         ReminderUiText.packCareMemberUpdateFailed,
     };
   }
+}
+
+class _CoordinatorOutboxSummary {
+  const _CoordinatorOutboxSummary({
+    required this.pendingCount,
+    required this.failedCount,
+  });
+
+  final int pendingCount;
+  final int failedCount;
+
+  bool get hasPending => pendingCount > 0;
+  bool get hasFailed => failedCount > 0;
 }

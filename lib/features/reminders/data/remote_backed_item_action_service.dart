@@ -20,6 +20,9 @@ class RemoteBackedItemActionService {
        _identityRepository = identityRepository,
        _clock = clock ?? DateTime.now;
 
+  static const _remoteBackedIdentityRequiredMessage =
+      '目前找不到遠端共同資料身份，暫時不能同步這個變更。請稍後再試。';
+
   final ReminderDao _dao;
   final IdentityRepository _identityRepository;
   final DateTime Function() _clock;
@@ -55,7 +58,13 @@ class RemoteBackedItemActionService {
         localCompletionId: activeCompletion.id,
       );
     }
-    final actor = await _resolveActor(actorLocalUserId);
+    final actor = await _resolveRemoteBackedActor(actorLocalUserId);
+    if (actor == null) {
+      return const RemoteBackedItemLocalActionResult(
+        status: RemoteBackedItemLocalActionStatus.failed,
+        message: _remoteBackedIdentityRequiredMessage,
+      );
+    }
     final now = _clock();
     final actionDate = doneAt ?? now;
     final clientMutationId = _clientMutationId('complete', localItemId, now);
@@ -168,7 +177,13 @@ class RemoteBackedItemActionService {
         localItemId: bundle.item.id,
       );
     }
-    final actor = await _resolveActor(actorLocalUserId);
+    final actor = await _resolveRemoteBackedActor(actorLocalUserId);
+    if (actor == null) {
+      return const RemoteBackedItemLocalActionResult(
+        status: RemoteBackedItemLocalActionStatus.failed,
+        message: _remoteBackedIdentityRequiredMessage,
+      );
+    }
     final now = _clock();
     final actionDate = undoneAt ?? now;
     final clientMutationId = _clientMutationId('undo', localItemId, now);
@@ -374,6 +389,14 @@ class RemoteBackedItemActionService {
       }
     }
     return _identityRepository.getCurrentAppUser();
+  }
+
+  Future<LocalUser?> _resolveRemoteBackedActor(String? actorLocalUserId) async {
+    final actor = await _resolveActor(actorLocalUserId);
+    if ((actor.remoteUserId ?? '').trim().isEmpty) {
+      return null;
+    }
+    return actor;
   }
 
   String _clientMutationId(String action, int localItemId, DateTime now) {

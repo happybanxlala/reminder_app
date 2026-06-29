@@ -22,6 +22,7 @@ import 'package:reminder_app/features/reminders/domain/attention_policy.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/remote_pack_freshness.dart';
+import 'package:reminder_app/features/reminders/domain/remote_sync.dart';
 import 'package:reminder_app/features/reminders/domain/shared_pack.dart';
 import 'package:reminder_app/features/reminders/presentation/formatters/reminder_formatters.dart';
 import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
@@ -493,7 +494,13 @@ void main() {
         find.byKey(const Key('settings-debug-supabase-config-status')),
         findsOneWidget,
       );
-      expect(find.text(ReminderUiText.supabaseConfigMissing), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('settings-debug-supabase-config-status')),
+          matching: find.text(ReminderUiText.supabaseConfigMissing),
+        ),
+        findsOneWidget,
+      );
       expect(find.text(ReminderUiText.seedDemoDataLabel), findsNothing);
       expect(
         find.byKey(const Key('settings-reset-database-row')),
@@ -654,6 +661,151 @@ void main() {
     expect(find.textContaining('POC Pack'), findsWidgets);
     expect(find.text('remote1'), findsWidgets);
     expect(find.text(ReminderUiText.remotePocViewerNoSnapshot), findsOneWidget);
+  });
+
+  testWidgets('developer remote sync debug shows identity packs and outbox', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final debug = await _seedRemoteSyncDebugState(db);
+
+    await _pumpSettings(
+      tester,
+      developerVisible: true,
+      database: db,
+      extraOverrides: [
+        authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+        remoteSharedPackDataSourceProvider.overrideWithValue(
+          _FakeRemoteSharedPackDataSource(),
+        ),
+      ],
+    );
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('settings-remote-sync-debug-title')).first,
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(
+        const Key('settings-remote-sync-debug-local-user-row'),
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(find.text(debug.currentUser.id, skipOffstage: false), findsWidgets);
+    expect(find.text('remote-u1', skipOffstage: false), findsWidgets);
+    expect(find.text('missing', skipOffstage: false), findsWidgets);
+    expect(
+      find.byKey(
+        Key('settings-remote-sync-debug-pack-${debug.packId}'),
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('pending=1', skipOffstage: false), findsWidgets);
+    expect(
+      find.byKey(
+        Key('settings-remote-sync-debug-outbox-${debug.outboxId}'),
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('createItem', skipOffstage: false),
+      findsWidgets,
+    );
+  });
+
+  testWidgets('developer remote sync debug force flush calls item RPC', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    await _seedRemoteSyncDebugState(db);
+    final fakeRemote = _FakeRemoteSharedPackDataSource();
+
+    await _pumpSettings(
+      tester,
+      developerVisible: true,
+      database: db,
+      extraOverrides: [
+        authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+        remoteSharedPackDataSourceProvider.overrideWithValue(fakeRemote),
+      ],
+    );
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-sync-debug-force-flush-row'),
+    );
+
+    expect(fakeRemote.createdItemCalls, 1);
+    final entries = await db.reminderDao.listSyncOutboxEntries();
+    expect(entries.single.status, SyncOutboxStatus.synced);
+    expect(entries.single.remoteEntityId, 'ritem1');
+  });
+
+  testWidgets('developer remote sync debug reset only eligible syncing rows', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final debug = await _seedRemoteSyncDebugState(db);
+    final old = DateTime(2026, 6, 22, 8).millisecondsSinceEpoch;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await db.reminderDao.updateSyncOutboxEntry(
+      debug.outboxId,
+      SyncOutboxCompanion(
+        status: Value(SyncOutboxStatus.syncing.storageValue),
+        lastAttemptAt: Value(old),
+        updatedAt: Value(old),
+      ),
+    );
+    final activeRecentId = await db.reminderDao.insertSyncOutbox(
+      SyncOutboxCompanion.insert(
+        localPackId: debug.packId,
+        remotePackId: const Value('rpack-debug'),
+        localEntityType: RemoteSharedPackRepository.localEntityItem,
+        localEntityId: Value(debug.itemId),
+        remoteEntityId: const Value('remote-recent-item'),
+        actionType: SyncOutboxActionType.updateItem.storageValue,
+        payloadJson: '{}',
+        clientMutationId: 'recent-syncing',
+        actorLocalUserId: debug.currentUser.id,
+        actorRemoteUserId: const Value('remote-u1'),
+        status: SyncOutboxStatus.syncing.storageValue,
+        lastAttemptAt: Value(now),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+
+    await _pumpSettings(
+      tester,
+      developerVisible: true,
+      database: db,
+      extraOverrides: [
+        authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+        remoteSharedPackDataSourceProvider.overrideWithValue(
+          _FakeRemoteSharedPackDataSource(),
+        ),
+      ],
+    );
+
+    await _tapSettingsRow(
+      tester,
+      const Key('settings-remote-sync-debug-reset-syncing-row'),
+    );
+
+    final stale = await db.reminderDao.getSyncOutboxEntryById(debug.outboxId);
+    final recent = await db.reminderDao.getSyncOutboxEntryById(activeRecentId);
+    expect(stale!.status, SyncOutboxStatus.pending);
+    expect(stale.lastError, 'debug_reset_stuck_syncing');
+    expect(recent!.status, SyncOutboxStatus.syncing);
   });
 
   testWidgets('developer remote realtime shows no target and fails gently', (
@@ -1439,6 +1591,20 @@ class _RemotePocSeed {
   final int itemId;
 }
 
+class _RemoteSyncDebugSeed {
+  const _RemoteSyncDebugSeed({
+    required this.currentUser,
+    required this.packId,
+    required this.itemId,
+    required this.outboxId,
+  });
+
+  final LocalUser currentUser;
+  final int packId;
+  final int itemId;
+  final int outboxId;
+}
+
 Future<_RemotePocSeed> _seedSharedPackForRemotePoc(AppDatabase db) async {
   final localUser = await IdentityRepository(
     db.reminderDao,
@@ -1462,6 +1628,63 @@ Future<_RemotePocSeed> _seedSharedPackForRemotePoc(AppDatabase db) async {
     ),
   );
   return _RemotePocSeed(packId: packId, itemId: itemId);
+}
+
+Future<_RemoteSyncDebugSeed> _seedRemoteSyncDebugState(AppDatabase db) async {
+  final seed = await _seedSharedPackForRemotePoc(db);
+  final identity = IdentityRepository(db.reminderDao);
+  final currentUser = await identity.linkRemoteIdentity(
+    remoteUserId: 'remote-u1',
+    provider: AuthProviderType.supabaseAnonymous,
+  );
+  final now = DateTime(2026, 6, 22, 9).millisecondsSinceEpoch;
+  await db.reminderDao.upsertSyncMapping(
+    SyncMappingsCompanion.insert(
+      localEntityType: RemoteSharedPackRepository.localEntityPack,
+      localEntityId: seed.packId,
+      remoteTable: RemoteSharedPackRepository.remoteTablePacks,
+      remoteEntityId: 'rpack-debug',
+      syncState: SyncMappingState.pushed.storageValue,
+      lastPushedAt: Value(now),
+      createdAt: now,
+      updatedAt: now,
+    ),
+  );
+  await db.reminderDao.insertRemotePackSyncMetadata(
+    RemotePackSyncMetadataCompanion.insert(
+      localPackId: seed.packId,
+      remotePackId: 'rpack-debug',
+      syncKind: RemotePackSyncKind.remoteBacked.storageValue,
+      syncState: RemotePackSyncState.synced.storageValue,
+      currentUserRemoteRole: Value(RemoteUserRole.host.storageValue),
+      currentUserRemoteStatus: Value(RemoteUserStatus.active.storageValue),
+      createdAt: now,
+      updatedAt: now,
+    ),
+  );
+  final repository = ItemRepository(
+    db.reminderDao,
+    currentActorId: () async => currentUser.id,
+  );
+  final itemId = await repository.createItem(
+    ItemInput(
+      title: 'Debug remote item',
+      description: 'Debug note',
+      type: ItemType.stateBased,
+      config: const StateBasedItemConfig(
+        warningAfter: Duration(days: 1),
+        dangerAfter: Duration(days: 2),
+      ),
+      packId: seed.packId,
+    ),
+  );
+  final outbox = (await db.reminderDao.listPendingSyncOutboxEntries()).single;
+  return _RemoteSyncDebugSeed(
+    currentUser: currentUser,
+    packId: seed.packId,
+    itemId: itemId,
+    outboxId: outbox.id,
+  );
 }
 
 class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {

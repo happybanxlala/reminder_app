@@ -6,17 +6,28 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:reminder_app/app/theme/reminder_theme.dart';
 import 'package:reminder_app/features/reminders/data/item_repository.dart';
+import 'package:reminder_app/features/reminders/data/identity_repository.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/reminders/data/local/reminder_dao.dart';
+import 'package:reminder_app/features/reminders/data/remote_backed_item_action_service.dart';
+import 'package:reminder_app/features/reminders/data/remote_backed_outbox_flush_service.dart';
+import 'package:reminder_app/features/reminders/data/remote_backed_pack_refresh_service.dart';
+import 'package:reminder_app/features/reminders/data/remote_shared_pack_models.dart';
+import 'package:reminder_app/features/reminders/data/remote_shared_pack_repository.dart';
+import 'package:reminder_app/features/reminders/data/remote_snapshot_import_service.dart';
 import 'package:reminder_app/features/reminders/domain/attention_policy.dart';
 import 'package:reminder_app/features/reminders/domain/item.dart';
 import 'package:reminder_app/features/reminders/domain/item_pack.dart';
 import 'package:reminder_app/features/reminders/domain/resource.dart';
+import 'package:reminder_app/features/reminders/domain/remote_sync.dart';
+import 'package:reminder_app/features/reminders/domain/shared_pack.dart';
 import 'package:reminder_app/features/reminders/presentation/text/reminder_ui_text.dart';
 import 'package:reminder_app/features/reminders/providers/database_providers.dart';
 import 'package:reminder_app/features/reminders/providers/item_providers.dart';
 import 'package:reminder_app/features/reminders/providers/resource_providers.dart';
 import 'package:reminder_app/features/reminders/providers/settings_providers.dart';
+import 'package:reminder_app/features/reminders/providers/remote_backed_sync_coordinator.dart';
+import 'package:reminder_app/features/reminders/providers/shared_pack_care_providers.dart';
 import 'package:reminder_app/features/reminders/ui/pages/item_edit_page.dart';
 import 'package:reminder_app/features/reminders/ui/pages/item_history_page.dart';
 
@@ -932,12 +943,234 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.byKey(const Key('save-button')));
     await tester.pump(const Duration(milliseconds: 300));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 10)),
+    );
+    await tester.pump();
 
     final items = (await tester.runAsync(() => db.select(db.items).get()))!;
     expect(items.single.title, 'Locked item');
     expect(items.single.packId, 1);
     expect(items.single.stateWarningAfterMinutes, Duration(days: 17).inMinutes);
     expect(items.single.stateDangerAfterMinutes, Duration(days: 21).inMinutes);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
+  testWidgets('remote-backed create save triggers foreground sync flush', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final env = await _seedRemoteBackedEditorMirror(db);
+    final fakeRemote = _EditorFakeRemoteClient()
+      ..createResult = const RemotePocResult.success(
+        RemoteItemCreateResult(itemId: 'remote-created-from-editor'),
+      );
+    final repository = ItemRepository(
+      db.reminderDao,
+      remoteBackedItemActionService: env.actionService,
+      currentActorId: () async => env.currentUser.id,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          ..._emptyResourceOverrides(),
+          itemRepositoryProvider.overrideWith((ref) => repository),
+          activeItemPacksProvider.overrideWith(
+            (ref) => Stream.value([env.localPack]),
+          ),
+          remoteBackedSyncCoordinatorProvider.overrideWith(
+            (ref) => _editorSyncCoordinator(db, fakeRemote),
+          ),
+          reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
+        ],
+        child: MaterialApp(
+          home: ItemEditPage(
+            mode: ItemEditMode.create,
+            lockedPackId: env.localPackId,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField).first, 'Editor create');
+    await tester.tap(find.byKey(const Key('item-type-state-based-card')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('expected-interval-field')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('expected-interval-field')),
+      '21',
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.byKey(const Key('save-button')));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 10)),
+    );
+    await tester.pump();
+
+    expect(fakeRemote.createCalls, 1);
+    final outbox = await tester.runAsync(
+      () => db.reminderDao.listSyncOutboxEntries(),
+    );
+    expect(outbox, hasLength(1));
+    expect(outbox!.single.actionType, SyncOutboxActionType.createItem);
+    expect(outbox.single.status, SyncOutboxStatus.synced);
+    expect(outbox.single.remoteEntityId, 'remote-created-from-editor');
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
+  testWidgets('remote-backed edit save triggers foreground sync flush', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final env = await _seedRemoteBackedEditorMirror(db);
+    final fakeRemote = _EditorFakeRemoteClient()
+      ..updateResult = const RemotePocResult.success(
+        RemoteItemMutationResult(itemId: 'remote-item-1', status: 'updated'),
+      );
+    final repository = ItemRepository(
+      db.reminderDao,
+      remoteBackedItemActionService: env.actionService,
+      currentActorId: () async => env.currentUser.id,
+    );
+    final existingItemId = await repository.createItem(
+      ItemInput(
+        title: 'Editor existing',
+        description: 'Existing note',
+        type: ItemType.stateBased,
+        config: const StateBasedItemConfig(
+          warningAfter: Duration(days: 17),
+          dangerAfter: Duration(days: 21),
+        ),
+        packId: env.localPackId,
+      ),
+    );
+    final setupRemote = _EditorFakeRemoteClient()
+      ..createResult = const RemotePocResult.success(
+        RemoteItemCreateResult(itemId: 'remote-existing-editor-item'),
+      );
+    await RemoteBackedOutboxFlushService(
+      dao: db.reminderDao,
+      remoteClient: setupRemote,
+    ).flushPendingRemoteBackedMutations();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          ..._emptyResourceOverrides(),
+          itemRepositoryProvider.overrideWith((ref) => repository),
+          activeItemPacksProvider.overrideWith(
+            (ref) => Stream.value([env.localPack]),
+          ),
+          remoteBackedSyncCoordinatorProvider.overrideWith(
+            (ref) => _editorSyncCoordinator(db, fakeRemote),
+          ),
+          reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
+        ],
+        child: MaterialApp(
+          home: ItemEditPage(mode: ItemEditMode.edit, id: existingItemId),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField).first, 'Editor update');
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.byKey(const Key('save-button')));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(fakeRemote.updateCalls, 1);
+    final outbox = await tester.runAsync(
+      () => db.reminderDao.listSyncOutboxEntries(),
+    );
+    expect(outbox, hasLength(2));
+    expect(outbox!.last.actionType, SyncOutboxActionType.updateItem);
+    expect(outbox.last.status, SyncOutboxStatus.synced);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
+  testWidgets('remote-backed save failure shows pending sync copy', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final env = await _seedRemoteBackedEditorMirror(db);
+    final fakeRemote = _EditorFakeRemoteClient()
+      ..createResult = const RemotePocResult.failure(
+        RemoteSharedPackFailureReason.remoteNetworkFailed,
+      );
+    final repository = ItemRepository(
+      db.reminderDao,
+      remoteBackedItemActionService: env.actionService,
+      currentActorId: () async => env.currentUser.id,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          ..._emptyResourceOverrides(),
+          itemRepositoryProvider.overrideWith((ref) => repository),
+          activeItemPacksProvider.overrideWith(
+            (ref) => Stream.value([env.localPack]),
+          ),
+          remoteBackedSyncCoordinatorProvider.overrideWith(
+            (ref) => _editorSyncCoordinator(db, fakeRemote),
+          ),
+          reminderToneProvider.overrideWith((ref) => ReminderTone.standard),
+        ],
+        child: MaterialApp(
+          home: ItemEditPage(
+            mode: ItemEditMode.create,
+            lockedPackId: env.localPackId,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField).first, 'Editor pending');
+    await tester.tap(find.byKey(const Key('item-type-state-based-card')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('expected-interval-field')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('expected-interval-field')),
+      '21',
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.byKey(const Key('save-button')));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(fakeRemote.createCalls, 1);
+    expect(
+      find.text(ReminderUiText.remoteBackedSavePendingSyncMessage),
+      findsOneWidget,
+    );
+    final outbox = await tester.runAsync(
+      () => db.reminderDao.listSyncOutboxEntries(),
+    );
+    expect(outbox!.single.actionType, SyncOutboxActionType.createItem);
+    expect(outbox.single.status, SyncOutboxStatus.failed);
+    expect(outbox.single.lastError, 'remoteNetworkFailed');
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
@@ -1747,6 +1980,188 @@ List<Override> _emptyResourceOverrides() {
       (ref, itemId) => Stream.value(const <ResourceConsumptionRule>[]),
     ),
   ];
+}
+
+RemoteBackedSyncCoordinator _editorSyncCoordinator(
+  AppDatabase db,
+  _EditorFakeRemoteClient remoteClient,
+) {
+  return RemoteBackedSyncCoordinator(
+    dao: db.reminderDao,
+    flushService: RemoteBackedOutboxFlushService(
+      dao: db.reminderDao,
+      remoteClient: remoteClient,
+    ),
+    refreshService: RemoteBackedPackRefreshService(
+      dao: db.reminderDao,
+      pullRemotePackSnapshot: (_) async => const RemotePocResult.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+      ),
+      importRemotePackSnapshot: ({required snapshot, required source}) async {
+        return RemoteSnapshotImportResult(
+          status: RemoteSnapshotImportStatus.failed,
+          remotePackId: snapshot.id,
+        );
+      },
+    ),
+  );
+}
+
+Future<_EditorRemoteMirrorEnv> _seedRemoteBackedEditorMirror(
+  AppDatabase db,
+) async {
+  final identity = IdentityRepository(db.reminderDao);
+  final currentUser = await identity.linkRemoteIdentity(
+    remoteUserId: 'remote-user-current',
+    provider: AuthProviderType.supabaseAnonymous,
+  );
+  final importService = RemoteSnapshotImportService(
+    dao: db.reminderDao,
+    identityRepository: identity,
+  );
+  final importResult = await importService.importRemotePackSnapshot(
+    snapshot: _editorRemoteSnapshot(),
+    source: RemoteSnapshotImportSource.manualDeveloperImport,
+  );
+  final itemMapping = await db.reminderDao.getSyncMappingByRemote(
+    localEntityType: RemoteSharedPackRepository.localEntityItem,
+    remoteTable: RemoteSharedPackRepository.remoteTableItems,
+    remoteEntityId: 'remote-item-1',
+  );
+  final localPack = await db.reminderDao.getItemPackById(
+    importResult.localPackId!,
+  );
+  return _EditorRemoteMirrorEnv(
+    currentUser: currentUser,
+    localPack: localPack!,
+    localPackId: importResult.localPackId!,
+    localItemId: itemMapping!.localEntityId,
+    actionService: RemoteBackedItemActionService(
+      dao: db.reminderDao,
+      identityRepository: identity,
+    ),
+  );
+}
+
+RemotePackSnapshot _editorRemoteSnapshot() {
+  final created = DateTime(2026, 6, 21, 10);
+  final updated = DateTime(2026, 6, 21, 11);
+  return RemotePackSnapshot(
+    id: 'remote-pack-1',
+    name: 'Remote editor pack',
+    description: 'Imported mirror',
+    hostUserId: 'remote-user-current',
+    status: 'active',
+    createdAt: created,
+    updatedAt: updated,
+    members: [
+      RemotePackMemberSnapshot(
+        id: 'remote-member-current',
+        packId: 'remote-pack-1',
+        userId: 'remote-user-current',
+        displayName: 'Current',
+        role: 'host',
+        status: 'active',
+        joinedAt: created,
+      ),
+    ],
+    items: [
+      RemoteItemSnapshot(
+        id: 'remote-item-1',
+        packId: 'remote-pack-1',
+        title: 'Remote editor item',
+        note: 'Remote note',
+        status: 'active',
+        assignedToUserId: null,
+        createdByUserId: 'remote-user-current',
+        updatedByUserId: 'remote-user-current',
+        createdAt: created,
+        updatedAt: updated,
+      ),
+    ],
+    completions: const [],
+    activityEvents: const [],
+  );
+}
+
+class _EditorRemoteMirrorEnv {
+  const _EditorRemoteMirrorEnv({
+    required this.currentUser,
+    required this.localPack,
+    required this.localPackId,
+    required this.localItemId,
+    required this.actionService,
+  });
+
+  final LocalUser currentUser;
+  final ItemPack localPack;
+  final int localPackId;
+  final int localItemId;
+  final RemoteBackedItemActionService actionService;
+}
+
+class _EditorFakeRemoteClient extends RemoteBackedOutboxRemoteClient {
+  RemotePocResult<RemoteItemCreateResult>? createResult;
+  RemotePocResult<RemoteItemMutationResult>? updateResult;
+  int createCalls = 0;
+  int updateCalls = 0;
+
+  @override
+  Future<RemotePocResult<RemoteItemCreateResult>> createRemoteItemForPack({
+    required String remotePackId,
+    required String title,
+    String? note,
+    String? clientMutationId,
+  }) async {
+    createCalls++;
+    return createResult ??
+        const RemotePocResult.failure(
+          RemoteSharedPackFailureReason.remoteUnknownFailure,
+        );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteItemMutationResult>> updateRemoteItemById({
+    required String remoteItemId,
+    required String title,
+    String? note,
+    String? assignedToUserId,
+    String? clientMutationId,
+  }) async {
+    updateCalls++;
+    return updateResult ??
+        const RemotePocResult.failure(
+          RemoteSharedPackFailureReason.remoteUnknownFailure,
+        );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteItemMutationResult>> archiveRemoteItemById({
+    required String remoteItemId,
+    String? clientMutationId,
+  }) async {
+    return const RemotePocResult.failure(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteItemCompletionResult>> completeRemoteItemById(
+    String remoteItemId,
+  ) async {
+    return const RemotePocResult.failure(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteItemUndoResult>> undoRemoteItemById(
+    String remoteItemId,
+  ) async {
+    return const RemotePocResult.failure(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
 }
 
 class _RecordingCreateItemRepository extends ItemRepository {
