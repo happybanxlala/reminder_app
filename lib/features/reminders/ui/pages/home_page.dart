@@ -10,7 +10,6 @@ import '../../data/local/reminder_dao.dart';
 import '../../domain/attention_summary.dart';
 import '../../domain/item_pack.dart';
 import '../../domain/resource.dart';
-import '../../domain/remote_sync.dart';
 import '../../domain/stage_tracker.dart';
 import '../../domain/stage_occurrence.dart';
 import '../../providers/developer_settings_providers.dart';
@@ -23,6 +22,7 @@ import '../../providers/resource_providers.dart';
 import '../../providers/shared_pack_care_providers.dart';
 import '../../providers/stage_tracker_providers.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
+import '../../presentation/sync_status_label.dart';
 import 'feature_page.dart';
 import 'item_edit_page.dart';
 import 'item_history_page.dart';
@@ -1028,26 +1028,14 @@ Color _resourceStatusColor(ResourceStatus status, ReminderPalette palette) {
 }
 
 String? _resourceSyncStatusLabel(ResourceSyncStatus status) {
-  if (!status.isRemoteBacked) {
-    return null;
-  }
-  if (status.isAccessLost) {
-    return ReminderUiText.syncAccessLostLabel;
-  }
-  if (status.hasFailedMutation ||
-      (status.lastSyncError?.trim().isNotEmpty ?? false)) {
-    return ReminderUiText.syncFailedLabel;
-  }
-  if (status.pendingMutationStatus == SyncOutboxStatus.syncing) {
-    return ReminderUiText.syncSyncingLabel;
-  }
-  if (status.pendingMutationStatus == SyncOutboxStatus.pending) {
-    return ReminderUiText.syncPendingLabel;
-  }
-  if (status.isStale) {
-    return ReminderUiText.syncNeedsRefreshLabel;
-  }
-  return null;
+  return compactRemoteBackedSyncStatusLabel(
+    isRemoteBacked: status.isRemoteBacked,
+    isAccessLost: status.isAccessLost,
+    hasFailedMutation: status.hasFailedMutation,
+    isStale: status.isStale,
+    pendingMutationStatus: status.pendingMutationStatus,
+    lastSyncError: status.lastSyncError,
+  );
 }
 
 class _StageList extends ConsumerWidget {
@@ -1115,6 +1103,20 @@ class _StageList extends ConsumerWidget {
                         await ref
                             .read(stageTrackerRepositoryProvider)
                             .acknowledgeOccurrence(occurrence);
+                        final tracker = await ref
+                            .read(
+                              stageTrackerByIdProvider(
+                                occurrence.stageTrackerId,
+                              ).future,
+                            )
+                            .catchError((_) => null);
+                        if (tracker != null) {
+                          unawaited(
+                            ref
+                                .read(remoteBackedSyncCoordinatorProvider)
+                                .syncAfterRemoteBackedMutation(tracker.packId),
+                          );
+                        }
                       },
                       tooltip: ReminderUiText.acknowledgedAction,
                       icon: const Icon(Icons.check_circle_outline_rounded),
@@ -1333,26 +1335,14 @@ class _TodayCompletedRow extends ConsumerWidget {
 
   String? _syncStatusLabel() {
     final status = entry.itemSyncStatus;
-    if (!status.isRemoteBacked) {
-      return null;
-    }
-    if (status.isAccessLost) {
-      return ReminderUiText.syncAccessLostLabel;
-    }
-    if (status.hasFailedMutation ||
-        (status.lastSyncError?.trim().isNotEmpty ?? false)) {
-      return ReminderUiText.syncFailedLabel;
-    }
-    if (status.pendingMutationStatus == SyncOutboxStatus.syncing) {
-      return ReminderUiText.syncSyncingLabel;
-    }
-    if (status.pendingMutationStatus == SyncOutboxStatus.pending) {
-      return ReminderUiText.syncPendingLabel;
-    }
-    if (status.isStale) {
-      return ReminderUiText.syncNeedsRefreshLabel;
-    }
-    return null;
+    return compactRemoteBackedSyncStatusLabel(
+      isRemoteBacked: status.isRemoteBacked,
+      isAccessLost: status.isAccessLost,
+      hasFailedMutation: status.hasFailedMutation,
+      isStale: status.isStale,
+      pendingMutationStatus: status.pendingMutationStatus,
+      lastSyncError: status.lastSyncError,
+    );
   }
 
   Future<void> _undoDone(BuildContext context, WidgetRef ref) async {

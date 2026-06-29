@@ -424,4 +424,132 @@ void main() {
     expect(lower, isNot(contains('ip')));
     expect(lower, isNot(contains('location')));
   });
+
+  test('Phase 6D Resource SQL is partial-apply safe', () {
+    final lower = File(
+      'docs/core/sql/phase6d_remote_backed_resource_mvp.sql',
+    ).readAsStringSync().toLowerCase();
+
+    expect(lower, contains('create table if not exists public.resources'));
+    expect(
+      lower,
+      contains('create table if not exists public.resource_events'),
+    );
+    for (final column in [
+      'pack_id',
+      'resource_id',
+      'actor_user_id',
+      'change_type',
+      'client_mutation_id',
+      'metadata_json',
+    ]) {
+      expect(
+        lower,
+        contains(
+          'alter table public.resource_events add column if not exists $column',
+        ),
+        reason: column,
+      );
+    }
+    expect(
+      lower.indexOf(
+        'alter table public.resource_events add column if not exists client_mutation_id',
+      ),
+      lessThan(lower.indexOf('resource_events_client_mutation_unique')),
+    );
+    expect(
+      lower,
+      isNot(contains('create or replace function public.start_background')),
+    );
+    expect(
+      lower,
+      isNot(contains('create or replace function public.apply_widget')),
+    );
+  });
+
+  test('Phase 6E Stage SQL is partial-apply safe', () {
+    final lower = File(
+      'docs/core/sql/phase6e_remote_backed_stage_mvp.sql',
+    ).readAsStringSync().toLowerCase();
+
+    for (final table in [
+      'stage_trackers',
+      'stage_rules',
+      'stage_records',
+      'stage_acknowledgements',
+    ]) {
+      expect(lower, contains('create table if not exists public.$table'));
+      expect(
+        lower,
+        contains('alter table public.$table add column if not exists pack_id'),
+        reason: table,
+      );
+    }
+    expect(
+      lower.indexOf(
+        'alter table public.stage_acknowledgements add column if not exists client_mutation_id',
+      ),
+      lessThan(lower.indexOf('stage_acknowledgements_client_mutation_unique')),
+    );
+    expect(
+      lower,
+      contains('drop policy if exists "stage_trackers_active_members_read"'),
+    );
+    expect(
+      lower,
+      isNot(contains('create or replace function public.start_background')),
+    );
+    expect(
+      lower,
+      isNot(contains('create or replace function public.apply_widget')),
+    );
+  });
+
+  test('Phase 6E Stage SQL defines production app-called RPCs', () {
+    final lower = File(
+      'docs/core/sql/phase6e_remote_backed_stage_mvp.sql',
+    ).readAsStringSync().toLowerCase();
+
+    const functions = [
+      'create_pack_stage_tracker(uuid, text, text, date, date, jsonb, text)',
+      'update_pack_stage_tracker(uuid, text, text, date, date, text)',
+      'archive_pack_stage_tracker(uuid, text)',
+      'create_pack_stage_rule(uuid, jsonb, text)',
+      'update_pack_stage_rule(uuid, jsonb, text)',
+      'update_pack_stage_rule_status(uuid, text, text)',
+      'create_pack_stage_record(uuid, uuid, jsonb, text)',
+      'update_pack_stage_record(uuid, jsonb, text)',
+      'archive_pack_stage_record(uuid, text)',
+      'acknowledge_pack_stage_record(uuid, text)',
+    ];
+    for (final function in functions) {
+      final name = function.substring(0, function.indexOf('('));
+      expect(
+        lower,
+        contains('create or replace function public.$name'),
+        reason: name,
+      );
+      expect(
+        lower,
+        contains('revoke all on function public.$function from public'),
+        reason: function,
+      );
+      expect(
+        lower,
+        contains('grant execute on function public.$function to authenticated'),
+        reason: function,
+      );
+    }
+
+    expect(lower, contains('auth.uid()'));
+    expect(lower, contains('public.is_pack_member('));
+    expect(lower, isNot(contains('is_active_pack_member')));
+    expect(lower, contains('client_mutation_id'));
+    expect(lower, contains('activity_events'));
+    expect(lower, contains('stage_tracker_created'));
+    expect(lower, contains('stage_acknowledged'));
+    expect(lower, isNot(contains('service_role')));
+    expect(lower, isNot(contains('service role key')));
+    expect(lower, isNot(contains('secret key')));
+  });
 }

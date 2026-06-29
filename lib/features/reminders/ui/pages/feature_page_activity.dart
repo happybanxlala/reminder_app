@@ -148,58 +148,49 @@ class _ItemActivityContentState extends ConsumerState<ItemActivityContent> {
 class _ActivityEntryCard extends StatelessWidget {
   const _ActivityEntryCard({required this.entry, required this.previewDate});
 
-  final ItemActivityFeedEntry entry;
+  final UnifiedActivityFeedEntry entry;
   final DateTime previewDate;
 
   @override
   Widget build(BuildContext context) {
     final bundle = entry.bundle;
-    final packTitle = bundle.pack.isSystemDefault
-        ? ReminderUiText.unassignedPackTitle
-        : bundle.pack.title;
-    final sharedEntry = entry is SharedRemoteItemActivityFeedEntry
-        ? entry as SharedRemoteItemActivityFeedEntry
-        : null;
-    final localEntry = entry is LocalItemActivityFeedEntry
-        ? entry as LocalItemActivityFeedEntry
-        : null;
-    final title = sharedEntry?.message ?? entry.itemTitle;
-    final actionLabel = localEntry == null
-        ? entry.itemTitle
-        : ReminderFormatters.itemActionType(localEntry.entry.record.actionType);
-    final actionIcon = localEntry == null
-        ? itemActivityActionIcon(_remoteActivityActionType(sharedEntry!.entry))
-        : itemActivityActionIcon(localEntry.entry.record.actionType);
+    final actionIcon = _activityIcon(entry.entityKind);
 
     return Card(
       child: ListTile(
         key: Key('item-activity-entry-${entry.stableKey}'),
-        onTap: () =>
-            showItemSummaryDialog(context, bundle, previewDate: previewDate),
+        onTap: bundle == null
+            ? null
+            : () => showItemSummaryDialog(
+                context,
+                bundle,
+                previewDate: previewDate,
+              ),
         leading: Icon(actionIcon),
-        title: Text(title),
+        title: Text(entry.message),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 4),
-            Text(actionLabel),
+            Text(entry.actionLabel),
             Text(
               '${ReminderUiText.itemActivityTimeLabel}：${ReminderFormatters.dateTime(entry.occurredAt)}',
             ),
-            Text('${ReminderUiText.itemActivityPackLabel}：$packTitle'),
+            Text('${ReminderUiText.itemActivityPackLabel}：${entry.packTitle}'),
           ],
         ),
       ),
     );
   }
 
-  ItemActionType? _remoteActivityActionType(SharedItemActivityEntry entry) {
-    return switch (entry.event.action) {
-      'item_created' => ItemActionType.created,
-      'item_completed' => ItemActionType.done,
-      'item_undone' => ItemActionType.reverted,
-      _ => null,
+  IconData _activityIcon(UnifiedActivityEntityKind kind) {
+    return switch (kind) {
+      UnifiedActivityEntityKind.item => Icons.check_circle_outline,
+      UnifiedActivityEntityKind.resource => Icons.inventory_2_outlined,
+      UnifiedActivityEntityKind.stage => Icons.timeline,
+      UnifiedActivityEntityKind.member => Icons.person_outline,
+      UnifiedActivityEntityKind.pack => Icons.folder_outlined,
     };
   }
 }

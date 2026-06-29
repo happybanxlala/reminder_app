@@ -202,8 +202,8 @@ class AttentionSummaryRepository {
 
   static const _pendingSyncLabel = '等待同步';
   static const _failedSyncLabel = '同步失敗';
-  static const _staleSyncLabel = '遠端狀態可能已更新';
-  static const _accessLostSyncLabel = '已失去遠端存取權';
+  static const _staleSyncLabel = '有新的更新，請刷新';
+  static const _accessLostSyncLabel = '已無法存取';
 
   Stream<T> _combineLatest3<A, B, C, T>(
     Stream<A> streamA,

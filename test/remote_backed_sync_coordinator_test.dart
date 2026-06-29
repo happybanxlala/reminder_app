@@ -490,6 +490,130 @@ class _FakeRemoteClient implements RemoteBackedOutboxRemoteClient {
   }
 
   @override
+  Future<RemotePocResult<RemoteStageTrackerCreateResult>>
+  createRemoteStageTrackerForPack({
+    required String remotePackId,
+    required String title,
+    String? subjectName,
+    required DateTime trackingStartDate,
+    DateTime? trackingEndDate,
+    List<Map<String, Object?>> initialRules = const [],
+    String? clientMutationId,
+  }) async {
+    return const RemotePocResult.failure(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  updateRemoteStageTrackerById({
+    required String remoteStageTrackerId,
+    required String title,
+    String? subjectName,
+    required DateTime trackingStartDate,
+    DateTime? trackingEndDate,
+    String? clientMutationId,
+  }) async {
+    return const RemotePocResult.failure(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  archiveRemoteStageTrackerById({
+    required String remoteStageTrackerId,
+    String? clientMutationId,
+  }) async {
+    return const RemotePocResult.failure(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  createRemoteStageRuleByTrackerId({
+    required String remoteStageTrackerId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) async {
+    return const RemotePocResult.failure(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageMutationResult>> updateRemoteStageRuleById({
+    required String remoteStageRuleId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) async {
+    return const RemotePocResult.failure(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  updateRemoteStageRuleStatusById({
+    required String remoteStageRuleId,
+    required String status,
+    String? clientMutationId,
+  }) async {
+    return const RemotePocResult.failure(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  createRemoteStageRecordByTrackerId({
+    required String remoteStageTrackerId,
+    String? remoteStageRuleId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) async {
+    return const RemotePocResult.failure(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  updateRemoteStageRecordById({
+    required String remoteStageRecordId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) async {
+    return const RemotePocResult.failure(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  archiveRemoteStageRecordById({
+    required String remoteStageRecordId,
+    String? clientMutationId,
+  }) async {
+    return const RemotePocResult.failure(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageAcknowledgementResult>>
+  acknowledgeRemoteStageRecordById({
+    required String remoteStageRecordId,
+    String? clientMutationId,
+  }) async {
+    return const RemotePocResult.failure(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  @override
   Future<RemotePocResult<RemoteItemCompletionResult>> completeRemoteItemById(
     String remoteItemId,
   ) async {

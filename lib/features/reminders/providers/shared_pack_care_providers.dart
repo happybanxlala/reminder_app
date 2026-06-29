@@ -24,6 +24,7 @@ import 'remote_backed_sync_coordinator.dart';
 import 'remote_shared_pack_providers.dart';
 import 'resource_providers.dart';
 import 'shared_pack_providers.dart';
+import 'stage_tracker_providers.dart';
 
 class PackCareMemberView {
   const PackCareMemberView({
@@ -436,6 +437,11 @@ void _invalidateRemoteBackedSyncSurfaces(Ref ref, int? localPackId) {
   ref.invalidate(warningHomeEntriesProvider);
   ref.invalidate(todayCompletedEntriesProvider);
   ref.invalidate(upcomingStagesProvider);
+  ref.invalidate(stageTrackersProvider);
+  ref.invalidate(stageRulesProvider);
+  ref.invalidate(stageRecordsProvider);
+  ref.invalidate(stageTrackerOverviewSummaryProvider);
+  ref.invalidate(stageTrackerAttentionOccurrencesProvider);
   ref.invalidate(activeItemPacksProvider);
   ref.invalidate(itemPacksProvider);
   ref.invalidate(itemsProvider);

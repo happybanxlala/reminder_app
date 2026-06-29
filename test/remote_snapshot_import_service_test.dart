@@ -464,11 +464,142 @@ void main() {
     expect(actions, hasLength(1));
     expect(actions.single.actionType, ResourceActionType.refilled);
   });
+
+  test('imports remote stage graph and acknowledgement idempotently', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final identity = IdentityRepository(db.reminderDao);
+    await identity.linkRemoteIdentity(
+      remoteUserId: 'remote-user-current',
+      provider: AuthProviderType.supabaseAnonymous,
+    );
+    final service = RemoteSnapshotImportService(
+      dao: db.reminderDao,
+      identityRepository: identity,
+      clock: () => DateTime(2026, 6, 21, 12),
+    );
+    final created = DateTime(2026, 6, 21, 10);
+    final snapshot = _snapshot(
+      stageTrackers: [
+        RemoteStageTrackerSnapshot(
+          id: 'remote-stage-tracker-1',
+          packId: 'remote-pack-1',
+          title: 'Growth',
+          subjectName: 'Kitten',
+          trackingStartDate: DateTime(2026, 6, 1),
+          status: 'active',
+          createdByUserId: 'remote-user-current',
+          updatedByUserId: 'remote-user-current',
+          createdAt: created,
+          updatedAt: created,
+        ),
+      ],
+      stageRules: [
+        RemoteStageRuleSnapshot(
+          id: 'remote-stage-rule-1',
+          packId: 'remote-pack-1',
+          stageTrackerId: 'remote-stage-tracker-1',
+          type: 'every_n_days',
+          intervalValue: 7,
+          intervalUnit: 'days',
+          labelTemplate: 'Week check',
+          status: 'active',
+          createdByUserId: 'remote-user-current',
+          updatedByUserId: 'remote-user-current',
+          createdAt: created,
+          updatedAt: created,
+        ),
+      ],
+      stageRecords: [
+        RemoteStageRecordSnapshot(
+          id: 'remote-stage-record-1',
+          packId: 'remote-pack-1',
+          stageTrackerId: 'remote-stage-tracker-1',
+          stageRuleId: 'remote-stage-rule-1',
+          sourceType: 'generated',
+          occurrenceIndex: 1,
+          occurrenceDate: DateTime(2026, 6, 8),
+          relativeAmount: 7,
+          relativeUnit: 'days',
+          status: 'acknowledged',
+          label: 'Week check',
+          createdByUserId: 'remote-user-current',
+          updatedByUserId: 'remote-user-other',
+          createdAt: created,
+          updatedAt: created,
+        ),
+      ],
+      stageAcknowledgements: [
+        RemoteStageAcknowledgementSnapshot(
+          id: 'remote-stage-ack-1',
+          packId: 'remote-pack-1',
+          stageRecordId: 'remote-stage-record-1',
+          userId: 'remote-user-other',
+          acknowledgedAt: DateTime(2026, 6, 8, 9),
+          createdAt: DateTime(2026, 6, 8, 9),
+          updatedAt: DateTime(2026, 6, 8, 9),
+        ),
+      ],
+      activityEvents: [
+        RemoteActivityEventSnapshot(
+          id: 'remote-stage-activity-1',
+          packId: 'remote-pack-1',
+          actorUserId: 'remote-user-other',
+          actorDisplayNameSnapshot: 'Other',
+          entityType: 'stage_record',
+          entityId: 'remote-stage-record-1',
+          action: 'stage_acknowledged',
+          createdAt: DateTime(2026, 6, 8, 9),
+        ),
+      ],
+    );
+
+    final first = await service.importRemotePackSnapshot(
+      snapshot: snapshot,
+      source: RemoteSnapshotImportSource.manualDeveloperImport,
+    );
+    await service.importRemotePackSnapshot(
+      snapshot: snapshot,
+      source: RemoteSnapshotImportSource.manualDeveloperImport,
+    );
+
+    final trackerMapping = await db.reminderDao.getSyncMappingByRemote(
+      localEntityType: 'stage_tracker',
+      remoteTable: 'stage_trackers',
+      remoteEntityId: 'remote-stage-tracker-1',
+    );
+    expect(first.succeeded, isTrue);
+    expect(trackerMapping, isNotNull);
+    final detail = await db.reminderDao.getStageTrackerDetailRecordById(
+      trackerMapping!.localEntityId,
+    );
+    expect(detail, isNotNull);
+    expect(detail!.stageTracker.title, 'Growth');
+    expect(detail.stageRules.single.intervalValue, 7);
+    expect(detail.stageRecords.single.status.name, 'acknowledged');
+    final acknowledgements = await db.reminderDao
+        .listStageAcknowledgementsForRecord(detail.stageRecords.single.id);
+    expect(acknowledgements, hasLength(1));
+    final activity = await db.reminderDao.listActivityEventsForPack(
+      first.localPackId!,
+    );
+    expect(
+      activity.where(
+        (event) =>
+            event.metadataJson?.contains('remote-stage-activity-1') ?? false,
+      ),
+      hasLength(1),
+    );
+  });
 }
 
 RemotePackSnapshot _snapshot({
   List<RemotePackMemberSnapshot>? members,
   List<RemoteResourceSnapshot>? resources,
+  List<RemoteStageTrackerSnapshot>? stageTrackers,
+  List<RemoteStageRuleSnapshot>? stageRules,
+  List<RemoteStageRecordSnapshot>? stageRecords,
+  List<RemoteStageAcknowledgementSnapshot>? stageAcknowledgements,
   List<RemoteItemCompletionSnapshot>? completions,
   List<RemoteResourceEventSnapshot>? resourceEvents,
   List<RemoteActivityEventSnapshot>? activityEvents,
@@ -520,6 +651,10 @@ RemotePackSnapshot _snapshot({
       ),
     ],
     resources: resources ?? const [],
+    stageTrackers: stageTrackers ?? const [],
+    stageRules: stageRules ?? const [],
+    stageRecords: stageRecords ?? const [],
+    stageAcknowledgements: stageAcknowledgements ?? const [],
     completions:
         completions ??
         [

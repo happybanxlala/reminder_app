@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,10 +16,12 @@ import '../../domain/stage_related_item.dart';
 import '../../domain/stage_rule.dart';
 import '../../domain/stage_tracker.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
+import '../../presentation/sync_status_label.dart';
 import '../../presentation/text/reminder_ui_text.dart';
 import '../../presentation/view_models/management_item_card_view_model.dart';
 import '../../providers/developer_settings_providers.dart';
 import '../../providers/item_providers.dart';
+import '../../providers/shared_pack_care_providers.dart';
 import '../../providers/stage_tracker_providers.dart';
 import '../widgets/editor_common_fields.dart';
 import '../widgets/editor_form_components.dart';
@@ -31,3 +35,27 @@ part 'stage_tracker_detail.dart';
 part 'stage_tracker_timeline.dart';
 part 'stage_tracker_legacy_pages.dart';
 part 'stage_tracker_shared_widgets.dart';
+
+Future<void> _retryRemoteBackedPackSync(
+  BuildContext context,
+  WidgetRef ref,
+  ItemPack pack,
+) async {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text(ReminderUiText.syncSyncingLabel)),
+  );
+  final result = await ref
+      .read(sharedPackCareControllerProvider)
+      .retrySyncForPack(pack);
+  if (!context.mounted) {
+    return;
+  }
+  final message = result.succeeded
+      ? result.warningMessage ?? result.message
+      : result.errorMessage ?? ReminderUiText.syncRetryLaterLabel;
+  if (message != null) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}

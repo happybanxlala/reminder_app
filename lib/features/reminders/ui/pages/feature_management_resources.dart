@@ -195,7 +195,14 @@ class _ResourcePackEmojiChip extends StatelessWidget {
   }
 }
 
-enum _ManagedResourceMenuAction { adjust, edit, details, history, archive }
+enum _ManagedResourceMenuAction {
+  adjust,
+  edit,
+  details,
+  history,
+  archive,
+  retrySync,
+}
 
 class _ManagedResourceCard extends ConsumerWidget {
   const _ManagedResourceCard({required this.bundle, required this.previewDate});
@@ -310,7 +317,7 @@ class _ManagedResourceCard extends ConsumerWidget {
             onSelected: (action) => _handleResourceMenuAction(
               context,
               ref,
-              resource,
+              bundle,
               action: action,
               status: status,
             ),
@@ -332,6 +339,12 @@ class _ManagedResourceCard extends ConsumerWidget {
                 value: _ManagedResourceMenuAction.history,
                 child: Text('歷史紀錄'),
               ),
+              if (syncStatus.hasFailedMutation ||
+                  (syncStatus.lastSyncError?.trim().isNotEmpty ?? false))
+                const PopupMenuItem(
+                  value: _ManagedResourceMenuAction.retrySync,
+                  child: Text(ReminderUiText.packCareRetrySync),
+                ),
               const PopupMenuDivider(),
               const PopupMenuItem(
                 value: _ManagedResourceMenuAction.archive,
@@ -347,10 +360,11 @@ class _ManagedResourceCard extends ConsumerWidget {
   Future<void> _handleResourceMenuAction(
     BuildContext context,
     WidgetRef ref,
-    Resource resource, {
+    ResourceBundle bundle, {
     required _ManagedResourceMenuAction action,
     required ResourceStatus status,
   }) async {
+    final resource = bundle.resource;
     switch (action) {
       case _ManagedResourceMenuAction.adjust:
         await _showResourceAdjustDialog(context, ref, resource);
@@ -374,6 +388,9 @@ class _ManagedResourceCard extends ConsumerWidget {
           ResourceHistoryPage.routeName,
           pathParameters: {'id': resource.id.toString()},
         );
+        return;
+      case _ManagedResourceMenuAction.retrySync:
+        await _retryRemoteBackedPackSync(context, ref, bundle.pack);
         return;
       case _ManagedResourceMenuAction.archive:
         final confirmed = await _showItemActionConfirmation(
@@ -482,26 +499,14 @@ Color _resourceManagementStatusColor(
 }
 
 String? _resourceSyncStatusLabel(ResourceSyncStatus status) {
-  if (!status.isRemoteBacked) {
-    return null;
-  }
-  if (status.isAccessLost) {
-    return ReminderUiText.syncAccessLostLabel;
-  }
-  if (status.hasFailedMutation ||
-      (status.lastSyncError?.trim().isNotEmpty ?? false)) {
-    return ReminderUiText.syncFailedLabel;
-  }
-  if (status.pendingMutationStatus == SyncOutboxStatus.syncing) {
-    return ReminderUiText.syncSyncingLabel;
-  }
-  if (status.pendingMutationStatus == SyncOutboxStatus.pending) {
-    return ReminderUiText.syncPendingLabel;
-  }
-  if (status.isStale) {
-    return ReminderUiText.syncNeedsRefreshLabel;
-  }
-  return null;
+  return compactRemoteBackedSyncStatusLabel(
+    isRemoteBacked: status.isRemoteBacked,
+    isAccessLost: status.isAccessLost,
+    hasFailedMutation: status.hasFailedMutation,
+    isStale: status.isStale,
+    pendingMutationStatus: status.pendingMutationStatus,
+    lastSyncError: status.lastSyncError,
+  );
 }
 
 Future<void> _showResourceDetailDialog(

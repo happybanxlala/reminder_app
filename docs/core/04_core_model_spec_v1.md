@@ -55,6 +55,12 @@ Phase 6C hardens the foreground Pack + Items sharing MVP. Remote snapshot refres
 
 Phase 6D adds the foreground Resource sharing MVP for remote-backed shared packs. Resource create / basic update / archive, quantity increment / decrement / adjust, and refill now write local-first Drift state plus `sync_outbox` rows, trigger the same best-effort foreground flush loop, and import remote Resource mirrors, Resource events, and Resource activity through manual snapshot refresh. Item-linked Resource consumption, item-resource binding edits, Resource pack moves, Resource type changes, hard delete, Stage sharing, realtime import, background sync, widget remote CRUD, notification remote sync, and cross-domain atomic completion/consumption remain guarded or out of scope.
 
+Phase 6E adds the foreground Stage sharing MVP for remote-backed shared packs. StageTracker create / basic update / archive, StageRule create / update / status change, manual important StageRecord create / update / soft archive, and generated occurrence acknowledgement now write local-first Drift state plus `sync_outbox` rows and use the same foreground flush / manual refresh loop. Snapshot import reads remote StageTracker, StageRule, StageRecord, StageAcknowledgement, and stage activity rows into local mirrors through `sync_mappings` and `remote_stage_sync_metadata`. StageTracker pack move, generated occurrence ignore, related item creation from StageOccurrence, hard delete, progress/checkpoint/reset, realtime import, background sync, widget remote CRUD, notification remote sync, and pack/member management remain guarded or out of scope.
+
+Phase 6F hardens the already-supported remote-backed shared entities without adding a new domain area. The existing activity route becomes a unified activity projection for supported item, resource, stage, member, and pack-visible `activity_events`, with actor-aware copy, calm fallbacks, remote-id/client-mutation/conservative duplicate suppression, and stable created-at ordering. Item, Resource, Stage, Pack, and shared-care sync labels use the same compact language; failed item/resource/stage rows can retry through production UI by reusing the existing pack retry path. Access-lost packs keep historical data readable while disabling unsafe item/resource/stage actions. Pull-to-refresh remains foreground-only and flushes pending local mutations before snapshot import. Phase 6F does not add background sync, app-start sync, realtime auto-import, widget remote CRUD, notification remote sync, member role management, pack CRUD, hard delete, a new shared dashboard, or complex conflict UI.
+
+Phase 6G is the final multi-device QA / polish pass for the shared-pack MVP. It keeps the same foreground-only local-first model, fixes readiness gaps found during audit, aligns stale/access-lost copy across Home, widget snapshots, notification summaries, management screens, shared care, and unified activity, and documents a two-device manual QA checklist. It also completes the Phase 6E Stage SQL draft by defining the app-called Stage RPCs with active-member checks, idempotent `client_mutation_id`, actor preservation, activity events, and soft archive semantics. Phase 6G does not add background sync, app-start sync, realtime auto-import, widget remote CRUD, notification remote sync, new Pack CRUD, member management, ownership transfer, complex conflict UI, a new shared dashboard, or a major architecture rewrite.
+
 ## 1. 總覽
 
 ### 1.1 產品北極星
@@ -160,7 +166,8 @@ Domain 必須保持分離。Home 可以在 presentation layer 聚合 `Item`、`R
 - `RemoteCompletionSyncState { pendingPush, syncing, synced, failed, conflict, noOp }`
 - `RemoteCompletionState { pendingLocal, confirmedRemote, remoteImported, undoneRemote, noOp, conflict, failed }`
 - `RemoteResourceSyncState { linked, pendingImport, pendingPush, syncing, importing, synced, stale, failed, conflict, archived, deleted }`
-- `SyncOutboxActionType { completeItem, undoItem, createItem, updateItem, archiveItem, createResource, updateResource, archiveResource, resourceIncrement, resourceAdjust, resourceDecrement }`
+- `RemoteStageSyncState { linked, pendingImport, pendingPush, syncing, importing, synced, stale, failed, conflict, archived, deleted }`
+- `SyncOutboxActionType { completeItem, undoItem, createItem, updateItem, archiveItem, createResource, updateResource, archiveResource, resourceIncrement, resourceAdjust, resourceDecrement, createStageTracker, updateStageTracker, archiveStageTracker, createStageRule, updateStageRule, updateStageRuleStatus, createStageRecord, updateStageRecord, archiveStageRecord, stageAcknowledge }`
 - `SyncOutboxStatus { pending, syncing, synced, failed, conflict, cancelled, noOp }`
 
 ## 2. 已實作模型
@@ -1534,7 +1541,7 @@ Home 已實作：
 - Pack filter。
 - danger attention section：混合顯示 danger Item 與 danger Resource。
 - warning attention section：混合顯示 warning Item 與 warning Resource。
-- remote-backed item mirror 若本機 schedule / status data 足以被既有 `ItemStatusService` 判定為 warning / danger，會進入 Home item sections；Home card 會顯示基本 sync label（等待同步 / 同步失敗 / 遠端狀態可能已更新 / 已失去遠端存取權）。
+- remote-backed item mirror 若本機 schedule / status data 足以被既有 `ItemStatusService` 判定為 warning / danger，會進入 Home item sections；Home card 會顯示基本 sync label（等待同步 / 同步失敗 / 有新的更新，請刷新 / 已無法存取）。
 - upcoming stage section。
 - StageTracker 本身不進入 danger / warning；StageOccurrence 保留在 upcoming stage section。
 - Stage Home card 的「知道了」 action。
@@ -1642,7 +1649,7 @@ Pack 管理 route：`/feature/item-packs-management`，route name：`item-packs-
 
 ## 5. Drift Schema
 
-目前 schema version：`9`。
+目前 schema version：`11`。
 
 ### 5.0 local_users
 
@@ -2040,7 +2047,37 @@ localCompletionId
 remoteCompletionId
 ```
 
-### 5.10.7 sync_outbox
+### 5.10.7 remote_stage_sync_metadata
+
+Phase 6E 新增。保存 remote StageTracker / StageRule / StageRecord 與 local mirror 的 typed sync metadata。StageAcknowledgement 以 `sync_mappings` 對應 remote acknowledgement row。
+
+```text
+id
+localEntityType
+localEntityId
+localPackId
+remoteEntityId
+remotePackId
+syncState
+remoteStatus
+remoteUpdatedAt
+lastPulledAt
+lastPushedAt
+lastSyncError
+createdAt
+updatedAt
+archivedAt
+deletedAt
+```
+
+Unique keys：
+
+```text
+localEntityType + localEntityId
+localEntityType + remoteEntityId
+```
+
+### 5.10.8 sync_outbox
 
 Phase 5B 新增。保存 local pending mutations；不會在 Phase 5B 自動送到 Supabase。
 

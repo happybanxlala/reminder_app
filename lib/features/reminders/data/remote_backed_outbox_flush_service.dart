@@ -91,6 +91,140 @@ abstract class RemoteBackedOutboxRemoteClient {
     );
   }
 
+  Future<RemotePocResult<RemoteStageTrackerCreateResult>>
+  createRemoteStageTrackerForPack({
+    required String remotePackId,
+    required String title,
+    String? subjectName,
+    required DateTime trackingStartDate,
+    DateTime? trackingEndDate,
+    List<Map<String, Object?>> initialRules = const [],
+    String? clientMutationId,
+  }) {
+    return Future.value(
+      const RemotePocResult<RemoteStageTrackerCreateResult>.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+      ),
+    );
+  }
+
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  updateRemoteStageTrackerById({
+    required String remoteStageTrackerId,
+    required String title,
+    String? subjectName,
+    required DateTime trackingStartDate,
+    DateTime? trackingEndDate,
+    String? clientMutationId,
+  }) {
+    return Future.value(
+      const RemotePocResult<RemoteStageMutationResult>.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+      ),
+    );
+  }
+
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  archiveRemoteStageTrackerById({
+    required String remoteStageTrackerId,
+    String? clientMutationId,
+  }) {
+    return Future.value(
+      const RemotePocResult<RemoteStageMutationResult>.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+      ),
+    );
+  }
+
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  createRemoteStageRuleByTrackerId({
+    required String remoteStageTrackerId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) {
+    return Future.value(
+      const RemotePocResult<RemoteStageMutationResult>.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+      ),
+    );
+  }
+
+  Future<RemotePocResult<RemoteStageMutationResult>> updateRemoteStageRuleById({
+    required String remoteStageRuleId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) {
+    return Future.value(
+      const RemotePocResult<RemoteStageMutationResult>.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+      ),
+    );
+  }
+
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  updateRemoteStageRuleStatusById({
+    required String remoteStageRuleId,
+    required String status,
+    String? clientMutationId,
+  }) {
+    return Future.value(
+      const RemotePocResult<RemoteStageMutationResult>.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+      ),
+    );
+  }
+
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  createRemoteStageRecordByTrackerId({
+    required String remoteStageTrackerId,
+    String? remoteStageRuleId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) {
+    return Future.value(
+      const RemotePocResult<RemoteStageMutationResult>.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+      ),
+    );
+  }
+
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  updateRemoteStageRecordById({
+    required String remoteStageRecordId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) {
+    return Future.value(
+      const RemotePocResult<RemoteStageMutationResult>.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+      ),
+    );
+  }
+
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  archiveRemoteStageRecordById({
+    required String remoteStageRecordId,
+    String? clientMutationId,
+  }) {
+    return Future.value(
+      const RemotePocResult<RemoteStageMutationResult>.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+      ),
+    );
+  }
+
+  Future<RemotePocResult<RemoteStageAcknowledgementResult>>
+  acknowledgeRemoteStageRecordById({
+    required String remoteStageRecordId,
+    String? clientMutationId,
+  }) {
+    return Future.value(
+      const RemotePocResult<RemoteStageAcknowledgementResult>.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+      ),
+    );
+  }
+
   Future<RemotePocResult<RemoteItemCompletionResult>> completeRemoteItemById(
     String remoteItemId,
   );
@@ -218,6 +352,155 @@ class RemoteSharedPackOutboxRemoteClient
       unit: unit,
       clientMutationId: clientMutationId,
       metadata: metadata,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageTrackerCreateResult>>
+  createRemoteStageTrackerForPack({
+    required String remotePackId,
+    required String title,
+    String? subjectName,
+    required DateTime trackingStartDate,
+    DateTime? trackingEndDate,
+    List<Map<String, Object?>> initialRules = const [],
+    String? clientMutationId,
+  }) {
+    return _repository.createRemoteStageTrackerForPack(
+      remotePackId: remotePackId,
+      title: title,
+      subjectName: subjectName,
+      trackingStartDate: trackingStartDate,
+      trackingEndDate: trackingEndDate,
+      initialRules: initialRules,
+      clientMutationId: clientMutationId,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  updateRemoteStageTrackerById({
+    required String remoteStageTrackerId,
+    required String title,
+    String? subjectName,
+    required DateTime trackingStartDate,
+    DateTime? trackingEndDate,
+    String? clientMutationId,
+  }) {
+    return _repository.updateRemoteStageTrackerByRemoteId(
+      remoteStageTrackerId: remoteStageTrackerId,
+      title: title,
+      subjectName: subjectName,
+      trackingStartDate: trackingStartDate,
+      trackingEndDate: trackingEndDate,
+      clientMutationId: clientMutationId,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  archiveRemoteStageTrackerById({
+    required String remoteStageTrackerId,
+    String? clientMutationId,
+  }) {
+    return _repository.archiveRemoteStageTrackerByRemoteId(
+      remoteStageTrackerId: remoteStageTrackerId,
+      clientMutationId: clientMutationId,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  createRemoteStageRuleByTrackerId({
+    required String remoteStageTrackerId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) {
+    return _repository.createRemoteStageRuleByRemoteTrackerId(
+      remoteStageTrackerId: remoteStageTrackerId,
+      fields: fields,
+      clientMutationId: clientMutationId,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageMutationResult>> updateRemoteStageRuleById({
+    required String remoteStageRuleId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) {
+    return _repository.updateRemoteStageRuleByRemoteId(
+      remoteStageRuleId: remoteStageRuleId,
+      fields: fields,
+      clientMutationId: clientMutationId,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  updateRemoteStageRuleStatusById({
+    required String remoteStageRuleId,
+    required String status,
+    String? clientMutationId,
+  }) {
+    return _repository.updateRemoteStageRuleStatusByRemoteId(
+      remoteStageRuleId: remoteStageRuleId,
+      status: status,
+      clientMutationId: clientMutationId,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  createRemoteStageRecordByTrackerId({
+    required String remoteStageTrackerId,
+    String? remoteStageRuleId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) {
+    return _repository.createRemoteStageRecordByRemoteTrackerId(
+      remoteStageTrackerId: remoteStageTrackerId,
+      remoteStageRuleId: remoteStageRuleId,
+      fields: fields,
+      clientMutationId: clientMutationId,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  updateRemoteStageRecordById({
+    required String remoteStageRecordId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) {
+    return _repository.updateRemoteStageRecordByRemoteId(
+      remoteStageRecordId: remoteStageRecordId,
+      fields: fields,
+      clientMutationId: clientMutationId,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  archiveRemoteStageRecordById({
+    required String remoteStageRecordId,
+    String? clientMutationId,
+  }) {
+    return _repository.archiveRemoteStageRecordByRemoteId(
+      remoteStageRecordId: remoteStageRecordId,
+      clientMutationId: clientMutationId,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageAcknowledgementResult>>
+  acknowledgeRemoteStageRecordById({
+    required String remoteStageRecordId,
+    String? clientMutationId,
+  }) {
+    return _repository.acknowledgeRemoteStageRecordByRemoteId(
+      remoteStageRecordId: remoteStageRecordId,
+      clientMutationId: clientMutationId,
     );
   }
 
@@ -393,6 +676,137 @@ class RemoteBackedOutboxFlushService {
         _ => throw StateError('unreachable'),
       };
     }
+    if (mutation.actionType == SyncOutboxActionType.createStageTracker) {
+      final remotePackId =
+          mutation.remotePackId ?? _stringPayload(payload, 'remotePackId');
+      final localStageTrackerId =
+          _intPayload(payload, 'localStageTrackerId') ?? mutation.localEntityId;
+      final fields = _mapPayload(payload, 'fields');
+      final title = _stringPayload(fields, 'title');
+      final trackingStartDate = _datePayload(fields, 'trackingStartDate');
+      if (remotePackId == null ||
+          localStageTrackerId == null ||
+          title == null ||
+          trackingStartDate == null) {
+        await _markFailed(
+          mutation,
+          RemoteBackedMutationResolution.failed,
+          'malformed_create_stage_tracker_payload',
+        );
+        return RemoteBackedMutationResolution.failed;
+      }
+      await _markSyncing(mutation);
+      return _flushCreateStageTracker(
+        mutation,
+        remotePackId: remotePackId,
+        localStageTrackerId: localStageTrackerId,
+        title: title,
+        subjectName: _stringPayload(fields, 'subjectName'),
+        trackingStartDate: trackingStartDate,
+        trackingEndDate: _datePayload(fields, 'trackingEndDate'),
+        initialRules: _listMapPayload(
+          _mapPayload(payload, 'children'),
+          'rules',
+        ),
+      );
+    }
+    if (_isStageMutation(mutation.actionType)) {
+      await _markSyncing(mutation);
+      return switch (mutation.actionType) {
+        SyncOutboxActionType.updateStageTracker => _flushUpdateStageTracker(
+          mutation,
+          remoteStageTrackerId: await _requireRemoteStageEntityId(
+            mutation,
+            payload,
+          ),
+          localEntityId: _stageLocalEntityId(mutation, payload),
+          fields: _mapPayload(payload, 'fields'),
+        ),
+        SyncOutboxActionType.archiveStageTracker => _flushArchiveStageTracker(
+          mutation,
+          remoteStageTrackerId: await _requireRemoteStageEntityId(
+            mutation,
+            payload,
+          ),
+          localEntityId: _stageLocalEntityId(mutation, payload),
+        ),
+        SyncOutboxActionType.createStageRule => _flushCreateStageRule(
+          mutation,
+          remoteStageTrackerId: await _requireRemoteStageParentId(
+            payload,
+            parentEntityType:
+                RemoteSharedPackRepository.localEntityStageTracker,
+            remoteParentKey: 'remoteStageTrackerId',
+            localParentKey: 'localStageTrackerId',
+          ),
+          localEntityId: _stageLocalEntityId(mutation, payload),
+          fields: _mapPayload(payload, 'fields'),
+        ),
+        SyncOutboxActionType.updateStageRule => _flushUpdateStageRule(
+          mutation,
+          remoteStageRuleId: await _requireRemoteStageEntityId(
+            mutation,
+            payload,
+          ),
+          localEntityId: _stageLocalEntityId(mutation, payload),
+          fields: _mapPayload(payload, 'fields'),
+        ),
+        SyncOutboxActionType.updateStageRuleStatus =>
+          _flushUpdateStageRuleStatus(
+            mutation,
+            remoteStageRuleId: await _requireRemoteStageEntityId(
+              mutation,
+              payload,
+            ),
+            localEntityId: _stageLocalEntityId(mutation, payload),
+            status: _stringPayload(_mapPayload(payload, 'fields'), 'status'),
+          ),
+        SyncOutboxActionType.createStageRecord => _flushCreateStageRecord(
+          mutation,
+          remoteStageTrackerId: await _requireRemoteStageParentId(
+            payload,
+            parentEntityType:
+                RemoteSharedPackRepository.localEntityStageTracker,
+            remoteParentKey: 'remoteStageTrackerId',
+            localParentKey: 'localStageTrackerId',
+          ),
+          remoteStageRuleId: await _optionalRemoteStageParentId(
+            payload,
+            parentEntityType: RemoteSharedPackRepository.localEntityStageRule,
+            remoteParentKey: 'remoteStageRuleId',
+            localParentKey: 'localStageRuleId',
+          ),
+          localEntityId: _stageLocalEntityId(mutation, payload),
+          fields: _mapPayload(payload, 'fields'),
+        ),
+        SyncOutboxActionType.updateStageRecord => _flushUpdateStageRecord(
+          mutation,
+          remoteStageRecordId: await _requireRemoteStageEntityId(
+            mutation,
+            payload,
+          ),
+          localEntityId: _stageLocalEntityId(mutation, payload),
+          fields: _mapPayload(payload, 'fields'),
+        ),
+        SyncOutboxActionType.archiveStageRecord => _flushArchiveStageRecord(
+          mutation,
+          remoteStageRecordId: await _requireRemoteStageEntityId(
+            mutation,
+            payload,
+          ),
+          localEntityId: _stageLocalEntityId(mutation, payload),
+        ),
+        SyncOutboxActionType.stageAcknowledge => _flushStageAcknowledge(
+          mutation,
+          remoteStageRecordId: await _requireRemoteStageEntityId(
+            mutation,
+            payload,
+          ),
+          localEntityId: _stageLocalEntityId(mutation, payload),
+        ),
+        _ => throw StateError('unreachable'),
+      };
+    }
 
     final remoteItemId = await _resolveRemoteItemId(mutation, payload);
     final localCompletionId = _intPayload(payload, 'localCompletionId');
@@ -437,6 +851,16 @@ class RemoteBackedOutboxFlushService {
       SyncOutboxActionType.resourceAdjust ||
       SyncOutboxActionType.resourceDecrement => throw StateError('unreachable'),
       SyncOutboxActionType.createItem => throw StateError('unreachable'),
+      SyncOutboxActionType.createStageTracker ||
+      SyncOutboxActionType.updateStageTracker ||
+      SyncOutboxActionType.archiveStageTracker ||
+      SyncOutboxActionType.createStageRule ||
+      SyncOutboxActionType.updateStageRule ||
+      SyncOutboxActionType.updateStageRuleStatus ||
+      SyncOutboxActionType.createStageRecord ||
+      SyncOutboxActionType.updateStageRecord ||
+      SyncOutboxActionType.archiveStageRecord ||
+      SyncOutboxActionType.stageAcknowledge => throw StateError('unreachable'),
     };
   }
 
@@ -447,6 +871,21 @@ class RemoteBackedOutboxFlushService {
       SyncOutboxActionType.resourceIncrement ||
       SyncOutboxActionType.resourceAdjust ||
       SyncOutboxActionType.resourceDecrement => true,
+      _ => false,
+    };
+  }
+
+  bool _isStageMutation(SyncOutboxActionType actionType) {
+    return switch (actionType) {
+      SyncOutboxActionType.updateStageTracker ||
+      SyncOutboxActionType.archiveStageTracker ||
+      SyncOutboxActionType.createStageRule ||
+      SyncOutboxActionType.updateStageRule ||
+      SyncOutboxActionType.updateStageRuleStatus ||
+      SyncOutboxActionType.createStageRecord ||
+      SyncOutboxActionType.updateStageRecord ||
+      SyncOutboxActionType.archiveStageRecord ||
+      SyncOutboxActionType.stageAcknowledge => true,
       _ => false,
     };
   }
@@ -812,6 +1251,386 @@ class RemoteBackedOutboxFlushService {
     return RemoteBackedMutationResolution.synced;
   }
 
+  Future<RemoteBackedMutationResolution> _flushCreateStageTracker(
+    SyncOutboxEntry mutation, {
+    required String remotePackId,
+    required int localStageTrackerId,
+    required String title,
+    String? subjectName,
+    required DateTime trackingStartDate,
+    DateTime? trackingEndDate,
+    required List<Map<String, Object?>> initialRules,
+  }) async {
+    final result = await _remoteClient.createRemoteStageTrackerForPack(
+      remotePackId: remotePackId,
+      title: title,
+      subjectName: subjectName,
+      trackingStartDate: trackingStartDate,
+      trackingEndDate: trackingEndDate,
+      initialRules: initialRules,
+      clientMutationId: mutation.clientMutationId,
+    );
+    if (!result.isSuccess) {
+      return _markStageRemoteFailure(mutation, result.failureReason);
+    }
+    final created = result.value!;
+    final now = _clock().millisecondsSinceEpoch;
+    await _dao.attachedDatabase.transaction(() async {
+      await _upsertStageMappingAndMetadata(
+        localEntityType: RemoteSharedPackRepository.localEntityStageTracker,
+        localEntityId: localStageTrackerId,
+        localPackId: mutation.localPackId,
+        remoteEntityId: created.stageTrackerId,
+        remotePackId: remotePackId,
+        remoteTable: RemoteSharedPackRepository.remoteTableStageTrackers,
+        syncState: RemoteStageSyncState.stale,
+        remoteStatus: 'active',
+        now: now,
+      );
+      for (final entry in created.ruleIdsByClientLocalId.entries) {
+        await _upsertStageMappingAndMetadata(
+          localEntityType: RemoteSharedPackRepository.localEntityStageRule,
+          localEntityId: entry.key,
+          localPackId: mutation.localPackId,
+          remoteEntityId: entry.value,
+          remotePackId: remotePackId,
+          remoteTable: RemoteSharedPackRepository.remoteTableStageRules,
+          syncState: RemoteStageSyncState.stale,
+          remoteStatus: 'active',
+          now: now,
+        );
+      }
+      await _dao.updateSyncOutboxEntry(
+        mutation.id,
+        SyncOutboxCompanion(
+          remoteEntityId: Value(created.stageTrackerId),
+          status: Value(SyncOutboxStatus.synced.storageValue),
+          resolvedAt: Value(now),
+          lastError: const Value(null),
+          updatedAt: Value(now),
+        ),
+      );
+    });
+    await _markPackAndStageStale(
+      mutation,
+      localEntityIdOverride: localStageTrackerId,
+      localEntityTypeOverride:
+          RemoteSharedPackRepository.localEntityStageTracker,
+    );
+    return RemoteBackedMutationResolution.synced;
+  }
+
+  Future<RemoteBackedMutationResolution> _flushUpdateStageTracker(
+    SyncOutboxEntry mutation, {
+    required String remoteStageTrackerId,
+    required int? localEntityId,
+    required Map<String, Object?> fields,
+  }) async {
+    final title = _stringPayload(fields, 'title');
+    final trackingStartDate = _datePayload(fields, 'trackingStartDate');
+    if (remoteStageTrackerId.isEmpty ||
+        title == null ||
+        trackingStartDate == null) {
+      await _markFailed(
+        mutation,
+        RemoteBackedMutationResolution.failed,
+        'malformed_update_stage_tracker_payload',
+      );
+      return RemoteBackedMutationResolution.failed;
+    }
+    final result = await _remoteClient.updateRemoteStageTrackerById(
+      remoteStageTrackerId: remoteStageTrackerId,
+      title: title,
+      subjectName: _stringPayload(fields, 'subjectName'),
+      trackingStartDate: trackingStartDate,
+      trackingEndDate: _datePayload(fields, 'trackingEndDate'),
+      clientMutationId: mutation.clientMutationId,
+    );
+    return _finishStageMutation(
+      mutation,
+      result: result,
+      localEntityType: RemoteSharedPackRepository.localEntityStageTracker,
+      localEntityId: localEntityId,
+      remoteTable: RemoteSharedPackRepository.remoteTableStageTrackers,
+      remoteStatus: 'active',
+    );
+  }
+
+  Future<RemoteBackedMutationResolution> _flushArchiveStageTracker(
+    SyncOutboxEntry mutation, {
+    required String remoteStageTrackerId,
+    required int? localEntityId,
+  }) async {
+    if (remoteStageTrackerId.isEmpty) {
+      await _markFailed(
+        mutation,
+        RemoteBackedMutationResolution.failed,
+        'missing_remote_stage_tracker_mapping',
+      );
+      return RemoteBackedMutationResolution.failed;
+    }
+    final result = await _remoteClient.archiveRemoteStageTrackerById(
+      remoteStageTrackerId: remoteStageTrackerId,
+      clientMutationId: mutation.clientMutationId,
+    );
+    return _finishStageMutation(
+      mutation,
+      result: result,
+      localEntityType: RemoteSharedPackRepository.localEntityStageTracker,
+      localEntityId: localEntityId,
+      remoteTable: RemoteSharedPackRepository.remoteTableStageTrackers,
+      remoteStatus: 'archived',
+      stageState: RemoteStageSyncState.archived,
+    );
+  }
+
+  Future<RemoteBackedMutationResolution> _flushCreateStageRule(
+    SyncOutboxEntry mutation, {
+    required String remoteStageTrackerId,
+    required int? localEntityId,
+    required Map<String, Object?> fields,
+  }) async {
+    if (remoteStageTrackerId.isEmpty || localEntityId == null) {
+      await _markFailed(
+        mutation,
+        RemoteBackedMutationResolution.failed,
+        'missing_remote_stage_tracker_mapping',
+      );
+      return RemoteBackedMutationResolution.failed;
+    }
+    final result = await _remoteClient.createRemoteStageRuleByTrackerId(
+      remoteStageTrackerId: remoteStageTrackerId,
+      fields: fields,
+      clientMutationId: mutation.clientMutationId,
+    );
+    return _finishStageMutation(
+      mutation,
+      result: result,
+      localEntityType: RemoteSharedPackRepository.localEntityStageRule,
+      localEntityId: localEntityId,
+      remoteTable: RemoteSharedPackRepository.remoteTableStageRules,
+      remoteStatus: 'active',
+    );
+  }
+
+  Future<RemoteBackedMutationResolution> _flushUpdateStageRule(
+    SyncOutboxEntry mutation, {
+    required String remoteStageRuleId,
+    required int? localEntityId,
+    required Map<String, Object?> fields,
+  }) async {
+    if (remoteStageRuleId.isEmpty) {
+      await _markFailed(
+        mutation,
+        RemoteBackedMutationResolution.failed,
+        'missing_remote_stage_rule_mapping',
+      );
+      return RemoteBackedMutationResolution.failed;
+    }
+    final result = await _remoteClient.updateRemoteStageRuleById(
+      remoteStageRuleId: remoteStageRuleId,
+      fields: fields,
+      clientMutationId: mutation.clientMutationId,
+    );
+    return _finishStageMutation(
+      mutation,
+      result: result,
+      localEntityType: RemoteSharedPackRepository.localEntityStageRule,
+      localEntityId: localEntityId,
+      remoteTable: RemoteSharedPackRepository.remoteTableStageRules,
+      remoteStatus: _stringPayload(fields, 'status') ?? 'active',
+    );
+  }
+
+  Future<RemoteBackedMutationResolution> _flushUpdateStageRuleStatus(
+    SyncOutboxEntry mutation, {
+    required String remoteStageRuleId,
+    required int? localEntityId,
+    required String? status,
+  }) async {
+    if (remoteStageRuleId.isEmpty || status == null) {
+      await _markFailed(
+        mutation,
+        RemoteBackedMutationResolution.failed,
+        'malformed_update_stage_rule_status_payload',
+      );
+      return RemoteBackedMutationResolution.failed;
+    }
+    final result = await _remoteClient.updateRemoteStageRuleStatusById(
+      remoteStageRuleId: remoteStageRuleId,
+      status: status,
+      clientMutationId: mutation.clientMutationId,
+    );
+    return _finishStageMutation(
+      mutation,
+      result: result,
+      localEntityType: RemoteSharedPackRepository.localEntityStageRule,
+      localEntityId: localEntityId,
+      remoteTable: RemoteSharedPackRepository.remoteTableStageRules,
+      remoteStatus: status,
+      stageState: status == 'archived'
+          ? RemoteStageSyncState.archived
+          : RemoteStageSyncState.stale,
+    );
+  }
+
+  Future<RemoteBackedMutationResolution> _flushCreateStageRecord(
+    SyncOutboxEntry mutation, {
+    required String remoteStageTrackerId,
+    required String? remoteStageRuleId,
+    required int? localEntityId,
+    required Map<String, Object?> fields,
+  }) async {
+    if (remoteStageTrackerId.isEmpty || localEntityId == null) {
+      await _markFailed(
+        mutation,
+        RemoteBackedMutationResolution.failed,
+        'missing_remote_stage_tracker_mapping',
+      );
+      return RemoteBackedMutationResolution.failed;
+    }
+    final result = await _remoteClient.createRemoteStageRecordByTrackerId(
+      remoteStageTrackerId: remoteStageTrackerId,
+      remoteStageRuleId: remoteStageRuleId,
+      fields: fields,
+      clientMutationId: mutation.clientMutationId,
+    );
+    return _finishStageMutation(
+      mutation,
+      result: result,
+      localEntityType: RemoteSharedPackRepository.localEntityStageRecord,
+      localEntityId: localEntityId,
+      remoteTable: RemoteSharedPackRepository.remoteTableStageRecords,
+      remoteStatus: _stringPayload(fields, 'status') ?? 'normal',
+    );
+  }
+
+  Future<RemoteBackedMutationResolution> _flushUpdateStageRecord(
+    SyncOutboxEntry mutation, {
+    required String remoteStageRecordId,
+    required int? localEntityId,
+    required Map<String, Object?> fields,
+  }) async {
+    if (remoteStageRecordId.isEmpty) {
+      await _markFailed(
+        mutation,
+        RemoteBackedMutationResolution.failed,
+        'missing_remote_stage_record_mapping',
+      );
+      return RemoteBackedMutationResolution.failed;
+    }
+    final result = await _remoteClient.updateRemoteStageRecordById(
+      remoteStageRecordId: remoteStageRecordId,
+      fields: fields,
+      clientMutationId: mutation.clientMutationId,
+    );
+    return _finishStageMutation(
+      mutation,
+      result: result,
+      localEntityType: RemoteSharedPackRepository.localEntityStageRecord,
+      localEntityId: localEntityId,
+      remoteTable: RemoteSharedPackRepository.remoteTableStageRecords,
+      remoteStatus: _stringPayload(fields, 'status') ?? 'normal',
+    );
+  }
+
+  Future<RemoteBackedMutationResolution> _flushArchiveStageRecord(
+    SyncOutboxEntry mutation, {
+    required String remoteStageRecordId,
+    required int? localEntityId,
+  }) async {
+    if (remoteStageRecordId.isEmpty) {
+      await _markFailed(
+        mutation,
+        RemoteBackedMutationResolution.failed,
+        'missing_remote_stage_record_mapping',
+      );
+      return RemoteBackedMutationResolution.failed;
+    }
+    final result = await _remoteClient.archiveRemoteStageRecordById(
+      remoteStageRecordId: remoteStageRecordId,
+      clientMutationId: mutation.clientMutationId,
+    );
+    return _finishStageMutation(
+      mutation,
+      result: result,
+      localEntityType: RemoteSharedPackRepository.localEntityStageRecord,
+      localEntityId: localEntityId,
+      remoteTable: RemoteSharedPackRepository.remoteTableStageRecords,
+      remoteStatus: 'archived',
+      stageState: RemoteStageSyncState.archived,
+    );
+  }
+
+  Future<RemoteBackedMutationResolution> _flushStageAcknowledge(
+    SyncOutboxEntry mutation, {
+    required String remoteStageRecordId,
+    required int? localEntityId,
+  }) async {
+    if (remoteStageRecordId.isEmpty) {
+      await _markFailed(
+        mutation,
+        RemoteBackedMutationResolution.failed,
+        'missing_remote_stage_record_mapping',
+      );
+      return RemoteBackedMutationResolution.failed;
+    }
+    final result = await _remoteClient.acknowledgeRemoteStageRecordById(
+      remoteStageRecordId: remoteStageRecordId,
+      clientMutationId: mutation.clientMutationId,
+    );
+    if (!result.isSuccess) {
+      return _markStageRemoteFailure(mutation, result.failureReason);
+    }
+    await _markStageMutationSynced(
+      mutation,
+      localEntityType: RemoteSharedPackRepository.localEntityStageRecord,
+      localEntityId: localEntityId,
+      remoteEntityId: result.value!.stageRecordId,
+      remoteTable: RemoteSharedPackRepository.remoteTableStageRecords,
+      remoteStatus: 'acknowledged',
+      stageState: RemoteStageSyncState.stale,
+    );
+    return RemoteBackedMutationResolution.synced;
+  }
+
+  Future<RemoteBackedMutationResolution> _finishStageMutation(
+    SyncOutboxEntry mutation, {
+    required RemotePocResult<RemoteStageMutationResult> result,
+    required String localEntityType,
+    required int? localEntityId,
+    required String remoteTable,
+    required String remoteStatus,
+    RemoteStageSyncState stageState = RemoteStageSyncState.stale,
+  }) async {
+    if (!result.isSuccess) {
+      return _markStageRemoteFailure(mutation, result.failureReason);
+    }
+    await _markStageMutationSynced(
+      mutation,
+      localEntityType: localEntityType,
+      localEntityId: localEntityId,
+      remoteEntityId: result.value!.entityId,
+      remoteTable: remoteTable,
+      remoteStatus: remoteStatus,
+      stageState: stageState,
+    );
+    return RemoteBackedMutationResolution.synced;
+  }
+
+  Future<RemoteBackedMutationResolution> _markStageRemoteFailure(
+    SyncOutboxEntry mutation,
+    RemoteSharedPackFailureReason? failureReason,
+  ) async {
+    final resolution = _failureResolution(failureReason);
+    await _markFailed(mutation, resolution, failureReason?.name);
+    if (resolution == RemoteBackedMutationResolution.remoteAccessLost ||
+        resolution == RemoteBackedMutationResolution.permissionRevoked) {
+      await _markPackAccessLost(mutation, failureReason?.name);
+    }
+    return resolution;
+  }
+
   Future<void> _markResourceMutationSynced(
     SyncOutboxEntry mutation, {
     required int? localResourceId,
@@ -852,6 +1671,111 @@ class RemoteBackedOutboxFlushService {
       mutation,
       localResourceIdOverride: localResourceId,
     );
+  }
+
+  Future<void> _markStageMutationSynced(
+    SyncOutboxEntry mutation, {
+    required String localEntityType,
+    required int? localEntityId,
+    required String remoteEntityId,
+    required String remoteTable,
+    required String remoteStatus,
+    RemoteStageSyncState stageState = RemoteStageSyncState.stale,
+  }) async {
+    final now = _clock().millisecondsSinceEpoch;
+    await _dao.attachedDatabase.transaction(() async {
+      await _dao.updateSyncOutboxEntry(
+        mutation.id,
+        SyncOutboxCompanion(
+          remoteEntityId: Value(remoteEntityId),
+          status: Value(SyncOutboxStatus.synced.storageValue),
+          resolvedAt: Value(now),
+          lastError: const Value(null),
+          updatedAt: Value(now),
+        ),
+      );
+      if (localEntityId != null) {
+        await _upsertStageMappingAndMetadata(
+          localEntityType: localEntityType,
+          localEntityId: localEntityId,
+          localPackId: mutation.localPackId,
+          remoteEntityId: remoteEntityId,
+          remotePackId: mutation.remotePackId,
+          remoteTable: remoteTable,
+          syncState: stageState,
+          remoteStatus: remoteStatus,
+          now: now,
+        );
+      }
+    });
+    await _markPackAndStageStale(
+      mutation,
+      localEntityIdOverride: localEntityId,
+      localEntityTypeOverride: localEntityType,
+    );
+  }
+
+  Future<void> _upsertStageMappingAndMetadata({
+    required String localEntityType,
+    required int localEntityId,
+    required int localPackId,
+    required String remoteEntityId,
+    required String? remotePackId,
+    required String remoteTable,
+    required RemoteStageSyncState syncState,
+    required String remoteStatus,
+    required int now,
+  }) async {
+    await _dao.upsertSyncMapping(
+      SyncMappingsCompanion.insert(
+        localEntityType: localEntityType,
+        localEntityId: localEntityId,
+        remoteTable: remoteTable,
+        remoteEntityId: remoteEntityId,
+        syncState: SyncMappingState.pushed.storageValue,
+        lastPushedAt: Value(now),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    final existing = await _dao.getRemoteStageSyncMetadataForLocalEntity(
+      localEntityType: localEntityType,
+      localEntityId: localEntityId,
+    );
+    final archivedAt = syncState == RemoteStageSyncState.archived
+        ? Value(now)
+        : const Value<int?>.absent();
+    if (existing == null) {
+      await _dao.insertRemoteStageSyncMetadata(
+        RemoteStageSyncMetadataCompanion.insert(
+          localEntityType: localEntityType,
+          localEntityId: localEntityId,
+          localPackId: localPackId,
+          remoteEntityId: remoteEntityId,
+          remotePackId: remotePackId ?? '',
+          syncState: syncState.storageValue,
+          remoteStatus: Value(remoteStatus),
+          lastPushedAt: Value(now),
+          createdAt: now,
+          updatedAt: now,
+          archivedAt: archivedAt,
+        ),
+      );
+    } else {
+      await _dao.updateRemoteStageSyncMetadata(
+        existing.id,
+        RemoteStageSyncMetadataCompanion(
+          remoteEntityId: Value(remoteEntityId),
+          remotePackId: Value(remotePackId ?? existing.remotePackId),
+          syncState: Value(syncState.storageValue),
+          remoteStatus: Value(remoteStatus),
+          lastPushedAt: Value(now),
+          lastSyncError: const Value(null),
+          archivedAt: archivedAt,
+          updatedAt: Value(now),
+        ),
+      );
+    }
   }
 
   Future<void> _markItemMutationSynced(
@@ -1088,6 +2012,32 @@ class RemoteBackedOutboxFlushService {
         );
       }
     }
+    final localStageEntityId =
+        _stageLocalEntityId(mutation, payload) ??
+        (_isAnyStageEntityType(mutation.localEntityType)
+            ? mutation.localEntityId
+            : null);
+    final localStageEntityType = _isAnyStageEntityType(mutation.localEntityType)
+        ? mutation.localEntityType
+        : _stringPayload(payload, 'localEntityType');
+    if (localStageEntityId != null &&
+        localStageEntityType != null &&
+        _isAnyStageEntityType(localStageEntityType)) {
+      final metadata = await _dao.getRemoteStageSyncMetadataForLocalEntity(
+        localEntityType: localStageEntityType,
+        localEntityId: localStageEntityId,
+      );
+      if (metadata != null) {
+        await _dao.updateRemoteStageSyncMetadata(
+          metadata.id,
+          RemoteStageSyncMetadataCompanion(
+            syncState: Value(RemoteStageSyncState.failed.storageValue),
+            lastSyncError: Value(reason ?? resolution.name),
+            updatedAt: Value(_clock().millisecondsSinceEpoch),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _markPackAndItemStale(
@@ -1140,6 +2090,45 @@ class RemoteBackedOutboxFlushService {
           resourceMetadata.id,
           RemoteResourceSyncMetadataCompanion(
             syncState: Value(RemoteResourceSyncState.stale.storageValue),
+            updatedAt: Value(_clock().millisecondsSinceEpoch),
+          ),
+        );
+      }
+    }
+    final packMetadata = await _dao.getRemotePackSyncMetadataForLocalPack(
+      mutation.localPackId,
+    );
+    if (packMetadata != null) {
+      await _dao.updateRemotePackSyncMetadata(
+        packMetadata.id,
+        RemotePackSyncMetadataCompanion(
+          syncState: Value(RemotePackSyncState.stale.storageValue),
+          updatedAt: Value(_clock().millisecondsSinceEpoch),
+        ),
+      );
+    }
+  }
+
+  Future<void> _markPackAndStageStale(
+    SyncOutboxEntry mutation, {
+    int? localEntityIdOverride,
+    String? localEntityTypeOverride,
+  }) async {
+    final payload = _decodePayload(mutation.payloadJson);
+    final localEntityId =
+        localEntityIdOverride ?? _stageLocalEntityId(mutation, payload);
+    final localEntityType = localEntityTypeOverride ?? mutation.localEntityType;
+    if (localEntityId != null && _isAnyStageEntityType(localEntityType)) {
+      final stageMetadata = await _dao.getRemoteStageSyncMetadataForLocalEntity(
+        localEntityType: localEntityType,
+        localEntityId: localEntityId,
+      );
+      if (stageMetadata != null &&
+          stageMetadata.syncState != RemoteStageSyncState.archived) {
+        await _dao.updateRemoteStageSyncMetadata(
+          stageMetadata.id,
+          RemoteStageSyncMetadataCompanion(
+            syncState: Value(RemoteStageSyncState.stale.storageValue),
             updatedAt: Value(_clock().millisecondsSinceEpoch),
           ),
         );
@@ -1247,6 +2236,133 @@ class RemoteBackedOutboxFlushService {
     return null;
   }
 
+  Future<String> _requireRemoteStageEntityId(
+    SyncOutboxEntry mutation,
+    Map<String, Object?> payload,
+  ) async {
+    return await _resolveRemoteStageEntityId(mutation, payload) ?? '';
+  }
+
+  Future<String?> _resolveRemoteStageEntityId(
+    SyncOutboxEntry mutation,
+    Map<String, Object?> payload,
+  ) async {
+    if (mutation.remoteEntityId != null) {
+      return mutation.remoteEntityId;
+    }
+    final payloadRemoteEntityId = payload['remoteEntityId'];
+    if (payloadRemoteEntityId is String && payloadRemoteEntityId.isNotEmpty) {
+      return payloadRemoteEntityId;
+    }
+    for (final key in const [
+      'remoteStageTrackerId',
+      'remoteStageRuleId',
+      'remoteStageRecordId',
+    ]) {
+      final value = payload[key];
+      if (value is String && value.isNotEmpty) {
+        return value;
+      }
+    }
+    final localEntityId = _stageLocalEntityId(mutation, payload);
+    final localEntityType = mutation.localEntityType;
+    if (localEntityId == null || !_isAnyStageEntityType(localEntityType)) {
+      return null;
+    }
+    final metadata = await _dao.getRemoteStageSyncMetadataForLocalEntity(
+      localEntityType: localEntityType,
+      localEntityId: localEntityId,
+    );
+    if (metadata?.remoteEntityId != null) {
+      return metadata!.remoteEntityId;
+    }
+    final mapping = await _dao.getSyncMapping(
+      localEntityType: localEntityType,
+      localEntityId: localEntityId,
+      remoteTable: _remoteStageTableForLocalEntity(localEntityType),
+    );
+    return mapping?.remoteEntityId;
+  }
+
+  Future<String> _requireRemoteStageParentId(
+    Map<String, Object?> payload, {
+    required String parentEntityType,
+    required String remoteParentKey,
+    required String localParentKey,
+  }) async {
+    return await _optionalRemoteStageParentId(
+          payload,
+          parentEntityType: parentEntityType,
+          remoteParentKey: remoteParentKey,
+          localParentKey: localParentKey,
+        ) ??
+        '';
+  }
+
+  Future<String?> _optionalRemoteStageParentId(
+    Map<String, Object?> payload, {
+    required String parentEntityType,
+    required String remoteParentKey,
+    required String localParentKey,
+  }) async {
+    final parentPayload = _mapPayload(payload, 'parent');
+    final remoteParentId =
+        payload[remoteParentKey] ?? parentPayload[remoteParentKey];
+    if (remoteParentId is String && remoteParentId.isNotEmpty) {
+      return remoteParentId;
+    }
+    final localParentId =
+        _intPayload(payload, localParentKey) ??
+        _intPayload(parentPayload, localParentKey);
+    if (localParentId == null) {
+      return null;
+    }
+    final metadata = await _dao.getRemoteStageSyncMetadataForLocalEntity(
+      localEntityType: parentEntityType,
+      localEntityId: localParentId,
+    );
+    if (metadata?.remoteEntityId != null) {
+      return metadata!.remoteEntityId;
+    }
+    final mapping = await _dao.getSyncMapping(
+      localEntityType: parentEntityType,
+      localEntityId: localParentId,
+      remoteTable: _remoteStageTableForLocalEntity(parentEntityType),
+    );
+    return mapping?.remoteEntityId;
+  }
+
+  int? _stageLocalEntityId(
+    SyncOutboxEntry mutation,
+    Map<String, Object?> payload,
+  ) {
+    return _intPayload(payload, 'localStageTrackerId') ??
+        _intPayload(payload, 'localStageRuleId') ??
+        _intPayload(payload, 'localStageRecordId') ??
+        (mutation.localEntityType != RemoteSharedPackRepository.localEntityItem
+            ? mutation.localEntityId
+            : null);
+  }
+
+  bool _isAnyStageEntityType(String? localEntityType) {
+    return localEntityType ==
+            RemoteSharedPackRepository.localEntityStageTracker ||
+        localEntityType == RemoteSharedPackRepository.localEntityStageRule ||
+        localEntityType == RemoteSharedPackRepository.localEntityStageRecord;
+  }
+
+  String _remoteStageTableForLocalEntity(String localEntityType) {
+    return switch (localEntityType) {
+      RemoteSharedPackRepository.localEntityStageTracker =>
+        RemoteSharedPackRepository.remoteTableStageTrackers,
+      RemoteSharedPackRepository.localEntityStageRule =>
+        RemoteSharedPackRepository.remoteTableStageRules,
+      RemoteSharedPackRepository.localEntityStageRecord =>
+        RemoteSharedPackRepository.remoteTableStageRecords,
+      _ => RemoteSharedPackRepository.remoteTableStageTrackers,
+    };
+  }
+
   RemoteBackedMutationResolution _failureResolution(
     RemoteSharedPackFailureReason? reason,
   ) {
@@ -1308,5 +2424,33 @@ class RemoteBackedOutboxFlushService {
       return Map<String, Object?>.from(value);
     }
     return const {};
+  }
+
+  List<Map<String, Object?>> _listMapPayload(
+    Map<String, Object?> payload,
+    String key,
+  ) {
+    final value = payload[key];
+    if (value is! List) {
+      return const [];
+    }
+    return value
+        .whereType<Map>()
+        .map((entry) => Map<String, Object?>.from(entry))
+        .toList(growable: false);
+  }
+
+  DateTime? _datePayload(Map<String, Object?> payload, String key) {
+    final value = payload[key];
+    if (value is int) {
+      return DateTime.fromMillisecondsSinceEpoch(value);
+    }
+    if (value is num) {
+      return DateTime.fromMillisecondsSinceEpoch(value.toInt());
+    }
+    if (value is String && value.isNotEmpty) {
+      return DateTime.tryParse(value);
+    }
+    return null;
   }
 }

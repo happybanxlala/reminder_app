@@ -24,6 +24,13 @@ class _StageTrackerDetailPageState
     );
     final previewDate = ref.watch(effectivePreviewDateProvider);
     final tracker = detailAsync.valueOrNull?.stageTracker;
+    final syncStatus = ref
+        .watch(stageTrackerSyncStatusProvider(widget.stageTrackerId))
+        .maybeWhen(
+          data: (status) => status,
+          orElse: () => StageSyncStatus.localOnly,
+        );
+    final isAccessLost = syncStatus.isAccessLost;
 
     return Scaffold(
       appBar: AppBar(
@@ -32,6 +39,10 @@ class _StageTrackerDetailPageState
           _StageTrackerDetailOverflowMenu(
             stageTrackerId: widget.stageTrackerId,
             tracker: tracker,
+            isAccessLost: isAccessLost,
+            hasFailedSync:
+                syncStatus.hasFailedMutation ||
+                (syncStatus.lastSyncError?.trim().isNotEmpty ?? false),
           ),
         ],
       ),
@@ -63,7 +74,7 @@ class _StageTrackerDetailPageState
                   recentState: _heroRecentState(detail.historyStages),
                   nextStage: detail.nextStage,
                 ),
-                if (!tracker.isSystemDefault) ...[
+                if (!tracker.isSystemDefault && !isAccessLost) ...[
                   const SizedBox(height: _StageTrackerDetailDensity.cardGap),
                   _CompactAddStageAction(
                     onPressed: () =>
@@ -75,8 +86,13 @@ class _StageTrackerDetailPageState
                   title: '即將到來',
                   child: upcomingStages.isEmpty
                       ? _CompactUpcomingEmptyState(
-                          onAddStage: () =>
-                              _showStageEntryDialog(context, ref, tracker.id),
+                          onAddStage: isAccessLost
+                              ? null
+                              : () => _showStageEntryDialog(
+                                  context,
+                                  ref,
+                                  tracker.id,
+                                ),
                         )
                       : Column(
                           children: [
@@ -100,13 +116,15 @@ class _StageTrackerDetailPageState
                   rules: detail.stageRules,
                   nextOccurrencesByRule: nextOccurrencesByRule,
                   now: previewDate,
-                  canManage: !tracker.isSystemDefault,
-                  onAddRule: () => _showStageEntryDialog(
-                    context,
-                    ref,
-                    tracker.id,
-                    initialTab: _StageEntryTab.recurring,
-                  ),
+                  canManage: !tracker.isSystemDefault && !isAccessLost,
+                  onAddRule: isAccessLost
+                      ? null
+                      : () => _showStageEntryDialog(
+                          context,
+                          ref,
+                          tracker.id,
+                          initialTab: _StageEntryTab.recurring,
+                        ),
                 ),
               ],
             ),
@@ -188,16 +206,20 @@ class _StageTrackerDetailPageState
   }
 }
 
-enum _StageTrackerDetailMenuAction { edit, timeline, hide, archive }
+enum _StageTrackerDetailMenuAction { edit, timeline, hide, archive, retrySync }
 
 class _StageTrackerDetailOverflowMenu extends ConsumerWidget {
   const _StageTrackerDetailOverflowMenu({
     required this.stageTrackerId,
     required this.tracker,
+    required this.isAccessLost,
+    required this.hasFailedSync,
   });
 
   final int stageTrackerId;
   final StageTracker? tracker;
+  final bool isAccessLost;
+  final bool hasFailedSync;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -218,6 +240,19 @@ class _StageTrackerDetailOverflowMenu extends ConsumerWidget {
               StageTrackerTimelinePage.routeName,
               pathParameters: {'id': stageTrackerId.toString()},
             );
+            return;
+          case _StageTrackerDetailMenuAction.retrySync:
+            final currentTracker = tracker;
+            if (currentTracker == null) {
+              return;
+            }
+            final pack = await ref
+                .read(itemRepositoryProvider)
+                .getPackById(currentTracker.packId);
+            if (pack == null || !context.mounted) {
+              return;
+            }
+            await _retryRemoteBackedPackSync(context, ref, pack);
             return;
           case _StageTrackerDetailMenuAction.hide:
             final confirmed = await _showStageActionConfirmation(
@@ -258,6 +293,12 @@ class _StageTrackerDetailOverflowMenu extends ConsumerWidget {
                 .read(stageTrackerRepositoryProvider)
                 .archiveStageTracker(stageTrackerId);
             _invalidateStageTrackerActionProviders(ref, stageTrackerId);
+            if (archived) {
+              _syncAfterStageMutation(
+                ref,
+                await _stageTrackerPackId(ref, stageTrackerId),
+              );
+            }
             if (!context.mounted) {
               return;
             }
@@ -275,13 +316,18 @@ class _StageTrackerDetailOverflowMenu extends ConsumerWidget {
           if (!isSystemDefault)
             PopupMenuItem(
               value: _StageTrackerDetailMenuAction.edit,
-              enabled: tracker != null,
+              enabled: tracker != null && !isAccessLost,
               child: const Text(ReminderUiText.editStageTracker),
             ),
           const PopupMenuItem(
             value: _StageTrackerDetailMenuAction.timeline,
             child: Text(ReminderUiText.stageTrackerTimelineTitle),
           ),
+          if (hasFailedSync)
+            const PopupMenuItem(
+              value: _StageTrackerDetailMenuAction.retrySync,
+              child: Text(ReminderUiText.packCareRetrySync),
+            ),
           const PopupMenuDivider(),
           if (isSystemDefault)
             const PopupMenuItem(
@@ -291,6 +337,7 @@ class _StageTrackerDetailOverflowMenu extends ConsumerWidget {
           else
             PopupMenuItem(
               value: _StageTrackerDetailMenuAction.archive,
+              enabled: !isAccessLost,
               child: Text(
                 ReminderUiText.archiveStageTracker,
                 key: const Key('stage-tracker-archive-menu-text'),
@@ -346,7 +393,7 @@ class _CompactAddStageAction extends StatelessWidget {
 class _CompactUpcomingEmptyState extends StatelessWidget {
   const _CompactUpcomingEmptyState({required this.onAddStage});
 
-  final VoidCallback onAddStage;
+  final VoidCallback? onAddStage;
 
   @override
   Widget build(BuildContext context) {
@@ -514,6 +561,12 @@ Future<void> _refreshStageTrackerDetail(
   WidgetRef ref,
   int stageTrackerId,
 ) async {
+  final packId = await _stageTrackerPackId(ref, stageTrackerId);
+  if (packId != null) {
+    await ref
+        .read(remoteBackedSyncCoordinatorProvider)
+        .refreshRemoteBackedPack(packId);
+  }
   ref.invalidate(stageTrackerDetailProvider(stageTrackerId));
   await Future<void>.delayed(Duration.zero);
 }

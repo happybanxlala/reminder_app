@@ -1605,6 +1605,9 @@ Phase 5M completes the remote-backed shared pack local-first MVP acceptance pass
 - `undo_pack_item_completion` verifies active membership, returns `undone / already_not_completed`, writes `undone_by_user_id` / `undone_at`, writes `item_undone`, and does not delete completion history.
 - Remote-backed CRUD Boundary Phase 1 adds `create_pack_item_v2`, `update_pack_item`, and `archive_pack_item` in `docs/core/sql/phase6_remote_backed_item_crud_mvp.sql` for manual `sync_outbox` flush of item create, basic title/note/assigned-user update, and soft archive.
 - Phase 6D adds Resource sharing RPCs in `docs/core/sql/phase6d_remote_backed_resource_mvp.sql`: `create_pack_resource`, `update_pack_resource`, `archive_pack_resource`, and `apply_resource_event`. They enforce `auth.uid()`, active same-pack membership, idempotent `client_mutation_id`, actor preservation, no hard delete, `activity_events`, and `resource_events`.
+- Phase 6E adds Stage sharing RPCs in `docs/core/sql/phase6e_remote_backed_stage_mvp.sql`: `create_pack_stage_tracker`, `update_pack_stage_tracker`, `archive_pack_stage_tracker`, `create_pack_stage_rule`, `update_pack_stage_rule`, `update_pack_stage_rule_status`, `create_pack_stage_record`, `update_pack_stage_record`, `archive_pack_stage_record`, and `acknowledge_pack_stage_record`. They enforce `auth.uid()`, active same-pack membership, idempotent `client_mutation_id`, actor preservation, no hard delete, and `activity_events`.
+- Phase 6G hardens the Phase 6E Stage SQL draft so those app-called Stage RPCs are concrete `create or replace function` definitions, explicitly revoke public execute, grant execute to `authenticated`, and use the existing `is_pack_member(pack_id)` helper rather than any new membership helper.
+- Phase 6E production Stage sharing uses `stage_trackers`, `stage_rules`, `stage_records`, and `stage_acknowledgements`. Any older remote `stages` draft is legacy design context only and is not the Phase 6E app contract.
 - `create_pack_invite` is host-only and returns plaintext invite code once; database stores only `code_hash`.
 - `join_pack_with_invite` returns `joined / already_member`; a removed member can rejoin only through a valid active invite.
 - `revoke_pack_invite` returns `revoked / already_revoked`.
@@ -1624,6 +1627,7 @@ Phase 5M completes the remote-backed shared pack local-first MVP acceptance pass
 - `item_completions`: active members can read; complete/undo are RPC-controlled; no hard delete policy.
 - `resources`: active members can read; create/update/archive are RPC-controlled for the Phase 6D Resource sharing MVP; no hard delete policy.
 - `resource_events`: active members can read; insert/update are RPC-controlled through `apply_resource_event`; no hard delete policy.
+- `stage_trackers`, `stage_rules`, `stage_records`, and `stage_acknowledgements`: active members can read; create/update/archive/acknowledge are RPC-controlled for the Phase 6E Stage sharing MVP; no hard delete policy.
 - `pack_invites`: host can select/manage; plaintext invite code is never stored; join goes through RPC.
 - `activity_events`: active members can read; POC inserts require active membership and `actor_user_id = auth.uid()`; long-term production should move shared writes behind stricter RPC/trigger paths.
 
@@ -1752,3 +1756,12 @@ docs/core/manual_tests/phase4e_remote_collaboration_smoke_test.md
 Phase 5 may decide whether remote snapshots become local imports, whether activity writes move fully behind RPC/trigger paths, and whether realtime becomes production notification UX. Those decisions are intentionally outside Phase 4E.
 
 Phase 3C-4E define remote POC and collaboration primitives. Phase 5A moves toward remote-backed shared packs as app-level local-first data. Detailed local mirror / outbox / conflict / widget / notification / backup strategy lives in `docs/core/07_remote_backed_shared_pack_sync_spec.md`.
+
+### Phase 6F SQL Hardening Note
+
+Phase 6F does not add new remote tables, RPC domains, background sync, realtime auto-import, widget remote CRUD, notification remote sync, member role management, pack CRUD, or hard delete. It hardens the existing Phase 6D Resource and Phase 6E Stage SQL drafts so they are safer to apply repeatedly or after a partial failed apply:
+
+- Tables still use `create table if not exists`.
+- Later-referenced columns are defensively added with `alter table ... add column if not exists` before indexes, policies, or RPC bodies reference them.
+- Unique indexes and read policies are idempotent.
+- Runtime semantics remain the foreground local-first sync path documented in `docs/core/07_remote_backed_shared_pack_sync_spec.md`.

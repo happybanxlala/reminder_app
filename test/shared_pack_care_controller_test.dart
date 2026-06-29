@@ -517,6 +517,126 @@ class _FakeRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   }
 
   @override
+  Future<RemoteStageTrackerCreateResult> createPackStageTracker({
+    required String packId,
+    required String title,
+    String? subjectName,
+    required DateTime trackingStartDate,
+    DateTime? trackingEndDate,
+    List<Map<String, Object?>> initialRules = const [],
+    String? clientMutationId,
+  }) async {
+    return const RemoteStageTrackerCreateResult(
+      stageTrackerId: 'remote_stage_tracker_1',
+    );
+  }
+
+  @override
+  Future<RemoteStageMutationResult> updatePackStageTracker({
+    required String stageTrackerId,
+    required String title,
+    String? subjectName,
+    required DateTime trackingStartDate,
+    DateTime? trackingEndDate,
+    String? clientMutationId,
+  }) async {
+    return RemoteStageMutationResult(
+      entityId: stageTrackerId,
+      status: 'updated',
+    );
+  }
+
+  @override
+  Future<RemoteStageMutationResult> archivePackStageTracker({
+    required String stageTrackerId,
+    String? clientMutationId,
+  }) async {
+    return RemoteStageMutationResult(
+      entityId: stageTrackerId,
+      status: 'archived',
+    );
+  }
+
+  @override
+  Future<RemoteStageMutationResult> createPackStageRule({
+    required String stageTrackerId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) async {
+    return const RemoteStageMutationResult(
+      entityId: 'remote_stage_rule_1',
+      status: 'created',
+    );
+  }
+
+  @override
+  Future<RemoteStageMutationResult> updatePackStageRule({
+    required String stageRuleId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) async {
+    return RemoteStageMutationResult(entityId: stageRuleId, status: 'updated');
+  }
+
+  @override
+  Future<RemoteStageMutationResult> updatePackStageRuleStatus({
+    required String stageRuleId,
+    required String status,
+    String? clientMutationId,
+  }) async {
+    return RemoteStageMutationResult(entityId: stageRuleId, status: status);
+  }
+
+  @override
+  Future<RemoteStageMutationResult> createPackStageRecord({
+    required String stageTrackerId,
+    String? stageRuleId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) async {
+    return const RemoteStageMutationResult(
+      entityId: 'remote_stage_record_1',
+      status: 'created',
+    );
+  }
+
+  @override
+  Future<RemoteStageMutationResult> updatePackStageRecord({
+    required String stageRecordId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) async {
+    return RemoteStageMutationResult(
+      entityId: stageRecordId,
+      status: 'updated',
+    );
+  }
+
+  @override
+  Future<RemoteStageMutationResult> archivePackStageRecord({
+    required String stageRecordId,
+    String? clientMutationId,
+  }) async {
+    return RemoteStageMutationResult(
+      entityId: stageRecordId,
+      status: 'archived',
+    );
+  }
+
+  @override
+  Future<RemoteStageAcknowledgementResult> acknowledgePackStageRecord({
+    required String stageRecordId,
+    String? clientMutationId,
+  }) async {
+    return RemoteStageAcknowledgementResult(
+      stageRecordId: stageRecordId,
+      acknowledgementId: 'remote_stage_ack_1',
+      status: 'acknowledged',
+      acknowledgedAt: DateTime(2026, 6, 21),
+    );
+  }
+
+  @override
   Future<RemoteJoinPackResult> joinPackWithInvite({
     required String inviteCode,
   }) async {

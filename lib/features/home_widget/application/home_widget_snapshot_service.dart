@@ -236,13 +236,13 @@ class HomeWidgetSnapshotService {
     if (syncStatus.isStale) {
       return const _WidgetSyncState(
         status: HomeWidgetEntrySyncStatus.stale,
-        label: '遠端狀態可能已更新',
+        label: '有新的更新，請刷新',
       );
     }
     return const _WidgetSyncState(status: HomeWidgetEntrySyncStatus.none);
   }
 
-  static const _accessLostLabel = '已失去遠端存取權';
+  static const _accessLostLabel = '已無法存取';
 }
 
 class _WidgetSyncState {

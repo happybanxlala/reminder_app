@@ -474,7 +474,7 @@ Phase 5E implementation note:
 - Home continues to derive section membership from local mirror records and existing `ItemStatusService` classification. Phase 5E does not invent schedule / due data when the remote snapshot did not provide enough local schedule fields.
 - Imported remote-backed active items can appear in Home warning / danger sections when their local mirror data classifies into those sections.
 - `ItemHomeEntry` / item card read models carry a local sync overlay derived from `remote_pack_sync_metadata`, `remote_item_sync_metadata`, and `sync_outbox`.
-- Home card labels are intentionally compact: `等待同步`, `同步失敗`, `遠端狀態可能已更新`, and `已失去遠端存取權`.
+- Home card labels are intentionally compact: `等待同步`, `同步失敗`, `有新的更新，請刷新`, and `已無法存取`.
 - App-wired Home complete / today-completed undo keep using `ItemRepository.markDone` / `undoDone`; remote-backed rows route to the Phase 5D local outbox path and do not call Supabase immediately.
 - Local-only actions that do not yet have remote-backed semantics, such as skip/edit/delete/archive entry points on Home cards, remain hidden or disabled for remote-backed rows.
 - Widget integration is handled by Phase 5F. Phase 5E itself does not make widget snapshots remote-backed aware.
@@ -485,7 +485,7 @@ Phase 5E implementation note:
 
 - Widget reads remote-backed local mirror rows only through the Flutter-generated widget snapshot/cache.
 - Widget danger / warning / today-completed tabs may include remote-backed item rows when existing local HomeRepository classification already includes them.
-- Widget row snapshots carry compact sync state: `等待同步`, `同步失敗`, `遠端狀態可能已更新`, and `已失去遠端存取權`.
+- Widget row snapshots carry compact sync state: `等待同步`, `同步失敗`, `有新的更新，請刷新`, and `已無法存取`.
 - Widget complete / undo actions delegate back to `ItemRepository.markDone` / `undoDone`, which routes remote-backed rows to the Phase 5D local outbox path and writes `sync_outbox`.
 - Widget never calls Supabase, flushes outbox, imports remote snapshots, processes realtime payloads, stores credentials, or schedules notifications.
 - Access-lost or missing-mapping remote-backed widget actions fail closed. Access-lost rows may remain visible as disabled/read-only rows.
@@ -498,9 +498,9 @@ Phase 5E implementation note:
 - Notification summaries read local HomeRepository warning / danger entries and local sync metadata only. They never call Supabase, flush `sync_outbox`, import remote snapshots, or process realtime payloads.
 - Remote-backed local mirror items may contribute to notification summary totals when existing local Home classification already includes them.
 - Remote-backed mirrors without local warning / danger classification, including unscheduled imports with insufficient schedule data, are not forced into notifications.
-- Access-lost remote-backed items are excluded from actionable notification totals but preserve `已失去遠端存取權` summary metadata.
+- Access-lost remote-backed items are excluded from actionable notification totals but preserve `已無法存取` summary metadata.
 - Pending `complete_item` rows are not re-counted as active attention, avoiding repeated reminders after a local pending complete. The summary preserves `等待同步`.
-- Failed and stale rows may remain in notification totals when local Home classification still includes them. The summary preserves `同步失敗` and `遠端狀態可能已更新`.
+- Failed and stale rows may remain in notification totals when local Home classification still includes them. The summary preserves `同步失敗` and `有新的更新，請刷新`.
 - Notification payload remains local app navigation metadata only. It must not store Supabase tokens, sessions, credentials, service role keys, plaintext invite codes, full remote snapshots, or raw remote errors.
 - Widget behavior from Phase 5F is unchanged. Notification summary changes must not alter widget snapshot eligibility or widget action routing.
 - Backup remains legacy and unchanged: notification summary state is derived, not a remote source of truth, and backup still excludes `sync_outbox`, typed sync metadata, credentials, sessions, tokens, plaintext invite codes, and remote-backed mirror rows.
@@ -664,13 +664,45 @@ Phase 5 completes the remote-backed shared pack local-first MVP. It intentionall
 - Supabase RPC draft lives in `docs/core/sql/phase6d_remote_backed_resource_mvp.sql`.
 - Manual verification lives in `docs/core/manual_tests/phase6d_resource_sharing_mvp_smoke_test.md`.
 
+### Phase 6E：Stage Sharing MVP
+
+- Adds foreground-only Stage sharing for remote-backed packs. Supported Stage operations are StageTracker create / basic update / archive, StageRule create / update / status change, manual important StageRecord create / update / soft archive, and generated occurrence acknowledgement.
+- Supported Stage actions are local-first: `StageTrackerRepository` updates Drift optimistically, writes `sync_outbox`, and normal UI flow may start `RemoteBackedSyncCoordinator.syncAfterRemoteBackedMutation(localPackId)` without blocking navigation or rolling back optimistic state.
+- New Stage outbox actions are `create_stage_tracker`, `update_stage_tracker`, `archive_stage_tracker`, `create_stage_rule`, `update_stage_rule`, `update_stage_rule_status`, `create_stage_record`, `update_stage_record`, `archive_stage_record`, and `stage_acknowledge`. Flush/retry updates `remote_stage_sync_metadata`, sync mappings, pack stale state, retryable failure state, and access-lost state.
+- Remote snapshot refresh imports `stage_trackers`, `stage_rules`, `stage_records`, and `stage_acknowledgements` idempotently, maps remote ids through `sync_mappings`, preserves local id != remote id, and preserves pending/failed local mutation state for later retry/refresh.
+- Imported `activity_events` with `entity_type = stage_tracker`, `stage_rule`, or `stage_record` map through Stage sync mappings and can render actor-based messages such as `{name} 新增了「{stageTitle}」`, `{name} 更新了「{stageTitle}」`, `{name} 確認了「{stageTitle}」`, and `{name} 封存了「{stageTitle}」`.
+- Stage sync labels match item/resource labels and stay quiet when healthy: `等待同步`, `正在同步`, `同步失敗`, `有新的更新，請刷新`, and `已無法存取`. Access-lost Stage rows disable Stage actions.
+- StageTracker pack move, generated occurrence ignore, related item creation from StageOccurrence, hard delete, progress/checkpoint/reset, widget remote CRUD, notification remote sync, realtime auto-import, background sync, app-start sync, pack/member management, and old legacy `stages` draft semantics remain out of scope or guarded.
+- Supabase RPC draft lives in `docs/core/sql/phase6e_remote_backed_stage_mvp.sql`.
+- Manual verification lives in `docs/core/manual_tests/phase6e_stage_sharing_mvp_smoke_test.md`.
+
+### Phase 6F：Unified Activity / Sync Hardening
+
+- The existing activity route is now the unified production activity feed for supported shared `activity_events`; it does not add a new dashboard, route, or navigation surface.
+- Activity projection covers item, resource, stage, member, and pack-visible events only when backed by existing local/remote data. Actor fallback is `有成員`; missing entity titles fall back to `一個事項`, `一個資源`, or `一個階段`.
+- Projection dedupe is display-layer safe: remote activity ids are unique, matching client mutation ids collapse pending/confirmed duplicates, and no-client-mutation duplicates collapse only for the same entity/action/actor within a short timestamp window. Historical local rows are not deleted in Phase 6F.
+- Sync status copy is unified across pack, item, resource, stage, Home, management, and shared-care surfaces: `等待同步`, `正在同步`, `同步失敗`, `有新的更新，請刷新`, `已無法存取`, transient `已更新`, and failure copy `暫時無法更新，請稍後再試`.
+- Failed item/resource/stage rows can retry through production UI by reusing the existing pack retry path. Retry never rolls back local optimistic data in Phase 6F; success invalidates local surfaces and access-lost failures stop unsafe retry.
+- Access-lost packs keep historical local data and activity readable while item/resource/stage actions are disabled and repositories continue to fail closed.
+- Stale refresh remains foreground-only: refresh flushes pending local mutations first, imports the snapshot, clears stale only when safe, and keeps stale/pending/failed labels when unresolved local mutations remain.
+- Phase 6F hardens Phase 6D/6E SQL scripts for repeated and partial application by adding defensive `alter table ... add column if not exists`, idempotent indexes, and policy drops before recreation.
+- Phase 6F still does not add background sync, app-start sync, realtime auto-import, widget remote CRUD, notification remote sync, complex conflict UI, pack CRUD, member role management, hard delete, or a new shared dashboard.
+- Manual verification lives in `docs/core/manual_tests/phase6f_unified_activity_sync_hardening_smoke_test.md`.
+
+### Phase 6G：Multi-device QA / Polish
+
+- Phase 6G is the focused production-readiness pass for the existing shared-pack MVP. It does not add a new domain area or new navigation.
+- Supported production flows remain invite/join, member mirror refresh, item sharing, resource sharing, stage sharing, unified activity, foreground sync, manual pull-to-refresh, retry for failed supported mutations, and access-lost read-only behavior.
+- User-facing stale/access-lost copy is aligned across Home, widget snapshots, notification summaries, pack/item/resource/stage surfaces, shared care, and unified activity: `有新的更新，請刷新` and `已無法存取`.
+- Production shared surfaces avoid raw Supabase / RPC / outbox / remote-backed / POC wording. Developer Settings may keep explicit debug labels, but normal user flows do not depend on `RemotePocController`.
+- Phase 6G completes the Phase 6E Stage SQL production draft by defining all app-called Stage RPCs with `auth.uid()`, active membership through `is_pack_member`, idempotent `client_mutation_id`, activity events, and soft archive semantics.
+- Manual verification lives in `docs/core/manual_tests/phase6g_shared_pack_multi_device_qa.md`.
+- Phase 6G still does not add background sync, app-start sync, realtime auto-import, widget remote CRUD, notification remote sync, pack archive/delete/leave, remove member, role management, ownership transfer, complex conflict UI, hard delete, or a shared dashboard redesign.
+
 ### Phase 6 Backlog
 
-None of these are implemented in Phase 5M. Phase 6B foreground production sync loop, Phase 6C Pack + Items sharing MVP, and Phase 6D Resource sharing MVP are now implemented after Phase 5M. Remaining later phases:
+None of these are implemented in Phase 5M. Phase 6B foreground production sync loop, Phase 6C Pack + Items sharing MVP, Phase 6D Resource sharing MVP, Phase 6E Stage sharing MVP, Phase 6F unified activity / sync hardening, and Phase 6G multi-device QA / polish are now implemented after Phase 5M. Remaining later phases:
 
-- Phase 6E：Stage sharing.
-- Phase 6F：Unified Activity / Sync hardening.
-- Phase 6G：Multi-device QA / polish.
 - Historical backlog marker retained for Phase 5 acceptance: Phase 6A：Background Sync Design Spec. Background sync remains later work and is not part of Phase 6B, 6C, or 6D.
 - Additional later work：automatic/background sync, app-start sync, realtime auto-import, widget remote CRUD, notification remote sync, hard delete, member role management/removal, ownership transfer, account switching, local/remote merge, backup legacy removal, richer notification scheduling, notification action bridge, richer freshness history/management, and full two-way sync.
 

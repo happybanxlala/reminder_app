@@ -243,7 +243,7 @@ void main() {
     expect(summary.remoteBackedItemCount, 2);
     expect(summary.failedSyncItemCount, 1);
     expect(summary.staleSyncItemCount, 1);
-    expect(summary.notificationSyncLabels, ['同步失敗', '遠端狀態可能已更新']);
+    expect(summary.notificationSyncLabels, ['同步失敗', '有新的更新，請刷新']);
   });
 
   test(
@@ -273,7 +273,7 @@ void main() {
       expect(summary.totalCount, 1);
       expect(summary.remoteBackedItemCount, 1);
       expect(summary.accessLostRemoteBackedItemCount, 1);
-      expect(summary.notificationSyncLabels, ['已失去遠端存取權']);
+      expect(summary.notificationSyncLabels, ['已無法存取']);
     },
   );
 }

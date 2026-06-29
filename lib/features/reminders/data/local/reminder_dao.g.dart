@@ -37,6 +37,8 @@ mixin _$ReminderDaoMixin on DatabaseAccessor<AppDatabase> {
       attachedDatabase.remoteItemSyncMetadata;
   $RemoteResourceSyncMetadataTable get remoteResourceSyncMetadata =>
       attachedDatabase.remoteResourceSyncMetadata;
+  $RemoteStageSyncMetadataTable get remoteStageSyncMetadata =>
+      attachedDatabase.remoteStageSyncMetadata;
   $RemoteCompletionSyncMetadataTable get remoteCompletionSyncMetadata =>
       attachedDatabase.remoteCompletionSyncMetadata;
   $SyncOutboxTable get syncOutbox => attachedDatabase.syncOutbox;
@@ -133,6 +135,11 @@ class ReminderDaoManager {
       $$RemoteResourceSyncMetadataTableTableManager(
         _db.attachedDatabase,
         _db.remoteResourceSyncMetadata,
+      );
+  $$RemoteStageSyncMetadataTableTableManager get remoteStageSyncMetadata =>
+      $$RemoteStageSyncMetadataTableTableManager(
+        _db.attachedDatabase,
+        _db.remoteStageSyncMetadata,
       );
   $$RemoteCompletionSyncMetadataTableTableManager
   get remoteCompletionSyncMetadata =>

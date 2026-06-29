@@ -485,6 +485,35 @@ class RemoteResourceSyncMetadata extends Table {
   ];
 }
 
+@DataClassName('RemoteStageSyncMetadataRow')
+class RemoteStageSyncMetadata extends Table {
+  @override
+  String get tableName => 'remote_stage_sync_metadata';
+
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get localEntityType => text()();
+  IntColumn get localEntityId => integer()();
+  IntColumn get localPackId => integer().references(ItemPacks, #id)();
+  TextColumn get remoteEntityId => text()();
+  TextColumn get remotePackId => text()();
+  TextColumn get syncState => text()();
+  TextColumn get remoteStatus => text().nullable()();
+  IntColumn get remoteUpdatedAt => integer().nullable()();
+  IntColumn get lastPulledAt => integer().nullable()();
+  IntColumn get lastPushedAt => integer().nullable()();
+  TextColumn get lastSyncError => text().nullable()();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+  IntColumn get archivedAt => integer().nullable()();
+  IntColumn get deletedAt => integer().nullable()();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+    {localEntityType, localEntityId},
+    {localEntityType, remoteEntityId},
+  ];
+}
+
 @DataClassName('RemoteCompletionSyncMetadataRow')
 class RemoteCompletionSyncMetadata extends Table {
   @override

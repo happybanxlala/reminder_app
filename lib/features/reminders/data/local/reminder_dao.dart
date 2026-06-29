@@ -88,6 +88,32 @@ class SharedItemActivityEntry {
   DateTime get occurredAt => event.createdAt;
 }
 
+class UnifiedActivityEntry {
+  const UnifiedActivityEntry({
+    required this.event,
+    required this.pack,
+    required this.actor,
+    this.item,
+    this.resource,
+    this.stageTracker,
+    this.stageRule,
+    this.stageRecord,
+  });
+
+  final ActivityEvent event;
+  final ItemPack? pack;
+  final LocalUser? actor;
+  final Item? item;
+  final Resource? resource;
+  final StageTracker? stageTracker;
+  final StageRule? stageRule;
+  final StageRecord? stageRecord;
+
+  DateTime get occurredAt => event.createdAt;
+  String get actorDisplayName => actor?.displayName ?? '';
+  String get packTitle => pack?.title ?? '';
+}
+
 class ItemActionEntry {
   const ItemActionEntry({
     required this.record,
@@ -217,6 +243,7 @@ class StageRelatedItemEntry {
     RemotePackSyncMetadata,
     RemoteItemSyncMetadata,
     RemoteResourceSyncMetadata,
+    RemoteStageSyncMetadata,
     RemoteCompletionSyncMetadata,
     SyncOutbox,
     AppSettingsEntries,
@@ -392,6 +419,20 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
       offset: offset,
     ).get();
     return rows.map(_mapSharedItemActivityEntry).toList(growable: false);
+  }
+
+  Future<List<UnifiedActivityEntry>> listUnifiedActivityEntries() async {
+    final rows =
+        await (select(activityEvents)..orderBy([
+              (t) => OrderingTerm.desc(t.createdAt),
+              (t) => OrderingTerm.desc(t.id),
+            ]))
+            .get();
+    final entries = <UnifiedActivityEntry>[];
+    for (final row in rows) {
+      entries.add(await _hydrateUnifiedActivityEntry(row));
+    }
+    return entries;
   }
 
   Future<SyncMapping?> getSyncMapping({
@@ -606,6 +647,59 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
   watchRemoteResourceSyncMetadataEntries() {
     return select(remoteResourceSyncMetadata).watch().map(
       (rows) => rows.map(_toRemoteResourceSyncMetadata).toList(growable: false),
+    );
+  }
+
+  Future<int> insertRemoteStageSyncMetadata(
+    RemoteStageSyncMetadataCompanion entry,
+  ) {
+    return into(remoteStageSyncMetadata).insert(entry);
+  }
+
+  Future<RemoteStageSyncMetadataEntry?>
+  getRemoteStageSyncMetadataForLocalEntity({
+    required String localEntityType,
+    required int localEntityId,
+  }) async {
+    final row =
+        await (select(remoteStageSyncMetadata)..where(
+              (t) =>
+                  t.localEntityType.equals(localEntityType) &
+                  t.localEntityId.equals(localEntityId),
+            ))
+            .getSingleOrNull();
+    return row == null ? null : _toRemoteStageSyncMetadata(row);
+  }
+
+  Future<RemoteStageSyncMetadataEntry?>
+  getRemoteStageSyncMetadataForRemoteEntity({
+    required String localEntityType,
+    required String remoteEntityId,
+  }) async {
+    final row =
+        await (select(remoteStageSyncMetadata)..where(
+              (t) =>
+                  t.localEntityType.equals(localEntityType) &
+                  t.remoteEntityId.equals(remoteEntityId),
+            ))
+            .getSingleOrNull();
+    return row == null ? null : _toRemoteStageSyncMetadata(row);
+  }
+
+  Future<bool> updateRemoteStageSyncMetadata(
+    int id,
+    RemoteStageSyncMetadataCompanion entry,
+  ) async {
+    return (await (update(
+          remoteStageSyncMetadata,
+        )..where((t) => t.id.equals(id))).write(entry)) >
+        0;
+  }
+
+  Stream<List<RemoteStageSyncMetadataEntry>>
+  watchRemoteStageSyncMetadataEntries() {
+    return select(remoteStageSyncMetadata).watch().map(
+      (rows) => rows.map(_toRemoteStageSyncMetadata).toList(growable: false),
     );
   }
 
@@ -2756,6 +2850,58 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  Future<UnifiedActivityEntry> _hydrateUnifiedActivityEntry(
+    ActivityEventRow row,
+  ) async {
+    final event = _toActivityEvent(row);
+    final pack = await getItemPackById(event.packId);
+    final actor = await getLocalUserById(event.actorUserId);
+    Item? item;
+    Resource? resource;
+    StageTracker? stageTracker;
+    StageRule? stageRule;
+    StageRecord? stageRecord;
+
+    switch (event.entityType) {
+      case 'item':
+        item = (await getItemBundleById(event.entityId))?.item;
+        break;
+      case 'resource':
+        resource = (await getResourceBundleById(event.entityId))?.resource;
+        break;
+      case 'stage_tracker':
+        stageTracker = await getStageTrackerById(event.entityId);
+        break;
+      case 'stage_rule':
+        stageRule = await getStageRuleById(event.entityId);
+        if (stageRule != null) {
+          stageTracker = await getStageTrackerById(stageRule.stageTrackerId);
+        }
+        break;
+      case 'stage_record':
+      case 'stage':
+        stageRecord = await getStageRecordById(event.entityId);
+        if (stageRecord != null) {
+          stageTracker = await getStageTrackerById(stageRecord.stageTrackerId);
+          if (stageRecord.stageRuleId != null) {
+            stageRule = await getStageRuleById(stageRecord.stageRuleId!);
+          }
+        }
+        break;
+    }
+
+    return UnifiedActivityEntry(
+      event: event,
+      pack: pack,
+      actor: actor,
+      item: item,
+      resource: resource,
+      stageTracker: stageTracker,
+      stageRule: stageRule,
+      stageRecord: stageRecord,
+    );
+  }
+
   ResourceBundle _mapResourceBundle(TypedResult row) {
     return ResourceBundle(
       resource: _toResource(row.readTable(resources)),
@@ -3058,6 +3204,7 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
   Future<void> _clearUserData() async {
     await customStatement('DELETE FROM sync_outbox');
     await customStatement('DELETE FROM remote_completion_sync_metadata');
+    await customStatement('DELETE FROM remote_stage_sync_metadata');
     await customStatement('DELETE FROM remote_resource_sync_metadata');
     await customStatement('DELETE FROM remote_item_sync_metadata');
     await customStatement('DELETE FROM remote_pack_sync_metadata');
@@ -3699,6 +3846,29 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
       remoteResourceId: row.remoteResourceId,
       remotePackId: row.remotePackId,
       syncState: RemoteResourceSyncStateStorage.parse(row.syncState),
+      remoteStatus: row.remoteStatus,
+      remoteUpdatedAt: _dateFromMillis(row.remoteUpdatedAt),
+      lastPulledAt: _dateFromMillis(row.lastPulledAt),
+      lastPushedAt: _dateFromMillis(row.lastPushedAt),
+      lastSyncError: row.lastSyncError,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
+      archivedAt: _dateFromMillis(row.archivedAt),
+      deletedAt: _dateFromMillis(row.deletedAt),
+    );
+  }
+
+  RemoteStageSyncMetadataEntry _toRemoteStageSyncMetadata(
+    RemoteStageSyncMetadataRow row,
+  ) {
+    return RemoteStageSyncMetadataEntry(
+      id: row.id,
+      localEntityType: row.localEntityType,
+      localEntityId: row.localEntityId,
+      localPackId: row.localPackId,
+      remoteEntityId: row.remoteEntityId,
+      remotePackId: row.remotePackId,
+      syncState: RemoteStageSyncStateStorage.parse(row.syncState),
       remoteStatus: row.remoteStatus,
       remoteUpdatedAt: _dateFromMillis(row.remoteUpdatedAt),
       lastPulledAt: _dateFromMillis(row.lastPulledAt),

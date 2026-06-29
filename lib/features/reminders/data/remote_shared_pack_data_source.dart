@@ -84,6 +84,111 @@ abstract class RemoteSharedPackDataSource {
     );
   }
 
+  Future<RemoteStageTrackerCreateResult> createPackStageTracker({
+    required String packId,
+    required String title,
+    String? subjectName,
+    required DateTime trackingStartDate,
+    DateTime? trackingEndDate,
+    List<Map<String, Object?>> initialRules = const [],
+    String? clientMutationId,
+  }) {
+    throw const RemoteSharedPackException(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  Future<RemoteStageMutationResult> updatePackStageTracker({
+    required String stageTrackerId,
+    required String title,
+    String? subjectName,
+    required DateTime trackingStartDate,
+    DateTime? trackingEndDate,
+    String? clientMutationId,
+  }) {
+    throw const RemoteSharedPackException(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  Future<RemoteStageMutationResult> archivePackStageTracker({
+    required String stageTrackerId,
+    String? clientMutationId,
+  }) {
+    throw const RemoteSharedPackException(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  Future<RemoteStageMutationResult> createPackStageRule({
+    required String stageTrackerId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) {
+    throw const RemoteSharedPackException(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  Future<RemoteStageMutationResult> updatePackStageRule({
+    required String stageRuleId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) {
+    throw const RemoteSharedPackException(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  Future<RemoteStageMutationResult> updatePackStageRuleStatus({
+    required String stageRuleId,
+    required String status,
+    String? clientMutationId,
+  }) {
+    throw const RemoteSharedPackException(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  Future<RemoteStageMutationResult> createPackStageRecord({
+    required String stageTrackerId,
+    String? stageRuleId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) {
+    throw const RemoteSharedPackException(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  Future<RemoteStageMutationResult> updatePackStageRecord({
+    required String stageRecordId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) {
+    throw const RemoteSharedPackException(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  Future<RemoteStageMutationResult> archivePackStageRecord({
+    required String stageRecordId,
+    String? clientMutationId,
+  }) {
+    throw const RemoteSharedPackException(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  Future<RemoteStageAcknowledgementResult> acknowledgePackStageRecord({
+    required String stageRecordId,
+    String? clientMutationId,
+  }) {
+    throw const RemoteSharedPackException(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
   Future<RemoteItemCompletionResult> completePackItem({
     required String itemId,
     String? clientMutationId,
@@ -235,6 +340,101 @@ class DisabledRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
     String? unit,
     String? clientMutationId,
     Map<String, Object?>? metadata,
+  }) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<RemoteStageTrackerCreateResult> createPackStageTracker({
+    required String packId,
+    required String title,
+    String? subjectName,
+    required DateTime trackingStartDate,
+    DateTime? trackingEndDate,
+    List<Map<String, Object?>> initialRules = const [],
+    String? clientMutationId,
+  }) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<RemoteStageMutationResult> updatePackStageTracker({
+    required String stageTrackerId,
+    required String title,
+    String? subjectName,
+    required DateTime trackingStartDate,
+    DateTime? trackingEndDate,
+    String? clientMutationId,
+  }) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<RemoteStageMutationResult> archivePackStageTracker({
+    required String stageTrackerId,
+    String? clientMutationId,
+  }) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<RemoteStageMutationResult> createPackStageRule({
+    required String stageTrackerId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<RemoteStageMutationResult> updatePackStageRule({
+    required String stageRuleId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<RemoteStageMutationResult> updatePackStageRuleStatus({
+    required String stageRuleId,
+    required String status,
+    String? clientMutationId,
+  }) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<RemoteStageMutationResult> createPackStageRecord({
+    required String stageTrackerId,
+    String? stageRuleId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<RemoteStageMutationResult> updatePackStageRecord({
+    required String stageRecordId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<RemoteStageMutationResult> archivePackStageRecord({
+    required String stageRecordId,
+    String? clientMutationId,
+  }) {
+    throw RemoteSharedPackException(reason);
+  }
+
+  @override
+  Future<RemoteStageAcknowledgementResult> acknowledgePackStageRecord({
+    required String stageRecordId,
+    String? clientMutationId,
   }) {
     throw RemoteSharedPackException(reason);
   }
@@ -753,6 +953,311 @@ class SupabaseRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
   }
 
   @override
+  Future<RemoteStageTrackerCreateResult> createPackStageTracker({
+    required String packId,
+    required String title,
+    String? subjectName,
+    required DateTime trackingStartDate,
+    DateTime? trackingEndDate,
+    List<Map<String, Object?>> initialRules = const [],
+    String? clientMutationId,
+  }) async {
+    try {
+      final result = await _client.rpc(
+        'create_pack_stage_tracker',
+        params: {
+          'target_pack_id': packId,
+          'title': title,
+          'subject_name': subjectName,
+          'tracking_start_date': trackingStartDate.toIso8601String(),
+          'tracking_end_date': trackingEndDate?.toIso8601String(),
+          'initial_rules_json': initialRules,
+          'client_mutation_id': clientMutationId,
+        },
+      );
+      final row = _mapRpcResult(result);
+      return RemoteStageTrackerCreateResult(
+        stageTrackerId: _requiredString(row, 'stage_tracker_id'),
+        ruleIdsByClientLocalId: _stageRuleIdsByClientLocalId(
+          row['rule_ids_by_client_local_id'],
+        ),
+        status: _optionalString(row, 'status') ?? 'created',
+      );
+    } catch (error) {
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        operationName: 'create_pack_stage_tracker',
+      );
+    }
+  }
+
+  @override
+  Future<RemoteStageMutationResult> updatePackStageTracker({
+    required String stageTrackerId,
+    required String title,
+    String? subjectName,
+    required DateTime trackingStartDate,
+    DateTime? trackingEndDate,
+    String? clientMutationId,
+  }) async {
+    try {
+      final result = await _client.rpc(
+        'update_pack_stage_tracker',
+        params: {
+          'target_stage_tracker_id': stageTrackerId,
+          'title': title,
+          'subject_name': subjectName,
+          'tracking_start_date': trackingStartDate.toIso8601String(),
+          'tracking_end_date': trackingEndDate?.toIso8601String(),
+          'client_mutation_id': clientMutationId,
+        },
+      );
+      final row = _mapRpcResult(result);
+      return RemoteStageMutationResult(
+        entityId: _requiredString(row, 'stage_tracker_id'),
+        status: _optionalString(row, 'status') ?? 'updated',
+      );
+    } catch (error) {
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        operationName: 'update_pack_stage_tracker',
+      );
+    }
+  }
+
+  @override
+  Future<RemoteStageMutationResult> archivePackStageTracker({
+    required String stageTrackerId,
+    String? clientMutationId,
+  }) async {
+    try {
+      final result = await _client.rpc(
+        'archive_pack_stage_tracker',
+        params: {
+          'target_stage_tracker_id': stageTrackerId,
+          'client_mutation_id': clientMutationId,
+        },
+      );
+      final row = _mapRpcResult(result);
+      return RemoteStageMutationResult(
+        entityId: _requiredString(row, 'stage_tracker_id'),
+        status: _optionalString(row, 'status') ?? 'archived',
+      );
+    } catch (error) {
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        operationName: 'archive_pack_stage_tracker',
+      );
+    }
+  }
+
+  @override
+  Future<RemoteStageMutationResult> createPackStageRule({
+    required String stageTrackerId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) async {
+    try {
+      final result = await _client.rpc(
+        'create_pack_stage_rule',
+        params: {
+          'target_stage_tracker_id': stageTrackerId,
+          'fields_json': fields,
+          'client_mutation_id': clientMutationId,
+        },
+      );
+      final row = _mapRpcResult(result);
+      return RemoteStageMutationResult(
+        entityId: _requiredString(row, 'stage_rule_id'),
+        status: _optionalString(row, 'status') ?? 'created',
+      );
+    } catch (error) {
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        operationName: 'create_pack_stage_rule',
+      );
+    }
+  }
+
+  @override
+  Future<RemoteStageMutationResult> updatePackStageRule({
+    required String stageRuleId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) async {
+    try {
+      final result = await _client.rpc(
+        'update_pack_stage_rule',
+        params: {
+          'target_stage_rule_id': stageRuleId,
+          'fields_json': fields,
+          'client_mutation_id': clientMutationId,
+        },
+      );
+      final row = _mapRpcResult(result);
+      return RemoteStageMutationResult(
+        entityId: _requiredString(row, 'stage_rule_id'),
+        status: _optionalString(row, 'status') ?? 'updated',
+      );
+    } catch (error) {
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        operationName: 'update_pack_stage_rule',
+      );
+    }
+  }
+
+  @override
+  Future<RemoteStageMutationResult> updatePackStageRuleStatus({
+    required String stageRuleId,
+    required String status,
+    String? clientMutationId,
+  }) async {
+    try {
+      final result = await _client.rpc(
+        'update_pack_stage_rule_status',
+        params: {
+          'target_stage_rule_id': stageRuleId,
+          'target_status': status,
+          'client_mutation_id': clientMutationId,
+        },
+      );
+      final row = _mapRpcResult(result);
+      return RemoteStageMutationResult(
+        entityId: _requiredString(row, 'stage_rule_id'),
+        status: _optionalString(row, 'status') ?? 'updated',
+      );
+    } catch (error) {
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        operationName: 'update_pack_stage_rule_status',
+      );
+    }
+  }
+
+  @override
+  Future<RemoteStageMutationResult> createPackStageRecord({
+    required String stageTrackerId,
+    String? stageRuleId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) async {
+    try {
+      final result = await _client.rpc(
+        'create_pack_stage_record',
+        params: {
+          'target_stage_tracker_id': stageTrackerId,
+          'target_stage_rule_id': stageRuleId,
+          'fields_json': fields,
+          'client_mutation_id': clientMutationId,
+        },
+      );
+      final row = _mapRpcResult(result);
+      return RemoteStageMutationResult(
+        entityId: _requiredString(row, 'stage_record_id'),
+        status: _optionalString(row, 'status') ?? 'created',
+      );
+    } catch (error) {
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        operationName: 'create_pack_stage_record',
+      );
+    }
+  }
+
+  @override
+  Future<RemoteStageMutationResult> updatePackStageRecord({
+    required String stageRecordId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) async {
+    try {
+      final result = await _client.rpc(
+        'update_pack_stage_record',
+        params: {
+          'target_stage_record_id': stageRecordId,
+          'fields_json': fields,
+          'client_mutation_id': clientMutationId,
+        },
+      );
+      final row = _mapRpcResult(result);
+      return RemoteStageMutationResult(
+        entityId: _requiredString(row, 'stage_record_id'),
+        status: _optionalString(row, 'status') ?? 'updated',
+      );
+    } catch (error) {
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        operationName: 'update_pack_stage_record',
+      );
+    }
+  }
+
+  @override
+  Future<RemoteStageMutationResult> archivePackStageRecord({
+    required String stageRecordId,
+    String? clientMutationId,
+  }) async {
+    try {
+      final result = await _client.rpc(
+        'archive_pack_stage_record',
+        params: {
+          'target_stage_record_id': stageRecordId,
+          'client_mutation_id': clientMutationId,
+        },
+      );
+      final row = _mapRpcResult(result);
+      return RemoteStageMutationResult(
+        entityId: _requiredString(row, 'stage_record_id'),
+        status: _optionalString(row, 'status') ?? 'archived',
+      );
+    } catch (error) {
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        operationName: 'archive_pack_stage_record',
+      );
+    }
+  }
+
+  @override
+  Future<RemoteStageAcknowledgementResult> acknowledgePackStageRecord({
+    required String stageRecordId,
+    String? clientMutationId,
+  }) async {
+    try {
+      final result = await _client.rpc(
+        'acknowledge_pack_stage_record',
+        params: {
+          'target_stage_record_id': stageRecordId,
+          'client_mutation_id': clientMutationId,
+        },
+      );
+      final row = _mapRpcResult(result);
+      return RemoteStageAcknowledgementResult(
+        stageRecordId: _requiredString(row, 'stage_record_id'),
+        acknowledgementId: _requiredString(row, 'acknowledgement_id'),
+        status: _optionalString(row, 'status') ?? 'acknowledged',
+        acknowledgedAt: _requiredDate(row, 'acknowledged_at'),
+      );
+    } catch (error) {
+      throw _mapError(
+        error,
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        operationName: 'acknowledge_pack_stage_record',
+      );
+    }
+  }
+
+  @override
   Future<RemoteItemCompletionResult> completePackItem({
     required String itemId,
     String? clientMutationId,
@@ -837,6 +1342,26 @@ class SupabaseRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
           .select()
           .eq('pack_id', remotePackId)
           .order('created_at');
+      final stageTrackers = await _client
+          .from('stage_trackers')
+          .select()
+          .eq('pack_id', remotePackId)
+          .order('created_at');
+      final stageRules = await _client
+          .from('stage_rules')
+          .select()
+          .eq('pack_id', remotePackId)
+          .order('created_at');
+      final stageRecords = await _client
+          .from('stage_records')
+          .select()
+          .eq('pack_id', remotePackId)
+          .order('occurrence_date');
+      final stageAcknowledgements = await _client
+          .from('stage_acknowledgements')
+          .select()
+          .eq('pack_id', remotePackId)
+          .order('acknowledged_at');
       final completions = await _client
           .from('item_completions')
           .select()
@@ -857,6 +1382,10 @@ class SupabaseRemoteSharedPackDataSource implements RemoteSharedPackDataSource {
         members: _listOfMaps(members),
         items: _listOfMaps(items),
         resources: _listOfMaps(resources),
+        stageTrackers: _listOfMaps(stageTrackers),
+        stageRules: _listOfMaps(stageRules),
+        stageRecords: _listOfMaps(stageRecords),
+        stageAcknowledgements: _listOfMaps(stageAcknowledgements),
         completions: _listOfMaps(completions),
         resourceEvents: _listOfMaps(resourceEvents),
         events: _listOfMaps(events),
@@ -940,6 +1469,22 @@ Map<String, Object?> _mapRpcResult(Object? result) {
   );
 }
 
+Map<int, String> _stageRuleIdsByClientLocalId(Object? value) {
+  if (value == null) {
+    return const {};
+  }
+  if (value is Map) {
+    return {
+      for (final entry in value.entries)
+        if (int.tryParse(entry.key.toString()) != null && entry.value is String)
+          int.parse(entry.key.toString()): entry.value as String,
+    };
+  }
+  throw const RemoteSharedPackException(
+    RemoteSharedPackFailureReason.malformedRemoteData,
+  );
+}
+
 List<Map<String, Object?>> _listOfMaps(Object? result) {
   if (result is! List) {
     throw const RemoteSharedPackException(
@@ -962,6 +1507,10 @@ RemotePackSnapshot _snapshotFromRows({
   required List<Map<String, Object?>> members,
   required List<Map<String, Object?>> items,
   required List<Map<String, Object?>> resources,
+  required List<Map<String, Object?>> stageTrackers,
+  required List<Map<String, Object?>> stageRules,
+  required List<Map<String, Object?>> stageRecords,
+  required List<Map<String, Object?>> stageAcknowledgements,
   required List<Map<String, Object?>> completions,
   required List<Map<String, Object?>> resourceEvents,
   required List<Map<String, Object?>> events,
@@ -977,6 +1526,14 @@ RemotePackSnapshot _snapshotFromRows({
     members: members.map(_memberFromRow).toList(growable: false),
     items: items.map(_itemFromRow).toList(growable: false),
     resources: resources.map(_resourceFromRow).toList(growable: false),
+    stageTrackers: stageTrackers
+        .map(_stageTrackerFromRow)
+        .toList(growable: false),
+    stageRules: stageRules.map(_stageRuleFromRow).toList(growable: false),
+    stageRecords: stageRecords.map(_stageRecordFromRow).toList(growable: false),
+    stageAcknowledgements: stageAcknowledgements
+        .map(_stageAcknowledgementFromRow)
+        .toList(growable: false),
     completions: completions.map(_completionFromRow).toList(growable: false),
     resourceEvents: resourceEvents
         .map(_resourceEventFromRow)
@@ -1109,6 +1666,76 @@ RemoteResourceEventSnapshot _resourceEventFromRow(Map<String, Object?> row) {
     unit: row['unit'] as String?,
     metadataJson: _jsonMap(row['metadata_json']),
     createdAt: _requiredDate(row, 'created_at'),
+  );
+}
+
+RemoteStageTrackerSnapshot _stageTrackerFromRow(Map<String, Object?> row) {
+  return RemoteStageTrackerSnapshot(
+    id: _requiredString(row, 'id'),
+    packId: _requiredString(row, 'pack_id'),
+    title: _requiredString(row, 'title'),
+    subjectName: row['subject_name'] as String?,
+    trackingStartDate: _requiredDate(row, 'tracking_start_date'),
+    trackingEndDate: _optionalDate(row, 'tracking_end_date'),
+    status: _requiredString(row, 'status'),
+    createdByUserId: _requiredString(row, 'created_by_user_id'),
+    updatedByUserId: _requiredString(row, 'updated_by_user_id'),
+    createdAt: _requiredDate(row, 'created_at'),
+    updatedAt: _requiredDate(row, 'updated_at'),
+  );
+}
+
+RemoteStageRuleSnapshot _stageRuleFromRow(Map<String, Object?> row) {
+  return RemoteStageRuleSnapshot(
+    id: _requiredString(row, 'id'),
+    packId: _requiredString(row, 'pack_id'),
+    stageTrackerId: _requiredString(row, 'stage_tracker_id'),
+    type: _requiredString(row, 'type'),
+    intervalValue: _optionalInt(row, 'interval_value') ?? 1,
+    intervalUnit: _requiredString(row, 'interval_unit'),
+    labelTemplate: row['label_template'] as String?,
+    reminderOffsetDays: _optionalInt(row, 'reminder_offset_days'),
+    status: _requiredString(row, 'status'),
+    createdByUserId: _requiredString(row, 'created_by_user_id'),
+    updatedByUserId: _requiredString(row, 'updated_by_user_id'),
+    createdAt: _requiredDate(row, 'created_at'),
+    updatedAt: _requiredDate(row, 'updated_at'),
+  );
+}
+
+RemoteStageRecordSnapshot _stageRecordFromRow(Map<String, Object?> row) {
+  return RemoteStageRecordSnapshot(
+    id: _requiredString(row, 'id'),
+    packId: _requiredString(row, 'pack_id'),
+    stageTrackerId: _requiredString(row, 'stage_tracker_id'),
+    stageRuleId: row['stage_rule_id'] as String?,
+    sourceType: _requiredString(row, 'source_type'),
+    occurrenceIndex: _optionalInt(row, 'occurrence_index'),
+    occurrenceDate: _requiredDate(row, 'occurrence_date'),
+    relativeAmount: _optionalInt(row, 'relative_amount'),
+    relativeUnit: row['relative_unit'] as String?,
+    status: _requiredString(row, 'status'),
+    label: _requiredString(row, 'label'),
+    note: row['note'] as String?,
+    reminderOffsetDays: _optionalInt(row, 'reminder_offset_days'),
+    createdByUserId: _requiredString(row, 'created_by_user_id'),
+    updatedByUserId: _requiredString(row, 'updated_by_user_id'),
+    createdAt: _requiredDate(row, 'created_at'),
+    updatedAt: _requiredDate(row, 'updated_at'),
+  );
+}
+
+RemoteStageAcknowledgementSnapshot _stageAcknowledgementFromRow(
+  Map<String, Object?> row,
+) {
+  return RemoteStageAcknowledgementSnapshot(
+    id: _requiredString(row, 'id'),
+    packId: _requiredString(row, 'pack_id'),
+    stageRecordId: _requiredString(row, 'stage_record_id'),
+    userId: _requiredString(row, 'user_id'),
+    acknowledgedAt: _requiredDate(row, 'acknowledged_at'),
+    createdAt: _requiredDate(row, 'created_at'),
+    updatedAt: _requiredDate(row, 'updated_at'),
   );
 }
 

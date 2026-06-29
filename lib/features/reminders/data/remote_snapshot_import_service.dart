@@ -9,6 +9,9 @@ import '../domain/item_pack.dart';
 import '../domain/remote_sync.dart';
 import '../domain/resource.dart';
 import '../domain/shared_pack.dart';
+import '../domain/stage_record.dart';
+import '../domain/stage_rule.dart';
+import '../domain/stage_tracker.dart';
 import 'identity_repository.dart';
 import 'local/app_database.dart';
 import 'local/reminder_dao.dart';
@@ -78,6 +81,7 @@ class RemoteSnapshotImportService {
   static const localEntityCompletion = 'item_completion';
   static const localEntityResourceEvent = 'resource_event';
   static const localEntityActivity = 'activity_event';
+  static const localEntityStageAcknowledgement = 'stage_acknowledgement';
   static const remoteTableCompletions = 'item_completions';
   static const remoteTableResourceEvents = 'resource_events';
   static const remoteTableActivityEvents = 'activity_events';
@@ -229,6 +233,188 @@ class RemoteSnapshotImportService {
           );
         }
 
+        final stageTrackerIdsByRemoteId = <String, int>{};
+        for (final tracker in snapshot.stageTrackers) {
+          final existingId = await _findLocalEntityId(
+            localEntityType: RemoteSharedPackRepository.localEntityStageTracker,
+            remoteTable: RemoteSharedPackRepository.remoteTableStageTrackers,
+            remoteEntityId: tracker.id,
+          );
+          final localTrackerId =
+              existingId ??
+              await _insertLocalStageTracker(
+                snapshot: tracker,
+                localPackId: packId,
+              );
+          if (existingId == null) {
+            itemsCreated++;
+          } else {
+            itemsUpdated++;
+            await _updateLocalStageTracker(
+              localStageTrackerId: localTrackerId,
+              snapshot: tracker,
+              localPackId: packId,
+            );
+          }
+          stageTrackerIdsByRemoteId[tracker.id] = localTrackerId;
+          await _upsertStageMappingAndMetadata(
+            localEntityType: RemoteSharedPackRepository.localEntityStageTracker,
+            remoteTable: RemoteSharedPackRepository.remoteTableStageTrackers,
+            localEntityId: localTrackerId,
+            localPackId: packId,
+            remoteEntityId: tracker.id,
+            remotePackId: tracker.packId,
+            remoteStatus: tracker.status,
+            remoteUpdatedAt: tracker.updatedAt,
+          );
+        }
+
+        final stageRuleIdsByRemoteId = <String, int>{};
+        for (final rule in snapshot.stageRules) {
+          final localTrackerId = stageTrackerIdsByRemoteId[rule.stageTrackerId];
+          if (localTrackerId == null) {
+            skipped++;
+            warnings.add(
+              'Skipped stage rule ${rule.id}: remote tracker is not mapped.',
+            );
+            continue;
+          }
+          final existingId = await _findLocalEntityId(
+            localEntityType: RemoteSharedPackRepository.localEntityStageRule,
+            remoteTable: RemoteSharedPackRepository.remoteTableStageRules,
+            remoteEntityId: rule.id,
+          );
+          final localRuleId =
+              existingId ??
+              await _insertLocalStageRule(
+                snapshot: rule,
+                localStageTrackerId: localTrackerId,
+              );
+          if (existingId == null) {
+            itemsCreated++;
+          } else {
+            itemsUpdated++;
+            await _updateLocalStageRule(
+              localStageRuleId: localRuleId,
+              localStageTrackerId: localTrackerId,
+              snapshot: rule,
+            );
+          }
+          stageRuleIdsByRemoteId[rule.id] = localRuleId;
+          await _upsertStageMappingAndMetadata(
+            localEntityType: RemoteSharedPackRepository.localEntityStageRule,
+            remoteTable: RemoteSharedPackRepository.remoteTableStageRules,
+            localEntityId: localRuleId,
+            localPackId: packId,
+            remoteEntityId: rule.id,
+            remotePackId: rule.packId,
+            remoteStatus: rule.status,
+            remoteUpdatedAt: rule.updatedAt,
+          );
+        }
+
+        final stageRecordIdsByRemoteId = <String, int>{};
+        for (final record in snapshot.stageRecords) {
+          final localTrackerId =
+              stageTrackerIdsByRemoteId[record.stageTrackerId];
+          if (localTrackerId == null) {
+            skipped++;
+            warnings.add(
+              'Skipped stage record ${record.id}: remote tracker is not mapped.',
+            );
+            continue;
+          }
+          final localRuleId = record.stageRuleId == null
+              ? null
+              : stageRuleIdsByRemoteId[record.stageRuleId];
+          final existingId = await _findLocalEntityId(
+            localEntityType: RemoteSharedPackRepository.localEntityStageRecord,
+            remoteTable: RemoteSharedPackRepository.remoteTableStageRecords,
+            remoteEntityId: record.id,
+          );
+          final localRecordId =
+              existingId ??
+              await _insertLocalStageRecord(
+                snapshot: record,
+                localStageTrackerId: localTrackerId,
+                localStageRuleId: localRuleId,
+              );
+          if (existingId == null) {
+            itemsCreated++;
+          } else {
+            itemsUpdated++;
+            await _updateLocalStageRecord(
+              localStageRecordId: localRecordId,
+              localStageTrackerId: localTrackerId,
+              localStageRuleId: localRuleId,
+              snapshot: record,
+            );
+          }
+          stageRecordIdsByRemoteId[record.id] = localRecordId;
+          await _upsertStageMappingAndMetadata(
+            localEntityType: RemoteSharedPackRepository.localEntityStageRecord,
+            remoteTable: RemoteSharedPackRepository.remoteTableStageRecords,
+            localEntityId: localRecordId,
+            localPackId: packId,
+            remoteEntityId: record.id,
+            remotePackId: record.packId,
+            remoteStatus: record.status,
+            remoteUpdatedAt: record.updatedAt,
+          );
+        }
+
+        for (final acknowledgement in snapshot.stageAcknowledgements) {
+          final localStageRecordId =
+              stageRecordIdsByRemoteId[acknowledgement.stageRecordId];
+          if (localStageRecordId == null) {
+            skipped++;
+            warnings.add(
+              'Skipped stage acknowledgement ${acknowledgement.id}: remote stage record is not mapped.',
+            );
+            continue;
+          }
+          final user = await _ensureRemoteUser(
+            remoteUserId: acknowledgement.userId,
+            displayName: null,
+            currentUser: currentUser,
+          );
+          final existingId = await _findLocalEntityId(
+            localEntityType: localEntityStageAcknowledgement,
+            remoteTable:
+                RemoteSharedPackRepository.remoteTableStageAcknowledgements,
+            remoteEntityId: acknowledgement.id,
+          );
+          await _dao.upsertStageAcknowledgement(
+            StageAcknowledgementsCompanion.insert(
+              stageRecordId: localStageRecordId,
+              packId: packId,
+              userId: user.id,
+              acknowledgedAt: _millis(acknowledgement.acknowledgedAt),
+            ),
+          );
+          final rows = await _dao.listStageAcknowledgementsForRecord(
+            localStageRecordId,
+          );
+          StageAcknowledgement? localAcknowledgement;
+          for (final row in rows) {
+            if (row.userId == user.id) {
+              localAcknowledgement = row;
+              break;
+            }
+          }
+          if (localAcknowledgement != null) {
+            await _upsertSyncMapping(
+              localEntityType: localEntityStageAcknowledgement,
+              localEntityId: localAcknowledgement.id,
+              remoteTable:
+                  RemoteSharedPackRepository.remoteTableStageAcknowledgements,
+              remoteEntityId: acknowledgement.id,
+              now: _clock(),
+            );
+          }
+          existingId == null ? activityCreated++ : activityUpdated++;
+        }
+
         final completionIdsByRemoteId = <String, int>{};
         for (final completion in snapshot.completions) {
           final localItemId = itemIdsByRemoteId[completion.itemId];
@@ -340,6 +526,9 @@ class RemoteSnapshotImportService {
             itemIdsByRemoteId: itemIdsByRemoteId,
             resourceIdsByRemoteId: resourceIdsByRemoteId,
             completionIdsByRemoteId: completionIdsByRemoteId,
+            stageTrackerIdsByRemoteId: stageTrackerIdsByRemoteId,
+            stageRuleIdsByRemoteId: stageRuleIdsByRemoteId,
+            stageRecordIdsByRemoteId: stageRecordIdsByRemoteId,
           );
           if (localEntityId == null) {
             skipped++;
@@ -542,6 +731,147 @@ class RemoteSnapshotImportService {
         quantityDangerThreshold: Value(snapshot.quantityDangerThreshold),
         lastRefilledAt: Value(_millisOrNull(snapshot.lastRefilledAt)),
         updatedAt: Value(_millis(snapshot.updatedAt)),
+      ),
+    );
+  }
+
+  Future<int> _insertLocalStageTracker({
+    required RemoteStageTrackerSnapshot snapshot,
+    required int localPackId,
+  }) {
+    return _dao.insertStageTracker(
+      StageTrackersCompanion.insert(
+        packId: localPackId,
+        title: snapshot.title,
+        subjectName: Value(snapshot.subjectName),
+        trackingStartDate: _millis(snapshot.trackingStartDate),
+        trackingEndDate: Value(_millisOrNull(snapshot.trackingEndDate)),
+        status: Value(_localStageTrackerStatus(snapshot.status).name),
+        createdAt: _millis(snapshot.createdAt),
+        updatedAt: _millis(snapshot.updatedAt),
+      ),
+    );
+  }
+
+  Future<void> _updateLocalStageTracker({
+    required int localStageTrackerId,
+    required int localPackId,
+    required RemoteStageTrackerSnapshot snapshot,
+  }) async {
+    final current = await _dao.getStageTrackerById(localStageTrackerId);
+    if (current == null) {
+      return;
+    }
+    await _dao.updateStageTrackerRecord(
+      StageTrackerRow(
+        id: localStageTrackerId,
+        packId: localPackId,
+        title: snapshot.title,
+        subjectName: snapshot.subjectName,
+        trackingStartDate: _millis(snapshot.trackingStartDate),
+        trackingEndDate: _millisOrNull(snapshot.trackingEndDate),
+        status: _localStageTrackerStatus(snapshot.status).name,
+        isSystemDefault: current.isSystemDefault,
+        systemKey: current.systemKey,
+        isHidden: current.isHidden,
+        createdAt: _millis(snapshot.createdAt),
+        updatedAt: _millis(snapshot.updatedAt),
+      ),
+    );
+  }
+
+  Future<int> _insertLocalStageRule({
+    required RemoteStageRuleSnapshot snapshot,
+    required int localStageTrackerId,
+  }) {
+    return _dao.insertStageRule(
+      StageRulesCompanion.insert(
+        stageTrackerId: localStageTrackerId,
+        type: _localStageRuleType(snapshot.type).name,
+        intervalValue: snapshot.intervalValue,
+        intervalUnit: _localStageIntervalUnit(snapshot.intervalUnit).name,
+        labelTemplate: Value(snapshot.labelTemplate),
+        reminderOffsetDays: Value(snapshot.reminderOffsetDays),
+        status: Value(_localStageRuleStatus(snapshot.status).name),
+        createdAt: _millis(snapshot.createdAt),
+        updatedAt: _millis(snapshot.updatedAt),
+      ),
+    );
+  }
+
+  Future<void> _updateLocalStageRule({
+    required int localStageRuleId,
+    required int localStageTrackerId,
+    required RemoteStageRuleSnapshot snapshot,
+  }) async {
+    await _dao.updateStageRuleRecord(
+      StageRuleRow(
+        id: localStageRuleId,
+        stageTrackerId: localStageTrackerId,
+        type: _localStageRuleType(snapshot.type).name,
+        intervalValue: snapshot.intervalValue,
+        intervalUnit: _localStageIntervalUnit(snapshot.intervalUnit).name,
+        labelTemplate: snapshot.labelTemplate,
+        reminderOffsetDays: snapshot.reminderOffsetDays,
+        status: _localStageRuleStatus(snapshot.status).name,
+        createdAt: _millis(snapshot.createdAt),
+        updatedAt: _millis(snapshot.updatedAt),
+      ),
+    );
+  }
+
+  Future<int> _insertLocalStageRecord({
+    required RemoteStageRecordSnapshot snapshot,
+    required int localStageTrackerId,
+    required int? localStageRuleId,
+  }) {
+    return _dao.insertStageRecord(
+      StageRecordsCompanion.insert(
+        stageTrackerId: localStageTrackerId,
+        stageRuleId: Value(localStageRuleId),
+        sourceType: _localStageRecordSourceType(snapshot.sourceType).name,
+        occurrenceIndex: Value(snapshot.occurrenceIndex),
+        occurrenceDate: _millis(snapshot.occurrenceDate),
+        relativeAmount: Value(snapshot.relativeAmount),
+        relativeUnit: Value(
+          snapshot.relativeUnit == null
+              ? null
+              : _localStageIntervalUnit(snapshot.relativeUnit!).name,
+        ),
+        status: Value(_localStageRecordStatus(snapshot.status).name),
+        label: snapshot.label,
+        note: Value(snapshot.note),
+        reminderOffsetDays: Value(snapshot.reminderOffsetDays),
+        createdAt: _millis(snapshot.createdAt),
+        updatedAt: _millis(snapshot.updatedAt),
+      ),
+    );
+  }
+
+  Future<void> _updateLocalStageRecord({
+    required int localStageRecordId,
+    required int localStageTrackerId,
+    required int? localStageRuleId,
+    required RemoteStageRecordSnapshot snapshot,
+  }) async {
+    await _dao.updateStageRecordRecord(
+      StageRecordRow(
+        id: localStageRecordId,
+        stageTrackerId: localStageTrackerId,
+        stageRuleId: localStageRuleId,
+        sourceType: _localStageRecordSourceType(snapshot.sourceType).name,
+        occurrenceIndex: snapshot.occurrenceIndex,
+        occurrenceDate: _millis(snapshot.occurrenceDate),
+        relativeAmount: snapshot.relativeAmount,
+        relativeUnit: snapshot.relativeUnit == null
+            ? null
+            : _localStageIntervalUnit(snapshot.relativeUnit!).name,
+        status: _localStageRecordStatus(snapshot.status).name,
+        label: snapshot.label,
+        note: snapshot.note,
+        reminderOffsetDays: snapshot.reminderOffsetDays,
+        createdAt: _millis(snapshot.createdAt),
+        updatedAt: _millis(snapshot.updatedAt),
       ),
     );
   }
@@ -906,6 +1236,72 @@ class RemoteSnapshotImportService {
     }
   }
 
+  Future<void> _upsertStageMappingAndMetadata({
+    required String localEntityType,
+    required String remoteTable,
+    required int localEntityId,
+    required int localPackId,
+    required String remoteEntityId,
+    required String remotePackId,
+    required String remoteStatus,
+    required DateTime remoteUpdatedAt,
+  }) async {
+    final now = _clock();
+    await _upsertSyncMapping(
+      localEntityType: localEntityType,
+      localEntityId: localEntityId,
+      remoteTable: remoteTable,
+      remoteEntityId: remoteEntityId,
+      now: now,
+    );
+    final syncState = switch (remoteStatus) {
+      'archived' => RemoteStageSyncState.archived,
+      'deleted' => RemoteStageSyncState.deleted,
+      _ => RemoteStageSyncState.synced,
+    };
+    final existing = await _dao.getRemoteStageSyncMetadataForLocalEntity(
+      localEntityType: localEntityType,
+      localEntityId: localEntityId,
+    );
+    if (existing == null) {
+      await _dao.insertRemoteStageSyncMetadata(
+        RemoteStageSyncMetadataCompanion.insert(
+          localEntityType: localEntityType,
+          localEntityId: localEntityId,
+          localPackId: localPackId,
+          remoteEntityId: remoteEntityId,
+          remotePackId: remotePackId,
+          syncState: syncState.storageValue,
+          remoteStatus: Value(remoteStatus),
+          remoteUpdatedAt: Value(_millis(remoteUpdatedAt)),
+          lastPulledAt: Value(now.millisecondsSinceEpoch),
+          createdAt: now.millisecondsSinceEpoch,
+          updatedAt: now.millisecondsSinceEpoch,
+          archivedAt: syncState == RemoteStageSyncState.archived
+              ? Value(_millis(remoteUpdatedAt))
+              : const Value.absent(),
+        ),
+      );
+      return;
+    }
+    await _dao.updateRemoteStageSyncMetadata(
+      existing.id,
+      RemoteStageSyncMetadataCompanion(
+        remoteEntityId: Value(remoteEntityId),
+        remotePackId: Value(remotePackId),
+        syncState: Value(syncState.storageValue),
+        remoteStatus: Value(remoteStatus),
+        remoteUpdatedAt: Value(_millis(remoteUpdatedAt)),
+        lastPulledAt: Value(now.millisecondsSinceEpoch),
+        lastSyncError: const Value(null),
+        archivedAt: syncState == RemoteStageSyncState.archived
+            ? Value(_millis(remoteUpdatedAt))
+            : const Value.absent(),
+        updatedAt: Value(now.millisecondsSinceEpoch),
+      ),
+    );
+  }
+
   Future<void> _upsertCompletionMappingAndMetadata({
     required RemoteItemCompletionSnapshot snapshot,
     required int localPackId,
@@ -1011,6 +1407,15 @@ class RemoteSnapshotImportService {
           .getRemoteResourceSyncMetadataForRemoteResource(remoteEntityId);
       return metadata?.localResourceId;
     }
+    if (localEntityType == RemoteSharedPackRepository.localEntityStageTracker ||
+        localEntityType == RemoteSharedPackRepository.localEntityStageRule ||
+        localEntityType == RemoteSharedPackRepository.localEntityStageRecord) {
+      final metadata = await _dao.getRemoteStageSyncMetadataForRemoteEntity(
+        localEntityType: localEntityType,
+        remoteEntityId: remoteEntityId,
+      );
+      return metadata?.localEntityId;
+    }
     if (localEntityType == localEntityCompletion) {
       final metadata = await _dao
           .getRemoteCompletionSyncMetadataForRemoteCompletion(remoteEntityId);
@@ -1077,12 +1482,18 @@ class RemoteSnapshotImportService {
     required Map<String, int> itemIdsByRemoteId,
     required Map<String, int> resourceIdsByRemoteId,
     required Map<String, int> completionIdsByRemoteId,
+    required Map<String, int> stageTrackerIdsByRemoteId,
+    required Map<String, int> stageRuleIdsByRemoteId,
+    required Map<String, int> stageRecordIdsByRemoteId,
   }) {
     return switch (event.entityType) {
       'pack' => localPackId,
       'item' => itemIdsByRemoteId[event.entityId],
       'resource' => resourceIdsByRemoteId[event.entityId],
       'item_completion' => completionIdsByRemoteId[event.entityId],
+      'stage_tracker' => stageTrackerIdsByRemoteId[event.entityId],
+      'stage_rule' => stageRuleIdsByRemoteId[event.entityId],
+      'stage_record' || 'stage' => stageRecordIdsByRemoteId[event.entityId],
       _ => null,
     };
   }
@@ -1156,6 +1567,53 @@ class RemoteSnapshotImportService {
   String? _remoteResourceEventRemark(RemoteResourceEventSnapshot snapshot) {
     final remark = snapshot.metadataJson?['remark'];
     return remark is String && remark.trim().isNotEmpty ? remark : null;
+  }
+
+  StageTrackerStatus _localStageTrackerStatus(String remoteStatus) {
+    return remoteStatus == 'archived'
+        ? StageTrackerStatus.archived
+        : StageTrackerStatus.active;
+  }
+
+  StageRuleStatus _localStageRuleStatus(String remoteStatus) {
+    return switch (remoteStatus) {
+      'archived' => StageRuleStatus.archived,
+      'paused' => StageRuleStatus.paused,
+      _ => StageRuleStatus.active,
+    };
+  }
+
+  StageRecordStatus _localStageRecordStatus(String remoteStatus) {
+    return switch (remoteStatus) {
+      'archived' => StageRecordStatus.archived,
+      'ignored' => StageRecordStatus.ignored,
+      'acknowledged' => StageRecordStatus.acknowledged,
+      _ => StageRecordStatus.normal,
+    };
+  }
+
+  StageRuleType _localStageRuleType(String remoteType) {
+    return switch (remoteType) {
+      'every_n_weeks' || 'everyNWeeks' => StageRuleType.everyNWeeks,
+      'every_n_months' || 'everyNMonths' => StageRuleType.everyNMonths,
+      'every_n_years' || 'everyNYears' => StageRuleType.everyNYears,
+      _ => StageRuleType.everyNDays,
+    };
+  }
+
+  StageIntervalUnit _localStageIntervalUnit(String remoteUnit) {
+    return switch (remoteUnit) {
+      'weeks' => StageIntervalUnit.weeks,
+      'months' => StageIntervalUnit.months,
+      'years' => StageIntervalUnit.years,
+      _ => StageIntervalUnit.days,
+    };
+  }
+
+  StageRecordSourceType _localStageRecordSourceType(String remoteSourceType) {
+    return remoteSourceType == 'manual'
+        ? StageRecordSourceType.manual
+        : StageRecordSourceType.generated;
   }
 
   PackMemberRole _localMemberRole(String remoteRole) {

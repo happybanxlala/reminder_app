@@ -340,14 +340,14 @@ void main() {
       entries['Stale remote']!.syncStatus,
       HomeWidgetEntrySyncStatus.stale,
     );
-    expect(entries['Stale remote']!.syncLabel, '遠端狀態可能已更新');
+    expect(entries['Stale remote']!.syncLabel, '有新的更新，請刷新');
     expect(
       entries['Access lost remote']!.syncStatus,
       HomeWidgetEntrySyncStatus.accessLost,
     );
-    expect(entries['Access lost remote']!.syncLabel, '已失去遠端存取權');
+    expect(entries['Access lost remote']!.syncLabel, '已無法存取');
     expect(entries['Access lost remote']!.canAct, isFalse);
-    expect(entries['Access lost remote']!.actionDisabledReason, '已失去遠端存取權');
+    expect(entries['Access lost remote']!.actionDisabledReason, '已無法存取');
   });
 
   test('remote-backed warning and today-completed rows are eligible', () async {

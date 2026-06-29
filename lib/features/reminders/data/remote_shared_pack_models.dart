@@ -144,6 +144,44 @@ class RemoteResourceEventResult {
   final DateTime? updatedAt;
 }
 
+class RemoteStageTrackerCreateResult {
+  const RemoteStageTrackerCreateResult({
+    required this.stageTrackerId,
+    this.ruleIdsByClientLocalId = const {},
+    this.status = 'created',
+  });
+
+  final String stageTrackerId;
+  final Map<int, String> ruleIdsByClientLocalId;
+  final String status;
+}
+
+class RemoteStageMutationResult {
+  const RemoteStageMutationResult({
+    required this.entityId,
+    required this.status,
+  });
+
+  final String entityId;
+  final String status;
+
+  bool get isNoOp => status == 'already_archived' || status == 'not_changed';
+}
+
+class RemoteStageAcknowledgementResult {
+  const RemoteStageAcknowledgementResult({
+    required this.stageRecordId,
+    required this.acknowledgementId,
+    required this.status,
+    required this.acknowledgedAt,
+  });
+
+  final String stageRecordId;
+  final String acknowledgementId;
+  final String status;
+  final DateTime acknowledgedAt;
+}
+
 enum RemoteItemCompletionStatus { completed, alreadyCompleted }
 
 class RemoteItemCompletionResult {
@@ -281,6 +319,10 @@ class RemotePackSnapshot {
     required this.members,
     required this.items,
     this.resources = const [],
+    this.stageTrackers = const [],
+    this.stageRules = const [],
+    this.stageRecords = const [],
+    this.stageAcknowledgements = const [],
     required this.completions,
     this.resourceEvents = const [],
     required this.activityEvents,
@@ -296,6 +338,10 @@ class RemotePackSnapshot {
   final List<RemotePackMemberSnapshot> members;
   final List<RemoteItemSnapshot> items;
   final List<RemoteResourceSnapshot> resources;
+  final List<RemoteStageTrackerSnapshot> stageTrackers;
+  final List<RemoteStageRuleSnapshot> stageRules;
+  final List<RemoteStageRecordSnapshot> stageRecords;
+  final List<RemoteStageAcknowledgementSnapshot> stageAcknowledgements;
   final List<RemoteItemCompletionSnapshot> completions;
   final List<RemoteResourceEventSnapshot> resourceEvents;
   final List<RemoteActivityEventSnapshot> activityEvents;
@@ -445,6 +491,126 @@ class RemoteResourceEventSnapshot {
   final String? unit;
   final Map<String, Object?>? metadataJson;
   final DateTime createdAt;
+}
+
+class RemoteStageTrackerSnapshot {
+  const RemoteStageTrackerSnapshot({
+    required this.id,
+    required this.packId,
+    required this.title,
+    this.subjectName,
+    required this.trackingStartDate,
+    this.trackingEndDate,
+    required this.status,
+    required this.createdByUserId,
+    required this.updatedByUserId,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  final String id;
+  final String packId;
+  final String title;
+  final String? subjectName;
+  final DateTime trackingStartDate;
+  final DateTime? trackingEndDate;
+  final String status;
+  final String createdByUserId;
+  final String updatedByUserId;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+}
+
+class RemoteStageRuleSnapshot {
+  const RemoteStageRuleSnapshot({
+    required this.id,
+    required this.packId,
+    required this.stageTrackerId,
+    required this.type,
+    required this.intervalValue,
+    required this.intervalUnit,
+    this.labelTemplate,
+    this.reminderOffsetDays,
+    required this.status,
+    required this.createdByUserId,
+    required this.updatedByUserId,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  final String id;
+  final String packId;
+  final String stageTrackerId;
+  final String type;
+  final int intervalValue;
+  final String intervalUnit;
+  final String? labelTemplate;
+  final int? reminderOffsetDays;
+  final String status;
+  final String createdByUserId;
+  final String updatedByUserId;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+}
+
+class RemoteStageRecordSnapshot {
+  const RemoteStageRecordSnapshot({
+    required this.id,
+    required this.packId,
+    required this.stageTrackerId,
+    this.stageRuleId,
+    required this.sourceType,
+    this.occurrenceIndex,
+    required this.occurrenceDate,
+    this.relativeAmount,
+    this.relativeUnit,
+    required this.status,
+    required this.label,
+    this.note,
+    this.reminderOffsetDays,
+    required this.createdByUserId,
+    required this.updatedByUserId,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  final String id;
+  final String packId;
+  final String stageTrackerId;
+  final String? stageRuleId;
+  final String sourceType;
+  final int? occurrenceIndex;
+  final DateTime occurrenceDate;
+  final int? relativeAmount;
+  final String? relativeUnit;
+  final String status;
+  final String label;
+  final String? note;
+  final int? reminderOffsetDays;
+  final String createdByUserId;
+  final String updatedByUserId;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+}
+
+class RemoteStageAcknowledgementSnapshot {
+  const RemoteStageAcknowledgementSnapshot({
+    required this.id,
+    required this.packId,
+    required this.stageRecordId,
+    required this.userId,
+    required this.acknowledgedAt,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  final String id;
+  final String packId;
+  final String stageRecordId;
+  final String userId;
+  final DateTime acknowledgedAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 }
 
 class RemoteActivityEventSnapshot {

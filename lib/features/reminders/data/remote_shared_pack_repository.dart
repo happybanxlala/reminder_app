@@ -27,9 +27,17 @@ class RemoteSharedPackRepository {
   static const localEntityPack = 'pack';
   static const localEntityItem = 'item';
   static const localEntityResource = 'resource';
+  static const localEntityStageTracker = 'stage_tracker';
+  static const localEntityStageRule = 'stage_rule';
+  static const localEntityStageRecord = 'stage_record';
+  static const localEntityStageAcknowledgement = 'stage_acknowledgement';
   static const remoteTablePacks = 'packs';
   static const remoteTableItems = 'items';
   static const remoteTableResources = 'resources';
+  static const remoteTableStageTrackers = 'stage_trackers';
+  static const remoteTableStageRules = 'stage_rules';
+  static const remoteTableStageRecords = 'stage_records';
+  static const remoteTableStageAcknowledgements = 'stage_acknowledgements';
 
   final ReminderDao _dao;
   final IdentityRepository _identityRepository;
@@ -675,6 +683,329 @@ class RemoteSharedPackRepository {
           unit: unit,
           clientMutationId: clientMutationId,
           metadata: metadata,
+        ),
+      );
+    } on RemoteSharedPackException catch (error) {
+      return RemotePocResult.failure(error.reason, error);
+    } catch (error) {
+      return RemotePocResult.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        error,
+      );
+    }
+  }
+
+  Future<RemotePocResult<RemoteStageTrackerCreateResult>>
+  createRemoteStageTrackerForPack({
+    required String remotePackId,
+    required String title,
+    String? subjectName,
+    required DateTime trackingStartDate,
+    DateTime? trackingEndDate,
+    List<Map<String, Object?>> initialRules = const [],
+    String? clientMutationId,
+  }) async {
+    final identityResult = await _ensureAnonymousIdentity();
+    if (!identityResult.isSuccess) {
+      return RemotePocResult.failure(
+        identityResult.failureReason,
+        identityResult.error,
+      );
+    }
+
+    try {
+      return RemotePocResult.success(
+        await _remoteDataSource.createPackStageTracker(
+          packId: remotePackId,
+          title: title,
+          subjectName: subjectName,
+          trackingStartDate: trackingStartDate,
+          trackingEndDate: trackingEndDate,
+          initialRules: initialRules,
+          clientMutationId: clientMutationId,
+        ),
+      );
+    } on RemoteSharedPackException catch (error) {
+      return RemotePocResult.failure(error.reason, error);
+    } catch (error) {
+      return RemotePocResult.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        error,
+      );
+    }
+  }
+
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  updateRemoteStageTrackerByRemoteId({
+    required String remoteStageTrackerId,
+    required String title,
+    String? subjectName,
+    required DateTime trackingStartDate,
+    DateTime? trackingEndDate,
+    String? clientMutationId,
+  }) async {
+    final identityResult = await _ensureAnonymousIdentity();
+    if (!identityResult.isSuccess) {
+      return RemotePocResult.failure(
+        identityResult.failureReason,
+        identityResult.error,
+      );
+    }
+
+    try {
+      return RemotePocResult.success(
+        await _remoteDataSource.updatePackStageTracker(
+          stageTrackerId: remoteStageTrackerId,
+          title: title,
+          subjectName: subjectName,
+          trackingStartDate: trackingStartDate,
+          trackingEndDate: trackingEndDate,
+          clientMutationId: clientMutationId,
+        ),
+      );
+    } on RemoteSharedPackException catch (error) {
+      return RemotePocResult.failure(error.reason, error);
+    } catch (error) {
+      return RemotePocResult.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        error,
+      );
+    }
+  }
+
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  archiveRemoteStageTrackerByRemoteId({
+    required String remoteStageTrackerId,
+    String? clientMutationId,
+  }) async {
+    final identityResult = await _ensureAnonymousIdentity();
+    if (!identityResult.isSuccess) {
+      return RemotePocResult.failure(
+        identityResult.failureReason,
+        identityResult.error,
+      );
+    }
+
+    try {
+      return RemotePocResult.success(
+        await _remoteDataSource.archivePackStageTracker(
+          stageTrackerId: remoteStageTrackerId,
+          clientMutationId: clientMutationId,
+        ),
+      );
+    } on RemoteSharedPackException catch (error) {
+      return RemotePocResult.failure(error.reason, error);
+    } catch (error) {
+      return RemotePocResult.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        error,
+      );
+    }
+  }
+
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  createRemoteStageRuleByRemoteTrackerId({
+    required String remoteStageTrackerId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) async {
+    final identityResult = await _ensureAnonymousIdentity();
+    if (!identityResult.isSuccess) {
+      return RemotePocResult.failure(
+        identityResult.failureReason,
+        identityResult.error,
+      );
+    }
+    try {
+      return RemotePocResult.success(
+        await _remoteDataSource.createPackStageRule(
+          stageTrackerId: remoteStageTrackerId,
+          fields: fields,
+          clientMutationId: clientMutationId,
+        ),
+      );
+    } on RemoteSharedPackException catch (error) {
+      return RemotePocResult.failure(error.reason, error);
+    } catch (error) {
+      return RemotePocResult.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        error,
+      );
+    }
+  }
+
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  updateRemoteStageRuleByRemoteId({
+    required String remoteStageRuleId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) async {
+    final identityResult = await _ensureAnonymousIdentity();
+    if (!identityResult.isSuccess) {
+      return RemotePocResult.failure(
+        identityResult.failureReason,
+        identityResult.error,
+      );
+    }
+    try {
+      return RemotePocResult.success(
+        await _remoteDataSource.updatePackStageRule(
+          stageRuleId: remoteStageRuleId,
+          fields: fields,
+          clientMutationId: clientMutationId,
+        ),
+      );
+    } on RemoteSharedPackException catch (error) {
+      return RemotePocResult.failure(error.reason, error);
+    } catch (error) {
+      return RemotePocResult.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        error,
+      );
+    }
+  }
+
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  updateRemoteStageRuleStatusByRemoteId({
+    required String remoteStageRuleId,
+    required String status,
+    String? clientMutationId,
+  }) async {
+    final identityResult = await _ensureAnonymousIdentity();
+    if (!identityResult.isSuccess) {
+      return RemotePocResult.failure(
+        identityResult.failureReason,
+        identityResult.error,
+      );
+    }
+    try {
+      return RemotePocResult.success(
+        await _remoteDataSource.updatePackStageRuleStatus(
+          stageRuleId: remoteStageRuleId,
+          status: status,
+          clientMutationId: clientMutationId,
+        ),
+      );
+    } on RemoteSharedPackException catch (error) {
+      return RemotePocResult.failure(error.reason, error);
+    } catch (error) {
+      return RemotePocResult.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        error,
+      );
+    }
+  }
+
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  createRemoteStageRecordByRemoteTrackerId({
+    required String remoteStageTrackerId,
+    String? remoteStageRuleId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) async {
+    final identityResult = await _ensureAnonymousIdentity();
+    if (!identityResult.isSuccess) {
+      return RemotePocResult.failure(
+        identityResult.failureReason,
+        identityResult.error,
+      );
+    }
+    try {
+      return RemotePocResult.success(
+        await _remoteDataSource.createPackStageRecord(
+          stageTrackerId: remoteStageTrackerId,
+          stageRuleId: remoteStageRuleId,
+          fields: fields,
+          clientMutationId: clientMutationId,
+        ),
+      );
+    } on RemoteSharedPackException catch (error) {
+      return RemotePocResult.failure(error.reason, error);
+    } catch (error) {
+      return RemotePocResult.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        error,
+      );
+    }
+  }
+
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  updateRemoteStageRecordByRemoteId({
+    required String remoteStageRecordId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) async {
+    final identityResult = await _ensureAnonymousIdentity();
+    if (!identityResult.isSuccess) {
+      return RemotePocResult.failure(
+        identityResult.failureReason,
+        identityResult.error,
+      );
+    }
+    try {
+      return RemotePocResult.success(
+        await _remoteDataSource.updatePackStageRecord(
+          stageRecordId: remoteStageRecordId,
+          fields: fields,
+          clientMutationId: clientMutationId,
+        ),
+      );
+    } on RemoteSharedPackException catch (error) {
+      return RemotePocResult.failure(error.reason, error);
+    } catch (error) {
+      return RemotePocResult.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        error,
+      );
+    }
+  }
+
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  archiveRemoteStageRecordByRemoteId({
+    required String remoteStageRecordId,
+    String? clientMutationId,
+  }) async {
+    final identityResult = await _ensureAnonymousIdentity();
+    if (!identityResult.isSuccess) {
+      return RemotePocResult.failure(
+        identityResult.failureReason,
+        identityResult.error,
+      );
+    }
+    try {
+      return RemotePocResult.success(
+        await _remoteDataSource.archivePackStageRecord(
+          stageRecordId: remoteStageRecordId,
+          clientMutationId: clientMutationId,
+        ),
+      );
+    } on RemoteSharedPackException catch (error) {
+      return RemotePocResult.failure(error.reason, error);
+    } catch (error) {
+      return RemotePocResult.failure(
+        RemoteSharedPackFailureReason.remoteUnknownFailure,
+        error,
+      );
+    }
+  }
+
+  Future<RemotePocResult<RemoteStageAcknowledgementResult>>
+  acknowledgeRemoteStageRecordByRemoteId({
+    required String remoteStageRecordId,
+    String? clientMutationId,
+  }) async {
+    final identityResult = await _ensureAnonymousIdentity();
+    if (!identityResult.isSuccess) {
+      return RemotePocResult.failure(
+        identityResult.failureReason,
+        identityResult.error,
+      );
+    }
+    try {
+      return RemotePocResult.success(
+        await _remoteDataSource.acknowledgePackStageRecord(
+          stageRecordId: remoteStageRecordId,
+          clientMutationId: clientMutationId,
         ),
       );
     } on RemoteSharedPackException catch (error) {

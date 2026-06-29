@@ -44,6 +44,20 @@ enum RemoteResourceSyncState {
   deleted,
 }
 
+enum RemoteStageSyncState {
+  linked,
+  pendingImport,
+  pendingPush,
+  syncing,
+  importing,
+  synced,
+  stale,
+  failed,
+  conflict,
+  archived,
+  deleted,
+}
+
 enum RemoteCompletionSyncState {
   pendingPush,
   syncing,
@@ -75,6 +89,16 @@ enum SyncOutboxActionType {
   resourceIncrement,
   resourceAdjust,
   resourceDecrement,
+  createStageTracker,
+  updateStageTracker,
+  archiveStageTracker,
+  createStageRule,
+  updateStageRule,
+  updateStageRuleStatus,
+  createStageRecord,
+  updateStageRecord,
+  archiveStageRecord,
+  stageAcknowledge,
 }
 
 enum SyncOutboxStatus {
@@ -294,6 +318,40 @@ extension RemoteResourceSyncStateStorage on RemoteResourceSyncState {
   }
 }
 
+extension RemoteStageSyncStateStorage on RemoteStageSyncState {
+  String get storageValue {
+    return switch (this) {
+      RemoteStageSyncState.linked => 'linked',
+      RemoteStageSyncState.pendingImport => 'pending_import',
+      RemoteStageSyncState.pendingPush => 'pending_push',
+      RemoteStageSyncState.syncing => 'syncing',
+      RemoteStageSyncState.importing => 'importing',
+      RemoteStageSyncState.synced => 'synced',
+      RemoteStageSyncState.stale => 'stale',
+      RemoteStageSyncState.failed => 'failed',
+      RemoteStageSyncState.conflict => 'conflict',
+      RemoteStageSyncState.archived => 'archived',
+      RemoteStageSyncState.deleted => 'deleted',
+    };
+  }
+
+  static RemoteStageSyncState parse(String value) {
+    return switch (value) {
+      'pending_import' => RemoteStageSyncState.pendingImport,
+      'pending_push' => RemoteStageSyncState.pendingPush,
+      'syncing' => RemoteStageSyncState.syncing,
+      'importing' => RemoteStageSyncState.importing,
+      'synced' => RemoteStageSyncState.synced,
+      'stale' => RemoteStageSyncState.stale,
+      'failed' => RemoteStageSyncState.failed,
+      'conflict' => RemoteStageSyncState.conflict,
+      'archived' => RemoteStageSyncState.archived,
+      'deleted' => RemoteStageSyncState.deleted,
+      _ => RemoteStageSyncState.linked,
+    };
+  }
+}
+
 extension RemoteCompletionSyncStateStorage on RemoteCompletionSyncState {
   String get storageValue {
     return switch (this) {
@@ -358,6 +416,16 @@ extension SyncOutboxActionTypeStorage on SyncOutboxActionType {
       SyncOutboxActionType.resourceIncrement => 'resource_increment',
       SyncOutboxActionType.resourceAdjust => 'resource_adjust',
       SyncOutboxActionType.resourceDecrement => 'resource_decrement',
+      SyncOutboxActionType.createStageTracker => 'create_stage_tracker',
+      SyncOutboxActionType.updateStageTracker => 'update_stage_tracker',
+      SyncOutboxActionType.archiveStageTracker => 'archive_stage_tracker',
+      SyncOutboxActionType.createStageRule => 'create_stage_rule',
+      SyncOutboxActionType.updateStageRule => 'update_stage_rule',
+      SyncOutboxActionType.updateStageRuleStatus => 'update_stage_rule_status',
+      SyncOutboxActionType.createStageRecord => 'create_stage_record',
+      SyncOutboxActionType.updateStageRecord => 'update_stage_record',
+      SyncOutboxActionType.archiveStageRecord => 'archive_stage_record',
+      SyncOutboxActionType.stageAcknowledge => 'stage_acknowledge',
     };
   }
 
@@ -373,6 +441,16 @@ extension SyncOutboxActionTypeStorage on SyncOutboxActionType {
       'resource_increment' => SyncOutboxActionType.resourceIncrement,
       'resource_adjust' => SyncOutboxActionType.resourceAdjust,
       'resource_decrement' => SyncOutboxActionType.resourceDecrement,
+      'create_stage_tracker' => SyncOutboxActionType.createStageTracker,
+      'update_stage_tracker' => SyncOutboxActionType.updateStageTracker,
+      'archive_stage_tracker' => SyncOutboxActionType.archiveStageTracker,
+      'create_stage_rule' => SyncOutboxActionType.createStageRule,
+      'update_stage_rule' => SyncOutboxActionType.updateStageRule,
+      'update_stage_rule_status' => SyncOutboxActionType.updateStageRuleStatus,
+      'create_stage_record' => SyncOutboxActionType.createStageRecord,
+      'update_stage_record' => SyncOutboxActionType.updateStageRecord,
+      'archive_stage_record' => SyncOutboxActionType.archiveStageRecord,
+      'stage_acknowledge' => SyncOutboxActionType.stageAcknowledge,
       _ => SyncOutboxActionType.completeItem,
     };
   }
@@ -499,6 +577,44 @@ class RemoteResourceSyncMetadataEntry {
   final String remoteResourceId;
   final String remotePackId;
   final RemoteResourceSyncState syncState;
+  final String? remoteStatus;
+  final DateTime? remoteUpdatedAt;
+  final DateTime? lastPulledAt;
+  final DateTime? lastPushedAt;
+  final String? lastSyncError;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? archivedAt;
+  final DateTime? deletedAt;
+}
+
+class RemoteStageSyncMetadataEntry {
+  const RemoteStageSyncMetadataEntry({
+    required this.id,
+    required this.localEntityType,
+    required this.localEntityId,
+    required this.localPackId,
+    required this.remoteEntityId,
+    required this.remotePackId,
+    required this.syncState,
+    this.remoteStatus,
+    this.remoteUpdatedAt,
+    this.lastPulledAt,
+    this.lastPushedAt,
+    this.lastSyncError,
+    required this.createdAt,
+    required this.updatedAt,
+    this.archivedAt,
+    this.deletedAt,
+  });
+
+  final int id;
+  final String localEntityType;
+  final int localEntityId;
+  final int localPackId;
+  final String remoteEntityId;
+  final String remotePackId;
+  final RemoteStageSyncState syncState;
   final String? remoteStatus;
   final DateTime? remoteUpdatedAt;
   final DateTime? lastPulledAt;

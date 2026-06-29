@@ -299,6 +299,59 @@ void main() {
     },
   );
 
+  test(
+    'remote-backed create stage tracker is local-first and flushes to remote',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final env = await _seedRemoteBackedMirror(db, withCompletion: false);
+      final repository = StageTrackerRepository(
+        db.reminderDao,
+        currentActorId: () async => env.currentUser.id,
+      );
+
+      final trackerId = await repository.createStageTracker(
+        StageTrackerInput(
+          title: 'Kitten growth',
+          subjectName: 'Momo',
+          trackingStartDate: DateTime(2026, 6),
+          packId: env.localPackId,
+        ),
+      );
+
+      final metadata = await db.reminderDao
+          .getRemoteStageSyncMetadataForLocalEntity(
+            localEntityType: RemoteSharedPackRepository.localEntityStageTracker,
+            localEntityId: trackerId,
+          );
+      expect(metadata!.syncState, RemoteStageSyncState.pendingPush);
+      expect(metadata.remoteEntityId, startsWith('pending_stage:'));
+      final outbox = await db.reminderDao.listPendingSyncOutboxEntries();
+      expect(outbox.single.actionType, SyncOutboxActionType.createStageTracker);
+
+      final remote = _FakeRemoteClient(
+        createStageTrackerResult: const RemotePocResult.success(
+          RemoteStageTrackerCreateResult(
+            stageTrackerId: 'remote-stage-tracker-created',
+          ),
+        ),
+      );
+      final result = await RemoteBackedOutboxFlushService(
+        dao: db.reminderDao,
+        remoteClient: remote,
+      ).flushPendingRemoteBackedMutations();
+
+      expect(result.synced, 1);
+      expect(remote.createStageTrackerCalls, 1);
+      final mapping = await db.reminderDao.getSyncMapping(
+        localEntityType: RemoteSharedPackRepository.localEntityStageTracker,
+        localEntityId: trackerId,
+        remoteTable: RemoteSharedPackRepository.remoteTableStageTrackers,
+      );
+      expect(mapping!.remoteEntityId, 'remote-stage-tracker-created');
+    },
+  );
+
   test('remote-backed resource update and archive enqueue mutations', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
@@ -463,16 +516,25 @@ void main() {
         isEmpty,
       );
 
-      final stageRepository = StageTrackerRepository(db.reminderDao);
-      await expectLater(
-        stageRepository.createStageTracker(
-          StageTrackerInput(
-            title: 'Kitten growth',
-            trackingStartDate: DateTime(2026, 6, 1),
-            packId: env.localPackId,
-          ),
+      final stageRepository = StageTrackerRepository(
+        db.reminderDao,
+        currentActorId: () async => env.currentUser.id,
+      );
+      final trackerId = await stageRepository.createStageTracker(
+        StageTrackerInput(
+          title: 'Kitten growth',
+          trackingStartDate: DateTime(2026, 6, 1),
+          packId: env.localPackId,
         ),
-        throwsA(isA<StateError>()),
+      );
+      expect(trackerId, greaterThan(0));
+      final stageOutbox = await db.reminderDao.listPendingSyncOutboxEntries();
+      expect(
+        stageOutbox.any(
+          (entry) =>
+              entry.actionType == SyncOutboxActionType.createStageTracker,
+        ),
+        isTrue,
       );
     },
   );
@@ -1118,6 +1180,7 @@ class _FakeRemoteClient implements RemoteBackedOutboxRemoteClient {
     this.createResourceResult,
     this.updateResourceResult,
     this.resourceEventResult,
+    this.createStageTrackerResult,
     this.completeResult,
     this.undoResult,
   });
@@ -1129,6 +1192,7 @@ class _FakeRemoteClient implements RemoteBackedOutboxRemoteClient {
   RemotePocResult<RemoteResourceMutationResult>? updateResourceResult;
   RemotePocResult<RemoteResourceMutationResult>? archiveResourceResult;
   RemotePocResult<RemoteResourceEventResult>? resourceEventResult;
+  RemotePocResult<RemoteStageTrackerCreateResult>? createStageTrackerResult;
   RemotePocResult<RemoteItemCompletionResult>? completeResult;
   RemotePocResult<RemoteItemUndoResult>? undoResult;
   int createCalls = 0;
@@ -1138,6 +1202,7 @@ class _FakeRemoteClient implements RemoteBackedOutboxRemoteClient {
   int updateResourceCalls = 0;
   int archiveResourceCalls = 0;
   int resourceEventCalls = 0;
+  int createStageTrackerCalls = 0;
   int completeCalls = 0;
   int undoCalls = 0;
 
@@ -1244,6 +1309,132 @@ class _FakeRemoteClient implements RemoteBackedOutboxRemoteClient {
         const RemotePocResult.failure(
           RemoteSharedPackFailureReason.remoteUnknownFailure,
         );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageTrackerCreateResult>>
+  createRemoteStageTrackerForPack({
+    required String remotePackId,
+    required String title,
+    String? subjectName,
+    required DateTime trackingStartDate,
+    DateTime? trackingEndDate,
+    List<Map<String, Object?>> initialRules = const [],
+    String? clientMutationId,
+  }) async {
+    createStageTrackerCalls++;
+    return createStageTrackerResult ??
+        const RemotePocResult.failure(
+          RemoteSharedPackFailureReason.remoteUnknownFailure,
+        );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  updateRemoteStageTrackerById({
+    required String remoteStageTrackerId,
+    required String title,
+    String? subjectName,
+    required DateTime trackingStartDate,
+    DateTime? trackingEndDate,
+    String? clientMutationId,
+  }) async {
+    return const RemotePocResult.failure(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  archiveRemoteStageTrackerById({
+    required String remoteStageTrackerId,
+    String? clientMutationId,
+  }) async {
+    return const RemotePocResult.failure(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  createRemoteStageRuleByTrackerId({
+    required String remoteStageTrackerId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) async {
+    return const RemotePocResult.failure(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageMutationResult>> updateRemoteStageRuleById({
+    required String remoteStageRuleId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) async {
+    return const RemotePocResult.failure(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  updateRemoteStageRuleStatusById({
+    required String remoteStageRuleId,
+    required String status,
+    String? clientMutationId,
+  }) async {
+    return const RemotePocResult.failure(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  createRemoteStageRecordByTrackerId({
+    required String remoteStageTrackerId,
+    String? remoteStageRuleId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) async {
+    return const RemotePocResult.failure(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  updateRemoteStageRecordById({
+    required String remoteStageRecordId,
+    required Map<String, Object?> fields,
+    String? clientMutationId,
+  }) async {
+    return const RemotePocResult.failure(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageMutationResult>>
+  archiveRemoteStageRecordById({
+    required String remoteStageRecordId,
+    String? clientMutationId,
+  }) async {
+    return const RemotePocResult.failure(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
+  }
+
+  @override
+  Future<RemotePocResult<RemoteStageAcknowledgementResult>>
+  acknowledgeRemoteStageRecordById({
+    required String remoteStageRecordId,
+    String? clientMutationId,
+  }) async {
+    return const RemotePocResult.failure(
+      RemoteSharedPackFailureReason.remoteUnknownFailure,
+    );
   }
 
   @override

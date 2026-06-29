@@ -36,6 +36,7 @@ part 'app_database.g.dart';
     RemotePackSyncMetadata,
     RemoteItemSyncMetadata,
     RemoteResourceSyncMetadata,
+    RemoteStageSyncMetadata,
     RemoteCompletionSyncMetadata,
     SyncOutbox,
     AppSettingsEntries,
@@ -59,7 +60,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -91,6 +92,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 10) {
         await _upgradeToV10(m);
+      }
+      if (from < 11) {
+        await _upgradeToV11(m);
       }
     },
     beforeOpen: (details) async {
@@ -257,6 +261,10 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> _upgradeToV10(Migrator m) async {
     await m.createTable(remoteResourceSyncMetadata);
+  }
+
+  Future<void> _upgradeToV11(Migrator m) async {
+    await m.createTable(remoteStageSyncMetadata);
   }
 
   Future<void> _ensureLocalUsers() async {

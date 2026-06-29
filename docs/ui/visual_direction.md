@@ -1098,3 +1098,25 @@ flutter test
 - Access-lost Resource rows keep their content visible but disable Resource actions. Unsupported Resource operations use `共同生活場景暫時未支援這個資源操作`.
 - Resource activity copy is actor-based and factual: `{name} 新增了「{resourceTitle}」`, `{name} 更新了「{resourceTitle}」`, `{name} 補充了「{resourceTitle}」`, `{name} 調整了「{resourceTitle}」`, `{name} 扣除了「{resourceTitle}」`, and `{name} 封存了「{resourceTitle}」`. Compact value detail such as `+2 包` or `至 3 包` can be shown when available.
 - Resource sharing reuses existing Home and resource-management surfaces. Phase 6D does not add a shared dashboard, new navigation, realtime import UI, background sync UI, widget remote controls, or notification remote controls.
+
+### 19.29 Stage Sharing MVP 2026-06-29
+
+- Shared StageTracker / StageRule / StageRecord rows use the same compact sync labels as shared item and resource rows: `等待同步`, `正在同步`, `同步失敗`, `有新的更新，請刷新`, and `已無法存取`. Healthy synced rows stay quiet.
+- Access-lost Stage rows keep existing content visible but disable Stage actions. Unsupported Stage operations use `共同生活場景暫時未支援這個階段操作`.
+- Stage activity copy is actor-based and factual: `{name} 新增了「{stageTitle}」`, `{name} 更新了「{stageTitle}」`, `{name} 確認了「{stageTitle}」`, and `{name} 封存了「{stageTitle}」`.
+- Stage sharing reuses existing Home, StageTracker management, detail, timeline, schedule, and history surfaces. Phase 6E does not add progress/checkpoint UI, a shared dashboard, new navigation, realtime import UI, background sync UI, widget remote controls, or notification remote controls.
+
+### 19.30 Unified Activity / Sync Hardening 2026-06-29
+
+- The existing activity page is neutral `最近活動` and can show supported shared item, resource, stage, member, and pack-visible activity in one calm feed. It does not add a new dashboard or navigation item.
+- Activity messages stay actor-aware and life-care oriented. Unknown actors use `有成員`; missing titles use `一個事項`, `一個資源`, or `一個階段`.
+- Sync copy is consistent across Home, pack management, item/resource/stage screens, and shared care: `等待同步`, `正在同步`, `同步失敗`, `有新的更新，請刷新`, `已無法存取`, transient `已更新`, and retry `重試同步`.
+- Failed shared item/resource/stage rows can expose compact retry from existing overflow/status surfaces. Access-lost content remains readable but unsafe actions are disabled.
+- Production UI still avoids Supabase, RPC, outbox, mutation, remote-backed, metadata, POC, permission, workspace, and owner wording.
+
+### 19.31 Shared Pack Multi-device QA Polish 2026-06-29
+
+- Phase 6G keeps the same surfaces and does not add a new shared dashboard or navigation item.
+- Stale and access-lost wording is aligned across Home, widget snapshots, notification summaries, pack/item/resource/stage management, shared care, and unified activity: `有新的更新，請刷新` and `已無法存取`.
+- Production shared-pack errors stay non-technical. Activity loading failures use calm retry-later copy instead of raw exception text.
+- Developer Settings may keep explicit Supabase / POC labels, but normal shared-pack flows must not rely on those debug controls.

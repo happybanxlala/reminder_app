@@ -20,6 +20,10 @@ Future<void> _showCreateStageTrackerDialog(
   final id = await ref
       .read(stageTrackerRepositoryProvider)
       .createStageTracker(result.input);
+  final createdTracker = await ref
+      .read(stageTrackerByIdProvider(id).future)
+      .catchError((_) => null);
+  _syncAfterStageMutation(ref, createdTracker?.packId ?? result.input.packId);
   ref.invalidate(stageTrackersProvider);
   ref.invalidate(stageTrackerOverviewSummaryProvider);
   ref.invalidate(stageTrackerAttentionOccurrencesProvider);
@@ -59,6 +63,9 @@ Future<void> _showEditStageTrackerDialog(
         moveRelatedResourcesOnPackChange: result.moveRelatedResources,
       );
   _invalidateStageTrackerActionProviders(ref, tracker.id);
+  if (updated) {
+    _syncAfterStageMutation(ref, tracker.packId);
+  }
   if (!context.mounted) {
     return;
   }
@@ -167,6 +174,24 @@ void _invalidateStageTrackerActionProviders(WidgetRef ref, int trackerId) {
   ref.invalidate(stageTrackerDetailProvider(trackerId));
   ref.invalidate(stageTrackerOverviewSummaryProvider);
   ref.invalidate(stageTrackerAttentionOccurrencesProvider);
+}
+
+void _syncAfterStageMutation(WidgetRef ref, int? packId) {
+  if (packId == null) {
+    return;
+  }
+  unawaited(
+    ref
+        .read(remoteBackedSyncCoordinatorProvider)
+        .syncAfterRemoteBackedMutation(packId),
+  );
+}
+
+Future<int?> _stageTrackerPackId(WidgetRef ref, int trackerId) async {
+  final tracker = await ref
+      .read(stageTrackerByIdProvider(trackerId).future)
+      .catchError((_) => null);
+  return tracker?.packId;
 }
 
 void _showStageTrackerSaveFailed(BuildContext context) {
@@ -708,6 +733,9 @@ class _StageEntryDialog extends StatelessWidget {
     final stageRecordId = await ref
         .read(stageTrackerRepositoryProvider)
         .createImportantStage(trackerId, input);
+    if (stageRecordId > 0) {
+      _syncAfterStageMutation(ref, tracker?.packId);
+    }
     _invalidateStageTrackerActionProviders(ref, trackerId);
     final occurrence = stageRecordId <= 0
         ? null
@@ -759,6 +787,7 @@ class _StageEntryDialog extends StatelessWidget {
     await ref
         .read(stageTrackerRepositoryProvider)
         .createStageRule(trackerId, input);
+    _syncAfterStageMutation(ref, tracker?.packId);
     _invalidateStageTrackerActionProviders(ref, trackerId);
     if (context.mounted) {
       Navigator.of(context).pop();
@@ -794,6 +823,9 @@ Future<void> _showEditStageRuleDialog(
                 .read(stageTrackerRepositoryProvider)
                 .updateStageRule(rule.id, input);
             _invalidateStageTrackerActionProviders(ref, rule.stageTrackerId);
+            if (updated) {
+              _syncAfterStageMutation(ref, tracker?.packId);
+            }
             if (!dialogContext.mounted) {
               return;
             }
@@ -1242,6 +1274,12 @@ Future<void> _showEditImportantStageDialog(
               ref,
               occurrence.stageTrackerId,
             );
+            if (updated) {
+              _syncAfterStageMutation(
+                ref,
+                await _stageTrackerPackId(ref, occurrence.stageTrackerId),
+              );
+            }
             if (!dialogContext.mounted) {
               return;
             }

@@ -47,6 +47,41 @@ create table if not exists public.resource_events (
   metadata_json jsonb null
 );
 
+alter table public.resources add column if not exists pack_id uuid references public.packs(id);
+alter table public.resources add column if not exists title text;
+alter table public.resources add column if not exists description text null;
+alter table public.resources add column if not exists status text not null default 'active';
+alter table public.resources add column if not exists type text;
+alter table public.resources add column if not exists time_anchor_date timestamptz null;
+alter table public.resources add column if not exists time_duration_days integer null;
+alter table public.resources add column if not exists time_expected_before_days integer null;
+alter table public.resources add column if not exists time_warning_before_days integer null;
+alter table public.resources add column if not exists time_danger_before_days integer null;
+alter table public.resources add column if not exists quantity_current integer null;
+alter table public.resources add column if not exists quantity_unit_label text null;
+alter table public.resources add column if not exists quantity_expected_threshold integer null;
+alter table public.resources add column if not exists quantity_warning_threshold integer null;
+alter table public.resources add column if not exists quantity_danger_threshold integer null;
+alter table public.resources add column if not exists last_refilled_at timestamptz null;
+alter table public.resources add column if not exists created_by_user_id uuid references public.profiles(id);
+alter table public.resources add column if not exists updated_by_user_id uuid references public.profiles(id);
+alter table public.resources add column if not exists created_at timestamptz not null default now();
+alter table public.resources add column if not exists updated_at timestamptz not null default now();
+alter table public.resources add column if not exists archived_at timestamptz null;
+alter table public.resources add column if not exists deleted_at timestamptz null;
+
+alter table public.resource_events add column if not exists pack_id uuid references public.packs(id);
+alter table public.resource_events add column if not exists resource_id uuid references public.resources(id);
+alter table public.resource_events add column if not exists actor_user_id uuid references public.profiles(id);
+alter table public.resource_events add column if not exists change_type text;
+alter table public.resource_events add column if not exists previous_value integer null;
+alter table public.resource_events add column if not exists new_value integer null;
+alter table public.resource_events add column if not exists delta_value integer null;
+alter table public.resource_events add column if not exists unit text null;
+alter table public.resource_events add column if not exists client_mutation_id text null;
+alter table public.resource_events add column if not exists created_at timestamptz not null default now();
+alter table public.resource_events add column if not exists metadata_json jsonb null;
+
 create unique index if not exists resource_events_client_mutation_unique
   on public.resource_events(pack_id, client_mutation_id)
   where client_mutation_id is not null;

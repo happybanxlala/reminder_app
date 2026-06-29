@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/home_models.dart';
@@ -6,6 +8,8 @@ import '../data/item_repository.dart';
 import '../data/local/reminder_dao.dart';
 import '../data/remote_backed_item_action_service.dart';
 import '../domain/item_pack.dart';
+import '../domain/shared_pack.dart';
+import '../presentation/text/reminder_ui_text.dart';
 import 'developer_settings_providers.dart';
 import 'database_providers.dart';
 import 'identity_providers.dart';
@@ -120,51 +124,32 @@ final itemPackProvider = FutureProvider.family<ItemPack?, int>((ref, id) {
 class ItemActivityFeedState {
   const ItemActivityFeedState({
     this.query = '',
-    this.items = const <ItemActivityFeedEntry>[],
+    this.items = const <UnifiedActivityFeedEntry>[],
     this.isLoading = true,
     this.isLoadingMore = false,
     this.hasMore = false,
     this.errorMessage,
-    this.localRecentOffset = 0,
-    this.sharedRecentOffset = 0,
-    this.localOlderOffset = 0,
-    this.sharedOlderOffset = 0,
-    this.usingOlderWindow = false,
   });
 
   final String query;
-  final List<ItemActivityFeedEntry> items;
+  final List<UnifiedActivityFeedEntry> items;
   final bool isLoading;
   final bool isLoadingMore;
   final bool hasMore;
   final String? errorMessage;
-  final int localRecentOffset;
-  final int sharedRecentOffset;
-  final int localOlderOffset;
-  final int sharedOlderOffset;
-  final bool usingOlderWindow;
 
   bool get isSearching => query.trim().isNotEmpty;
 
-  bool get canLoadMoreAttempt =>
-      hasMore ||
-      (!isSearching &&
-          !usingOlderWindow &&
-          items.length >= itemActivityFeedPageSize);
+  bool get canLoadMoreAttempt => hasMore && !isLoading && !isLoadingMore;
 
   ItemActivityFeedState copyWith({
     String? query,
-    List<ItemActivityFeedEntry>? items,
+    List<UnifiedActivityFeedEntry>? items,
     bool? isLoading,
     bool? isLoadingMore,
     bool? hasMore,
     String? errorMessage,
     bool clearErrorMessage = false,
-    int? localRecentOffset,
-    int? sharedRecentOffset,
-    int? localOlderOffset,
-    int? sharedOlderOffset,
-    bool? usingOlderWindow,
   }) {
     return ItemActivityFeedState(
       query: query ?? this.query,
@@ -175,92 +160,36 @@ class ItemActivityFeedState {
       errorMessage: clearErrorMessage
           ? null
           : errorMessage ?? this.errorMessage,
-      localRecentOffset: localRecentOffset ?? this.localRecentOffset,
-      sharedRecentOffset: sharedRecentOffset ?? this.sharedRecentOffset,
-      localOlderOffset: localOlderOffset ?? this.localOlderOffset,
-      sharedOlderOffset: sharedOlderOffset ?? this.sharedOlderOffset,
-      usingOlderWindow: usingOlderWindow ?? this.usingOlderWindow,
     );
   }
 }
 
-sealed class ItemActivityFeedEntry {
-  const ItemActivityFeedEntry();
+enum UnifiedActivityEntityKind { item, resource, stage, member, pack }
 
-  DateTime get occurredAt;
-  String get itemTitle;
-  String get packTitle;
-  ItemBundle get bundle;
-  String get stableKey;
-}
-
-class LocalItemActivityFeedEntry extends ItemActivityFeedEntry {
-  const LocalItemActivityFeedEntry(this.entry);
-
-  final ItemActivityEntry entry;
-
-  @override
-  DateTime get occurredAt => entry.record.actionDate;
-
-  @override
-  String get itemTitle => entry.itemTitle;
-
-  @override
-  String get packTitle => entry.packTitle;
-
-  @override
-  ItemBundle get bundle => entry.bundle;
-
-  @override
-  String get stableKey => 'local-${entry.record.id}';
-}
-
-class SharedRemoteItemActivityFeedEntry extends ItemActivityFeedEntry {
-  const SharedRemoteItemActivityFeedEntry(this.entry);
-
-  final SharedItemActivityEntry entry;
-
-  @override
-  DateTime get occurredAt => entry.occurredAt;
-
-  @override
-  String get itemTitle => entry.itemTitle;
-
-  @override
-  String get packTitle => entry.packTitle;
-
-  @override
-  ItemBundle get bundle => ItemBundle(item: entry.item, pack: entry.pack);
-
-  @override
-  String get stableKey => 'shared-${entry.event.id}';
-
-  String get message {
-    final name = entry.actorDisplayName.trim().isEmpty
-        ? '照顧成員'
-        : entry.actorDisplayName.trim();
-    final title = entry.itemTitle;
-    return switch (entry.event.action) {
-      'item_created' => '$name 新增了「$title」',
-      'item_updated' => '$name 更新了「$title」',
-      'item_archived' => '$name 封存了「$title」',
-      'item_completed' => '$name 完成了「$title」',
-      'item_undone' => '$name 復原了「$title」',
-      _ => '$name 更新了「$title」',
-    };
-  }
-}
-
-class _ItemActivityPageResult {
-  const _ItemActivityPageResult({
-    required this.items,
-    required this.localCount,
-    required this.sharedCount,
+class UnifiedActivityFeedEntry {
+  const UnifiedActivityFeedEntry({
+    required this.source,
+    required this.entityKind,
+    required this.message,
+    required this.entityTitle,
+    required this.actorDisplayName,
+    required this.packTitle,
+    required this.actionLabel,
+    required this.stableKey,
+    this.bundle,
   });
 
-  final List<ItemActivityFeedEntry> items;
-  final int localCount;
-  final int sharedCount;
+  final UnifiedActivityEntry source;
+  final UnifiedActivityEntityKind entityKind;
+  final String message;
+  final String entityTitle;
+  final String actorDisplayName;
+  final String packTitle;
+  final String actionLabel;
+  final String stableKey;
+  final ItemBundle? bundle;
+
+  DateTime get occurredAt => source.occurredAt;
 }
 
 final itemActivityFeedControllerProvider =
@@ -268,19 +197,16 @@ final itemActivityFeedControllerProvider =
       ItemActivityFeedController,
       ItemActivityFeedState
     >((ref) {
-      final repository = ref.watch(itemRepositoryProvider);
+      final dao = ref.watch(appDatabaseProvider).reminderDao;
       final previewDate = ref.watch(effectivePreviewDateProvider);
-      return ItemActivityFeedController(
-        repository: repository,
-        previewDate: previewDate,
-      );
+      return ItemActivityFeedController(dao: dao, previewDate: previewDate);
     });
 
 class ItemActivityFeedController extends StateNotifier<ItemActivityFeedState> {
   ItemActivityFeedController({
-    required ItemRepository repository,
+    required ReminderDao dao,
     required DateTime previewDate,
-  }) : _repository = repository,
+  }) : _dao = dao,
        _previewDate = DateTime(
          previewDate.year,
          previewDate.month,
@@ -293,7 +219,7 @@ class ItemActivityFeedController extends StateNotifier<ItemActivityFeedState> {
   static const pageSize = itemActivityFeedPageSize;
   static const recentDays = 30;
 
-  final ItemRepository _repository;
+  final ReminderDao _dao;
   final DateTime _previewDate;
 
   DateTime get _recentWindowStart =>
@@ -302,8 +228,7 @@ class ItemActivityFeedController extends StateNotifier<ItemActivityFeedState> {
   Future<void> refresh() => _loadInitial();
 
   Future<void> setQuery(String value) async {
-    final trimmed = value.trim();
-    if (trimmed == state.query.trim()) {
+    if (value.trim() == state.query.trim()) {
       return;
     }
     state = state.copyWith(query: value);
@@ -311,306 +236,356 @@ class ItemActivityFeedController extends StateNotifier<ItemActivityFeedState> {
   }
 
   Future<void> loadMore() async {
-    if (state.isLoading || state.isLoadingMore || !state.canLoadMoreAttempt) {
+    if (!state.canLoadMoreAttempt) {
       return;
     }
     state = state.copyWith(isLoadingMore: true, clearErrorMessage: true);
     try {
-      if (state.isSearching) {
-        await _loadMoreSearchResults();
-      } else {
-        await _loadMoreDefaultResults();
-      }
-    } catch (error) {
+      final all = await _loadProjectedEntries();
+      final next = all
+          .skip(state.items.length)
+          .take(pageSize)
+          .toList(growable: false);
       if (!mounted) {
         return;
       }
+      final combined = [...state.items, ...next];
       state = state.copyWith(
+        items: combined,
         isLoadingMore: false,
-        errorMessage: '讀取失敗: $error',
-      );
-    }
-  }
-
-  Future<void> _loadInitial() async {
-    state = state.copyWith(
-      items: const <ItemActivityFeedEntry>[],
-      isLoading: true,
-      isLoadingMore: false,
-      hasMore: false,
-      clearErrorMessage: true,
-      localRecentOffset: 0,
-      sharedRecentOffset: 0,
-      localOlderOffset: 0,
-      sharedOlderOffset: 0,
-      usingOlderWindow: false,
-    );
-    try {
-      final trimmedQuery = state.query.trim();
-      if (trimmedQuery.isNotEmpty) {
-        final page = await _loadRecentPage(
-          query: trimmedQuery,
-          localOffset: 0,
-          sharedOffset: 0,
-        );
-        final hasMore =
-            page.items.length == pageSize ||
-            await _hasMoreRecent(
-              query: trimmedQuery,
-              localOffset: page.localCount,
-              sharedOffset: page.sharedCount,
-            );
-        if (!mounted) {
-          return;
-        }
-        state = state.copyWith(
-          items: page.items,
-          isLoading: false,
-          hasMore: hasMore,
-          localRecentOffset: page.localCount,
-          sharedRecentOffset: page.sharedCount,
-          localOlderOffset: 0,
-          sharedOlderOffset: 0,
-          usingOlderWindow: false,
-          clearErrorMessage: true,
-        );
-        return;
-      }
-
-      final recentPage = await _loadRecentPage(localOffset: 0, sharedOffset: 0);
-      final hasMoreRecent =
-          recentPage.items.length == pageSize ||
-          await _hasMoreRecent(
-            localOffset: recentPage.localCount,
-            sharedOffset: recentPage.sharedCount,
-          );
-      final hasOlder = hasMoreRecent
-          ? false
-          : await _hasOlderResults(localOffset: 0, sharedOffset: 0);
-      if (!mounted) {
-        return;
-      }
-      state = state.copyWith(
-        items: recentPage.items,
-        isLoading: false,
-        hasMore: hasMoreRecent || hasOlder,
-        localRecentOffset: recentPage.localCount,
-        sharedRecentOffset: recentPage.sharedCount,
-        localOlderOffset: 0,
-        sharedOlderOffset: 0,
-        usingOlderWindow: !hasMoreRecent && hasOlder,
+        hasMore: combined.length < all.length,
         clearErrorMessage: true,
       );
     } catch (error) {
       if (!mounted) {
         return;
       }
-      state = state.copyWith(isLoading: false, errorMessage: '讀取失敗: $error');
+      state = state.copyWith(
+        isLoadingMore: false,
+        errorMessage: ReminderUiText.activityLoadFailed,
+      );
     }
   }
 
-  Future<void> _loadMoreSearchResults() async {
-    final trimmedQuery = state.query.trim();
-    final page = await _loadRecentPage(
-      query: trimmedQuery,
-      localOffset: state.localRecentOffset,
-      sharedOffset: state.sharedRecentOffset,
-    );
-    final combined = [...state.items, ...page.items];
-    final nextLocalOffset = state.localRecentOffset + page.localCount;
-    final nextSharedOffset = state.sharedRecentOffset + page.sharedCount;
-    final hasMore =
-        page.items.length == pageSize ||
-        await _hasMoreRecent(
-          query: trimmedQuery,
-          localOffset: nextLocalOffset,
-          sharedOffset: nextSharedOffset,
-        );
-    if (!mounted) {
-      return;
-    }
+  Future<void> _loadInitial() async {
     state = state.copyWith(
-      items: combined,
+      items: const <UnifiedActivityFeedEntry>[],
+      isLoading: true,
       isLoadingMore: false,
-      hasMore: hasMore,
-      localRecentOffset: nextLocalOffset,
-      sharedRecentOffset: nextSharedOffset,
+      hasMore: false,
       clearErrorMessage: true,
     );
-  }
-
-  Future<void> _loadMoreDefaultResults() async {
-    if (!state.usingOlderWindow) {
-      final recentPage = await _loadRecentPage(
-        localOffset: state.localRecentOffset,
-        sharedOffset: state.sharedRecentOffset,
-      );
-      if (recentPage.items.isNotEmpty) {
-        final combined = [...state.items, ...recentPage.items];
-        final nextLocalOffset = state.localRecentOffset + recentPage.localCount;
-        final nextSharedOffset =
-            state.sharedRecentOffset + recentPage.sharedCount;
-        final hasMoreRecent =
-            recentPage.items.length == pageSize ||
-            await _hasMoreRecent(
-              localOffset: nextLocalOffset,
-              sharedOffset: nextSharedOffset,
-            );
-        final hasOlder = hasMoreRecent
-            ? false
-            : await _hasOlderResults(localOffset: 0, sharedOffset: 0);
-        if (!mounted) {
-          return;
-        }
-        state = state.copyWith(
-          items: combined,
-          isLoadingMore: false,
-          hasMore: hasMoreRecent || hasOlder,
-          localRecentOffset: nextLocalOffset,
-          sharedRecentOffset: nextSharedOffset,
-          usingOlderWindow: !hasMoreRecent && hasOlder,
-          clearErrorMessage: true,
-        );
+    try {
+      final all = await _loadProjectedEntries();
+      final page = all.take(pageSize).toList(growable: false);
+      if (!mounted) {
         return;
       }
+      state = state.copyWith(
+        items: page,
+        isLoading: false,
+        hasMore: page.length < all.length,
+        clearErrorMessage: true,
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: ReminderUiText.activityLoadFailed,
+      );
     }
+  }
 
-    final olderPage = await _loadOlderPage(
-      localOffset: state.localOlderOffset,
-      sharedOffset: state.sharedOlderOffset,
-    );
-    final combined = [...state.items, ...olderPage.items];
-    final nextLocalOlderOffset = state.localOlderOffset + olderPage.localCount;
-    final nextSharedOlderOffset =
-        state.sharedOlderOffset + olderPage.sharedCount;
-    final hasMoreOlder =
-        olderPage.items.length == pageSize ||
-        await _hasOlderResults(
-          localOffset: nextLocalOlderOffset,
-          sharedOffset: nextSharedOlderOffset,
+  Future<List<UnifiedActivityFeedEntry>> _loadProjectedEntries() async {
+    final query = state.query.trim();
+    final rows = await _dao.listUnifiedActivityEntries();
+    final entries = <UnifiedActivityFeedEntry>[];
+    for (final row in rows) {
+      if (query.isEmpty && row.occurredAt.isBefore(_recentWindowStart)) {
+        continue;
+      }
+      final projected = _projectActivity(row);
+      if (projected == null) {
+        continue;
+      }
+      if (query.isNotEmpty && !_matchesQuery(projected, query)) {
+        continue;
+      }
+      entries.add(projected);
+    }
+    return _dedupe(entries);
+  }
+
+  UnifiedActivityFeedEntry? _projectActivity(UnifiedActivityEntry entry) {
+    final actorName = _actorName(entry.actorDisplayName);
+    final packTitle = entry.pack?.isSystemDefault == true
+        ? '一般'
+        : (entry.packTitle.trim().isEmpty ? '生活場景' : entry.packTitle.trim());
+    final action = entry.event.action;
+    switch (entry.event.entityType) {
+      case 'item':
+        final itemTitle = _entityTitle(entry.item?.title, '一個事項');
+        final message = switch (action) {
+          'item_created' => '$actorName 新增了「$itemTitle」',
+          'item_updated' => '$actorName 更新了「$itemTitle」',
+          'item_archived' => '$actorName 封存了「$itemTitle」',
+          'item_completed' => '$actorName 完成了「$itemTitle」',
+          'item_undone' => '$actorName 復原了「$itemTitle」',
+          _ => null,
+        };
+        if (message == null) {
+          return null;
+        }
+        return UnifiedActivityFeedEntry(
+          source: entry,
+          entityKind: UnifiedActivityEntityKind.item,
+          message: message,
+          entityTitle: itemTitle,
+          actorDisplayName: actorName,
+          packTitle: packTitle,
+          actionLabel: '事項',
+          stableKey: _stableKey(entry),
+          bundle: entry.item == null || entry.pack == null
+              ? null
+              : ItemBundle(item: entry.item!, pack: entry.pack!),
         );
-    if (!mounted) {
-      return;
+      case 'resource':
+        final resourceTitle = _entityTitle(entry.resource?.title, '一個資源');
+        final message = switch (action) {
+          'resource_created' => '$actorName 新增了「$resourceTitle」',
+          'resource_updated' => '$actorName 更新了「$resourceTitle」',
+          'resource_incremented' => _resourceIncrementMessage(
+            entry,
+            actorName,
+            resourceTitle,
+          ),
+          'resource_adjusted' => '$actorName 調整了「$resourceTitle」',
+          'resource_decremented' => '$actorName 扣除了「$resourceTitle」',
+          'resource_archived' => '$actorName 封存了「$resourceTitle」',
+          _ => null,
+        };
+        if (message == null) {
+          return null;
+        }
+        return UnifiedActivityFeedEntry(
+          source: entry,
+          entityKind: UnifiedActivityEntityKind.resource,
+          message: message,
+          entityTitle: resourceTitle,
+          actorDisplayName: actorName,
+          packTitle: packTitle,
+          actionLabel: '資源',
+          stableKey: _stableKey(entry),
+        );
+      case 'stage_tracker':
+      case 'stage_rule':
+      case 'stage_record':
+      case 'stage':
+        final title = _entityTitle(
+          entry.stageRecord?.label ?? entry.stageTracker?.title,
+          '一個階段',
+        );
+        final message = switch (action) {
+          'stage_tracker_created' ||
+          'stage_created' => '$actorName 新增了「$title」',
+          'stage_tracker_updated' ||
+          'stage_rule_updated' ||
+          'stage_record_updated' ||
+          'stage_updated' => '$actorName 更新了「$title」',
+          'stage_acknowledged' ||
+          'stage_record_acknowledged' => '$actorName 確認了「$title」',
+          'stage_progress_updated' => '$actorName 更新了「$title」的進度',
+          'stage_tracker_archived' ||
+          'stage_rule_archived' ||
+          'stage_record_archived' ||
+          'stage_archived' => '$actorName 封存了「$title」',
+          _ => null,
+        };
+        if (message == null) {
+          return null;
+        }
+        return UnifiedActivityFeedEntry(
+          source: entry,
+          entityKind: UnifiedActivityEntityKind.stage,
+          message: message,
+          entityTitle: title,
+          actorDisplayName: actorName,
+          packTitle: packTitle,
+          actionLabel: '階段',
+          stableKey: _stableKey(entry),
+        );
+      case 'pack_member':
+        final message = switch (action) {
+          'member_joined' => '$actorName 加入了這個生活場景',
+          'member_removed' => '$actorName 已不在這個生活場景中',
+          _ => null,
+        };
+        if (message == null) {
+          return null;
+        }
+        return UnifiedActivityFeedEntry(
+          source: entry,
+          entityKind: UnifiedActivityEntityKind.member,
+          message: message,
+          entityTitle: '成員',
+          actorDisplayName: actorName,
+          packTitle: packTitle,
+          actionLabel: '成員',
+          stableKey: _stableKey(entry),
+        );
+      case 'pack':
+        if (action != 'pack_updated') {
+          return null;
+        }
+        return UnifiedActivityFeedEntry(
+          source: entry,
+          entityKind: UnifiedActivityEntityKind.pack,
+          message: '$actorName 更新了生活場景資料',
+          entityTitle: packTitle,
+          actorDisplayName: actorName,
+          packTitle: packTitle,
+          actionLabel: '生活場景',
+          stableKey: _stableKey(entry),
+        );
     }
-    state = state.copyWith(
-      items: combined,
-      isLoadingMore: false,
-      hasMore: hasMoreOlder,
-      localOlderOffset: nextLocalOlderOffset,
-      sharedOlderOffset: nextSharedOlderOffset,
-      usingOlderWindow: true,
-      clearErrorMessage: true,
-    );
+    return null;
   }
 
-  Future<_ItemActivityPageResult> _loadRecentPage({
-    String? query,
-    required int localOffset,
-    required int sharedOffset,
-  }) async {
-    final local = await _repository.listActivityFeed(
-      limit: pageSize,
-      offset: localOffset,
-      query: query,
-      recentDays: recentDays,
-      now: _previewDate,
-    );
-    final shared = await _repository.listSharedItemActivityFeed(
-      limit: pageSize,
-      offset: sharedOffset,
-      query: query,
-      recentDays: recentDays,
-      now: _previewDate,
-    );
-    return _mergeActivityPage(local: local, shared: shared);
+  List<UnifiedActivityFeedEntry> _dedupe(
+    List<UnifiedActivityFeedEntry> entries,
+  ) {
+    final seenRemoteIds = <String>{};
+    final seenMutationIds = <String>{};
+    final accepted = <UnifiedActivityFeedEntry>[];
+    for (final entry in entries) {
+      final metadata = _metadata(entry.source.event);
+      final remoteActivityId = _stringValue(metadata, 'remoteActivityId');
+      if (remoteActivityId != null && !seenRemoteIds.add(remoteActivityId)) {
+        continue;
+      }
+      final mutationId = _clientMutationId(metadata);
+      if (mutationId != null && !seenMutationIds.add(mutationId)) {
+        continue;
+      }
+      final duplicate = accepted.any(
+        (existing) => _isConservativeDuplicate(existing, entry),
+      );
+      if (!duplicate) {
+        accepted.add(entry);
+      }
+    }
+    return accepted;
   }
 
-  Future<_ItemActivityPageResult> _loadOlderPage({
-    required int localOffset,
-    required int sharedOffset,
-  }) async {
-    final local = await _repository.listActivityFeed(
-      limit: pageSize,
-      offset: localOffset,
-      actionDateBefore: _recentWindowStart,
-      now: _previewDate,
-    );
-    final shared = await _repository.listSharedItemActivityFeed(
-      limit: pageSize,
-      offset: sharedOffset,
-      actionDateBefore: _recentWindowStart,
-      now: _previewDate,
-    );
-    return _mergeActivityPage(local: local, shared: shared);
-  }
-
-  Future<bool> _hasMoreRecent({
-    String? query,
-    required int localOffset,
-    required int sharedOffset,
-  }) async {
-    final local = await _repository.listActivityFeed(
-      limit: 1,
-      offset: localOffset,
-      query: query,
-      recentDays: recentDays,
-      now: _previewDate,
-    );
-    if (local.isNotEmpty) {
+  bool _isConservativeDuplicate(
+    UnifiedActivityFeedEntry existing,
+    UnifiedActivityFeedEntry candidate,
+  ) {
+    if (existing.source.event.id == candidate.source.event.id) {
       return true;
     }
-    final shared = await _repository.listSharedItemActivityFeed(
-      limit: 1,
-      offset: sharedOffset,
-      query: query,
-      recentDays: recentDays,
-      now: _previewDate,
-    );
-    return shared.isNotEmpty;
-  }
-
-  Future<bool> _hasOlderResults({
-    required int localOffset,
-    required int sharedOffset,
-  }) async {
-    final local = await _repository.listActivityFeed(
-      limit: 1,
-      offset: localOffset,
-      actionDateBefore: _recentWindowStart,
-      now: _previewDate,
-    );
-    if (local.isNotEmpty) {
-      return true;
+    if (existing.source.event.entityType != candidate.source.event.entityType ||
+        existing.source.event.entityId != candidate.source.event.entityId ||
+        existing.source.event.action != candidate.source.event.action ||
+        existing.source.event.actorUserId !=
+            candidate.source.event.actorUserId) {
+      return false;
     }
-    final shared = await _repository.listSharedItemActivityFeed(
-      limit: 1,
-      offset: sharedOffset,
-      actionDateBefore: _recentWindowStart,
-      now: _previewDate,
-    );
-    return shared.isNotEmpty;
+    final delta = existing.occurredAt
+        .difference(candidate.occurredAt)
+        .inMilliseconds
+        .abs();
+    return delta <= const Duration(minutes: 2).inMilliseconds;
   }
 
-  _ItemActivityPageResult _mergeActivityPage({
-    required List<ItemActivityEntry> local,
-    required List<SharedItemActivityEntry> shared,
-  }) {
-    final merged =
-        <ItemActivityFeedEntry>[
-          ...local.map(LocalItemActivityFeedEntry.new),
-          ...shared.map(SharedRemoteItemActivityFeedEntry.new),
-        ]..sort((a, b) {
-          final timeCompare = b.occurredAt.compareTo(a.occurredAt);
-          if (timeCompare != 0) {
-            return timeCompare;
-          }
-          return b.stableKey.compareTo(a.stableKey);
-        });
-    final page = merged.take(pageSize).toList(growable: false);
-    return _ItemActivityPageResult(
-      items: page,
-      localCount: page.whereType<LocalItemActivityFeedEntry>().length,
-      sharedCount: page.whereType<SharedRemoteItemActivityFeedEntry>().length,
+  bool _matchesQuery(UnifiedActivityFeedEntry entry, String query) {
+    return entry.message.contains(query) ||
+        entry.entityTitle.contains(query) ||
+        entry.actorDisplayName.contains(query) ||
+        entry.packTitle.contains(query) ||
+        entry.actionLabel.contains(query);
+  }
+
+  String _resourceIncrementMessage(
+    UnifiedActivityEntry entry,
+    String actorName,
+    String resourceTitle,
+  ) {
+    final metadata = _metadata(entry.event);
+    final remoteMetadata = metadata['remoteMetadata'];
+    final action = remoteMetadata is Map
+        ? remoteMetadata['resource_action']
+        : null;
+    if (action == 'refilled') {
+      return '$actorName 補充了「$resourceTitle」';
+    }
+    return '$actorName 補充了「$resourceTitle」';
+  }
+
+  String _stableKey(UnifiedActivityEntry entry) {
+    final remoteActivityId = _stringValue(
+      _metadata(entry.event),
+      'remoteActivityId',
     );
+    return remoteActivityId == null
+        ? 'local-${entry.event.id}'
+        : 'remote-$remoteActivityId';
+  }
+
+  String _actorName(String value) {
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? '有成員' : trimmed;
+  }
+
+  String _entityTitle(String? value, String fallback) {
+    final trimmed = value?.trim() ?? '';
+    return trimmed.isEmpty ? fallback : trimmed;
+  }
+
+  Map<String, Object?> _metadata(ActivityEvent event) {
+    final raw = event.metadataJson;
+    if (raw == null || raw.trim().isEmpty) {
+      return const <String, Object?>{};
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        return decoded.cast<String, Object?>();
+      }
+    } catch (_) {
+      return const <String, Object?>{};
+    }
+    return const <String, Object?>{};
+  }
+
+  String? _clientMutationId(Map<String, Object?> metadata) {
+    final direct =
+        _stringValue(metadata, 'clientMutationId') ??
+        _stringValue(metadata, 'client_mutation_id');
+    if (direct != null) {
+      return direct;
+    }
+    final remoteMetadata = metadata['remoteMetadata'];
+    if (remoteMetadata is Map) {
+      return _stringValue(
+            remoteMetadata.cast<String, Object?>(),
+            'clientMutationId',
+          ) ??
+          _stringValue(
+            remoteMetadata.cast<String, Object?>(),
+            'client_mutation_id',
+          );
+    }
+    return null;
+  }
+
+  String? _stringValue(Map<String, Object?> metadata, String key) {
+    final value = metadata[key];
+    if (value is String && value.trim().isNotEmpty) {
+      return value.trim();
+    }
+    return null;
   }
 }

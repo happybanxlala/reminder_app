@@ -1,9 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/local/reminder_dao.dart';
+import '../data/remote_shared_pack_repository.dart';
 import '../data/stage_tracker_models.dart';
 import '../data/stage_tracker_repository.dart';
 import '../domain/item_pack.dart';
+import '../domain/remote_sync.dart';
 import '../domain/stage_occurrence.dart';
 import '../domain/stage_record.dart';
 import '../domain/stage_rule.dart';
@@ -13,6 +15,49 @@ import 'database_providers.dart';
 import 'developer_settings_providers.dart';
 import 'identity_providers.dart';
 import 'item_providers.dart';
+
+class StageSyncStatus {
+  const StageSyncStatus({
+    required this.isRemoteBacked,
+    this.remotePackSyncState,
+    this.remoteStageSyncState,
+    this.pendingMutationStatus,
+    this.lastSyncError,
+  });
+
+  static const localOnly = StageSyncStatus(isRemoteBacked: false);
+
+  final bool isRemoteBacked;
+  final RemotePackSyncState? remotePackSyncState;
+  final RemoteStageSyncState? remoteStageSyncState;
+  final SyncOutboxStatus? pendingMutationStatus;
+  final String? lastSyncError;
+
+  bool get hasPendingMutation =>
+      pendingMutationStatus == SyncOutboxStatus.pending ||
+      pendingMutationStatus == SyncOutboxStatus.syncing;
+
+  bool get hasFailedMutation =>
+      pendingMutationStatus == SyncOutboxStatus.failed ||
+      pendingMutationStatus == SyncOutboxStatus.conflict;
+
+  bool get isStale =>
+      remotePackSyncState == RemotePackSyncState.stale ||
+      remoteStageSyncState == RemoteStageSyncState.stale ||
+      pendingMutationStatus == SyncOutboxStatus.noOp;
+
+  bool get isAccessLost =>
+      remotePackSyncState == RemotePackSyncState.accessLost ||
+      remotePackSyncState == RemotePackSyncState.removed;
+
+  bool get hasVisibleStatus =>
+      isRemoteBacked &&
+      (hasPendingMutation ||
+          hasFailedMutation ||
+          isStale ||
+          isAccessLost ||
+          (lastSyncError?.trim().isNotEmpty ?? false));
+}
 
 final stageTrackerRepositoryProvider = Provider<StageTrackerRepository>((ref) {
   return StageTrackerRepository(
@@ -169,6 +214,47 @@ final stageTrackerOverviewSummaryProvider =
 final stageTrackerByIdProvider = FutureProvider.autoDispose
     .family<StageTracker?, int>((ref, id) {
       return ref.watch(stageTrackerRepositoryProvider).getStageTrackerById(id);
+    });
+
+final stageTrackerSyncStatusProvider =
+    FutureProvider.family<StageSyncStatus, int>((ref, stageTrackerId) async {
+      final dao = ref.watch(appDatabaseProvider).reminderDao;
+      final tracker = await dao.getStageTrackerById(stageTrackerId);
+      if (tracker == null || !await dao.isRemoteBackedPack(tracker.packId)) {
+        return StageSyncStatus.localOnly;
+      }
+      final packMetadata = await dao.getRemotePackSyncMetadataForLocalPack(
+        tracker.packId,
+      );
+      final stageMetadata = await dao.getRemoteStageSyncMetadataForLocalEntity(
+        localEntityType: RemoteSharedPackRepository.localEntityStageTracker,
+        localEntityId: stageTrackerId,
+      );
+      final mutations = await dao.listSyncOutboxEntries(
+        statuses: const {
+          SyncOutboxStatus.pending,
+          SyncOutboxStatus.syncing,
+          SyncOutboxStatus.failed,
+          SyncOutboxStatus.conflict,
+          SyncOutboxStatus.noOp,
+        },
+      );
+      SyncOutboxEntry? mutation;
+      for (final entry in mutations) {
+        if (entry.localEntityType ==
+                RemoteSharedPackRepository.localEntityStageTracker &&
+            entry.localEntityId == stageTrackerId) {
+          mutation = entry;
+          break;
+        }
+      }
+      return StageSyncStatus(
+        isRemoteBacked: true,
+        remotePackSyncState: packMetadata?.syncState,
+        remoteStageSyncState: stageMetadata?.syncState,
+        pendingMutationStatus: mutation?.status,
+        lastSyncError: mutation?.lastError ?? stageMetadata?.lastSyncError,
+      );
     });
 
 final stageTrackerDetailProvider = FutureProvider.autoDispose

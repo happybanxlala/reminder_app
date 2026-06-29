@@ -26,7 +26,7 @@ class ReminderUiText {
   static const stageLabel = '階段';
   static const fixedTypeLabel = '固定節奏';
   static const stateBasedTypeLabel = '彈性處理';
-  static const itemActivityFeatureTitle = '事項動態';
+  static const itemActivityFeatureTitle = '最近活動';
   static const itemsManagementFeatureTitle = '要照顧的事管理';
   static const itemPacksManagementFeatureTitle = '生活場景管理';
   static const stageTrackerManagementFeatureTitle = '階段追蹤';
@@ -81,7 +81,7 @@ class ReminderUiText {
   static const noWarningItems = '目前沒有需要留意的項目。';
   static const noUpcomingStages = '目前沒有即將到來的階段。';
   static const noItemHistory = '尚未有事項紀錄。';
-  static const noRecentActivity = '最近 30 天沒有動態。';
+  static const noRecentActivity = '最近 30 天沒有活動。';
   static const noActivitySearchResults = '最近 30 天內找不到符合條件的動態。';
   static const noStageHistory = '目前沒有階段紀錄。';
   static const noResourceHistory = '目前沒有資源變動紀錄。';
@@ -92,9 +92,10 @@ class ReminderUiText {
   static const syncRetryLaterLabel = '同步失敗，稍後會再試';
   static const syncUpdatedLabel = '已更新';
   static const syncNewUpdatesRefreshLabel = '有新的更新，請刷新';
-  static const syncStaleLabel = '遠端狀態可能已更新';
+  static const syncStaleLabel = '有新的更新，請刷新';
   static const syncNeedsRefreshLabel = '有新的更新，請刷新';
   static const syncAccessLostLabel = '已無法存取';
+  static const activityLoadFailed = '暫時無法讀取活動，請稍後再試';
   static const remoteBackedPackMetadataUnsupported =
       '共同生活場景暫時未支援修改場景資料。你仍可以新增、編輯、封存、完成或復原事項。';
   static const packCareAction = '一起照顧';
@@ -135,12 +136,12 @@ class ReminderUiText {
   static const packCareRefreshSuccess = '已刷新共同資料';
   static const packCareRefreshPendingWarning = '仍有等待同步的本機操作';
   static const packCareRefreshFailed = '同步失敗，稍後再試';
-  static const packCareRefreshAccessLost = '已失去遠端存取權';
+  static const packCareRefreshAccessLost = '已無法存取';
   static const packCareRetrySync = '重試同步';
   static const packCareRetrySuccess = '已重試同步';
   static const packCareRetryUnavailable = '目前沒有可重試的同步失敗';
   static const packCareRetryNeedsRefreshWarning = '需要刷新共同資料';
-  static const packCareAccessLostReason = '你可能已被移出這個生活場景，或目前無法確認共享權限。';
+  static const packCareAccessLostReason = '你已無法存取這個共同生活場景。';
   static const packCareAccessLostGuard = '為了避免資料錯亂，暫時不能完成或復原這裡的提醒。';
   static const packCareDataProtectionNote =
       '可先綁定 Email 保護共享資料；Apple / Google 會在後續階段開放。';

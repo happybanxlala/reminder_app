@@ -6,12 +6,12 @@ import 'package:reminder_app/features/reminders/domain/remote_sync.dart';
 
 void main() {
   test(
-    'database uses schema version 10 and core tables are writable',
+    'database uses schema version 11 and core tables are writable',
     () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
 
-      expect(db.schemaVersion, 10);
+      expect(db.schemaVersion, 11);
 
       final appInstallationId = await db
           .into(db.appInstallations)
@@ -296,6 +296,21 @@ void main() {
               updatedAt: DateTime(2026, 4, 10).millisecondsSinceEpoch,
             ),
           );
+      final remoteStageMetadataId = await db
+          .into(db.remoteStageSyncMetadata)
+          .insert(
+            RemoteStageSyncMetadataCompanion.insert(
+              localEntityType: 'stage_tracker',
+              localEntityId: stageTrackerId,
+              localPackId: packId,
+              remoteEntityId: '44444444-4444-4444-8444-111111111111',
+              remotePackId: '11111111-1111-4111-8111-333333333333',
+              syncState: RemoteStageSyncState.linked.storageValue,
+              remoteStatus: const Value('active'),
+              createdAt: DateTime(2026, 4, 10).millisecondsSinceEpoch,
+              updatedAt: DateTime(2026, 4, 10).millisecondsSinceEpoch,
+            ),
+          );
       final syncOutboxId = await db
           .into(db.syncOutbox)
           .insert(
@@ -372,6 +387,9 @@ void main() {
       final remoteCompletionMetadata = await db
           .select(db.remoteCompletionSyncMetadata)
           .get();
+      final remoteStageMetadata = await db
+          .select(db.remoteStageSyncMetadata)
+          .get();
       final syncOutbox = await db.select(db.syncOutbox).get();
       expect(defaultPacks, hasLength(1));
       expect(localUsers.first.identityKind, 'local');
@@ -411,6 +429,8 @@ void main() {
         remoteCompletionMetadata.single.completionState,
         'confirmed_remote',
       );
+      expect(remoteStageMetadata.single.id, remoteStageMetadataId);
+      expect(remoteStageMetadata.single.syncState, 'linked');
       expect(syncOutbox.single.actionType, 'complete_item');
       expect(syncOutbox.single.status, 'pending');
     },

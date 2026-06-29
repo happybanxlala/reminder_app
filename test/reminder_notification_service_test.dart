@@ -63,7 +63,7 @@ void main() {
         stageUpcomingCount: 0,
         remoteBackedItemCount: 1,
         accessLostRemoteBackedItemCount: 1,
-        notificationSyncLabels: ['已失去遠端存取權'],
+        notificationSyncLabels: ['已無法存取'],
       ),
     );
 

@@ -162,7 +162,7 @@ class _StageRuleList extends StatelessWidget {
   final Map<int, StageOccurrence> nextOccurrencesByRule;
   final DateTime now;
   final bool canManage;
-  final VoidCallback onAddRule;
+  final VoidCallback? onAddRule;
 
   @override
   Widget build(BuildContext context) {
@@ -195,7 +195,7 @@ class _CompactStageRuleEmptyState extends StatelessWidget {
   });
 
   final bool canManage;
-  final VoidCallback onAddRule;
+  final VoidCallback? onAddRule;
 
   @override
   Widget build(BuildContext context) {
@@ -371,16 +371,28 @@ class _CompactStageRuleRow extends ConsumerWidget {
         await _showEditStageRuleDialog(context, ref, rule);
         return;
       case _StageRuleMenuAction.pause:
-        await ref
+        final updated = await ref
             .read(stageTrackerRepositoryProvider)
             .updateStageRuleStatus(rule.id, StageRuleStatus.paused);
         _invalidateStageTrackerActionProviders(ref, rule.stageTrackerId);
+        if (updated) {
+          _syncAfterStageMutation(
+            ref,
+            await _stageTrackerPackId(ref, rule.stageTrackerId),
+          );
+        }
         return;
       case _StageRuleMenuAction.resume:
-        await ref
+        final updated = await ref
             .read(stageTrackerRepositoryProvider)
             .updateStageRuleStatus(rule.id, StageRuleStatus.active);
         _invalidateStageTrackerActionProviders(ref, rule.stageTrackerId);
+        if (updated) {
+          _syncAfterStageMutation(
+            ref,
+            await _stageTrackerPackId(ref, rule.stageTrackerId),
+          );
+        }
         return;
       case _StageRuleMenuAction.archive:
         final confirmed = await _showStageActionConfirmation(
@@ -393,10 +405,16 @@ class _CompactStageRuleRow extends ConsumerWidget {
         if (confirmed != true) {
           return;
         }
-        await ref
+        final updated = await ref
             .read(stageTrackerRepositoryProvider)
             .updateStageRuleStatus(rule.id, StageRuleStatus.archived);
         _invalidateStageTrackerActionProviders(ref, rule.stageTrackerId);
+        if (updated) {
+          _syncAfterStageMutation(
+            ref,
+            await _stageTrackerPackId(ref, rule.stageTrackerId),
+          );
+        }
         return;
     }
   }
@@ -607,10 +625,16 @@ class _CompactStageTimelineRow extends ConsumerWidget {
         if (confirmed != true) {
           return;
         }
-        await ref
+        final archived = await ref
             .read(stageTrackerRepositoryProvider)
             .deleteOrArchiveImportantStage(stageRecordId);
         _invalidateStageTrackerActionProviders(ref, occurrence.stageTrackerId);
+        if (archived) {
+          _syncAfterStageMutation(
+            ref,
+            await _stageTrackerPackId(ref, occurrence.stageTrackerId),
+          );
+        }
         return;
     }
   }

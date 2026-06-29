@@ -343,6 +343,7 @@ class _ManagedItemCard extends ConsumerWidget {
                         bundle,
                         previewDate,
                         viewModel,
+                        syncStatus,
                       ),
                 tooltip: ReminderUiText.itemActionMenuTitle,
                 icon: const Icon(Icons.more_vert),
@@ -361,26 +362,14 @@ class _ManagedItemCard extends ConsumerWidget {
 }
 
 String? _managementSyncStatusLabel(HomeItemSyncStatus? status) {
-  if (status == null || !status.isRemoteBacked) {
-    return null;
-  }
-  if (status.isAccessLost) {
-    return ReminderUiText.syncAccessLostLabel;
-  }
-  if (status.hasFailedMutation ||
-      (status.lastSyncError?.trim().isNotEmpty ?? false)) {
-    return ReminderUiText.syncFailedLabel;
-  }
-  if (status.pendingMutationStatus == SyncOutboxStatus.syncing) {
-    return ReminderUiText.syncSyncingLabel;
-  }
-  if (status.pendingMutationStatus == SyncOutboxStatus.pending) {
-    return ReminderUiText.syncPendingLabel;
-  }
-  if (status.isStale) {
-    return ReminderUiText.syncNeedsRefreshLabel;
-  }
-  return null;
+  return compactRemoteBackedSyncStatusLabel(
+    isRemoteBacked: status?.isRemoteBacked ?? false,
+    isAccessLost: status?.isAccessLost ?? false,
+    hasFailedMutation: status?.hasFailedMutation ?? false,
+    isStale: status?.isStale ?? false,
+    pendingMutationStatus: status?.pendingMutationStatus,
+    lastSyncError: status?.lastSyncError,
+  );
 }
 
 enum _ManagedItemMenuAction {
@@ -392,6 +381,7 @@ enum _ManagedItemMenuAction {
   pause,
   resume,
   archive,
+  retrySync,
 }
 
 Future<void> _showManagedItemActionSheet(
@@ -400,6 +390,7 @@ Future<void> _showManagedItemActionSheet(
   ItemBundle bundle,
   DateTime previewDate,
   ManagementItemCardViewModel viewModel,
+  HomeItemSyncStatus? syncStatus,
 ) async {
   final selected = await showModalBottomSheet<_ManagedItemMenuAction>(
     context: context,
@@ -444,6 +435,15 @@ Future<void> _showManagedItemActionSheet(
                   sheetContext,
                 ).pop(_ManagedItemMenuAction.history),
               ),
+              if (syncStatus?.hasFailedMutation == true ||
+                  (syncStatus?.lastSyncError?.trim().isNotEmpty ?? false))
+                _ItemActionSheetTile(
+                  key: Key('item-menu-retry-sync-${bundle.item.id}'),
+                  label: ReminderUiText.packCareRetrySync,
+                  onTap: () => Navigator.of(
+                    sheetContext,
+                  ).pop(_ManagedItemMenuAction.retrySync),
+                ),
               const Divider(height: 16),
               _ItemActionSheetTile(
                 key: Key('item-menu-complete-${bundle.item.id}'),
@@ -513,6 +513,9 @@ Future<void> _showManagedItemActionSheet(
         ItemHistoryPage.routeName,
         pathParameters: {'id': bundle.item.id.toString()},
       );
+      return;
+    case _ManagedItemMenuAction.retrySync:
+      await _retryRemoteBackedPackSync(context, ref, bundle.pack);
       return;
     case _ManagedItemMenuAction.complete:
       await _handleManagedItemComplete(

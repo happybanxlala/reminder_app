@@ -11,10 +11,10 @@ import '../../data/local/reminder_dao.dart';
 import '../../data/resource_repository.dart';
 import '../../domain/item.dart';
 import '../../domain/item_pack.dart';
-import '../../domain/remote_sync.dart';
 import '../../domain/resource.dart';
 import '../../domain/resource_refill_service.dart';
 import '../../presentation/formatters/reminder_formatters.dart';
+import '../../presentation/sync_status_label.dart';
 import '../../presentation/text/reminder_ui_text.dart';
 import '../../presentation/view_models/management_item_card_view_model.dart';
 import '../../providers/developer_settings_providers.dart';
@@ -137,6 +137,31 @@ class _ItemsManagementContentState
     ref.invalidate(activeItemPacksProvider);
     ref.invalidate(packManagementItemsProvider);
     await Future<void>.delayed(Duration.zero);
+  }
+}
+
+Future<void> _retryRemoteBackedPackSync(
+  BuildContext context,
+  WidgetRef ref,
+  ItemPack pack,
+) async {
+  final messenger = ScaffoldMessenger.of(context);
+  messenger.showSnackBar(
+    const SnackBar(content: Text(ReminderUiText.syncSyncingLabel)),
+  );
+  final result = await ref
+      .read(sharedPackCareControllerProvider)
+      .retrySyncForPack(pack);
+  if (!context.mounted) {
+    return;
+  }
+  final message = result.succeeded
+      ? result.warningMessage ?? result.message
+      : result.errorMessage ?? ReminderUiText.syncRetryLaterLabel;
+  if (message != null) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 

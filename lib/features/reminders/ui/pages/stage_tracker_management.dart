@@ -34,6 +34,15 @@ class StageTrackerManagementContent extends ConsumerWidget {
 
     return ReminderRefreshable(
       onRefresh: () async {
+        final trackers = await ref
+            .read(stageTrackersProvider.future)
+            .catchError((_) => const <StageTracker>[]);
+        final packIds = trackers.map((tracker) => tracker.packId).toSet();
+        if (packIds.isNotEmpty) {
+          await ref
+              .read(remoteBackedSyncCoordinatorProvider)
+              .refreshVisibleRemoteBackedPacks(packIds);
+        }
         ref.invalidate(stageTrackersProvider);
         ref.invalidate(stageRulesProvider);
         ref.invalidate(stageRecordsProvider);
@@ -373,7 +382,7 @@ class _DashedBorderPainter extends CustomPainter {
   }
 }
 
-class _StageTrackerAchievementCard extends StatelessWidget {
+class _StageTrackerAchievementCard extends ConsumerWidget {
   const _StageTrackerAchievementCard({
     required this.tracker,
     required this.pack,
@@ -387,9 +396,16 @@ class _StageTrackerAchievementCard extends StatelessWidget {
   final StageOccurrence? nearestOccurrence;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.reminderPalette;
     final statusLabel = _statusLabel(nearestOccurrence, now);
+    final syncStatus = ref
+        .watch(stageTrackerSyncStatusProvider(tracker.id))
+        .maybeWhen(
+          data: (status) => status,
+          orElse: () => StageSyncStatus.localOnly,
+        );
+    final syncLabel = _stageSyncStatusLabel(syncStatus);
     return Tooltip(
       message: '查看 ${tracker.title} 階段追蹤',
       child: Semantics(
@@ -448,6 +464,20 @@ class _StageTrackerAchievementCard extends StatelessWidget {
                   ),
                 ),
               ],
+              if (syncLabel != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  syncLabel,
+                  key: Key('stage-tracker-sync-${tracker.id}'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: palette.textMuted,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -484,6 +514,17 @@ class _StageTrackerAchievementCard extends StatelessWidget {
   DateTime _normalizeDate(DateTime value) {
     return DateTime(value.year, value.month, value.day);
   }
+}
+
+String? _stageSyncStatusLabel(StageSyncStatus status) {
+  return compactRemoteBackedSyncStatusLabel(
+    isRemoteBacked: status.isRemoteBacked,
+    isAccessLost: status.isAccessLost,
+    hasFailedMutation: status.hasFailedMutation,
+    isStale: status.isStale,
+    pendingMutationStatus: status.pendingMutationStatus,
+    lastSyncError: status.lastSyncError,
+  );
 }
 
 class _StageTrackerEmojiBubble extends StatelessWidget {
