@@ -92,7 +92,7 @@ Pack B → H8A 2XD
 - I
 - L
 - Suggested character set:
-- ABCDEFGHJKLMNPQRSTUVWXYZ23456789
+- ABCDEFGHJKMNPQRSTUVWXYZ23456789
 - Display may visually group the code as "K7M 4Q9", but the canonical stored/query code should be "K7M4Q9".
 - Do not require users to type spaces or hyphens.
 

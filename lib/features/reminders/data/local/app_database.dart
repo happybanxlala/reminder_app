@@ -14,6 +14,8 @@ part 'app_database.g.dart';
   tables: [
     ItemPacks,
     Items,
+    SharedPackRemotePackMappings,
+    SharedPackRemoteItemMappings,
     PackTemplates,
     PackTemplateItems,
     Resources,
@@ -41,7 +43,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -58,6 +60,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 5) {
         await _upgradeToV5(m);
+      }
+      if (from < 6) {
+        await _upgradeToV6(m);
       }
     },
     beforeOpen: (details) async {
@@ -167,6 +172,11 @@ class AppDatabase extends _$AppDatabase {
   Future<void> _upgradeToV5(Migrator m) async {
     await m.createTable(packTemplates);
     await m.createTable(packTemplateItems);
+  }
+
+  Future<void> _upgradeToV6(Migrator m) async {
+    await m.createTable(sharedPackRemotePackMappings);
+    await m.createTable(sharedPackRemoteItemMappings);
   }
 
   Future<void> _ensureSystemDefaultPack() async {

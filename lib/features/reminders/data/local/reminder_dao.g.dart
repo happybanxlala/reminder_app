@@ -6,6 +6,10 @@ part of 'reminder_dao.dart';
 mixin _$ReminderDaoMixin on DatabaseAccessor<AppDatabase> {
   $ItemPacksTable get itemPacks => attachedDatabase.itemPacks;
   $ItemsTable get items => attachedDatabase.items;
+  $SharedPackRemotePackMappingsTable get sharedPackRemotePackMappings =>
+      attachedDatabase.sharedPackRemotePackMappings;
+  $SharedPackRemoteItemMappingsTable get sharedPackRemoteItemMappings =>
+      attachedDatabase.sharedPackRemoteItemMappings;
   $PackTemplatesTable get packTemplates => attachedDatabase.packTemplates;
   $PackTemplateItemsTable get packTemplateItems =>
       attachedDatabase.packTemplateItems;
@@ -33,6 +37,18 @@ class ReminderDaoManager {
       $$ItemPacksTableTableManager(_db.attachedDatabase, _db.itemPacks);
   $$ItemsTableTableManager get items =>
       $$ItemsTableTableManager(_db.attachedDatabase, _db.items);
+  $$SharedPackRemotePackMappingsTableTableManager
+  get sharedPackRemotePackMappings =>
+      $$SharedPackRemotePackMappingsTableTableManager(
+        _db.attachedDatabase,
+        _db.sharedPackRemotePackMappings,
+      );
+  $$SharedPackRemoteItemMappingsTableTableManager
+  get sharedPackRemoteItemMappings =>
+      $$SharedPackRemoteItemMappingsTableTableManager(
+        _db.attachedDatabase,
+        _db.sharedPackRemoteItemMappings,
+      );
   $$PackTemplatesTableTableManager get packTemplates =>
       $$PackTemplatesTableTableManager(_db.attachedDatabase, _db.packTemplates);
   $$PackTemplateItemsTableTableManager get packTemplateItems =>

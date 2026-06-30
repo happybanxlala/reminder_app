@@ -173,6 +173,8 @@ class StageRelatedItemEntry {
   tables: [
     ItemPacks,
     Items,
+    SharedPackRemotePackMappings,
+    SharedPackRemoteItemMappings,
     PackTemplates,
     PackTemplateItems,
     Resources,
@@ -2068,6 +2070,8 @@ class ReminderDao extends DatabaseAccessor<AppDatabase>
       ''');
     await customStatement('DELETE FROM pack_template_items');
     await customStatement('DELETE FROM pack_templates');
+    await customStatement('DELETE FROM shared_pack_remote_item_mappings');
+    await customStatement('DELETE FROM shared_pack_remote_pack_mappings');
     await customStatement('DELETE FROM resources');
     await customStatement('DELETE FROM items');
     await customStatement('''

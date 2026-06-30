@@ -50,6 +50,50 @@ class Items extends Table {
   IntColumn get updatedAt => integer()();
 }
 
+@DataClassName('SharedPackRemotePackMappingRow')
+class SharedPackRemotePackMappings extends Table {
+  @override
+  String get tableName => 'shared_pack_remote_pack_mappings';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get localPackId => integer().references(ItemPacks, #id)();
+  TextColumn get remotePackId => text()();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+  IntColumn get lastSyncedAt => integer().nullable()();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+    {remotePackId},
+    {localPackId},
+    {localPackId, remotePackId},
+  ];
+}
+
+@DataClassName('SharedPackRemoteItemMappingRow')
+class SharedPackRemoteItemMappings extends Table {
+  @override
+  String get tableName => 'shared_pack_remote_item_mappings';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get localItemId => integer().references(Items, #id)();
+  TextColumn get remoteItemId => text()();
+  IntColumn get localPackId => integer().references(ItemPacks, #id)();
+  TextColumn get remotePackId => text()();
+  TextColumn get lastRemoteState => text().nullable()();
+  IntColumn get lastRemoteCompletedAt => integer().nullable()();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+  IntColumn get lastSyncedAt => integer().nullable()();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+    {remoteItemId},
+    {localItemId},
+    {localItemId, remoteItemId},
+  ];
+}
+
 @DataClassName('PackTemplateRow')
 class PackTemplates extends Table {
   @override

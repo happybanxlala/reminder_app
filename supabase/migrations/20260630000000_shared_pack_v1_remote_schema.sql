@@ -49,7 +49,7 @@ create table if not exists public.shared_pack_invites (
   constraint shared_pack_invites_code_length_check
     check (char_length(code) = 6),
   constraint shared_pack_invites_code_charset_check
-    check (code ~ '^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$'),
+    check (code ~ '^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$'),
   constraint shared_pack_invites_code_avoids_ambiguous_check
     check (code !~ '[0O1IL]')
 );
@@ -147,7 +147,7 @@ language plpgsql
 volatile
 as $$
 declare
-  v_charset constant text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  v_charset constant text := 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
   v_code text := '';
   v_index integer;
 begin

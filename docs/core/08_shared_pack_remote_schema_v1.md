@@ -8,7 +8,7 @@ Phase 3B adds the first Supabase-side migration:
 supabase/migrations/20260630000000_shared_pack_v1_remote_schema.sql
 ```
 
-The migration creates schema and RPC contracts only. It does not wire the Flutter app to Supabase, and Shared Pack remote behavior is not usable from the app yet.
+The migration creates schema and RPC contracts. Phase 3D adds an isolated Flutter remote API boundary for these RPCs, but it does not wire Shared Pack remote behavior into UI, providers, app startup, Drift cache, routes, or user-facing flows.
 
 ## 1. Purpose
 
@@ -40,7 +40,7 @@ This document does not implement or design:
 - Widget shared actions.
 - Conflict resolution.
 
-Phase 3B adds Supabase-side foundation only. The Flutter app still has no Supabase client wiring, provider wiring, route changes, UI behavior changes, local cache writes, or runtime calls for Shared Pack remote behavior.
+Phase 3D adds Flutter-side remote API methods only. The app still has no Supabase startup configuration, provider wiring, route changes, UI behavior changes, local cache writes, or user-facing runtime flow for Shared Pack remote behavior.
 
 ## 2. Product Model
 
@@ -130,7 +130,7 @@ Invite code rules:
 - Canonical stored/query code is 6 characters.
 - Display may group as `K7M 4Q9`.
 - Stored/query form should be `K7M4Q9`.
-- Character set: `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`.
+- Character set: `ABCDEFGHJKMNPQRSTUVWXYZ23456789`.
 - Avoid ambiguous characters: `0`, `O`, `1`, `I`, `L`.
 - Users should not be required to type spaces or hyphens.
 - Invite code is scoped to one Shared Pack.
@@ -205,7 +205,60 @@ Support functions:
 - `public.shared_pack_is_owner_v1`
 - `public.set_updated_at`
 
-## 6. Identity Direction
+## 6. Flutter Remote API Boundary
+
+Flutter RPC wrappers live in:
+
+```text
+lib/features/shared_pack/remote/shared_pack_remote_api.dart
+```
+
+Implemented wrapper methods:
+
+- `SharedPackRemoteApi.createPack`
+- `SharedPackRemoteApi.generateInvite`
+- `SharedPackRemoteApi.previewInvite`
+- `SharedPackRemoteApi.joinByInvite`
+- `SharedPackRemoteApi.fetchSnapshot`
+- `SharedPackRemoteApi.updateItemState`
+
+Boundary notes:
+
+- `SharedPackRemoteApi` uses an injected RPC client.
+- A private Supabase-backed RPC adapter is the only Supabase client adapter in this boundary.
+- `SharedPackRemoteRepository` is a thin wrapper over the remote API.
+- DTO parsing and invite-code normalization stay in the remote boundary.
+- No UI, provider, app startup, route, realtime, outbox, background sync, account binding, personal cloud migration, or restore flow calls these methods yet.
+
+## 6.1 Application Service Boundary
+
+Phase 3F adds an isolated application service at:
+
+```text
+lib/features/shared_pack/application/shared_pack_application_service.dart
+```
+
+Implemented service methods:
+
+- `SharedPackApplicationService.createSharedPack`
+- `SharedPackApplicationService.generateInvite`
+- `SharedPackApplicationService.previewInvite`
+- `SharedPackApplicationService.joinByInvite`
+- `SharedPackApplicationService.refreshSharedPack`
+- `SharedPackApplicationService.updateSharedItemState`
+
+Boundary notes:
+
+- The service coordinates `SharedPackRemoteRepository`, `SharedPackCacheProjectionService`, and `SharedPackIdentityProvider`.
+- Create, join, refresh, and item-state update flows require remote success before local cache projection.
+- Generate invite and refresh resolve `local_pack_id -> remote_pack_id` through centralized mapping when the caller starts from a local Pack id.
+- Item-state update resolves `local_item_id -> remote_item_id` through centralized mapping when the caller starts from a local item id.
+- Missing mapping, identity failure, remote failure, and projection failure are returned as application-level results, not user-facing copy.
+- `SharedPackIdentityProvider` is a temporary service boundary, not account binding, account protection, OAuth, or account switching.
+- The service is not wired into UI, providers, routes, app startup, existing reminder completion actions, or Pack settings actions.
+- Phase 4 or later must define account binding before this becomes a production user flow.
+
+## 7. Identity Direction
 
 Shared Pack v1 may require a remote identity before full account binding exists.
 
@@ -219,9 +272,9 @@ However:
 - Do not add Google / Apple OAuth.
 - Do not add account switching.
 
-## 7. Local / Remote Mapping Direction
+## 8. Local / Remote Mapping Direction
 
-Future implementation must centralize local / remote mapping:
+Phase 3E centralizes local / remote mapping:
 
 - `local_pack_id <-> remote_pack_id`
 - `local_item_id <-> remote_item_id`
@@ -230,10 +283,51 @@ Mapping expectations:
 
 - Mapping must be centralized.
 - Do not add unrelated mapping fields across multiple tables.
-- Core model spec must list mapping tables / fields before implementation.
-- Phase 3B does not implement Drift mapping changes.
+- Core model spec lists mapping tables / fields.
+- Drift mapping tables are `shared_pack_remote_pack_mappings` and `shared_pack_remote_item_mappings`.
+- Mapping is a technical cache concern, not a user-facing product category.
 
-## 8. Request-to-Object Mapping
+## 9. Local Cache Projection
+
+Phase 3E adds a local cache projection foundation at:
+
+```text
+lib/features/shared_pack/data/shared_pack_cache_projection_service.dart
+```
+
+Mapping tables:
+
+- `shared_pack_remote_pack_mappings`
+- `shared_pack_remote_item_mappings`
+
+Snapshot projection behavior:
+
+- `FetchSharedPackSnapshotRemoteResponse` can create or update a local Shared Pack cache row.
+- Projection preserves the existing `local_pack_id` when `remote_pack_id` is already mapped.
+- Projection creates or updates local item cache rows for remote snapshot items.
+- Projection preserves existing `local_item_id` values when `remote_item_id` is already mapped.
+- Remote item `schedule_payload` is not converted in Phase 3E.
+- Missing remote items are not deleted or archived during Phase 3E projection.
+
+Item state projection behavior:
+
+- `UpdateSharedPackItemStateRemoteResponse` updates mapped local item cache state fields only when `remote_item_id` mapping exists.
+- If mapping is missing, projection returns a missing-mapping result and does not create a partial local item.
+- Remote success is required before future app flows should call this projection.
+
+Limitations:
+
+- No UI wiring.
+- No provider or app startup wiring.
+- No deletion / archive reconciliation.
+- No realtime.
+- No outbox.
+- No conflict resolution.
+- No account binding.
+- No personal cloud migration.
+- No restore flow.
+
+## 10. Request-to-Object Mapping
 
 ### shared_pack.create_pack.v1
 
@@ -327,7 +421,7 @@ Notes:
 - Remote success is required before local cache update in v1.
 - See `docs/core/07_remote_request_catalog.md`.
 
-## 9. RLS Direction
+## 11. RLS Direction
 
 Phase 3B enables RLS on:
 
@@ -345,7 +439,7 @@ Current RLS status: enabled and conservative. Policies use active-member and own
 - Service role must not be used by the Flutter client.
 - No service role key should ever be stored in the app or backup.
 
-## 10. Manual Refresh Data Flow
+## 12. Manual Refresh Data Flow
 
 Write flow:
 
@@ -376,14 +470,77 @@ Shared Pack v1 does not include:
 - Realtime.
 - Background sync.
 
-## 11. Open Questions
+## 13. Remote-side Smoke Test
+
+Smoke test artifact:
+
+```text
+supabase/tests/shared_pack_v1_rpc_smoke_test.sql
+```
+
+Migration prerequisite:
+
+```text
+supabase/migrations/20260630000000_shared_pack_v1_remote_schema.sql
+```
+
+The smoke test is a manual/local SQL script. It runs in a transaction and ends with `ROLLBACK`, so it should not leave persistent test data.
+
+Happy path coverage:
+
+- Create pack through `public.shared_pack_create_pack_v1`.
+- Confirm owner membership is created.
+- Generate invite through `public.shared_pack_generate_invite_v1`.
+- Confirm invite code length, allowed charset, and ambiguous-character exclusions.
+- Preview invite through `public.shared_pack_preview_invite_v1`.
+- Join by invite through `public.shared_pack_join_by_invite_v1`.
+- Repeat join and confirm duplicate active membership is not created.
+- Prepare one test item directly in `public.shared_pack_items` as smoke test setup only.
+- Fetch snapshot through `public.shared_pack_fetch_snapshot_v1` as owner and member.
+- Update item state through `public.shared_pack_update_item_state_v1`.
+- Fetch snapshot again and confirm the updated item state is visible.
+
+Negative case coverage:
+
+- Invalid invite preview returns not joinable / no target Pack data.
+- Invalid invite join fails and does not create membership.
+- Non-member fetch fails.
+- Non-member update fails and does not change item state.
+- Direct insert of an invalid invite code is rejected by constraints.
+
+Expected result:
+
+- The SQL script completes without raised assertion errors.
+- The final statement rolls back all smoke test data.
+
+Local execution status:
+
+- Passed on 2026-07-01 in a local Supabase database at `127.0.0.1:54322`.
+- Execution command:
+  `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/shared_pack_v1_rpc_smoke_test.sql`
+- Happy path and negative cases completed without raised assertion errors.
+- No Flutter behavior changed as part of this remote-side smoke test.
+
+Manual run path:
+
+```text
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/shared_pack_v1_rpc_smoke_test.sql
+```
+
+Known limitation:
+
+- The script validates RPC membership checks with explicit `identity_id` values.
+- Full JWT / auth-context testing remains for a later Supabase test setup.
+- The Flutter app has isolated remote API methods, but no UI / provider / app flow calls these RPCs.
+
+## 14. Open Questions
 
 - What exact remote identity source will Shared Pack v1 use before full account binding?
 - What is the minimum item payload needed to represent current Reminder App items?
-- What local Drift mapping table / fields will be added in the next implementation phase?
+- What full local cache refresh UI and manual trigger will call projection in a later phase?
 - How will manual test accounts / dev identities be created without exposing technical identity language to users?
 
-## 12. Phase 3B Acceptance Checklist
+## 15. Phase 3B Acceptance Checklist
 
 - Remote schema contract document exists.
 - Minimum tables are documented.

@@ -44,7 +44,7 @@ Every future request entry must include these fields.
 | --- | --- |
 | Request ID | Stable ID, for example `shared_pack.create_pack.v1` |
 | Feature | `shared_pack` / `account_binding` / `personal_cloud_migration` / `cloud_restore` / `debug_or_manual_test` |
-| Status | `planned` / `active` / `deprecated` |
+| Status | `planned` / `implemented_not_wired` / `active` / `deprecated` |
 | Code entry | Actual Dart file and method that performs the request |
 | Supabase object | Table / view / RPC / auth call name |
 | Operation | `select` / `insert` / `update` / `delete` / `rpc` / `auth` |
@@ -78,6 +78,13 @@ Template:
 | Notes | Planned placeholder only |
 ```
 
+Status meaning:
+
+- `planned`: documented but no Dart request implementation exists yet.
+- `implemented_not_wired`: Dart remote API and/or isolated application boundary exists, but no production UI, provider, app startup, or user-facing flow calls it yet.
+- `active`: reachable from production app UI / provider / app startup / user-facing flow.
+- `deprecated`: retained only for compatibility or migration review.
+
 ## 4. Request ID Convention
 
 Use:
@@ -108,7 +115,7 @@ Rules:
 
 ## 5. Future Code Boundary
 
-Phase 2B creates these files as compile-only boundary placeholders. They are not wired into runtime and do not implement Supabase calls, Drift writes, auth, invite validation, sync, routes, or UI behavior.
+Phase 3D keeps Shared Pack remote behavior inside this boundary. It is not wired into UI, providers, app startup, Drift writes, auth setup, sync, routes, or user-visible behavior.
 
 ```text
 lib/features/shared_pack/remote/
@@ -119,22 +126,24 @@ lib/features/shared_pack/remote/
   shared_pack_remote_repository.dart
 ```
 
-Expected responsibilities:
+Responsibilities:
 
-- `shared_pack_remote_api.dart` is the only future Shared Pack location allowed to call Supabase table / RPC directly.
+- `shared_pack_remote_api.dart` is the only Shared Pack location allowed to call Supabase RPCs directly.
 - `shared_pack_remote_request_ids.dart` mirrors Request IDs listed in this catalog.
 - `shared_pack_remote_dto.dart` owns remote input / output DTOs.
-- `shared_pack_remote_mapper.dart` converts remote DTOs to local / domain / cache models.
-- `shared_pack_remote_repository.dart` exposes clean methods to domain or application layers.
+- `shared_pack_remote_mapper.dart` owns remote response parsing and invite-code normalization only.
+- `shared_pack_remote_repository.dart` is a thin wrapper over the remote API.
 
 UI, pages, widgets, controllers, and providers must call application / repository methods, not Supabase directly.
 
-## 6. Planned Requests: Shared Pack v1
+## 6. Shared Pack v1 Remote API Requests
 
-All entries in this section are planned placeholders only. They must not be treated as implemented behavior.
+All entries in this section have Flutter remote API implementations and an isolated application service boundary. They must not be treated as user-active behavior because no production UI, provider, route, app startup, sync, or invite flow calls them yet.
 
 Schema contract reference: `docs/core/08_shared_pack_remote_schema_v1.md`.
 Migration reference: `supabase/migrations/20260630000000_shared_pack_v1_remote_schema.sql`.
+Local cache mapping tables: `shared_pack_remote_pack_mappings` for `local_pack_id <-> remote_pack_id`, and `shared_pack_remote_item_mappings` for `local_item_id <-> remote_item_id`.
+Remote-side smoke test reference: `supabase/tests/shared_pack_v1_rpc_smoke_test.sql` passed on 2026-07-01 against local Supabase / `psql`.
 
 ### shared_pack.create_pack.v1
 
@@ -142,17 +151,17 @@ Migration reference: `supabase/migrations/20260630000000_shared_pack_v1_remote_s
 | --- | --- |
 | Request ID | `shared_pack.create_pack.v1` |
 | Feature | `shared_pack` |
-| Status | `planned` |
-| Code entry | `lib/features/shared_pack/remote/shared_pack_remote_api.dart` / `SharedPackRemoteApi.createPack` |
+| Status | `implemented_not_wired` |
+| Code entry | `lib/features/shared_pack/remote/shared_pack_remote_api.dart` / `SharedPackRemoteApi.createPack`; `lib/features/shared_pack/application/shared_pack_application_service.dart` / `SharedPackApplicationService.createSharedPack` |
 | Supabase object | `public.shared_pack_create_pack_v1`, `public.shared_packs`, `public.shared_pack_members` |
 | Operation | `rpc` |
 | Auth required | Undecided |
-| Input DTO | Not implemented |
-| Output DTO | Not implemented |
-| Local effect | After remote success, create or update `local_pack_id <-> remote_pack_id` mapping |
-| Error behavior | Not implemented |
-| Test coverage | Schema and migration guardrails only: `test/shared_pack_remote_schema_contract_test.dart`, `test/shared_pack_remote_migration_contract_test.dart` |
-| Notes | Planned only; Flutter does not call this request yet. Migration: `supabase/migrations/20260630000000_shared_pack_v1_remote_schema.sql`. Schema contract: `docs/core/08_shared_pack_remote_schema_v1.md`. |
+| Input DTO | `CreateSharedPackRemoteRequest` |
+| Output DTO | `CreateSharedPackRemoteResponse` |
+| Local effect | Phase 3F application service calls remote create first, then projects a local Shared Pack cache shell and `local_pack_id <-> remote_pack_id` mapping after remote success; not wired into production app flow yet |
+| Error behavior | `SharedPackRemoteException` is wrapped as `SharedPackApplicationErrorCode.remoteFailure` with request ID; projection failure is surfaced as `projectionFailure`; identity failure is `missingIdentity`; not user-facing |
+| Test coverage | Application service tests: `test/shared_pack_application_service_test.dart`; Flutter API tests: `test/shared_pack_remote_api_test.dart`; boundary/catalog/schema/migration/smoke guardrails: `test/shared_pack_remote_boundary_test.dart`, `test/shared_pack_remote_schema_contract_test.dart`, `test/shared_pack_remote_migration_contract_test.dart`, `test/shared_pack_rpc_smoke_test_contract_test.dart`; manual SQL artifact passed locally on 2026-07-01: `supabase/tests/shared_pack_v1_rpc_smoke_test.sql` |
+| Notes | Flutter remote API and isolated application service implementation exist, but no production UI/provider/app flow calls them yet. Migration: `supabase/migrations/20260630000000_shared_pack_v1_remote_schema.sql`. Schema contract: `docs/core/08_shared_pack_remote_schema_v1.md`. |
 
 ### shared_pack.generate_invite.v1
 
@@ -160,17 +169,17 @@ Migration reference: `supabase/migrations/20260630000000_shared_pack_v1_remote_s
 | --- | --- |
 | Request ID | `shared_pack.generate_invite.v1` |
 | Feature | `shared_pack` |
-| Status | `planned` |
-| Code entry | `lib/features/shared_pack/remote/shared_pack_remote_api.dart` / `SharedPackRemoteApi.generateInvite` |
+| Status | `implemented_not_wired` |
+| Code entry | `lib/features/shared_pack/remote/shared_pack_remote_api.dart` / `SharedPackRemoteApi.generateInvite`; `lib/features/shared_pack/application/shared_pack_application_service.dart` / `SharedPackApplicationService.generateInvite` |
 | Supabase object | `public.shared_pack_generate_invite_v1`, `public.shared_pack_invites` |
 | Operation | `rpc` |
 | Auth required | Undecided |
-| Input DTO | Not implemented |
-| Output DTO | Not implemented |
-| Local effect | None until remote success; may update cached invite metadata in later phase |
-| Error behavior | Not implemented |
-| Test coverage | Schema and migration guardrails only: `test/shared_pack_remote_schema_contract_test.dart`, `test/shared_pack_remote_migration_contract_test.dart` |
-| Notes | Planned only; Flutter does not call this request yet. SQL generation uses 6-character codes from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`. Migration: `supabase/migrations/20260630000000_shared_pack_v1_remote_schema.sql`. Schema contract: `docs/core/08_shared_pack_remote_schema_v1.md`. |
+| Input DTO | `GenerateSharedPackInviteRemoteRequest` |
+| Output DTO | `GenerateSharedPackInviteRemoteResponse` |
+| Local effect | Application service resolves `local_pack_id -> remote_pack_id` when needed, then calls remote generate; no Drift write for invite metadata in v1 |
+| Error behavior | Missing local pack mapping returns `missingPackMapping` before remote call; remote failures are `remoteFailure` with request ID; identity failure is `missingIdentity`; not user-facing |
+| Test coverage | Application service tests: `test/shared_pack_application_service_test.dart`; Flutter API tests: `test/shared_pack_remote_api_test.dart`; boundary/catalog/schema/migration/smoke guardrails: `test/shared_pack_remote_boundary_test.dart`, `test/shared_pack_remote_schema_contract_test.dart`, `test/shared_pack_remote_migration_contract_test.dart`, `test/shared_pack_rpc_smoke_test_contract_test.dart`; manual SQL artifact passed locally on 2026-07-01: `supabase/tests/shared_pack_v1_rpc_smoke_test.sql` |
+| Notes | Flutter remote API and isolated application service implementation exist, but no production UI/provider/app flow calls them yet. SQL generation uses 6-character codes from `ABCDEFGHJKMNPQRSTUVWXYZ23456789`. Migration: `supabase/migrations/20260630000000_shared_pack_v1_remote_schema.sql`. Schema contract: `docs/core/08_shared_pack_remote_schema_v1.md`. |
 
 ### shared_pack.preview_invite.v1
 
@@ -178,17 +187,17 @@ Migration reference: `supabase/migrations/20260630000000_shared_pack_v1_remote_s
 | --- | --- |
 | Request ID | `shared_pack.preview_invite.v1` |
 | Feature | `shared_pack` |
-| Status | `planned` |
-| Code entry | `lib/features/shared_pack/remote/shared_pack_remote_api.dart` / `SharedPackRemoteApi.previewInvite` |
+| Status | `implemented_not_wired` |
+| Code entry | `lib/features/shared_pack/remote/shared_pack_remote_api.dart` / `SharedPackRemoteApi.previewInvite`; `lib/features/shared_pack/application/shared_pack_application_service.dart` / `SharedPackApplicationService.previewInvite` |
 | Supabase object | `public.shared_pack_preview_invite_v1`, `public.shared_pack_invites`, `public.shared_packs` |
 | Operation | `rpc` |
 | Auth required | Undecided |
-| Input DTO | Not implemented |
-| Output DTO | Not implemented |
+| Input DTO | `PreviewSharedPackInviteRemoteRequest` |
+| Output DTO | `PreviewSharedPackInviteRemoteResponse` |
 | Local effect | No Drift write; preview only |
-| Error behavior | Not implemented |
-| Test coverage | Schema and migration guardrails only: `test/shared_pack_remote_schema_contract_test.dart`, `test/shared_pack_remote_migration_contract_test.dart` |
-| Notes | Planned only; Flutter does not call this request yet. Invite code resolves to one specific Pack, not a user workspace. Migration: `supabase/migrations/20260630000000_shared_pack_v1_remote_schema.sql`. Schema contract: `docs/core/08_shared_pack_remote_schema_v1.md`. |
+| Error behavior | Invalid input returns `invalidInput`; remote failures are `remoteFailure` with request ID; not user-facing |
+| Test coverage | Application service tests: `test/shared_pack_application_service_test.dart`; Flutter API tests: `test/shared_pack_remote_api_test.dart`; boundary/catalog/schema/migration/smoke guardrails: `test/shared_pack_remote_boundary_test.dart`, `test/shared_pack_remote_schema_contract_test.dart`, `test/shared_pack_remote_migration_contract_test.dart`, `test/shared_pack_rpc_smoke_test_contract_test.dart`; manual SQL artifact passed locally on 2026-07-01: `supabase/tests/shared_pack_v1_rpc_smoke_test.sql` |
+| Notes | Flutter remote API and isolated application service implementation exist, but no production UI/provider/app flow calls them yet. Invite code resolves to one specific Pack, not a user workspace. Migration: `supabase/migrations/20260630000000_shared_pack_v1_remote_schema.sql`. Schema contract: `docs/core/08_shared_pack_remote_schema_v1.md`. |
 
 ### shared_pack.join_by_invite.v1
 
@@ -196,17 +205,17 @@ Migration reference: `supabase/migrations/20260630000000_shared_pack_v1_remote_s
 | --- | --- |
 | Request ID | `shared_pack.join_by_invite.v1` |
 | Feature | `shared_pack` |
-| Status | `planned` |
-| Code entry | `lib/features/shared_pack/remote/shared_pack_remote_api.dart` / `SharedPackRemoteApi.joinByInvite` |
+| Status | `implemented_not_wired` |
+| Code entry | `lib/features/shared_pack/remote/shared_pack_remote_api.dart` / `SharedPackRemoteApi.joinByInvite`; `lib/features/shared_pack/application/shared_pack_application_service.dart` / `SharedPackApplicationService.joinByInvite` |
 | Supabase object | `public.shared_pack_join_by_invite_v1`, `public.shared_pack_invites`, `public.shared_pack_members` |
 | Operation | `rpc` |
 | Auth required | Undecided |
-| Input DTO | Not implemented |
-| Output DTO | Not implemented |
-| Local effect | After remote success, create or update Shared Pack local cache / mapping |
-| Error behavior | Not implemented |
-| Test coverage | Schema and migration guardrails only: `test/shared_pack_remote_schema_contract_test.dart`, `test/shared_pack_remote_migration_contract_test.dart` |
-| Notes | Planned only; Flutter does not call this request yet. RPC validates invite and creates or returns active membership. Migration: `supabase/migrations/20260630000000_shared_pack_v1_remote_schema.sql`. Schema contract: `docs/core/08_shared_pack_remote_schema_v1.md`. |
+| Input DTO | `JoinSharedPackByInviteRemoteRequest` |
+| Output DTO | `JoinSharedPackByInviteRemoteResponse` |
+| Local effect | Application service calls remote join first, then projects a local Shared Pack cache shell and `local_pack_id <-> remote_pack_id` mapping after remote success; snapshot refresh remains a separate explicit service call |
+| Error behavior | Invalid input returns `invalidInput`; remote failures are `remoteFailure` with request ID; projection failures are `projectionFailure`; identity failure is `missingIdentity`; not user-facing |
+| Test coverage | Application service tests: `test/shared_pack_application_service_test.dart`; Flutter API tests: `test/shared_pack_remote_api_test.dart`; boundary/catalog/schema/migration/smoke guardrails: `test/shared_pack_remote_boundary_test.dart`, `test/shared_pack_remote_schema_contract_test.dart`, `test/shared_pack_remote_migration_contract_test.dart`, `test/shared_pack_rpc_smoke_test_contract_test.dart`; manual SQL artifact passed locally on 2026-07-01: `supabase/tests/shared_pack_v1_rpc_smoke_test.sql` |
+| Notes | Flutter remote API and isolated application service implementation exist, but no production UI/provider/app flow calls them yet. RPC validates invite and creates or returns active membership. Migration: `supabase/migrations/20260630000000_shared_pack_v1_remote_schema.sql`. Schema contract: `docs/core/08_shared_pack_remote_schema_v1.md`. |
 
 ### shared_pack.fetch_snapshot.v1
 
@@ -214,17 +223,17 @@ Migration reference: `supabase/migrations/20260630000000_shared_pack_v1_remote_s
 | --- | --- |
 | Request ID | `shared_pack.fetch_snapshot.v1` |
 | Feature | `shared_pack` |
-| Status | `planned` |
-| Code entry | `lib/features/shared_pack/remote/shared_pack_remote_api.dart` / `SharedPackRemoteApi.fetchSnapshot` |
+| Status | `implemented_not_wired` |
+| Code entry | `lib/features/shared_pack/remote/shared_pack_remote_api.dart` / `SharedPackRemoteApi.fetchSnapshot`; `lib/features/shared_pack/application/shared_pack_application_service.dart` / `SharedPackApplicationService.refreshSharedPack` |
 | Supabase object | `public.shared_pack_fetch_snapshot_v1`, `public.shared_packs`, `public.shared_pack_members`, `public.shared_pack_items` |
 | Operation | `rpc` |
 | Auth required | Undecided |
-| Input DTO | Not implemented |
-| Output DTO | Not implemented |
-| Local effect | Update local Drift cache after successful manual refresh |
-| Error behavior | Not implemented |
-| Test coverage | Schema and migration guardrails only: `test/shared_pack_remote_schema_contract_test.dart`, `test/shared_pack_remote_migration_contract_test.dart` |
-| Notes | Planned only; Flutter does not call this request yet. Manual refresh only; no realtime listener. `shared_pack_item_states` is deferred for v1. Migration: `supabase/migrations/20260630000000_shared_pack_v1_remote_schema.sql`. Schema contract: `docs/core/08_shared_pack_remote_schema_v1.md`. |
+| Input DTO | `FetchSharedPackSnapshotRemoteRequest` |
+| Output DTO | `FetchSharedPackSnapshotRemoteResponse`, `SharedPackSnapshotItemRemoteDto` |
+| Local effect | Application service resolves `local_pack_id -> remote_pack_id` when needed, calls remote snapshot fetch, then projects the snapshot into local Drift cache and maintains pack/item mappings after remote success |
+| Error behavior | Missing local pack mapping returns `missingPackMapping` before remote call; remote failures are `remoteFailure` with request ID; projection failures are `projectionFailure`; identity failure is `missingIdentity`; not user-facing |
+| Test coverage | Application service tests: `test/shared_pack_application_service_test.dart`; Flutter API tests: `test/shared_pack_remote_api_test.dart`; boundary/catalog/schema/migration/smoke guardrails: `test/shared_pack_remote_boundary_test.dart`, `test/shared_pack_remote_schema_contract_test.dart`, `test/shared_pack_remote_migration_contract_test.dart`, `test/shared_pack_rpc_smoke_test_contract_test.dart`; manual SQL artifact passed locally on 2026-07-01: `supabase/tests/shared_pack_v1_rpc_smoke_test.sql` |
+| Notes | Flutter remote API and isolated application service implementation exist, but no production UI/provider/app flow calls them yet. Manual refresh service exists only as an unwired application boundary; no realtime listener. `shared_pack_item_states` is deferred for v1. Migration: `supabase/migrations/20260630000000_shared_pack_v1_remote_schema.sql`. Schema contract: `docs/core/08_shared_pack_remote_schema_v1.md`. |
 
 ### shared_pack.update_item_state.v1
 
@@ -232,17 +241,17 @@ Migration reference: `supabase/migrations/20260630000000_shared_pack_v1_remote_s
 | --- | --- |
 | Request ID | `shared_pack.update_item_state.v1` |
 | Feature | `shared_pack` |
-| Status | `planned` |
-| Code entry | `lib/features/shared_pack/remote/shared_pack_remote_api.dart` / `SharedPackRemoteApi.updateItemState` |
+| Status | `implemented_not_wired` |
+| Code entry | `lib/features/shared_pack/remote/shared_pack_remote_api.dart` / `SharedPackRemoteApi.updateItemState`; `lib/features/shared_pack/application/shared_pack_application_service.dart` / `SharedPackApplicationService.updateSharedItemState` |
 | Supabase object | `public.shared_pack_update_item_state_v1`, `public.shared_pack_items` |
 | Operation | `rpc` |
 | Auth required | Undecided |
-| Input DTO | Not implemented |
-| Output DTO | Not implemented |
-| Local effect | Update local Drift cache only after remote success |
-| Error behavior | Not implemented |
-| Test coverage | Schema and migration guardrails only: `test/shared_pack_remote_schema_contract_test.dart`, `test/shared_pack_remote_migration_contract_test.dart` |
-| Notes | Planned only; Flutter does not call this request yet. Remote success is required before local cache update in v1. No outbox. `shared_pack_item_states` is deferred for v1. Migration: `supabase/migrations/20260630000000_shared_pack_v1_remote_schema.sql`. Schema contract: `docs/core/08_shared_pack_remote_schema_v1.md`. |
+| Input DTO | `UpdateSharedPackItemStateRemoteRequest` |
+| Output DTO | `UpdateSharedPackItemStateRemoteResponse` |
+| Local effect | Application service resolves `local_item_id -> remote_item_id` when needed, calls remote update, then projects item-state response into mapped local cache after remote success; no optimistic local update |
+| Error behavior | Missing local item mapping returns `missingItemMapping` before remote call; remote failures are `remoteFailure` with request ID; projection failures are `projectionFailure`; identity failure is `missingIdentity`; not user-facing |
+| Test coverage | Application service tests: `test/shared_pack_application_service_test.dart`; Flutter API tests: `test/shared_pack_remote_api_test.dart`; boundary/catalog/schema/migration/smoke guardrails: `test/shared_pack_remote_boundary_test.dart`, `test/shared_pack_remote_schema_contract_test.dart`, `test/shared_pack_remote_migration_contract_test.dart`, `test/shared_pack_rpc_smoke_test_contract_test.dart`; manual SQL artifact passed locally on 2026-07-01: `supabase/tests/shared_pack_v1_rpc_smoke_test.sql` |
+| Notes | Flutter remote API and isolated application service implementation exist, but no production UI/provider/app flow calls them yet. Remote success is required before local cache projection. No outbox. `shared_pack_item_states` is deferred for v1. Migration: `supabase/migrations/20260630000000_shared_pack_v1_remote_schema.sql`. Schema contract: `docs/core/08_shared_pack_remote_schema_v1.md`. |
 
 ## 7. Planned Requests: Account Binding
 

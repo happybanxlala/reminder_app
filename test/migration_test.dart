@@ -4,11 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 
 void main() {
-  test('database uses schema version 5 and core tables are writable', () async {
+  test('database uses schema version 6 and core tables are writable', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
 
-    expect(db.schemaVersion, 5);
+    expect(db.schemaVersion, 6);
 
     final packId = await db
         .into(db.itemPacks)
@@ -50,6 +50,32 @@ void main() {
             lastDoneAt: const Value.absent(),
             createdAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
             updatedAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+          ),
+        );
+
+    final packMappingId = await db
+        .into(db.sharedPackRemotePackMappings)
+        .insert(
+          SharedPackRemotePackMappingsCompanion.insert(
+            localPackId: packId,
+            remotePackId: '00000000-0000-4000-8000-000000000010',
+            createdAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+            updatedAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+            lastSyncedAt: Value(DateTime(2026, 4, 1).millisecondsSinceEpoch),
+          ),
+        );
+    final itemMappingId = await db
+        .into(db.sharedPackRemoteItemMappings)
+        .insert(
+          SharedPackRemoteItemMappingsCompanion.insert(
+            localItemId: itemId,
+            remoteItemId: '00000000-0000-4000-8000-000000000020',
+            localPackId: packId,
+            remotePackId: '00000000-0000-4000-8000-000000000010',
+            lastRemoteState: const Value('open'),
+            createdAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+            updatedAt: DateTime(2026, 4, 1).millisecondsSinceEpoch,
+            lastSyncedAt: Value(DateTime(2026, 4, 1).millisecondsSinceEpoch),
           ),
         );
 
@@ -167,6 +193,8 @@ void main() {
 
     expect(packId, greaterThan(0));
     expect(itemId, greaterThan(0));
+    expect(packMappingId, greaterThan(0));
+    expect(itemMappingId, greaterThan(0));
     expect(templateId, greaterThan(0));
     expect(templateItemId, greaterThan(0));
     expect(resourceId, greaterThan(0));
@@ -196,6 +224,8 @@ void main() {
     final settings = await db.select(db.appSettingsEntries).get();
     final templates = await db.select(db.packTemplates).get();
     final templateItems = await db.select(db.packTemplateItems).get();
+    final packMappings = await db.select(db.sharedPackRemotePackMappings).get();
+    final itemMappings = await db.select(db.sharedPackRemoteItemMappings).get();
     expect(defaultPacks, hasLength(1));
     expect(items.single.status, 'active');
     expect(items.single.attentionPolicySource, 'systemDefault');
@@ -213,5 +243,7 @@ void main() {
     expect(settings.single.notificationReminderTime, '20:30');
     expect(templates.single.templateName, '家務');
     expect(templateItems.single.title, '倒垃圾');
+    expect(packMappings.single.localPackId, packId);
+    expect(itemMappings.single.localItemId, itemId);
   });
 }

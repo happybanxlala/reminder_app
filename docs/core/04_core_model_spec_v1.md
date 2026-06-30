@@ -1124,7 +1124,7 @@ Pack 管理 route：`/feature/item-packs-management`，route name：`item-packs-
 
 ## 5. Drift Schema
 
-目前 schema version：`5`。
+目前 schema version：`6`。
 
 ### 5.1 item_packs
 
@@ -1356,6 +1356,52 @@ createdAt
 updatedAt
 ```
 
+### 5.14 shared_pack_remote_pack_mappings
+
+Shared Pack v1 local cache projection 會用本表集中保存 `local_pack_id <-> remote_pack_id` mapping。這是 storage / cache implementation，不是使用者需要理解的產品分類；產品語言仍是 Personal Pack / Shared Pack。
+
+```text
+id
+localPackId
+remotePackId
+createdAt
+updatedAt
+lastSyncedAt
+```
+
+約束：
+
+- `localPackId` references `item_packs.id`。
+- `remotePackId` unique。
+- `localPackId` unique。
+- `localPackId + remotePackId` unique。
+
+### 5.15 shared_pack_remote_item_mappings
+
+Shared Pack v1 local cache projection 會用本表集中保存 `local_item_id <-> remote_item_id` mapping，並保存最後一次投影看到的 remote item state metadata。mapping 不可分散寫入 unrelated local tables。
+
+```text
+id
+localItemId
+remoteItemId
+localPackId
+remotePackId
+lastRemoteState
+lastRemoteCompletedAt
+createdAt
+updatedAt
+lastSyncedAt
+```
+
+約束：
+
+- `localItemId` references `items.id`。
+- `localPackId` references `item_packs.id`。
+- `remoteItemId` unique。
+- `localItemId` unique。
+- `localItemId + remoteItemId` unique。
+- projection service 必須確認 item mapping 指向的 `localPackId` / `remotePackId` 和 pack mapping 一致。
+
 ## 6. MVP 待完成
 
 本章只列產品已明確要收斂，但目前 repo 尚未完整實作的 MVP 項目。這些項目不可寫入「已實作行為」。
@@ -1379,7 +1425,7 @@ updatedAt
 - Resource history 跳回來源 Item action。
 - 多來源 related item。
 - Pack 搜尋與 drag and drop 排序。
-- 未來 Shared Pack v1 實作前，需要先定義集中管理的 `local_pack_id <-> remote_pack_id` 與 `local_item_id <-> remote_item_id` mapping；目前 Drift schema 與 repository 行為尚未實作此能力。
+- Shared Pack v1 目前只有 isolated remote API boundary、application service boundary 與 local cache projection foundation；application service 使用集中 mapping tables 解析 Pack / Item remote IDs，但尚未接 UI、provider、route、app startup、manual refresh、account binding、restore、realtime、outbox 或 background sync。
 
 ## 8. 命名規則
 

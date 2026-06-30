@@ -2083,6 +2083,1116 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
   }
 }
 
+class $SharedPackRemotePackMappingsTable extends SharedPackRemotePackMappings
+    with
+        TableInfo<
+          $SharedPackRemotePackMappingsTable,
+          SharedPackRemotePackMappingRow
+        > {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SharedPackRemotePackMappingsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _localPackIdMeta = const VerificationMeta(
+    'localPackId',
+  );
+  @override
+  late final GeneratedColumn<int> localPackId = GeneratedColumn<int>(
+    'local_pack_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES item_packs (id)',
+    ),
+  );
+  static const VerificationMeta _remotePackIdMeta = const VerificationMeta(
+    'remotePackId',
+  );
+  @override
+  late final GeneratedColumn<String> remotePackId = GeneratedColumn<String>(
+    'remote_pack_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastSyncedAtMeta = const VerificationMeta(
+    'lastSyncedAt',
+  );
+  @override
+  late final GeneratedColumn<int> lastSyncedAt = GeneratedColumn<int>(
+    'last_synced_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    localPackId,
+    remotePackId,
+    createdAt,
+    updatedAt,
+    lastSyncedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'shared_pack_remote_pack_mappings';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SharedPackRemotePackMappingRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('local_pack_id')) {
+      context.handle(
+        _localPackIdMeta,
+        localPackId.isAcceptableOrUnknown(
+          data['local_pack_id']!,
+          _localPackIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_localPackIdMeta);
+    }
+    if (data.containsKey('remote_pack_id')) {
+      context.handle(
+        _remotePackIdMeta,
+        remotePackId.isAcceptableOrUnknown(
+          data['remote_pack_id']!,
+          _remotePackIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_remotePackIdMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('last_synced_at')) {
+      context.handle(
+        _lastSyncedAtMeta,
+        lastSyncedAt.isAcceptableOrUnknown(
+          data['last_synced_at']!,
+          _lastSyncedAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {remotePackId},
+    {localPackId},
+    {localPackId, remotePackId},
+  ];
+  @override
+  SharedPackRemotePackMappingRow map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SharedPackRemotePackMappingRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      localPackId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}local_pack_id'],
+      )!,
+      remotePackId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_pack_id'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      lastSyncedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_synced_at'],
+      ),
+    );
+  }
+
+  @override
+  $SharedPackRemotePackMappingsTable createAlias(String alias) {
+    return $SharedPackRemotePackMappingsTable(attachedDatabase, alias);
+  }
+}
+
+class SharedPackRemotePackMappingRow extends DataClass
+    implements Insertable<SharedPackRemotePackMappingRow> {
+  final int id;
+  final int localPackId;
+  final String remotePackId;
+  final int createdAt;
+  final int updatedAt;
+  final int? lastSyncedAt;
+  const SharedPackRemotePackMappingRow({
+    required this.id,
+    required this.localPackId,
+    required this.remotePackId,
+    required this.createdAt,
+    required this.updatedAt,
+    this.lastSyncedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['local_pack_id'] = Variable<int>(localPackId);
+    map['remote_pack_id'] = Variable<String>(remotePackId);
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || lastSyncedAt != null) {
+      map['last_synced_at'] = Variable<int>(lastSyncedAt);
+    }
+    return map;
+  }
+
+  SharedPackRemotePackMappingsCompanion toCompanion(bool nullToAbsent) {
+    return SharedPackRemotePackMappingsCompanion(
+      id: Value(id),
+      localPackId: Value(localPackId),
+      remotePackId: Value(remotePackId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      lastSyncedAt: lastSyncedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSyncedAt),
+    );
+  }
+
+  factory SharedPackRemotePackMappingRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SharedPackRemotePackMappingRow(
+      id: serializer.fromJson<int>(json['id']),
+      localPackId: serializer.fromJson<int>(json['localPackId']),
+      remotePackId: serializer.fromJson<String>(json['remotePackId']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      lastSyncedAt: serializer.fromJson<int?>(json['lastSyncedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'localPackId': serializer.toJson<int>(localPackId),
+      'remotePackId': serializer.toJson<String>(remotePackId),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'lastSyncedAt': serializer.toJson<int?>(lastSyncedAt),
+    };
+  }
+
+  SharedPackRemotePackMappingRow copyWith({
+    int? id,
+    int? localPackId,
+    String? remotePackId,
+    int? createdAt,
+    int? updatedAt,
+    Value<int?> lastSyncedAt = const Value.absent(),
+  }) => SharedPackRemotePackMappingRow(
+    id: id ?? this.id,
+    localPackId: localPackId ?? this.localPackId,
+    remotePackId: remotePackId ?? this.remotePackId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    lastSyncedAt: lastSyncedAt.present ? lastSyncedAt.value : this.lastSyncedAt,
+  );
+  SharedPackRemotePackMappingRow copyWithCompanion(
+    SharedPackRemotePackMappingsCompanion data,
+  ) {
+    return SharedPackRemotePackMappingRow(
+      id: data.id.present ? data.id.value : this.id,
+      localPackId: data.localPackId.present
+          ? data.localPackId.value
+          : this.localPackId,
+      remotePackId: data.remotePackId.present
+          ? data.remotePackId.value
+          : this.remotePackId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      lastSyncedAt: data.lastSyncedAt.present
+          ? data.lastSyncedAt.value
+          : this.lastSyncedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SharedPackRemotePackMappingRow(')
+          ..write('id: $id, ')
+          ..write('localPackId: $localPackId, ')
+          ..write('remotePackId: $remotePackId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('lastSyncedAt: $lastSyncedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    localPackId,
+    remotePackId,
+    createdAt,
+    updatedAt,
+    lastSyncedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SharedPackRemotePackMappingRow &&
+          other.id == this.id &&
+          other.localPackId == this.localPackId &&
+          other.remotePackId == this.remotePackId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.lastSyncedAt == this.lastSyncedAt);
+}
+
+class SharedPackRemotePackMappingsCompanion
+    extends UpdateCompanion<SharedPackRemotePackMappingRow> {
+  final Value<int> id;
+  final Value<int> localPackId;
+  final Value<String> remotePackId;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> lastSyncedAt;
+  const SharedPackRemotePackMappingsCompanion({
+    this.id = const Value.absent(),
+    this.localPackId = const Value.absent(),
+    this.remotePackId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.lastSyncedAt = const Value.absent(),
+  });
+  SharedPackRemotePackMappingsCompanion.insert({
+    this.id = const Value.absent(),
+    required int localPackId,
+    required String remotePackId,
+    required int createdAt,
+    required int updatedAt,
+    this.lastSyncedAt = const Value.absent(),
+  }) : localPackId = Value(localPackId),
+       remotePackId = Value(remotePackId),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<SharedPackRemotePackMappingRow> custom({
+    Expression<int>? id,
+    Expression<int>? localPackId,
+    Expression<String>? remotePackId,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? lastSyncedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (localPackId != null) 'local_pack_id': localPackId,
+      if (remotePackId != null) 'remote_pack_id': remotePackId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (lastSyncedAt != null) 'last_synced_at': lastSyncedAt,
+    });
+  }
+
+  SharedPackRemotePackMappingsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? localPackId,
+    Value<String>? remotePackId,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int?>? lastSyncedAt,
+  }) {
+    return SharedPackRemotePackMappingsCompanion(
+      id: id ?? this.id,
+      localPackId: localPackId ?? this.localPackId,
+      remotePackId: remotePackId ?? this.remotePackId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (localPackId.present) {
+      map['local_pack_id'] = Variable<int>(localPackId.value);
+    }
+    if (remotePackId.present) {
+      map['remote_pack_id'] = Variable<String>(remotePackId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (lastSyncedAt.present) {
+      map['last_synced_at'] = Variable<int>(lastSyncedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SharedPackRemotePackMappingsCompanion(')
+          ..write('id: $id, ')
+          ..write('localPackId: $localPackId, ')
+          ..write('remotePackId: $remotePackId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('lastSyncedAt: $lastSyncedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SharedPackRemoteItemMappingsTable extends SharedPackRemoteItemMappings
+    with
+        TableInfo<
+          $SharedPackRemoteItemMappingsTable,
+          SharedPackRemoteItemMappingRow
+        > {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SharedPackRemoteItemMappingsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _localItemIdMeta = const VerificationMeta(
+    'localItemId',
+  );
+  @override
+  late final GeneratedColumn<int> localItemId = GeneratedColumn<int>(
+    'local_item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES items (id)',
+    ),
+  );
+  static const VerificationMeta _remoteItemIdMeta = const VerificationMeta(
+    'remoteItemId',
+  );
+  @override
+  late final GeneratedColumn<String> remoteItemId = GeneratedColumn<String>(
+    'remote_item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _localPackIdMeta = const VerificationMeta(
+    'localPackId',
+  );
+  @override
+  late final GeneratedColumn<int> localPackId = GeneratedColumn<int>(
+    'local_pack_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES item_packs (id)',
+    ),
+  );
+  static const VerificationMeta _remotePackIdMeta = const VerificationMeta(
+    'remotePackId',
+  );
+  @override
+  late final GeneratedColumn<String> remotePackId = GeneratedColumn<String>(
+    'remote_pack_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastRemoteStateMeta = const VerificationMeta(
+    'lastRemoteState',
+  );
+  @override
+  late final GeneratedColumn<String> lastRemoteState = GeneratedColumn<String>(
+    'last_remote_state',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastRemoteCompletedAtMeta =
+      const VerificationMeta('lastRemoteCompletedAt');
+  @override
+  late final GeneratedColumn<int> lastRemoteCompletedAt = GeneratedColumn<int>(
+    'last_remote_completed_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastSyncedAtMeta = const VerificationMeta(
+    'lastSyncedAt',
+  );
+  @override
+  late final GeneratedColumn<int> lastSyncedAt = GeneratedColumn<int>(
+    'last_synced_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    localItemId,
+    remoteItemId,
+    localPackId,
+    remotePackId,
+    lastRemoteState,
+    lastRemoteCompletedAt,
+    createdAt,
+    updatedAt,
+    lastSyncedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'shared_pack_remote_item_mappings';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SharedPackRemoteItemMappingRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('local_item_id')) {
+      context.handle(
+        _localItemIdMeta,
+        localItemId.isAcceptableOrUnknown(
+          data['local_item_id']!,
+          _localItemIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_localItemIdMeta);
+    }
+    if (data.containsKey('remote_item_id')) {
+      context.handle(
+        _remoteItemIdMeta,
+        remoteItemId.isAcceptableOrUnknown(
+          data['remote_item_id']!,
+          _remoteItemIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_remoteItemIdMeta);
+    }
+    if (data.containsKey('local_pack_id')) {
+      context.handle(
+        _localPackIdMeta,
+        localPackId.isAcceptableOrUnknown(
+          data['local_pack_id']!,
+          _localPackIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_localPackIdMeta);
+    }
+    if (data.containsKey('remote_pack_id')) {
+      context.handle(
+        _remotePackIdMeta,
+        remotePackId.isAcceptableOrUnknown(
+          data['remote_pack_id']!,
+          _remotePackIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_remotePackIdMeta);
+    }
+    if (data.containsKey('last_remote_state')) {
+      context.handle(
+        _lastRemoteStateMeta,
+        lastRemoteState.isAcceptableOrUnknown(
+          data['last_remote_state']!,
+          _lastRemoteStateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_remote_completed_at')) {
+      context.handle(
+        _lastRemoteCompletedAtMeta,
+        lastRemoteCompletedAt.isAcceptableOrUnknown(
+          data['last_remote_completed_at']!,
+          _lastRemoteCompletedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('last_synced_at')) {
+      context.handle(
+        _lastSyncedAtMeta,
+        lastSyncedAt.isAcceptableOrUnknown(
+          data['last_synced_at']!,
+          _lastSyncedAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {remoteItemId},
+    {localItemId},
+    {localItemId, remoteItemId},
+  ];
+  @override
+  SharedPackRemoteItemMappingRow map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SharedPackRemoteItemMappingRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      localItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}local_item_id'],
+      )!,
+      remoteItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_item_id'],
+      )!,
+      localPackId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}local_pack_id'],
+      )!,
+      remotePackId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_pack_id'],
+      )!,
+      lastRemoteState: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_remote_state'],
+      ),
+      lastRemoteCompletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_remote_completed_at'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      lastSyncedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_synced_at'],
+      ),
+    );
+  }
+
+  @override
+  $SharedPackRemoteItemMappingsTable createAlias(String alias) {
+    return $SharedPackRemoteItemMappingsTable(attachedDatabase, alias);
+  }
+}
+
+class SharedPackRemoteItemMappingRow extends DataClass
+    implements Insertable<SharedPackRemoteItemMappingRow> {
+  final int id;
+  final int localItemId;
+  final String remoteItemId;
+  final int localPackId;
+  final String remotePackId;
+  final String? lastRemoteState;
+  final int? lastRemoteCompletedAt;
+  final int createdAt;
+  final int updatedAt;
+  final int? lastSyncedAt;
+  const SharedPackRemoteItemMappingRow({
+    required this.id,
+    required this.localItemId,
+    required this.remoteItemId,
+    required this.localPackId,
+    required this.remotePackId,
+    this.lastRemoteState,
+    this.lastRemoteCompletedAt,
+    required this.createdAt,
+    required this.updatedAt,
+    this.lastSyncedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['local_item_id'] = Variable<int>(localItemId);
+    map['remote_item_id'] = Variable<String>(remoteItemId);
+    map['local_pack_id'] = Variable<int>(localPackId);
+    map['remote_pack_id'] = Variable<String>(remotePackId);
+    if (!nullToAbsent || lastRemoteState != null) {
+      map['last_remote_state'] = Variable<String>(lastRemoteState);
+    }
+    if (!nullToAbsent || lastRemoteCompletedAt != null) {
+      map['last_remote_completed_at'] = Variable<int>(lastRemoteCompletedAt);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || lastSyncedAt != null) {
+      map['last_synced_at'] = Variable<int>(lastSyncedAt);
+    }
+    return map;
+  }
+
+  SharedPackRemoteItemMappingsCompanion toCompanion(bool nullToAbsent) {
+    return SharedPackRemoteItemMappingsCompanion(
+      id: Value(id),
+      localItemId: Value(localItemId),
+      remoteItemId: Value(remoteItemId),
+      localPackId: Value(localPackId),
+      remotePackId: Value(remotePackId),
+      lastRemoteState: lastRemoteState == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastRemoteState),
+      lastRemoteCompletedAt: lastRemoteCompletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastRemoteCompletedAt),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      lastSyncedAt: lastSyncedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSyncedAt),
+    );
+  }
+
+  factory SharedPackRemoteItemMappingRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SharedPackRemoteItemMappingRow(
+      id: serializer.fromJson<int>(json['id']),
+      localItemId: serializer.fromJson<int>(json['localItemId']),
+      remoteItemId: serializer.fromJson<String>(json['remoteItemId']),
+      localPackId: serializer.fromJson<int>(json['localPackId']),
+      remotePackId: serializer.fromJson<String>(json['remotePackId']),
+      lastRemoteState: serializer.fromJson<String?>(json['lastRemoteState']),
+      lastRemoteCompletedAt: serializer.fromJson<int?>(
+        json['lastRemoteCompletedAt'],
+      ),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      lastSyncedAt: serializer.fromJson<int?>(json['lastSyncedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'localItemId': serializer.toJson<int>(localItemId),
+      'remoteItemId': serializer.toJson<String>(remoteItemId),
+      'localPackId': serializer.toJson<int>(localPackId),
+      'remotePackId': serializer.toJson<String>(remotePackId),
+      'lastRemoteState': serializer.toJson<String?>(lastRemoteState),
+      'lastRemoteCompletedAt': serializer.toJson<int?>(lastRemoteCompletedAt),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'lastSyncedAt': serializer.toJson<int?>(lastSyncedAt),
+    };
+  }
+
+  SharedPackRemoteItemMappingRow copyWith({
+    int? id,
+    int? localItemId,
+    String? remoteItemId,
+    int? localPackId,
+    String? remotePackId,
+    Value<String?> lastRemoteState = const Value.absent(),
+    Value<int?> lastRemoteCompletedAt = const Value.absent(),
+    int? createdAt,
+    int? updatedAt,
+    Value<int?> lastSyncedAt = const Value.absent(),
+  }) => SharedPackRemoteItemMappingRow(
+    id: id ?? this.id,
+    localItemId: localItemId ?? this.localItemId,
+    remoteItemId: remoteItemId ?? this.remoteItemId,
+    localPackId: localPackId ?? this.localPackId,
+    remotePackId: remotePackId ?? this.remotePackId,
+    lastRemoteState: lastRemoteState.present
+        ? lastRemoteState.value
+        : this.lastRemoteState,
+    lastRemoteCompletedAt: lastRemoteCompletedAt.present
+        ? lastRemoteCompletedAt.value
+        : this.lastRemoteCompletedAt,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    lastSyncedAt: lastSyncedAt.present ? lastSyncedAt.value : this.lastSyncedAt,
+  );
+  SharedPackRemoteItemMappingRow copyWithCompanion(
+    SharedPackRemoteItemMappingsCompanion data,
+  ) {
+    return SharedPackRemoteItemMappingRow(
+      id: data.id.present ? data.id.value : this.id,
+      localItemId: data.localItemId.present
+          ? data.localItemId.value
+          : this.localItemId,
+      remoteItemId: data.remoteItemId.present
+          ? data.remoteItemId.value
+          : this.remoteItemId,
+      localPackId: data.localPackId.present
+          ? data.localPackId.value
+          : this.localPackId,
+      remotePackId: data.remotePackId.present
+          ? data.remotePackId.value
+          : this.remotePackId,
+      lastRemoteState: data.lastRemoteState.present
+          ? data.lastRemoteState.value
+          : this.lastRemoteState,
+      lastRemoteCompletedAt: data.lastRemoteCompletedAt.present
+          ? data.lastRemoteCompletedAt.value
+          : this.lastRemoteCompletedAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      lastSyncedAt: data.lastSyncedAt.present
+          ? data.lastSyncedAt.value
+          : this.lastSyncedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SharedPackRemoteItemMappingRow(')
+          ..write('id: $id, ')
+          ..write('localItemId: $localItemId, ')
+          ..write('remoteItemId: $remoteItemId, ')
+          ..write('localPackId: $localPackId, ')
+          ..write('remotePackId: $remotePackId, ')
+          ..write('lastRemoteState: $lastRemoteState, ')
+          ..write('lastRemoteCompletedAt: $lastRemoteCompletedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('lastSyncedAt: $lastSyncedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    localItemId,
+    remoteItemId,
+    localPackId,
+    remotePackId,
+    lastRemoteState,
+    lastRemoteCompletedAt,
+    createdAt,
+    updatedAt,
+    lastSyncedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SharedPackRemoteItemMappingRow &&
+          other.id == this.id &&
+          other.localItemId == this.localItemId &&
+          other.remoteItemId == this.remoteItemId &&
+          other.localPackId == this.localPackId &&
+          other.remotePackId == this.remotePackId &&
+          other.lastRemoteState == this.lastRemoteState &&
+          other.lastRemoteCompletedAt == this.lastRemoteCompletedAt &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.lastSyncedAt == this.lastSyncedAt);
+}
+
+class SharedPackRemoteItemMappingsCompanion
+    extends UpdateCompanion<SharedPackRemoteItemMappingRow> {
+  final Value<int> id;
+  final Value<int> localItemId;
+  final Value<String> remoteItemId;
+  final Value<int> localPackId;
+  final Value<String> remotePackId;
+  final Value<String?> lastRemoteState;
+  final Value<int?> lastRemoteCompletedAt;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> lastSyncedAt;
+  const SharedPackRemoteItemMappingsCompanion({
+    this.id = const Value.absent(),
+    this.localItemId = const Value.absent(),
+    this.remoteItemId = const Value.absent(),
+    this.localPackId = const Value.absent(),
+    this.remotePackId = const Value.absent(),
+    this.lastRemoteState = const Value.absent(),
+    this.lastRemoteCompletedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.lastSyncedAt = const Value.absent(),
+  });
+  SharedPackRemoteItemMappingsCompanion.insert({
+    this.id = const Value.absent(),
+    required int localItemId,
+    required String remoteItemId,
+    required int localPackId,
+    required String remotePackId,
+    this.lastRemoteState = const Value.absent(),
+    this.lastRemoteCompletedAt = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.lastSyncedAt = const Value.absent(),
+  }) : localItemId = Value(localItemId),
+       remoteItemId = Value(remoteItemId),
+       localPackId = Value(localPackId),
+       remotePackId = Value(remotePackId),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<SharedPackRemoteItemMappingRow> custom({
+    Expression<int>? id,
+    Expression<int>? localItemId,
+    Expression<String>? remoteItemId,
+    Expression<int>? localPackId,
+    Expression<String>? remotePackId,
+    Expression<String>? lastRemoteState,
+    Expression<int>? lastRemoteCompletedAt,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? lastSyncedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (localItemId != null) 'local_item_id': localItemId,
+      if (remoteItemId != null) 'remote_item_id': remoteItemId,
+      if (localPackId != null) 'local_pack_id': localPackId,
+      if (remotePackId != null) 'remote_pack_id': remotePackId,
+      if (lastRemoteState != null) 'last_remote_state': lastRemoteState,
+      if (lastRemoteCompletedAt != null)
+        'last_remote_completed_at': lastRemoteCompletedAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (lastSyncedAt != null) 'last_synced_at': lastSyncedAt,
+    });
+  }
+
+  SharedPackRemoteItemMappingsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? localItemId,
+    Value<String>? remoteItemId,
+    Value<int>? localPackId,
+    Value<String>? remotePackId,
+    Value<String?>? lastRemoteState,
+    Value<int?>? lastRemoteCompletedAt,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int?>? lastSyncedAt,
+  }) {
+    return SharedPackRemoteItemMappingsCompanion(
+      id: id ?? this.id,
+      localItemId: localItemId ?? this.localItemId,
+      remoteItemId: remoteItemId ?? this.remoteItemId,
+      localPackId: localPackId ?? this.localPackId,
+      remotePackId: remotePackId ?? this.remotePackId,
+      lastRemoteState: lastRemoteState ?? this.lastRemoteState,
+      lastRemoteCompletedAt:
+          lastRemoteCompletedAt ?? this.lastRemoteCompletedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (localItemId.present) {
+      map['local_item_id'] = Variable<int>(localItemId.value);
+    }
+    if (remoteItemId.present) {
+      map['remote_item_id'] = Variable<String>(remoteItemId.value);
+    }
+    if (localPackId.present) {
+      map['local_pack_id'] = Variable<int>(localPackId.value);
+    }
+    if (remotePackId.present) {
+      map['remote_pack_id'] = Variable<String>(remotePackId.value);
+    }
+    if (lastRemoteState.present) {
+      map['last_remote_state'] = Variable<String>(lastRemoteState.value);
+    }
+    if (lastRemoteCompletedAt.present) {
+      map['last_remote_completed_at'] = Variable<int>(
+        lastRemoteCompletedAt.value,
+      );
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (lastSyncedAt.present) {
+      map['last_synced_at'] = Variable<int>(lastSyncedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SharedPackRemoteItemMappingsCompanion(')
+          ..write('id: $id, ')
+          ..write('localItemId: $localItemId, ')
+          ..write('remoteItemId: $remoteItemId, ')
+          ..write('localPackId: $localPackId, ')
+          ..write('remotePackId: $remotePackId, ')
+          ..write('lastRemoteState: $lastRemoteState, ')
+          ..write('lastRemoteCompletedAt: $lastRemoteCompletedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('lastSyncedAt: $lastSyncedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $PackTemplatesTable extends PackTemplates
     with TableInfo<$PackTemplatesTable, PackTemplateRow> {
   @override
@@ -9966,6 +11076,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $ItemPacksTable itemPacks = $ItemPacksTable(this);
   late final $ItemsTable items = $ItemsTable(this);
+  late final $SharedPackRemotePackMappingsTable sharedPackRemotePackMappings =
+      $SharedPackRemotePackMappingsTable(this);
+  late final $SharedPackRemoteItemMappingsTable sharedPackRemoteItemMappings =
+      $SharedPackRemoteItemMappingsTable(this);
   late final $PackTemplatesTable packTemplates = $PackTemplatesTable(this);
   late final $PackTemplateItemsTable packTemplateItems =
       $PackTemplateItemsTable(this);
@@ -9991,6 +11105,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     itemPacks,
     items,
+    sharedPackRemotePackMappings,
+    sharedPackRemoteItemMappings,
     packTemplates,
     packTemplateItems,
     resources,
@@ -10048,6 +11164,62 @@ final class $$ItemPacksTableReferences
     ).filter((f) => f.packId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_itemsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $SharedPackRemotePackMappingsTable,
+    List<SharedPackRemotePackMappingRow>
+  >
+  _sharedPackRemotePackMappingsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.sharedPackRemotePackMappings,
+        aliasName: $_aliasNameGenerator(
+          db.itemPacks.id,
+          db.sharedPackRemotePackMappings.localPackId,
+        ),
+      );
+
+  $$SharedPackRemotePackMappingsTableProcessedTableManager
+  get sharedPackRemotePackMappingsRefs {
+    final manager = $$SharedPackRemotePackMappingsTableTableManager(
+      $_db,
+      $_db.sharedPackRemotePackMappings,
+    ).filter((f) => f.localPackId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _sharedPackRemotePackMappingsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $SharedPackRemoteItemMappingsTable,
+    List<SharedPackRemoteItemMappingRow>
+  >
+  _sharedPackRemoteItemMappingsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.sharedPackRemoteItemMappings,
+        aliasName: $_aliasNameGenerator(
+          db.itemPacks.id,
+          db.sharedPackRemoteItemMappings.localPackId,
+        ),
+      );
+
+  $$SharedPackRemoteItemMappingsTableProcessedTableManager
+  get sharedPackRemoteItemMappingsRefs {
+    final manager = $$SharedPackRemoteItemMappingsTableTableManager(
+      $_db,
+      $_db.sharedPackRemoteItemMappings,
+    ).filter((f) => f.localPackId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _sharedPackRemoteItemMappingsRefsTable($_db),
+    );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -10166,6 +11338,64 @@ class $$ItemPacksTableFilterComposer
                 $removeJoinBuilderFromRootComposer,
           ),
     );
+    return f(composer);
+  }
+
+  Expression<bool> sharedPackRemotePackMappingsRefs(
+    Expression<bool> Function(
+      $$SharedPackRemotePackMappingsTableFilterComposer f,
+    )
+    f,
+  ) {
+    final $$SharedPackRemotePackMappingsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.sharedPackRemotePackMappings,
+          getReferencedColumn: (t) => t.localPackId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$SharedPackRemotePackMappingsTableFilterComposer(
+                $db: $db,
+                $table: $db.sharedPackRemotePackMappings,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<bool> sharedPackRemoteItemMappingsRefs(
+    Expression<bool> Function(
+      $$SharedPackRemoteItemMappingsTableFilterComposer f,
+    )
+    f,
+  ) {
+    final $$SharedPackRemoteItemMappingsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.sharedPackRemoteItemMappings,
+          getReferencedColumn: (t) => t.localPackId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$SharedPackRemoteItemMappingsTableFilterComposer(
+                $db: $db,
+                $table: $db.sharedPackRemoteItemMappings,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
     return f(composer);
   }
 
@@ -10342,6 +11572,64 @@ class $$ItemPacksTableAnnotationComposer
     return f(composer);
   }
 
+  Expression<T> sharedPackRemotePackMappingsRefs<T extends Object>(
+    Expression<T> Function(
+      $$SharedPackRemotePackMappingsTableAnnotationComposer a,
+    )
+    f,
+  ) {
+    final $$SharedPackRemotePackMappingsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.sharedPackRemotePackMappings,
+          getReferencedColumn: (t) => t.localPackId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$SharedPackRemotePackMappingsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.sharedPackRemotePackMappings,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> sharedPackRemoteItemMappingsRefs<T extends Object>(
+    Expression<T> Function(
+      $$SharedPackRemoteItemMappingsTableAnnotationComposer a,
+    )
+    f,
+  ) {
+    final $$SharedPackRemoteItemMappingsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.sharedPackRemoteItemMappings,
+          getReferencedColumn: (t) => t.localPackId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$SharedPackRemoteItemMappingsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.sharedPackRemoteItemMappings,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
   Expression<T> resourcesRefs<T extends Object>(
     Expression<T> Function($$ResourcesTableAnnotationComposer a) f,
   ) {
@@ -10408,6 +11696,8 @@ class $$ItemPacksTableTableManager
           ItemPackRow,
           PrefetchHooks Function({
             bool itemsRefs,
+            bool sharedPackRemotePackMappingsRefs,
+            bool sharedPackRemoteItemMappingsRefs,
             bool resourcesRefs,
             bool stageTrackersRefs,
           })
@@ -10478,6 +11768,8 @@ class $$ItemPacksTableTableManager
           prefetchHooksCallback:
               ({
                 itemsRefs = false,
+                sharedPackRemotePackMappingsRefs = false,
+                sharedPackRemoteItemMappingsRefs = false,
                 resourcesRefs = false,
                 stageTrackersRefs = false,
               }) {
@@ -10485,6 +11777,10 @@ class $$ItemPacksTableTableManager
                   db: db,
                   explicitlyWatchedTables: [
                     if (itemsRefs) db.items,
+                    if (sharedPackRemotePackMappingsRefs)
+                      db.sharedPackRemotePackMappings,
+                    if (sharedPackRemoteItemMappingsRefs)
+                      db.sharedPackRemoteItemMappings,
                     if (resourcesRefs) db.resources,
                     if (stageTrackersRefs) db.stageTrackers,
                   ],
@@ -10509,6 +11805,48 @@ class $$ItemPacksTableTableManager
                           referencedItemsForCurrentItem:
                               (item, referencedItems) => referencedItems.where(
                                 (e) => e.packId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (sharedPackRemotePackMappingsRefs)
+                        await $_getPrefetchedData<
+                          ItemPackRow,
+                          $ItemPacksTable,
+                          SharedPackRemotePackMappingRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ItemPacksTableReferences
+                              ._sharedPackRemotePackMappingsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ItemPacksTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).sharedPackRemotePackMappingsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.localPackId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (sharedPackRemoteItemMappingsRefs)
+                        await $_getPrefetchedData<
+                          ItemPackRow,
+                          $ItemPacksTable,
+                          SharedPackRemoteItemMappingRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ItemPacksTableReferences
+                              ._sharedPackRemoteItemMappingsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ItemPacksTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).sharedPackRemoteItemMappingsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.localPackId == item.id,
                               ),
                           typedResults: items,
                         ),
@@ -10576,6 +11914,8 @@ typedef $$ItemPacksTableProcessedTableManager =
       ItemPackRow,
       PrefetchHooks Function({
         bool itemsRefs,
+        bool sharedPackRemotePackMappingsRefs,
+        bool sharedPackRemoteItemMappingsRefs,
         bool resourcesRefs,
         bool stageTrackersRefs,
       })
@@ -10655,6 +11995,34 @@ final class $$ItemsTableReferences
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $SharedPackRemoteItemMappingsTable,
+    List<SharedPackRemoteItemMappingRow>
+  >
+  _sharedPackRemoteItemMappingsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.sharedPackRemoteItemMappings,
+        aliasName: $_aliasNameGenerator(
+          db.items.id,
+          db.sharedPackRemoteItemMappings.localItemId,
+        ),
+      );
+
+  $$SharedPackRemoteItemMappingsTableProcessedTableManager
+  get sharedPackRemoteItemMappingsRefs {
+    final manager = $$SharedPackRemoteItemMappingsTableTableManager(
+      $_db,
+      $_db.sharedPackRemoteItemMappings,
+    ).filter((f) => f.localItemId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _sharedPackRemoteItemMappingsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
     );
   }
 
@@ -10884,6 +12252,35 @@ class $$ItemsTableFilterComposer extends Composer<_$AppDatabase, $ItemsTable> {
           ),
     );
     return composer;
+  }
+
+  Expression<bool> sharedPackRemoteItemMappingsRefs(
+    Expression<bool> Function(
+      $$SharedPackRemoteItemMappingsTableFilterComposer f,
+    )
+    f,
+  ) {
+    final $$SharedPackRemoteItemMappingsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.sharedPackRemoteItemMappings,
+          getReferencedColumn: (t) => t.localItemId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$SharedPackRemoteItemMappingsTableFilterComposer(
+                $db: $db,
+                $table: $db.sharedPackRemoteItemMappings,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
   }
 
   Expression<bool> resourceConsumptionRulesRefs(
@@ -11257,6 +12654,35 @@ class $$ItemsTableAnnotationComposer
     return composer;
   }
 
+  Expression<T> sharedPackRemoteItemMappingsRefs<T extends Object>(
+    Expression<T> Function(
+      $$SharedPackRemoteItemMappingsTableAnnotationComposer a,
+    )
+    f,
+  ) {
+    final $$SharedPackRemoteItemMappingsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.sharedPackRemoteItemMappings,
+          getReferencedColumn: (t) => t.localItemId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$SharedPackRemoteItemMappingsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.sharedPackRemoteItemMappings,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
   Expression<T> resourceConsumptionRulesRefs<T extends Object>(
     Expression<T> Function($$ResourceConsumptionRulesTableAnnotationComposer a)
     f,
@@ -11352,6 +12778,7 @@ class $$ItemsTableTableManager
           ItemRow,
           PrefetchHooks Function({
             bool packId,
+            bool sharedPackRemoteItemMappingsRefs,
             bool resourceConsumptionRulesRefs,
             bool itemActionRecordsRefs,
             bool stageRelatedItemsRefs,
@@ -11485,6 +12912,7 @@ class $$ItemsTableTableManager
           prefetchHooksCallback:
               ({
                 packId = false,
+                sharedPackRemoteItemMappingsRefs = false,
                 resourceConsumptionRulesRefs = false,
                 itemActionRecordsRefs = false,
                 stageRelatedItemsRefs = false,
@@ -11492,6 +12920,8 @@ class $$ItemsTableTableManager
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
+                    if (sharedPackRemoteItemMappingsRefs)
+                      db.sharedPackRemoteItemMappings,
                     if (resourceConsumptionRulesRefs)
                       db.resourceConsumptionRules,
                     if (itemActionRecordsRefs) db.itemActionRecords,
@@ -11531,6 +12961,27 @@ class $$ItemsTableTableManager
                       },
                   getPrefetchedDataCallback: (items) async {
                     return [
+                      if (sharedPackRemoteItemMappingsRefs)
+                        await $_getPrefetchedData<
+                          ItemRow,
+                          $ItemsTable,
+                          SharedPackRemoteItemMappingRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ItemsTableReferences
+                              ._sharedPackRemoteItemMappingsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ItemsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).sharedPackRemoteItemMappingsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.localItemId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                       if (resourceConsumptionRulesRefs)
                         await $_getPrefetchedData<
                           ItemRow,
@@ -11616,10 +13067,920 @@ typedef $$ItemsTableProcessedTableManager =
       ItemRow,
       PrefetchHooks Function({
         bool packId,
+        bool sharedPackRemoteItemMappingsRefs,
         bool resourceConsumptionRulesRefs,
         bool itemActionRecordsRefs,
         bool stageRelatedItemsRefs,
       })
+    >;
+typedef $$SharedPackRemotePackMappingsTableCreateCompanionBuilder =
+    SharedPackRemotePackMappingsCompanion Function({
+      Value<int> id,
+      required int localPackId,
+      required String remotePackId,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> lastSyncedAt,
+    });
+typedef $$SharedPackRemotePackMappingsTableUpdateCompanionBuilder =
+    SharedPackRemotePackMappingsCompanion Function({
+      Value<int> id,
+      Value<int> localPackId,
+      Value<String> remotePackId,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> lastSyncedAt,
+    });
+
+final class $$SharedPackRemotePackMappingsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $SharedPackRemotePackMappingsTable,
+          SharedPackRemotePackMappingRow
+        > {
+  $$SharedPackRemotePackMappingsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $ItemPacksTable _localPackIdTable(_$AppDatabase db) =>
+      db.itemPacks.createAlias(
+        $_aliasNameGenerator(
+          db.sharedPackRemotePackMappings.localPackId,
+          db.itemPacks.id,
+        ),
+      );
+
+  $$ItemPacksTableProcessedTableManager get localPackId {
+    final $_column = $_itemColumn<int>('local_pack_id')!;
+
+    final manager = $$ItemPacksTableTableManager(
+      $_db,
+      $_db.itemPacks,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_localPackIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SharedPackRemotePackMappingsTableFilterComposer
+    extends Composer<_$AppDatabase, $SharedPackRemotePackMappingsTable> {
+  $$SharedPackRemotePackMappingsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remotePackId => $composableBuilder(
+    column: $table.remotePackId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$ItemPacksTableFilterComposer get localPackId {
+    final $$ItemPacksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.localPackId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableFilterComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SharedPackRemotePackMappingsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SharedPackRemotePackMappingsTable> {
+  $$SharedPackRemotePackMappingsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get remotePackId => $composableBuilder(
+    column: $table.remotePackId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ItemPacksTableOrderingComposer get localPackId {
+    final $$ItemPacksTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.localPackId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableOrderingComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SharedPackRemotePackMappingsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SharedPackRemotePackMappingsTable> {
+  $$SharedPackRemotePackMappingsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get remotePackId => $composableBuilder(
+    column: $table.remotePackId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => column,
+  );
+
+  $$ItemPacksTableAnnotationComposer get localPackId {
+    final $$ItemPacksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.localPackId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SharedPackRemotePackMappingsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SharedPackRemotePackMappingsTable,
+          SharedPackRemotePackMappingRow,
+          $$SharedPackRemotePackMappingsTableFilterComposer,
+          $$SharedPackRemotePackMappingsTableOrderingComposer,
+          $$SharedPackRemotePackMappingsTableAnnotationComposer,
+          $$SharedPackRemotePackMappingsTableCreateCompanionBuilder,
+          $$SharedPackRemotePackMappingsTableUpdateCompanionBuilder,
+          (
+            SharedPackRemotePackMappingRow,
+            $$SharedPackRemotePackMappingsTableReferences,
+          ),
+          SharedPackRemotePackMappingRow,
+          PrefetchHooks Function({bool localPackId})
+        > {
+  $$SharedPackRemotePackMappingsTableTableManager(
+    _$AppDatabase db,
+    $SharedPackRemotePackMappingsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SharedPackRemotePackMappingsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$SharedPackRemotePackMappingsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$SharedPackRemotePackMappingsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> localPackId = const Value.absent(),
+                Value<String> remotePackId = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> lastSyncedAt = const Value.absent(),
+              }) => SharedPackRemotePackMappingsCompanion(
+                id: id,
+                localPackId: localPackId,
+                remotePackId: remotePackId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                lastSyncedAt: lastSyncedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int localPackId,
+                required String remotePackId,
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> lastSyncedAt = const Value.absent(),
+              }) => SharedPackRemotePackMappingsCompanion.insert(
+                id: id,
+                localPackId: localPackId,
+                remotePackId: remotePackId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                lastSyncedAt: lastSyncedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$SharedPackRemotePackMappingsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({localPackId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (localPackId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.localPackId,
+                                referencedTable:
+                                    $$SharedPackRemotePackMappingsTableReferences
+                                        ._localPackIdTable(db),
+                                referencedColumn:
+                                    $$SharedPackRemotePackMappingsTableReferences
+                                        ._localPackIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SharedPackRemotePackMappingsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SharedPackRemotePackMappingsTable,
+      SharedPackRemotePackMappingRow,
+      $$SharedPackRemotePackMappingsTableFilterComposer,
+      $$SharedPackRemotePackMappingsTableOrderingComposer,
+      $$SharedPackRemotePackMappingsTableAnnotationComposer,
+      $$SharedPackRemotePackMappingsTableCreateCompanionBuilder,
+      $$SharedPackRemotePackMappingsTableUpdateCompanionBuilder,
+      (
+        SharedPackRemotePackMappingRow,
+        $$SharedPackRemotePackMappingsTableReferences,
+      ),
+      SharedPackRemotePackMappingRow,
+      PrefetchHooks Function({bool localPackId})
+    >;
+typedef $$SharedPackRemoteItemMappingsTableCreateCompanionBuilder =
+    SharedPackRemoteItemMappingsCompanion Function({
+      Value<int> id,
+      required int localItemId,
+      required String remoteItemId,
+      required int localPackId,
+      required String remotePackId,
+      Value<String?> lastRemoteState,
+      Value<int?> lastRemoteCompletedAt,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> lastSyncedAt,
+    });
+typedef $$SharedPackRemoteItemMappingsTableUpdateCompanionBuilder =
+    SharedPackRemoteItemMappingsCompanion Function({
+      Value<int> id,
+      Value<int> localItemId,
+      Value<String> remoteItemId,
+      Value<int> localPackId,
+      Value<String> remotePackId,
+      Value<String?> lastRemoteState,
+      Value<int?> lastRemoteCompletedAt,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> lastSyncedAt,
+    });
+
+final class $$SharedPackRemoteItemMappingsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $SharedPackRemoteItemMappingsTable,
+          SharedPackRemoteItemMappingRow
+        > {
+  $$SharedPackRemoteItemMappingsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $ItemsTable _localItemIdTable(_$AppDatabase db) =>
+      db.items.createAlias(
+        $_aliasNameGenerator(
+          db.sharedPackRemoteItemMappings.localItemId,
+          db.items.id,
+        ),
+      );
+
+  $$ItemsTableProcessedTableManager get localItemId {
+    final $_column = $_itemColumn<int>('local_item_id')!;
+
+    final manager = $$ItemsTableTableManager(
+      $_db,
+      $_db.items,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_localItemIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ItemPacksTable _localPackIdTable(_$AppDatabase db) =>
+      db.itemPacks.createAlias(
+        $_aliasNameGenerator(
+          db.sharedPackRemoteItemMappings.localPackId,
+          db.itemPacks.id,
+        ),
+      );
+
+  $$ItemPacksTableProcessedTableManager get localPackId {
+    final $_column = $_itemColumn<int>('local_pack_id')!;
+
+    final manager = $$ItemPacksTableTableManager(
+      $_db,
+      $_db.itemPacks,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_localPackIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SharedPackRemoteItemMappingsTableFilterComposer
+    extends Composer<_$AppDatabase, $SharedPackRemoteItemMappingsTable> {
+  $$SharedPackRemoteItemMappingsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remoteItemId => $composableBuilder(
+    column: $table.remoteItemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remotePackId => $composableBuilder(
+    column: $table.remotePackId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastRemoteState => $composableBuilder(
+    column: $table.lastRemoteState,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastRemoteCompletedAt => $composableBuilder(
+    column: $table.lastRemoteCompletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$ItemsTableFilterComposer get localItemId {
+    final $$ItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.localItemId,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemPacksTableFilterComposer get localPackId {
+    final $$ItemPacksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.localPackId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableFilterComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SharedPackRemoteItemMappingsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SharedPackRemoteItemMappingsTable> {
+  $$SharedPackRemoteItemMappingsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get remoteItemId => $composableBuilder(
+    column: $table.remoteItemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get remotePackId => $composableBuilder(
+    column: $table.remotePackId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastRemoteState => $composableBuilder(
+    column: $table.lastRemoteState,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastRemoteCompletedAt => $composableBuilder(
+    column: $table.lastRemoteCompletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ItemsTableOrderingComposer get localItemId {
+    final $$ItemsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.localItemId,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableOrderingComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemPacksTableOrderingComposer get localPackId {
+    final $$ItemPacksTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.localPackId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableOrderingComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SharedPackRemoteItemMappingsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SharedPackRemoteItemMappingsTable> {
+  $$SharedPackRemoteItemMappingsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get remoteItemId => $composableBuilder(
+    column: $table.remoteItemId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get remotePackId => $composableBuilder(
+    column: $table.remotePackId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastRemoteState => $composableBuilder(
+    column: $table.lastRemoteState,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastRemoteCompletedAt => $composableBuilder(
+    column: $table.lastRemoteCompletedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => column,
+  );
+
+  $$ItemsTableAnnotationComposer get localItemId {
+    final $$ItemsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.localItemId,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemPacksTableAnnotationComposer get localPackId {
+    final $$ItemPacksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.localPackId,
+      referencedTable: $db.itemPacks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemPacksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.itemPacks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SharedPackRemoteItemMappingsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SharedPackRemoteItemMappingsTable,
+          SharedPackRemoteItemMappingRow,
+          $$SharedPackRemoteItemMappingsTableFilterComposer,
+          $$SharedPackRemoteItemMappingsTableOrderingComposer,
+          $$SharedPackRemoteItemMappingsTableAnnotationComposer,
+          $$SharedPackRemoteItemMappingsTableCreateCompanionBuilder,
+          $$SharedPackRemoteItemMappingsTableUpdateCompanionBuilder,
+          (
+            SharedPackRemoteItemMappingRow,
+            $$SharedPackRemoteItemMappingsTableReferences,
+          ),
+          SharedPackRemoteItemMappingRow,
+          PrefetchHooks Function({bool localItemId, bool localPackId})
+        > {
+  $$SharedPackRemoteItemMappingsTableTableManager(
+    _$AppDatabase db,
+    $SharedPackRemoteItemMappingsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SharedPackRemoteItemMappingsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$SharedPackRemoteItemMappingsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$SharedPackRemoteItemMappingsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> localItemId = const Value.absent(),
+                Value<String> remoteItemId = const Value.absent(),
+                Value<int> localPackId = const Value.absent(),
+                Value<String> remotePackId = const Value.absent(),
+                Value<String?> lastRemoteState = const Value.absent(),
+                Value<int?> lastRemoteCompletedAt = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> lastSyncedAt = const Value.absent(),
+              }) => SharedPackRemoteItemMappingsCompanion(
+                id: id,
+                localItemId: localItemId,
+                remoteItemId: remoteItemId,
+                localPackId: localPackId,
+                remotePackId: remotePackId,
+                lastRemoteState: lastRemoteState,
+                lastRemoteCompletedAt: lastRemoteCompletedAt,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                lastSyncedAt: lastSyncedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int localItemId,
+                required String remoteItemId,
+                required int localPackId,
+                required String remotePackId,
+                Value<String?> lastRemoteState = const Value.absent(),
+                Value<int?> lastRemoteCompletedAt = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> lastSyncedAt = const Value.absent(),
+              }) => SharedPackRemoteItemMappingsCompanion.insert(
+                id: id,
+                localItemId: localItemId,
+                remoteItemId: remoteItemId,
+                localPackId: localPackId,
+                remotePackId: remotePackId,
+                lastRemoteState: lastRemoteState,
+                lastRemoteCompletedAt: lastRemoteCompletedAt,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                lastSyncedAt: lastSyncedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$SharedPackRemoteItemMappingsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({localItemId = false, localPackId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (localItemId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.localItemId,
+                                referencedTable:
+                                    $$SharedPackRemoteItemMappingsTableReferences
+                                        ._localItemIdTable(db),
+                                referencedColumn:
+                                    $$SharedPackRemoteItemMappingsTableReferences
+                                        ._localItemIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+                    if (localPackId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.localPackId,
+                                referencedTable:
+                                    $$SharedPackRemoteItemMappingsTableReferences
+                                        ._localPackIdTable(db),
+                                referencedColumn:
+                                    $$SharedPackRemoteItemMappingsTableReferences
+                                        ._localPackIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SharedPackRemoteItemMappingsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SharedPackRemoteItemMappingsTable,
+      SharedPackRemoteItemMappingRow,
+      $$SharedPackRemoteItemMappingsTableFilterComposer,
+      $$SharedPackRemoteItemMappingsTableOrderingComposer,
+      $$SharedPackRemoteItemMappingsTableAnnotationComposer,
+      $$SharedPackRemoteItemMappingsTableCreateCompanionBuilder,
+      $$SharedPackRemoteItemMappingsTableUpdateCompanionBuilder,
+      (
+        SharedPackRemoteItemMappingRow,
+        $$SharedPackRemoteItemMappingsTableReferences,
+      ),
+      SharedPackRemoteItemMappingRow,
+      PrefetchHooks Function({bool localItemId, bool localPackId})
     >;
 typedef $$PackTemplatesTableCreateCompanionBuilder =
     PackTemplatesCompanion Function({
@@ -17631,6 +19992,18 @@ class $AppDatabaseManager {
       $$ItemPacksTableTableManager(_db, _db.itemPacks);
   $$ItemsTableTableManager get items =>
       $$ItemsTableTableManager(_db, _db.items);
+  $$SharedPackRemotePackMappingsTableTableManager
+  get sharedPackRemotePackMappings =>
+      $$SharedPackRemotePackMappingsTableTableManager(
+        _db,
+        _db.sharedPackRemotePackMappings,
+      );
+  $$SharedPackRemoteItemMappingsTableTableManager
+  get sharedPackRemoteItemMappings =>
+      $$SharedPackRemoteItemMappingsTableTableManager(
+        _db,
+        _db.sharedPackRemoteItemMappings,
+      );
   $$PackTemplatesTableTableManager get packTemplates =>
       $$PackTemplatesTableTableManager(_db, _db.packTemplates);
   $$PackTemplateItemsTableTableManager get packTemplateItems =>

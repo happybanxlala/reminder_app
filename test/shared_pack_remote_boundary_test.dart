@@ -15,13 +15,13 @@ void main() {
       }
     });
 
-    test('keeps Shared Pack v1 entries planned', () {
+    test('keeps Shared Pack v1 entries implemented but not wired', () {
       final catalog = File(_catalogPath).readAsStringSync();
 
       for (final requestId in SharedPackRemoteRequestIds.all) {
         final section = _catalogSection(catalog, requestId);
 
-        expect(section, contains('| Status | `planned` |'));
+        expect(section, contains('| Status | `implemented_not_wired` |'));
         expect(section, isNot(contains('| Status | `active` |')));
       }
     });
@@ -52,6 +52,39 @@ void main() {
         _expectNoForbiddenPatterns(files);
       },
     );
+
+    test(
+      'production UI, providers, routes, and startup do not wire service',
+      () {
+        const guardedRoots = [
+          'lib/features/reminders/ui',
+          'lib/features/reminders/providers',
+          'lib/features/shared_pack/ui',
+          'lib/features/shared_pack/providers',
+          'lib/app',
+        ];
+        const guardedFiles = ['lib/main.dart'];
+        final files = [
+          ...guardedRoots.expand(_dartFilesUnder),
+          ...guardedFiles
+              .map((path) => File(path))
+              .where((file) => file.existsSync()),
+        ];
+        final serviceName =
+            'SharedPack'
+            'ApplicationService';
+        final matches = <String>[];
+
+        for (final file in files) {
+          final source = file.readAsStringSync();
+          if (source.contains(serviceName)) {
+            matches.add(file.path);
+          }
+        }
+
+        expect(matches, isEmpty);
+      },
+    );
   });
 }
 
@@ -76,24 +109,40 @@ Iterable<File> _dartFilesUnder(String rootPath) {
 }
 
 void _expectNoForbiddenPatterns(Iterable<File> files) {
-  final forbiddenPatterns = [
+  final globallyForbiddenPatterns = [
     'supabase.'
         'from(',
-    'supabase.'
-        'rpc(',
     'Supabase.'
         'instance',
+  ];
+  final boundaryOnlyPatterns = [
+    'supabase.'
+        'rpc(',
     'Supabase'
         'Client',
   ];
+  const approvedRemoteBoundaryFiles = {
+    'lib/features/shared_pack/remote/shared_pack_remote_api.dart',
+  };
 
   final matches = <String>[];
 
   for (final file in files) {
     final source = file.readAsStringSync();
+    final normalizedPath = file.path.replaceAll('\\', '/');
 
-    for (final pattern in forbiddenPatterns) {
+    for (final pattern in globallyForbiddenPatterns) {
       if (source.contains(pattern)) {
+        matches.add('${file.path}: $pattern');
+      }
+    }
+
+    for (final pattern in boundaryOnlyPatterns) {
+      if (!source.contains(pattern)) {
+        continue;
+      }
+
+      if (!approvedRemoteBoundaryFiles.contains(normalizedPath)) {
         matches.add('${file.path}: $pattern');
       }
     }

@@ -45,7 +45,7 @@ void main() {
       final migration = File(_migrationPath).readAsStringSync();
 
       expect(migration, contains('char_length(code) = 6'));
-      expect(migration, contains('ABCDEFGHJKLMNPQRSTUVWXYZ23456789'));
+      expect(migration, contains('ABCDEFGHJKMNPQRSTUVWXYZ23456789'));
       expect(migration, contains('[0O1IL]'));
     });
 
