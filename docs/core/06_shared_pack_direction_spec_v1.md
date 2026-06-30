@@ -127,8 +127,10 @@ Pack B → H8A 2XD
 建議文件：
 
 ```text
-docs/core/09_remote_request_catalog.md
+docs/core/07_remote_request_catalog.md
 ```
+
+Concrete remote request entries are tracked in `docs/core/07_remote_request_catalog.md`.
 
 每個 Supabase request 必須有一筆紀錄：
 
@@ -179,7 +181,7 @@ lib/features/shared_pack/remote/
   * 唯一可以直接呼叫 Supabase table / RPC 的地方。
 * `shared_pack_remote_request_ids.dart`
 
-  * 對應 `docs/core/09_remote_request_catalog.md` 的 Request ID。
+  * 對應 `docs/core/07_remote_request_catalog.md` 的 Request ID。
 * `shared_pack_remote_dto.dart`
 
   * 所有 remote input / output DTO。
@@ -536,7 +538,7 @@ Backup 不應包含：
 
 包含：
 
-* `docs/core/09_remote_request_catalog.md`
+* `docs/core/07_remote_request_catalog.md`
 * remote API folder structure
 * Request ID convention
 * no scattered Supabase calls rule
