@@ -133,6 +133,9 @@ UI, pages, widgets, controllers, and providers must call application / repositor
 
 All entries in this section are planned placeholders only. They must not be treated as implemented behavior.
 
+Schema contract reference: `docs/core/08_shared_pack_remote_schema_v1.md`.
+Migration reference: `supabase/migrations/20260630000000_shared_pack_v1_remote_schema.sql`.
+
 ### shared_pack.create_pack.v1
 
 | Field | Value |
@@ -141,15 +144,15 @@ All entries in this section are planned placeholders only. They must not be trea
 | Feature | `shared_pack` |
 | Status | `planned` |
 | Code entry | `lib/features/shared_pack/remote/shared_pack_remote_api.dart` / `SharedPackRemoteApi.createPack` |
-| Supabase object | Undecided |
-| Operation | `rpc` or `insert`, undecided |
+| Supabase object | `public.shared_pack_create_pack_v1`, `public.shared_packs`, `public.shared_pack_members` |
+| Operation | `rpc` |
 | Auth required | Undecided |
 | Input DTO | Not implemented |
 | Output DTO | Not implemented |
 | Local effect | After remote success, create or update `local_pack_id <-> remote_pack_id` mapping |
 | Error behavior | Not implemented |
-| Test coverage | Not implemented |
-| Notes | Create a Shared Pack owned by the current remote identity / account. Exact schema to be decided in a later phase. |
+| Test coverage | Schema and migration guardrails only: `test/shared_pack_remote_schema_contract_test.dart`, `test/shared_pack_remote_migration_contract_test.dart` |
+| Notes | Planned only; Flutter does not call this request yet. Migration: `supabase/migrations/20260630000000_shared_pack_v1_remote_schema.sql`. Schema contract: `docs/core/08_shared_pack_remote_schema_v1.md`. |
 
 ### shared_pack.generate_invite.v1
 
@@ -159,15 +162,15 @@ All entries in this section are planned placeholders only. They must not be trea
 | Feature | `shared_pack` |
 | Status | `planned` |
 | Code entry | `lib/features/shared_pack/remote/shared_pack_remote_api.dart` / `SharedPackRemoteApi.generateInvite` |
-| Supabase object | Undecided |
-| Operation | `rpc` or `insert`, undecided |
+| Supabase object | `public.shared_pack_generate_invite_v1`, `public.shared_pack_invites` |
+| Operation | `rpc` |
 | Auth required | Undecided |
 | Input DTO | Not implemented |
 | Output DTO | Not implemented |
 | Local effect | None until remote success; may update cached invite metadata in later phase |
 | Error behavior | Not implemented |
-| Test coverage | Not implemented |
-| Notes | Generate or fetch a 6-character invite code scoped to one Shared Pack. Canonical code should not require spaces or hyphens. |
+| Test coverage | Schema and migration guardrails only: `test/shared_pack_remote_schema_contract_test.dart`, `test/shared_pack_remote_migration_contract_test.dart` |
+| Notes | Planned only; Flutter does not call this request yet. SQL generation uses 6-character codes from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`. Migration: `supabase/migrations/20260630000000_shared_pack_v1_remote_schema.sql`. Schema contract: `docs/core/08_shared_pack_remote_schema_v1.md`. |
 
 ### shared_pack.preview_invite.v1
 
@@ -177,15 +180,15 @@ All entries in this section are planned placeholders only. They must not be trea
 | Feature | `shared_pack` |
 | Status | `planned` |
 | Code entry | `lib/features/shared_pack/remote/shared_pack_remote_api.dart` / `SharedPackRemoteApi.previewInvite` |
-| Supabase object | Undecided |
-| Operation | `select` or `rpc`, undecided |
+| Supabase object | `public.shared_pack_preview_invite_v1`, `public.shared_pack_invites`, `public.shared_packs` |
+| Operation | `rpc` |
 | Auth required | Undecided |
 | Input DTO | Not implemented |
 | Output DTO | Not implemented |
 | Local effect | No Drift write; preview only |
 | Error behavior | Not implemented |
-| Test coverage | Not implemented |
-| Notes | Preview the target Pack name before joining. Invite code resolves to one specific Pack, not a user workspace. |
+| Test coverage | Schema and migration guardrails only: `test/shared_pack_remote_schema_contract_test.dart`, `test/shared_pack_remote_migration_contract_test.dart` |
+| Notes | Planned only; Flutter does not call this request yet. Invite code resolves to one specific Pack, not a user workspace. Migration: `supabase/migrations/20260630000000_shared_pack_v1_remote_schema.sql`. Schema contract: `docs/core/08_shared_pack_remote_schema_v1.md`. |
 
 ### shared_pack.join_by_invite.v1
 
@@ -195,15 +198,15 @@ All entries in this section are planned placeholders only. They must not be trea
 | Feature | `shared_pack` |
 | Status | `planned` |
 | Code entry | `lib/features/shared_pack/remote/shared_pack_remote_api.dart` / `SharedPackRemoteApi.joinByInvite` |
-| Supabase object | Undecided |
-| Operation | `rpc`, undecided |
+| Supabase object | `public.shared_pack_join_by_invite_v1`, `public.shared_pack_invites`, `public.shared_pack_members` |
+| Operation | `rpc` |
 | Auth required | Undecided |
 | Input DTO | Not implemented |
 | Output DTO | Not implemented |
 | Local effect | After remote success, create or update Shared Pack local cache / mapping |
 | Error behavior | Not implemented |
-| Test coverage | Not implemented |
-| Notes | Join a Shared Pack using an invite code scoped to that Pack. |
+| Test coverage | Schema and migration guardrails only: `test/shared_pack_remote_schema_contract_test.dart`, `test/shared_pack_remote_migration_contract_test.dart` |
+| Notes | Planned only; Flutter does not call this request yet. RPC validates invite and creates or returns active membership. Migration: `supabase/migrations/20260630000000_shared_pack_v1_remote_schema.sql`. Schema contract: `docs/core/08_shared_pack_remote_schema_v1.md`. |
 
 ### shared_pack.fetch_snapshot.v1
 
@@ -213,15 +216,15 @@ All entries in this section are planned placeholders only. They must not be trea
 | Feature | `shared_pack` |
 | Status | `planned` |
 | Code entry | `lib/features/shared_pack/remote/shared_pack_remote_api.dart` / `SharedPackRemoteApi.fetchSnapshot` |
-| Supabase object | Undecided |
-| Operation | `select` or `rpc`, undecided |
+| Supabase object | `public.shared_pack_fetch_snapshot_v1`, `public.shared_packs`, `public.shared_pack_members`, `public.shared_pack_items` |
+| Operation | `rpc` |
 | Auth required | Undecided |
 | Input DTO | Not implemented |
 | Output DTO | Not implemented |
 | Local effect | Update local Drift cache after successful manual refresh |
 | Error behavior | Not implemented |
-| Test coverage | Not implemented |
-| Notes | Manual refresh of Shared Pack remote snapshot. No realtime listener in Shared Pack v1. |
+| Test coverage | Schema and migration guardrails only: `test/shared_pack_remote_schema_contract_test.dart`, `test/shared_pack_remote_migration_contract_test.dart` |
+| Notes | Planned only; Flutter does not call this request yet. Manual refresh only; no realtime listener. `shared_pack_item_states` is deferred for v1. Migration: `supabase/migrations/20260630000000_shared_pack_v1_remote_schema.sql`. Schema contract: `docs/core/08_shared_pack_remote_schema_v1.md`. |
 
 ### shared_pack.update_item_state.v1
 
@@ -231,15 +234,15 @@ All entries in this section are planned placeholders only. They must not be trea
 | Feature | `shared_pack` |
 | Status | `planned` |
 | Code entry | `lib/features/shared_pack/remote/shared_pack_remote_api.dart` / `SharedPackRemoteApi.updateItemState` |
-| Supabase object | Undecided |
-| Operation | `rpc` or `update`, undecided |
+| Supabase object | `public.shared_pack_update_item_state_v1`, `public.shared_pack_items` |
+| Operation | `rpc` |
 | Auth required | Undecided |
 | Input DTO | Not implemented |
 | Output DTO | Not implemented |
 | Local effect | Update local Drift cache only after remote success |
 | Error behavior | Not implemented |
-| Test coverage | Not implemented |
-| Notes | Update / complete a Shared Pack item through remote write-through. No outbox in Shared Pack v1. |
+| Test coverage | Schema and migration guardrails only: `test/shared_pack_remote_schema_contract_test.dart`, `test/shared_pack_remote_migration_contract_test.dart` |
+| Notes | Planned only; Flutter does not call this request yet. Remote success is required before local cache update in v1. No outbox. `shared_pack_item_states` is deferred for v1. Migration: `supabase/migrations/20260630000000_shared_pack_v1_remote_schema.sql`. Schema contract: `docs/core/08_shared_pack_remote_schema_v1.md`. |
 
 ## 7. Planned Requests: Account Binding
 

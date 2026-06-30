@@ -1379,6 +1379,7 @@ updatedAt
 - Resource history 跳回來源 Item action。
 - 多來源 related item。
 - Pack 搜尋與 drag and drop 排序。
+- 未來 Shared Pack v1 實作前，需要先定義集中管理的 `local_pack_id <-> remote_pack_id` 與 `local_item_id <-> remote_item_id` mapping；目前 Drift schema 與 repository 行為尚未實作此能力。
 
 ## 8. 命名規則
 
