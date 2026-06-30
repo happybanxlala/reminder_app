@@ -258,6 +258,45 @@ Boundary notes:
 - The service is not wired into UI, providers, routes, app startup, existing reminder completion actions, or Pack settings actions.
 - Phase 4 or later must define account binding before this becomes a production user flow.
 
+## 6.2 Dev-only Manual Flow Harness
+
+Phase 3G adds a dev/manual-only executable harness at:
+
+```text
+test/shared_pack_dev_manual_flow_test.dart
+```
+
+Harness design:
+
+- Uses deterministic fake remote state.
+- Uses real `SharedPackApplicationService`.
+- Uses real in-memory Drift `AppDatabase`.
+- Uses real `SharedPackCacheProjectionService`.
+- Uses `StaticSharedPackIdentityProvider` with owner and joiner dev/manual identities.
+- Does not construct a real Supabase client.
+- Does not require committed credentials.
+
+Covered flow:
+
+- Owner `createSharedPack`.
+- Owner `generateInvite`.
+- Joiner `previewInvite`.
+- Joiner `joinByInvite`.
+- Joiner `refreshSharedPack`.
+- Member `updateSharedItemState`.
+- Other member `refreshSharedPack` again.
+
+Known limitation:
+
+- The fake harness seeds one remote item as dev/manual test state.
+- A real local Supabase manual run still needs SQL/manual setup for `shared_pack_items` until a later phase defines product item creation for Shared Pack.
+
+Boundary notes:
+
+- The harness is not reachable from production UI, providers, routes, or app startup.
+- It does not make Shared Pack v1 user-active.
+- Dev/manual identities are not account binding, account protection, OAuth, or account switching.
+
 ## 7. Identity Direction
 
 Shared Pack v1 may require a remote identity before full account binding exists.

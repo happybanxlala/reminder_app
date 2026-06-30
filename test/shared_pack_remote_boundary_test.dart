@@ -73,11 +73,17 @@ void main() {
         final serviceName =
             'SharedPack'
             'ApplicationService';
+        final harnessName =
+            'shared_pack'
+            '_dev_manual_flow';
         final matches = <String>[];
 
         for (final file in files) {
           final source = file.readAsStringSync();
           if (source.contains(serviceName)) {
+            matches.add(file.path);
+          }
+          if (source.contains(harnessName)) {
             matches.add(file.path);
           }
         }

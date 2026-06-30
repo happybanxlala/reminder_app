@@ -1,6 +1,6 @@
 # Shared Pack v1 Application Service Manual Test
 
-This is a future dev-only manual verification checklist for the isolated Shared Pack application service boundary.
+This is a dev-only manual verification checklist for the isolated Shared Pack application service boundary.
 
 It is not a production UI flow. The app does not currently expose Shared Pack create, invite, join, refresh, or shared item-state update behavior from normal navigation.
 
@@ -15,6 +15,24 @@ It is not a production UI flow. The app does not currently expose Shared Pack cr
 - Test identities are supplied by the harness or test code.
 
 Do not commit Supabase URLs, anon keys, service role keys, database passwords, `DATABASE_URL`, access tokens, or refresh tokens.
+
+## Executable Dev/manual Harness
+
+Phase 3G adds an executable fake-remote harness:
+
+```sh
+flutter test test/shared_pack_dev_manual_flow_test.dart
+```
+
+The harness uses:
+
+- real `SharedPackApplicationService`
+- real in-memory Drift `AppDatabase`
+- real `SharedPackCacheProjectionService`
+- fake remote state for Pack, invite, membership, snapshot item, and item state
+- `StaticSharedPackIdentityProvider` for owner and joiner dev/manual identities
+
+The harness does not use a real Supabase client and does not require credentials.
 
 ## Flow
 
@@ -34,6 +52,12 @@ Do not commit Supabase URLs, anon keys, service role keys, database passwords, `
 14. Verify remote success happens before local item-state projection.
 15. Refresh from the other identity and verify projected cache reflects the remote item state.
 
+## Real Local Supabase Notes
+
+Optional real local Supabase verification remains manual. If a developer later builds a local-only harness, provide Supabase URL, anon key, owner identity, and joiner identity at runtime only. Do not commit those values.
+
+Shared Pack v1 does not yet include product item creation. A real local Supabase run must create at least one `shared_pack_items` row through manual SQL setup or an existing SQL smoke-test setup before the refresh / item-state update portion can be verified.
+
 ## Expected Results
 
 - Missing pack mapping returns an application-level missing mapping result before remote calls.
@@ -44,4 +68,4 @@ Do not commit Supabase URLs, anon keys, service role keys, database passwords, `
 
 ## Current Status
 
-Phase 3F adds the application service boundary and automated tests only. This manual flow remains future dev-only documentation until a separate phase adds an explicit dev harness.
+Phase 3G adds fake-remote dev/manual harness coverage only. Production UI still does not expose Shared Pack create, invite, join, refresh, or shared item-state update behavior.
