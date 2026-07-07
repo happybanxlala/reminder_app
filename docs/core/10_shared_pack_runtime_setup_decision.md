@@ -6,6 +6,18 @@ This document decides whether Shared Pack v1 can become active from product UI b
 
 It is a review and guardrail record only. It does not implement runtime setup, account binding, Supabase startup, production identity, sync, restore, or new user-visible behavior.
 
+Phase 3 closure record: `docs/core/11_shared_pack_phase_3_closure.md`.
+
+Phase 4B config boundary record: `docs/core/13_secure_runtime_config_boundary.md`.
+
+Phase 4B addresses the Supabase config blocker, but Shared Pack production activation still waits for identity/runtime setup.
+
+Phase 4C identity runtime foundation record: `docs/core/14_account_identity_runtime_foundation.md`.
+
+Phase 4C addresses account identity runtime foundation, but Shared Pack product activation still waits until account identity and UI wiring are safe.
+
+The existing dev-gated recommendation remains true until a later phase explicitly changes the request catalog and production wiring.
+
 ## 2. Current State
 
 - Remote schema and RPC contracts exist in `supabase/migrations/20260630000000_shared_pack_v1_remote_schema.sql`.

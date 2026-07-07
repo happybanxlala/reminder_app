@@ -12,6 +12,12 @@ Decision document:
 docs/core/10_shared_pack_runtime_setup_decision.md
 ```
 
+Phase 3 closure document:
+
+```text
+docs/core/11_shared_pack_phase_3_closure.md
+```
+
 Current recommendation: `keep_dev_gated_until_phase_4`.
 
 Product UI cannot be tested end-to-end against real Shared Pack remote behavior yet.
@@ -31,6 +37,8 @@ Current manual testing remains limited to:
 - dev/manual application-service harnesses
 
 Phase 4 or an explicitly approved runtime setup phase must provide safe config and identity before production product UI can call the real service.
+
+Production two-device UI QA waits for Restart Phase 4: Account Binding Foundation.
 
 ## Current Executable UI Coverage
 

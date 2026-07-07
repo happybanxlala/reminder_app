@@ -1426,6 +1426,9 @@ lastSyncedAt
 - 多來源 related item。
 - Pack 搜尋與 drag and drop 排序。
 - Shared Pack v1 目前有 isolated remote API boundary、application service boundary、local cache projection foundation，以及 dev-gated product UI façade；application service 使用集中 mapping tables 解析 Pack / Item remote IDs。production runtime 尚未接安全 Supabase config、identity provider、route、app startup、account binding、restore、realtime、outbox 或 background sync；既有 Personal Pack completion path 仍維持本機 reminder repository 行為。
+- Phase 4A account boundary 定義於 `docs/core/12_account_binding_foundation_spec.md`：account binding 表示把目前裝置資料與 shared identity 連到可恢復、可重新驗證的穩定 account identity。Account state 是產品層邊界；Personal Pack / Shared Pack 仍是產品模型，Local / Remote 僅是技術儲存語言。Personal Pack cloud migration 屬於 Phase 5，不屬於 Phase 4A。
+- Phase 4B secure runtime config boundary 定義於 `docs/core/13_secure_runtime_config_boundary.md`：runtime config 是 infrastructure boundary，不是產品資料模型；不得把 Local / Remote 變成使用者產品分類，也不改 Drift schema、repository 行為、route 或 production UI 啟用狀態。
+- Phase 4C account identity runtime foundation 定義於 `docs/core/14_account_identity_runtime_foundation.md`：account identity runtime 是 account/product boundary，不是 Pack storage category；Personal / Shared 仍是產品模型，Local / Remote 僅是技術語言。此階段不新增 Drift schema，預設 production runtime 維持 unbound。
 
 ## 8. 命名規則
 

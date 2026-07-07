@@ -364,6 +364,16 @@ Impact on Phase 3I:
 - Two-device product UI QA remains blocked until safe Supabase config and identity are available.
 - Existing fake/dev harnesses remain the supported verification path for Phase 3.
 
+## 6.5 Phase 3 Closure
+
+Closure record:
+
+```text
+docs/core/11_shared_pack_phase_3_closure.md
+```
+
+Shared Pack v1 remote schema remains valid as a dev-gated foundation. Product activation waits for Phase 4 runtime / account boundary work.
+
 ## 7. Identity Direction
 
 Shared Pack v1 may require a remote identity before full account binding exists.

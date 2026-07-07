@@ -68,4 +68,6 @@ Shared Pack v1 does not yet include product item creation. A real local Supabase
 
 ## Current Status
 
-Phase 3G adds fake-remote dev/manual harness coverage only. Production UI still does not expose Shared Pack create, invite, join, refresh, or shared item-state update behavior.
+Phase 3 is closed as a dev-gated foundation. Production UI still does not expose Shared Pack create, invite, join, refresh, or shared item-state update behavior. Production two-device UI QA waits for Restart Phase 4: Account Binding Foundation.
+
+Closure record: `docs/core/11_shared_pack_phase_3_closure.md`.

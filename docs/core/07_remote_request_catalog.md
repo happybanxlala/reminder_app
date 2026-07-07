@@ -160,6 +160,10 @@ Remote-side smoke test reference: `supabase/tests/shared_pack_v1_rpc_smoke_test.
 Dev/manual flow harness reference: `test/shared_pack_dev_manual_flow_test.dart`; this exercises the application service boundary with fake remote state and in-memory Drift only, and does not make any request production-active.
 Dev-gated product UI test reference: `test/shared_pack_ux_shell_test.dart`; this uses fake controller overrides only and does not make any request production-active.
 Runtime setup decision reference: `docs/core/10_shared_pack_runtime_setup_decision.md`; Phase 3H.5 keeps Shared Pack v1 dev-gated until Phase 4 account binding / runtime setup is resolved.
+Phase 3 closure reference: `docs/core/11_shared_pack_phase_3_closure.md`; Phase 3 is closed as a dev-gated foundation and activation waits for Phase 4.
+Phase 4A account binding contract reference: `docs/core/12_account_binding_foundation_spec.md`. Phase 4A is contract-only; account_binding requests remain future placeholders and are not implemented or active.
+Phase 4B secure runtime config boundary reference: `docs/core/13_secure_runtime_config_boundary.md`. Config loading is not a Supabase request; Phase 4B adds no table/RPC request entries and does not activate existing requests.
+Phase 4C account identity runtime reference: `docs/core/14_account_identity_runtime_foundation.md`. Identity runtime is not a Supabase request; Phase 4C adds no table/RPC request entries and does not activate existing requests.
 
 ### shared_pack.create_pack.v1
 
@@ -271,12 +275,12 @@ Runtime setup decision reference: `docs/core/10_shared_pack_runtime_setup_decisi
 
 ## 7. Planned Requests: Account Binding
 
-Future only. Not part of Shared Pack v1.
+Future only. Not part of Shared Pack v1. Phase 4A defines the account binding product/data boundary only and does not implement account_binding remote requests.
 
 - `account_binding.bind_account.v1`
 - `account_binding.get_status.v1`
 
-No request entries are active in the current phase.
+No account_binding request entries are implemented or active in the current phase.
 
 ## 8. Planned Requests: Personal Cloud Migration
 

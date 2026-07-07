@@ -558,6 +558,12 @@ Backup 不應包含：
 * 完成最小 Shared Pack。
 * A 更新，B 手動刷新後看見。
 
+Closure note:
+
+* Phase 3 has been closed as a dev-gated foundation.
+* Product activation waits for Restart Phase 4: Account Binding Foundation.
+* Closure details: `docs/core/11_shared_pack_phase_3_closure.md`.
+
 包含：
 
 * minimal remote shared pack tables
@@ -579,6 +585,12 @@ Backup 不應包含：
 ---
 
 ### Restart Phase 4：Account Binding Foundation
+
+Phase 4A defines the confirmed account binding definition and boundary in `docs/core/12_account_binding_foundation_spec.md`.
+
+Account binding means connecting current device data and shared identity to a stable recoverable account identity.
+
+Phase 4A does not implement runtime auth or Personal Pack migration.
 
 目標：
 
