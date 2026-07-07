@@ -24,6 +24,28 @@ void main() {
         expect(section, contains('| Status | `implemented_not_wired` |'));
         expect(section, isNot(contains('| Status | `active` |')));
       }
+
+      expect(catalog, isNot(contains('active_v1_manual')));
+    });
+
+    test('documents dev-gated product UI coverage', () {
+      final catalog = File(_catalogPath).readAsStringSync();
+      final schema = File(
+        'docs/core/08_shared_pack_remote_schema_v1.md',
+      ).readAsStringSync();
+      final manual = File(
+        'docs/core/manual_tests/shared_pack_v1_product_ui_manual_test.md',
+      ).readAsStringSync();
+
+      expect(catalog, contains('test/shared_pack_ux_shell_test.dart'));
+      expect(catalog, contains('SharedPackUiController'));
+      expect(schema, contains('Product UI Wiring'));
+      expect(schema, contains('shared_pack_ui_controller.dart'));
+      expect(
+        manual,
+        contains('flutter test test/shared_pack_ux_shell_test.dart'),
+      );
+      expect(manual, contains('setup-required'));
     });
   });
 
@@ -91,6 +113,17 @@ void main() {
         expect(matches, isEmpty);
       },
     );
+
+    test('home item completion stays on local reminder path', () {
+      final homePage = File(
+        'lib/features/reminders/ui/pages/home_page.dart',
+      ).readAsStringSync();
+
+      expect(homePage, contains('.markDone('));
+      expect(homePage, isNot(contains('SharedPackUiController')));
+      expect(homePage, isNot(contains('sharedPackUiControllerProvider')));
+      expect(homePage, isNot(contains('updateSharedItemState')));
+    });
   });
 }
 

@@ -479,12 +479,46 @@ String _formatTimeOfDay(TimeOfDay value) {
   return '$hour:$minute';
 }
 
-class _SharedPackJoinShellDialog extends StatelessWidget {
+class _SharedPackJoinShellDialog extends ConsumerStatefulWidget {
   const _SharedPackJoinShellDialog();
+
+  @override
+  ConsumerState<_SharedPackJoinShellDialog> createState() =>
+      _SharedPackJoinShellDialogState();
+}
+
+class _SharedPackJoinShellDialogState
+    extends ConsumerState<_SharedPackJoinShellDialog> {
+  final _inviteCodeController = TextEditingController();
+
+  var _isPreviewing = false;
+  var _isJoining = false;
+  SharedPackInvitePreviewUiModel? _preview;
+  String? _errorMessage;
+  String? _joinMessage;
+
+  @override
+  void dispose() {
+    _inviteCodeController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final palette = context.reminderPalette;
+    final controller = ref.watch(sharedPackUiControllerProvider);
+    final availability = controller.availability;
+    final canUseRemote = availability.isEnabled;
+    final normalizedCode = normalizeSharedPackInviteCode(
+      _inviteCodeController.text,
+    );
+    final canPreview =
+        canUseRemote && normalizedCode.isNotEmpty && !_isPreviewing;
+    final canJoin =
+        canUseRemote &&
+        _preview?.isJoinable == true &&
+        normalizedCode.isNotEmpty &&
+        !_isJoining;
     return AlertDialog(
       title: const Text(ReminderUiText.sharedPackJoinShellTitle),
       content: SizedBox(
@@ -497,19 +531,88 @@ class _SharedPackJoinShellDialog extends StatelessWidget {
             const SizedBox(height: 12),
             TextField(
               key: const Key('shared-pack-invite-code-field'),
-              enabled: false,
+              controller: _inviteCodeController,
+              enabled: canUseRemote,
+              textCapitalization: TextCapitalization.characters,
               decoration: const InputDecoration(
                 labelText: ReminderUiText.sharedPackInviteCodeFieldLabel,
                 hintText: ReminderUiText.sharedPackInviteCodePreviewValue,
               ),
+              onChanged: (value) {
+                setState(() {
+                  _preview = null;
+                  _joinMessage = null;
+                  _errorMessage = null;
+                });
+              },
             ),
             const SizedBox(height: 8),
             Text(
-              ReminderUiText.sharedPackInviteDisabledMessage,
+              canUseRemote
+                  ? ReminderUiText.sharedPackJoinInputHelp
+                  : availability.reason,
+              key: const Key('shared-pack-join-setup-required-message'),
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: palette.textSecondary),
             ),
+            if (_isPreviewing) ...[
+              const SizedBox(height: 12),
+              const Row(
+                key: Key('shared-pack-preview-loading'),
+                children: [
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 8),
+                  Text(ReminderUiText.sharedPackPreviewLoadingMessage),
+                ],
+              ),
+            ],
+            if (_preview != null) ...[
+              const SizedBox(height: 12),
+              ReminderPaperCard(
+                key: const Key('shared-pack-preview-result'),
+                padding: const EdgeInsets.all(12),
+                backgroundColor: palette.surfaceWarm,
+                child: Row(
+                  children: [
+                    Icon(Icons.group_outlined, color: palette.primaryWarm),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _preview!.packName ??
+                            ReminderUiText.sharedPackPreviewUnavailableMessage,
+                      ),
+                    ),
+                    if (_preview!.isJoinable)
+                      Icon(Icons.check, color: palette.primaryWarm),
+                  ],
+                ),
+              ),
+            ],
+            if (_joinMessage != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _joinMessage!,
+                key: const Key('shared-pack-join-success'),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: palette.textSecondary),
+              ),
+            ],
+            if (_errorMessage != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _errorMessage!,
+                key: const Key('shared-pack-join-error'),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -518,13 +621,87 @@ class _SharedPackJoinShellDialog extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(),
           child: Text(MaterialLocalizations.of(context).closeButtonLabel),
         ),
+        TextButton(
+          key: const Key('shared-pack-preview-invite-button'),
+          onPressed: canPreview ? _previewInvite : null,
+          child: const Text(ReminderUiText.sharedPackPreviewInviteLabel),
+        ),
         FilledButton(
           key: const Key('shared-pack-join-button'),
-          onPressed: null,
+          onPressed: canJoin ? _joinByInvite : null,
           child: const Text(ReminderUiText.sharedPackJoinLabel),
         ),
       ],
     );
+  }
+
+  Future<void> _previewInvite() async {
+    final normalizedCode = _normalizeFieldValue();
+    setState(() {
+      _isPreviewing = true;
+      _errorMessage = null;
+      _joinMessage = null;
+      _preview = null;
+    });
+
+    final result = await ref
+        .read(sharedPackUiControllerProvider)
+        .previewInvite(inviteCode: normalizedCode);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isPreviewing = false;
+      if (result.isSuccess) {
+        final preview = result.requireValue;
+        _preview = preview;
+        if (!preview.isJoinable) {
+          _errorMessage = ReminderUiText.sharedPackPreviewUnavailableMessage;
+        }
+      } else {
+        _errorMessage = result.error!.message;
+      }
+    });
+  }
+
+  Future<void> _joinByInvite() async {
+    final normalizedCode = _normalizeFieldValue();
+    setState(() {
+      _isJoining = true;
+      _errorMessage = null;
+      _joinMessage = null;
+    });
+
+    final result = await ref
+        .read(sharedPackUiControllerProvider)
+        .joinByInvite(inviteCode: normalizedCode);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isJoining = false;
+      if (result.isSuccess) {
+        _joinMessage = ReminderUiText.sharedPackJoinSuccessMessage(
+          result.requireValue.packName,
+        );
+      } else {
+        _errorMessage = result.error!.message;
+      }
+    });
+  }
+
+  String _normalizeFieldValue() {
+    final normalized = normalizeSharedPackInviteCode(
+      _inviteCodeController.text,
+    );
+    final grouped = groupSharedPackInviteCode(normalized);
+    _inviteCodeController.value = TextEditingValue(
+      text: grouped,
+      selection: TextSelection.collapsed(offset: grouped.length),
+    );
+    return normalized;
   }
 }
 

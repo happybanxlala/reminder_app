@@ -297,6 +297,73 @@ Boundary notes:
 - It does not make Shared Pack v1 user-active.
 - Dev/manual identities are not account binding, account protection, OAuth, or account switching.
 
+## 6.3 Product UI Wiring
+
+Phase 3H adds dev-gated product UI wiring around the existing Shared Pack shell.
+
+UI facade path:
+
+```text
+lib/features/shared_pack/application/shared_pack_ui_controller.dart
+```
+
+Product UI paths:
+
+```text
+lib/features/reminders/ui/pages/feature_page_packs.dart
+lib/features/reminders/ui/pages/feature_page_settings.dart
+```
+
+Covered UI states:
+
+- Owner-side Pack member dialog can show setup-required, loading, invite code success, refresh result, and error states.
+- Settings join dialog accepts invite codes with spaces or hyphens, normalizes them before preview / join, and can show preview, join success, and error states.
+- Manual refresh affordance appears only for mapped Pack contexts when a dev/test controller exposes that availability.
+- Item-state update exists on the UI controller facade, but existing Personal Pack completion UI is not wired to remote item-state update.
+
+Default runtime behavior:
+
+- The default `sharedPackUiControllerProvider` returns setup-required / disabled.
+- No production-safe Supabase config provider exists yet.
+- No production identity provider exists yet.
+- No UI, provider, route, or app startup code creates a Supabase client.
+- No UI, provider, route, or app startup code calls `SharedPackApplicationService` directly.
+
+Dev/test behavior:
+
+- Widget tests may override `sharedPackUiControllerProvider` with a fake controller.
+- Fake-enabled tests can exercise owner invite, Settings preview/join, and manual refresh UI states without Supabase.
+- This does not make Shared Pack v1 production-active.
+
+Boundary notes:
+
+- UI/controller/provider code must never call Supabase directly.
+- Local cache projection still happens only after application-service remote success.
+- Phase 3H does not add realtime, outbox, retry queue, background sync, conflict resolution, account binding, account switching, restore, widget shared action, or product item creation for Shared Pack.
+- Safe runtime config and identity remain Phase 4 / later work.
+
+## 6.4 Runtime Setup / Identity Boundary Decision
+
+Phase 3H.5 decision record:
+
+```text
+docs/core/10_shared_pack_runtime_setup_decision.md
+```
+
+Decision summary:
+
+- Shared Pack v1 remains dev-gated and setup-required in product UI.
+- The six Shared Pack v1 requests remain `implemented_not_wired`.
+- Production activation waits for Phase 4 account binding / runtime setup or an explicitly approved identity boundary.
+- Device-scoped identity is not approved for production product activation in Phase 3 because membership recovery is unclear.
+- Manual refresh remains the v1 direction; no realtime, outbox, background sync, retry queue, or conflict resolution is added.
+
+Impact on Phase 3I:
+
+- Phase 3I should harden dev-gated UI / guardrails and prepare a Phase 4 handoff checklist.
+- Two-device product UI QA remains blocked until safe Supabase config and identity are available.
+- Existing fake/dev harnesses remain the supported verification path for Phase 3.
+
 ## 7. Identity Direction
 
 Shared Pack v1 may require a remote identity before full account binding exists.

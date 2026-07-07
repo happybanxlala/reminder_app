@@ -1120,7 +1120,7 @@ Pack 管理 route：`/feature/item-packs-management`，route name：`item-packs-
 - 對自訂 Pack 使用「上」「下」調整排序。
 - 封存自訂 Pack。
 - system default pack 顯示但不可編輯、不可封存。
-- Shared Pack Restart Phase 1 只提供 future-ready UX shell：現有 Pack 仍顯示並行為為個人 Pack；自訂 Pack 可從 overflow 查看該 Pack context 內的 disabled/mock 成員與邀請碼 UI；Settings 顯示 disabled/mock「輸入邀請碼」全域入口，但日後邀請碼應解析到單一 specific Pack。此階段不新增 schema、domain 欄位、repository 行為、remote request、實際加入、sync 或 account binding。
+- Shared Pack v1 目前提供 dev-gated product UI shell：現有 Pack 仍顯示並行為為個人 Pack；自訂 Pack 可從 overflow 查看該 Pack context 內的成員與邀請碼 UI；Settings 顯示「輸入邀請碼」全域入口。預設 production runtime 仍顯示 setup-required，不會呼叫 remote；測試可 override `SharedPackUiController` 驗證邀請、預覽、加入與手動更新 UI 狀態。邀請碼仍以 Pack 為 scope，日後應解析到單一 specific Pack。此階段不新增 schema、domain 欄位、repository 行為、production Supabase config、實際 production 加入、sync 或 account binding。
 
 ## 5. Drift Schema
 
@@ -1425,7 +1425,7 @@ lastSyncedAt
 - Resource history 跳回來源 Item action。
 - 多來源 related item。
 - Pack 搜尋與 drag and drop 排序。
-- Shared Pack v1 目前只有 isolated remote API boundary、application service boundary 與 local cache projection foundation；application service 使用集中 mapping tables 解析 Pack / Item remote IDs，但尚未接 UI、provider、route、app startup、manual refresh、account binding、restore、realtime、outbox 或 background sync。
+- Shared Pack v1 目前有 isolated remote API boundary、application service boundary、local cache projection foundation，以及 dev-gated product UI façade；application service 使用集中 mapping tables 解析 Pack / Item remote IDs。production runtime 尚未接安全 Supabase config、identity provider、route、app startup、account binding、restore、realtime、outbox 或 background sync；既有 Personal Pack completion path 仍維持本機 reminder repository 行為。
 
 ## 8. 命名規則
 

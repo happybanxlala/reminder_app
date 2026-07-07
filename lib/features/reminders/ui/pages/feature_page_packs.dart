@@ -202,7 +202,7 @@ class _PackManagementTile extends ConsumerWidget {
   ) async {
     switch (action) {
       case _PackManagementMenuAction.members:
-        await _showSharedPackMembersShell(context);
+        await _showSharedPackMembersShell(context, pack);
         return;
       case _PackManagementMenuAction.edit:
         await _showEditDialog(context, ref);
@@ -341,19 +341,57 @@ class _SharedPackShellCard extends StatelessWidget {
   }
 }
 
-Future<void> _showSharedPackMembersShell(BuildContext context) {
+Future<void> _showSharedPackMembersShell(BuildContext context, ItemPack pack) {
   return showDialog<void>(
     context: context,
-    builder: (dialogContext) => const _SharedPackMembersShellDialog(),
+    builder: (dialogContext) => _SharedPackMembersShellDialog(pack: pack),
   );
 }
 
-class _SharedPackMembersShellDialog extends StatelessWidget {
-  const _SharedPackMembersShellDialog();
+class _SharedPackMembersShellDialog extends ConsumerStatefulWidget {
+  const _SharedPackMembersShellDialog({required this.pack});
+
+  final ItemPack pack;
+
+  @override
+  ConsumerState<_SharedPackMembersShellDialog> createState() =>
+      _SharedPackMembersShellDialogState();
+}
+
+class _SharedPackMembersShellDialogState
+    extends ConsumerState<_SharedPackMembersShellDialog> {
+  var _isGeneratingInvite = false;
+  var _isRefreshing = false;
+  bool? _canRefresh;
+  SharedPackGeneratedInviteUiModel? _invite;
+  String? _errorMessage;
+  String? _refreshMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.microtask(_loadRefreshAvailability);
+  }
+
+  Future<void> _loadRefreshAvailability() async {
+    final canRefresh = await ref
+        .read(sharedPackUiControllerProvider)
+        .canRefreshSharedPack(localPackId: widget.pack.id);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _canRefresh = canRefresh;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final palette = context.reminderPalette;
+    final controller = ref.watch(sharedPackUiControllerProvider);
+    final availability = controller.availability;
+    final invite = _invite;
+    final canGenerate = availability.isEnabled && !_isGeneratingInvite;
     return AlertDialog(
       title: const Text(ReminderUiText.sharedPackMembersShellTitle),
       content: SizedBox(
@@ -387,37 +425,153 @@ class _SharedPackMembersShellDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            Text(
-              '${ReminderUiText.sharedPackInviteCodePreviewLabel}：'
-              '${ReminderUiText.sharedPackInviteCodePreviewValue}',
-              key: const Key('shared-pack-invite-code-preview'),
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              ReminderUiText.sharedPackInviteDisabledMessage,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: palette.textSecondary),
-            ),
+            if (_isGeneratingInvite) ...[
+              const Row(
+                key: Key('shared-pack-invite-loading'),
+                children: [
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 8),
+                  Text(ReminderUiText.sharedPackInviteGeneratingMessage),
+                ],
+              ),
+            ] else if (invite != null) ...[
+              Text(
+                invite.groupedInviteCode,
+                key: const Key('shared-pack-generated-invite-code'),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                ReminderUiText.sharedPackInviteGeneratedMessage,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: palette.textSecondary),
+              ),
+            ] else ...[
+              Text(
+                '${ReminderUiText.sharedPackInviteCodePreviewLabel}：'
+                '${ReminderUiText.sharedPackInviteCodePreviewValue}',
+                key: const Key('shared-pack-invite-code-preview'),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                availability.isEnabled
+                    ? ReminderUiText.sharedPackInviteReadyMessage
+                    : availability.reason,
+                key: const Key('shared-pack-setup-required-message'),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: palette.textSecondary),
+              ),
+            ],
+            if (_errorMessage != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _errorMessage!,
+                key: const Key('shared-pack-invite-error'),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              ),
+            ],
+            if (_refreshMessage != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _refreshMessage!,
+                key: const Key('shared-pack-refresh-result'),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: palette.textSecondary),
+              ),
+            ],
           ],
         ),
       ),
       actions: [
+        if (_canRefresh == true)
+          TextButton.icon(
+            key: const Key('shared-pack-refresh-button'),
+            onPressed: _isRefreshing ? null : _refreshSharedPack,
+            icon: _isRefreshing
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh_outlined),
+            label: const Text(ReminderUiText.sharedPackRefreshLabel),
+          ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: Text(MaterialLocalizations.of(context).closeButtonLabel),
         ),
         FilledButton.icon(
           key: const Key('shared-pack-invite-member-button'),
-          onPressed: null,
+          onPressed: canGenerate ? _generateInvite : null,
           icon: const Icon(Icons.person_add_alt_outlined),
           label: const Text(ReminderUiText.sharedPackInviteMemberLabel),
         ),
       ],
     );
+  }
+
+  Future<void> _generateInvite() async {
+    setState(() {
+      _isGeneratingInvite = true;
+      _errorMessage = null;
+    });
+
+    final result = await ref
+        .read(sharedPackUiControllerProvider)
+        .generateInvite(localPackId: widget.pack.id);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isGeneratingInvite = false;
+      if (result.isSuccess) {
+        _invite = result.requireValue;
+      } else {
+        _errorMessage = result.error!.message;
+      }
+    });
+  }
+
+  Future<void> _refreshSharedPack() async {
+    setState(() {
+      _isRefreshing = true;
+      _errorMessage = null;
+      _refreshMessage = null;
+    });
+
+    final result = await ref
+        .read(sharedPackUiControllerProvider)
+        .refreshSharedPack(localPackId: widget.pack.id);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isRefreshing = false;
+      if (result.isSuccess) {
+        final value = result.requireValue;
+        _refreshMessage = ReminderUiText.sharedPackRefreshSuccessMessage(
+          value.createdItemsCount + value.updatedItemsCount,
+        );
+      } else {
+        _errorMessage = result.error!.message;
+      }
+    });
   }
 }
 

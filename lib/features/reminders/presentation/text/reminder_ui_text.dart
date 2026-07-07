@@ -254,13 +254,26 @@ class ReminderUiText {
   static const sharedPackInviteCodePreviewValue = 'K7M 4Q9';
   static const sharedPackInviteDisabledMessage =
       '邀請碼目前只是示意；日後每個共享 Pack 會各自管理，不會產生、複製或保存。';
+  static const sharedPackInviteReadyMessage = '此 Pack 可產生邀請碼；邀請碼只對應這一個共享 Pack。';
+  static const sharedPackInviteGeneratingMessage = '正在產生邀請碼';
+  static const sharedPackInviteGeneratedMessage = '邀請碼只對應這一個共享 Pack。';
+  static const sharedPackRefreshLabel = '更新';
   static const sharedPackJoinShellTitle = '加入共享 Pack';
   static const sharedPackJoinShellMessage =
       '輸入邀請碼加入共享 Pack 尚未啟用。日後邀請碼會找到一個對應的 Pack。';
   static const sharedPackInviteCodeFieldLabel = '邀請碼';
+  static const sharedPackJoinInputHelp = '可輸入空格或連字號；送出前會整理成邀請碼。';
+  static const sharedPackPreviewInviteLabel = '預覽';
+  static const sharedPackPreviewLoadingMessage = '正在預覽共享 Pack';
+  static const sharedPackPreviewUnavailableMessage = '這個邀請碼目前不能加入。';
+  static const sharedPackItemStateUnavailableMessage = '這個事項尚未準備好共享。';
   static String packTemplateItemsCount(int count) => '$count 個事項';
   static String packTemplateCreatedMessage(String packName) =>
       packTemplateCreatedMessageTemplate.replaceFirst('{packName}', packName);
+  static String sharedPackRefreshSuccessMessage(int changedItemsCount) =>
+      changedItemsCount == 0 ? '已更新共享 Pack。' : '已更新 $changedItemsCount 個事項。';
+  static String sharedPackJoinSuccessMessage(String packName) =>
+      '已加入「$packName」。';
   static const packFieldLabel = '生活場景';
   static const itemTitleFieldLabel = '事項名稱';
   static const itemTitleFieldHint = '例如：清貓砂、換濾芯、繳電費';

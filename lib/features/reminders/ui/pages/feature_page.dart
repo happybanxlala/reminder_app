@@ -23,6 +23,7 @@ import '../../providers/resource_providers.dart';
 import '../../providers/settings_providers.dart';
 import '../../providers/attention_service_providers.dart';
 import '../../providers/stage_tracker_providers.dart';
+import '../../../shared_pack/application/shared_pack_ui_controller.dart';
 import 'feature_management_sections.dart';
 import 'stage_tracker_pages.dart';
 import '../widgets/editor_form_components.dart';
