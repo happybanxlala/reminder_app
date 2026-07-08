@@ -138,6 +138,12 @@ void main() {
   ) async {
     await _pumpSettings(tester);
 
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('settings-shared-pack-section')),
+      160,
+    );
+    await tester.pumpAndSettle();
+
     expect(
       find.byKey(const Key('settings-shared-pack-section')),
       findsOneWidget,

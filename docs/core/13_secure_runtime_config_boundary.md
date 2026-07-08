@@ -105,6 +105,10 @@ Phase 4C will define account identity runtime foundation.
 
 Phase 4D will show account status UI.
 
+Phase 4D Account Status UI is defined in `docs/core/15_account_status_ui.md`.
+
+Account Status UI does not require Supabase config to be valid. Config remains separate from account status display.
+
 Phase 4E may enable Shared Pack active_v1_manual after account/runtime identity is safe.
 
 ## 9. Relationship to Backup / Export

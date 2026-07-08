@@ -15,6 +15,7 @@ class SettingsPage extends ConsumerWidget {
     final showDeveloperSettings = ref.watch(developerSettingsVisibleProvider);
     final overrideDate = ref.watch(developerDateOverrideProvider);
     final effectiveDate = ref.watch(effectivePreviewDateProvider);
+    final accountStatusAsync = ref.watch(accountStatusUiModelProvider);
     final isOverridden = overrideDate != null;
     final databaseVersion = ref.watch(appDatabaseProvider).schemaVersion;
 
@@ -60,6 +61,18 @@ class SettingsPage extends ConsumerWidget {
                 onTap: settingsAsync.isLoading
                     ? null
                     : () => _pickReminderTime(context, ref, reminderTime),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ReminderEditorSection(
+            key: const Key('settings-account-status-section'),
+            title: ReminderUiText.settingsAccountProtectionSectionTitle,
+            children: [
+              accountStatusAsync.when(
+                data: (model) => _AccountStatusCard(model: model),
+                loading: () => const _AccountStatusCard.loading(),
+                error: (_, _) => const _AccountStatusCard.unavailable(),
               ),
             ],
           ),
@@ -477,6 +490,148 @@ String _formatTimeOfDay(TimeOfDay value) {
   final hour = value.hour.toString().padLeft(2, '0');
   final minute = value.minute.toString().padLeft(2, '0');
   return '$hour:$minute';
+}
+
+class _AccountStatusCard extends StatelessWidget {
+  _AccountStatusCard({required AccountStatusUiModel model})
+    : _title = model.title,
+      _body = model.body,
+      _note = model.note,
+      _status = model.status,
+      _showProgress = model.showProgress;
+
+  const _AccountStatusCard.loading()
+    : _title = ReminderUiText.accountStatusLoadingTitle,
+      _body = ReminderUiText.accountStatusLoadingBody,
+      _note = '',
+      _status = AccountBindingStatus.binding,
+      _showProgress = true;
+
+  const _AccountStatusCard.unavailable()
+    : _title = ReminderUiText.accountStatusUnavailableTitle,
+      _body = ReminderUiText.accountStatusUnavailableBody,
+      _note = '',
+      _status = AccountBindingStatus.bindingFailed,
+      _showProgress = false;
+
+  final String _title;
+  final String _body;
+  final String _note;
+  final AccountBindingStatus _status;
+  final bool _showProgress;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.reminderPalette;
+    final foreground = _foregroundColor(context);
+    final background = _backgroundColor(context);
+    return ReminderPaperCard(
+      key: const Key('settings-account-status-card'),
+      padding: const EdgeInsets.all(12),
+      backgroundColor: palette.surfaceWarm,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ReminderIconBubble(
+            size: 42,
+            backgroundColor: background,
+            borderColor: foreground.withValues(alpha: 0.22),
+            child: _showProgress
+                ? SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: foreground,
+                    ),
+                  )
+                : Icon(_icon, size: 22, color: foreground),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _title,
+                  key: const Key('settings-account-status-title'),
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: palette.textPrimary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _body,
+                  key: const Key('settings-account-status-body'),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: palette.textPrimary),
+                ),
+                if (_note.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    _note,
+                    key: const Key('settings-account-status-note'),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: palette.textSecondary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData get _icon {
+    switch (_status) {
+      case AccountBindingStatus.unbound:
+        return Icons.lock_open_outlined;
+      case AccountBindingStatus.binding:
+        return Icons.sync_outlined;
+      case AccountBindingStatus.bound:
+        return Icons.verified_user_outlined;
+      case AccountBindingStatus.bindingFailed:
+        return Icons.error_outline;
+      case AccountBindingStatus.needsReauth:
+        return Icons.lock_clock_outlined;
+    }
+  }
+
+  Color _foregroundColor(BuildContext context) {
+    final palette = context.reminderPalette;
+    switch (_status) {
+      case AccountBindingStatus.unbound:
+        return palette.statusWarning;
+      case AccountBindingStatus.binding:
+        return palette.primaryWarm;
+      case AccountBindingStatus.bound:
+        return palette.statusNormal;
+      case AccountBindingStatus.bindingFailed:
+        return palette.statusDanger;
+      case AccountBindingStatus.needsReauth:
+        return palette.statusWarning;
+    }
+  }
+
+  Color _backgroundColor(BuildContext context) {
+    final palette = context.reminderPalette;
+    switch (_status) {
+      case AccountBindingStatus.unbound:
+        return palette.statusWarningContainer;
+      case AccountBindingStatus.binding:
+        return palette.primaryWarmContainer;
+      case AccountBindingStatus.bound:
+        return palette.statusNormalContainer;
+      case AccountBindingStatus.bindingFailed:
+        return palette.statusDangerContainer;
+      case AccountBindingStatus.needsReauth:
+        return palette.statusWarningContainer;
+    }
+  }
 }
 
 class _SharedPackJoinShellDialog extends ConsumerStatefulWidget {

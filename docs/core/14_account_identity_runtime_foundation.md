@@ -147,6 +147,10 @@ Phase 4C enables:
 - later Shared Pack active_v1_manual in Phase 4E
 - stable account identity boundary for future Personal Pack migration in Phase 5
 
+Phase 4D Account Status UI is defined in `docs/core/15_account_status_ui.md`.
+
+The UI reads `AccountIdentityRuntime`, default production runtime remains unbound, and tests may use `FakeAccountIdentityRuntime`.
+
 ## 11. What Phase 4C Does Not Enable Yet
 
 Phase 4C does not enable:

@@ -133,6 +133,11 @@ void main() {
   testWidgets('reset action requires RESET before confirm', (tester) async {
     await _pumpSettings(tester, developerVisible: false);
 
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('settings-reset-user-data-row')),
+      120,
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('settings-reset-user-data-row')));
     await tester.pumpAndSettle();
 
@@ -210,6 +215,11 @@ void main() {
   ) async {
     await _pumpSettings(tester, developerVisible: true);
 
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('settings-developer-section')),
+      160,
+    );
+    await tester.pumpAndSettle();
     expect(
       find.text(ReminderUiText.settingsDeveloperSectionTitle),
       findsOneWidget,
@@ -237,6 +247,11 @@ void main() {
   testWidgets('preview date row opens date picker', (tester) async {
     await _pumpSettings(tester, developerVisible: true);
 
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('settings-preview-date-row')),
+      160,
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('settings-preview-date-row')));
     await tester.pumpAndSettle();
 
@@ -250,6 +265,11 @@ void main() {
       pickDate: (context, initialDate) async => DateTime(2026, 6, 2, 14),
     );
 
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('settings-preview-date-row')),
+      160,
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('settings-preview-date-row')));
     await tester.pumpAndSettle();
 
@@ -273,6 +293,11 @@ void main() {
     (tester) async {
       await _pumpSettings(tester, developerVisible: true);
 
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('settings-debug-info-title')),
+        160,
+      );
+      await tester.pumpAndSettle();
       expect(find.text(ReminderUiText.debugInfoSectionTitle), findsOneWidget);
       expect(find.text(ReminderUiText.databaseVersionLabel), findsOneWidget);
       expect(find.text('6'), findsOneWidget);
@@ -327,6 +352,12 @@ void main() {
         find.text(ReminderUiText.settingsGeneralSectionTitle),
         findsOneWidget,
       );
+
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('settings-developer-section')),
+        160,
+      );
+      await tester.pumpAndSettle();
       expect(
         find.text(ReminderUiText.settingsDeveloperSectionTitle),
         findsOneWidget,

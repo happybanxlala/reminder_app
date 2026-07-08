@@ -310,6 +310,9 @@ Phase 4C:
 Phase 4D:
 
 - account status UI
+- defined in `docs/core/15_account_status_ui.md`
+- visualizes account states only
+- does not implement login/runtime auth
 
 Phase 4E:
 

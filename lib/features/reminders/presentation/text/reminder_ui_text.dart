@@ -140,6 +140,11 @@ class ReminderUiText {
   static const developerPreviewDatePickAction = '選擇日期';
   static const developerPreviewDateResetAction = '還原今天';
   static const settingsGeneralSectionTitle = '一般設定';
+  static const settingsAccountProtectionSectionTitle = '帳號保護';
+  static const accountStatusLoadingTitle = '正在讀取帳號狀態';
+  static const accountStatusLoadingBody = '正在確認此裝置的帳號保護狀態。';
+  static const accountStatusUnavailableTitle = '帳號狀態暫時無法取得';
+  static const accountStatusUnavailableBody = '稍後再回來查看帳號保護狀態。';
   static const settingsDataSectionTitle = '資料管理';
   static const settingsDeveloperSectionTitle = '開發工具';
   static const backupDataLabel = '備份資料';
