@@ -432,11 +432,35 @@ Pack 的視覺角色是中等核心：
 * 用於建立流程的分類
 * 用於管理頁分組或篩選
 
-Pack 不應在 MVP 階段變成主要導航架構，也不需要 Pack detail page。
+Pack 不應在 MVP 階段變成主要導航架構。Personal Pack 不需要 Pack detail page。
+
+Shared Pack 是例外：Shared Pack v1 可以有 compact Shared Pack detail / settings page。該頁面是 members、invite、manual refresh 及 Shared Items 的 context，不是把 Pack 變成主要 app navigation，也不代表 Personal Pack 需要同樣的 detail page。
+
+### 9.1 Personal / Shared Visual Semantics
+
+Personal / Shared 應使用低干擾標記，不應搶走 warning / danger attention status。
+
+建議：
+
+* Personal Pack 預設不需要額外 badge；既有 Pack emoji 與 title 已足夠。
+* Shared Pack 可使用 members / shared icon，或小型「共享」標記。
+* Shared 狀態應作為 access-scope metadata，不應取代 warning / danger / normal / unknown 狀態色。
+* 不應使用 Cloud / Local 作為主要標籤。
+* Shared Pack v1 專屬頁面仍要保持 warm utility / calm urgency：compact、可掃描、低裝飾，重點放在成員、邀請、手動刷新與 Shared Item current state。
+
+避免：
+
+```text
+本機 / 雲端
+remote-backed
+anonymous user
+Supabase UID
+用共享 badge 覆蓋危險或警告狀態
+```
 
 ---
 
-### 9.1 Emoji Usage
+### 9.2 Emoji Usage
 
 Emoji 可以作為生活場景的主要視覺標記。
 
@@ -470,11 +494,12 @@ Emoji 可以作為生活場景的主要視覺標記。
 
 ## 10. Navigation Direction
 
-目前主導航可維持三個核心入口：
+目前主導航可維持四個低負擔入口：
 
-* 今天
-* 管理
-* 階段追蹤
+* 首頁
+* 事項
+* 動態
+* 更多
 
 底部導航應保持清楚，不增加過多入口。
 
@@ -486,7 +511,7 @@ Emoji 可以作為生活場景的主要視覺標記。
 * 階段追蹤
 * 設定
 
-管理頁可以比 Home 更有效率、更工具化；Home 則保持溫暖、清楚、低負擔。
+管理頁可以比 Home 更有效率、更工具化；Home 則保持溫暖、清楚、低負擔。Shared Pack v1 若需要 entry，應放在 Shared Pack 專屬 entry 或 More / Settings 脈絡中，不應直接增加新的 primary bottom tab。
 
 ---
 

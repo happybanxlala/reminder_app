@@ -5,11 +5,18 @@ Flutter MVP for a split reminder product model:
 - `Item Pack + Item`
 - `Resource`
 - `StageTracker + StageRule + StageRecord + StageRelatedItem`
+- local JSON backup / import / reset
+- large iOS / Android Home Widget
 
 正式規格與真相來源：
 
-- `docs/core/04_core_model_spec_v1.md`
-- Drift schema in `lib/features/reminders/data/local/`
+- `docs/core/04_core_model_spec_v1.md`：現有 core domain / local model。
+- `docs/core/05_home_widget_spec.md`：Home Widget boundary。
+- `docs/core/06_shared_pack_direction_spec_v1.md`：Shared Pack product direction and phased scope。
+- `docs/core/07_shared_pack_remote_contract_v1.md`：future remote request / contract catalog。
+- Drift schema implementation：`lib/features/reminders/data/local/`
+
+Shared Pack is planned only. This repository currently has no production Shared Pack remote API, Supabase dependency, remote table, RPC, auth flow, Drift mapping table, or Shared Pack UI route.
 
 StageTracker 模型採 rule-first：
 
@@ -21,9 +28,11 @@ StageTracker 模型採 rule-first：
 
 ## Drift Schema Note
 
-- 目前 Drift schema 以 StageTracker 版本作為初始 schema。
-- `schemaVersion` 為 `1`，不維護早期開發期 migration 鏈。
-- 舊開發資料庫可丟棄重建；現行表結構以 `lib/features/reminders/data/local/tables.dart` 為準。
+- `driftSchemaVersion` 為 `5`，來源是 `AppDatabase.schemaVersion`。
+- 現行表結構以 `lib/features/reminders/data/local/tables.dart` 為準。
+- `backupFormatVersion` 目前為 `1`，來源是 `BackupPayload.currentSchemaVersion`；JSON 欄位仍名為 `schemaVersion`，但它不是 Drift schema version。
+- `widgetSnapshotSchemaVersion` 目前為 `1`，來源是 `HomeWidgetSnapshot.currentSchemaVersion` 與 native widget supported schema。
+- `remoteApiContractVersion` / `remoteSnapshotSchemaVersion` 仍是 planned，尚未有 production API。
 
 ## Setup
 
@@ -56,8 +65,11 @@ lib/
   features/
     reminders/
       data/
+        backup_models.dart
+        reminder_backup_service.dart
         home_repository.dart
         item_repository.dart
+        resource_repository.dart
         stage_tracker_repository.dart
         local/
           app_database.dart
@@ -66,22 +78,37 @@ lib/
       domain/
       presentation/
       providers/
+        backup_providers.dart
         database_providers.dart
         developer_settings_providers.dart
         home_providers.dart
         item_providers.dart
+        resource_providers.dart
         stage_tracker_providers.dart
       ui/
         pages/
           home_page.dart
           feature_page.dart
           feature_management_sections.dart
+          feature_management_resources.dart
+          feature_page_activity.dart
+          feature_page_more.dart
+          feature_page_packs.dart
+          feature_page_settings.dart
           item_edit_page.dart
+          item_history_page.dart
+          resource_edit_page.dart
+          resource_history_page.dart
           stage_tracker_pages.dart
         widgets/
           editor_common_fields.dart
           item_config_form_section.dart
           item_summary_dialog.dart
+  features/
+    home_widget/
+      application/
+      data/
+      providers/
 ```
 
 ## Documentation Rules

@@ -1,6 +1,6 @@
 ---
 This is the single source of truth for reminders core model, MVP scope, naming, and behavior.
-Last aligned with repository contents on 2026-06-14.
+Last aligned with repository contents on 2026-08-04.
 ---
 
 # Reminder App Unified Core Spec
@@ -43,7 +43,80 @@ Reminder App 關注四種使用者容易忽略的狀態：
 
 Domain 必須保持分離。Home 可以在 presentation layer 聚合 `Item`、`Resource` 與 `StageOccurrence`，但不可把三者合併成同一個 domain object。
 
-### 1.3 已實作模型清單
+### 1.3 Pack 使用範圍語意
+
+`PackAccessScope` 是後續 Shared Pack 開發前先定義的產品語意，不是目前 production model。
+
+```dart
+enum PackAccessScope {
+  personal,
+  shared,
+}
+```
+
+狀態：
+
+- planned semantic only。
+- 現有 production model 尚未實作 `PackAccessScope` enum、欄位或 Drift column。
+- Phase 0 只定義語意，不新增 migration，也不提升 `driftSchemaVersion`。
+
+語意邊界：
+
+- `personal` / `shared` 表示 Pack 的使用範圍與存取關係。
+- `local` / `remote` 表示技術儲存方式。
+- 使用者與 UI 應理解「個人 Pack / 共享 Pack」，不應被迫理解「本機 Pack / 遠端 Pack」。
+- 現有已實作 `ItemPack` 全部都是 Personal/local-first Pack；Shared Pack 尚未在 production code 中實作。
+
+### 1.4 Shared Pack v1 cross-reference
+
+Shared Pack 產品方向以 `docs/core/06_shared_pack_direction_spec_v1.md` 為準；planned remote request / contract catalog 以 `docs/core/07_shared_pack_remote_contract_v1.md` 為準。
+
+在本 core spec 中只鎖定與現有 local model 的交界：
+
+- Shared Pack v1 是 Item-only。
+- Shared Pack v1 不代表現有整個 `ItemPack` graph 都會 remote-backed。
+- `Resource`、`ResourceConsumptionRule`、`ResourceActionRecord`、`StageTracker`、`StageRule`、`StageRecord`、`StageRelatedItem`、`PackTemplate` 與 custom template sync 在 v1 保持 Personal/local-only。
+- Personal Pack conversion 不屬於 v1；v1 只支援建立新的 Shared Pack。
+- Shared Item 即使 planned 投影到 local Drift readable cache，也不代表自動進入所有既有 repository query、Home、Widget、通知或 backup。
+
+### 1.5 Planned local cache projection
+
+Shared Pack Phase 0 不修改 Drift schema；以下 mapping 只是 Phase 1 前需要確認的 planned model direction。
+
+```text
+shared_pack_mapping
+- localPackId
+- remotePackId
+- remoteVersion
+- lastRefreshedAt
+
+shared_item_mapping
+- localItemId
+- remoteItemId
+- remotePackId
+- remoteVersion
+```
+
+要求：
+
+- mapping 必須集中。
+- 不可把 `remoteId`、`syncState` 或 remote version 欄位散落在 unrelated domain models。
+- 正式 table 名稱、欄位型別、index、migration 與 projection transaction 必須在 Phase 1 前再確認。
+- Phase 0 不新增 `shared_pack_mapping`、`shared_item_mapping`、remote id column 或任何 Drift migration。
+
+### 1.6 Version naming
+
+文件與程式碼應避免單獨使用模糊的 `schemaVersion` 描述不同協定。若需要描述版本，必須指明是哪一種：
+
+| 名稱 | 目前值 | 來源 | 語意 |
+| --- | --- | --- | --- |
+| `driftSchemaVersion` | `5` | `AppDatabase.schemaVersion` | Drift database schema / migration version |
+| `backupFormatVersion` | `1` | `BackupPayload.currentSchemaVersion`，JSON 欄位目前仍名為 `schemaVersion` | legacy local JSON backup format |
+| `widgetSnapshotSchemaVersion` | `1` | `HomeWidgetSnapshot.currentSchemaVersion` 與 native supported schema | Home Widget Flutter-to-native snapshot protocol |
+| `remoteApiContractVersion` | planned | `docs/core/07_shared_pack_remote_contract_v1.md` | Shared Pack remote request contract |
+| `remoteSnapshotSchemaVersion` | planned | `docs/core/07_shared_pack_remote_contract_v1.md` | Shared Pack remote current-state snapshot read model |
+
+### 1.7 已實作模型清單
 
 - `ItemPack`
 - `PackTemplate`
@@ -67,7 +140,7 @@ Domain 必須保持分離。Home 可以在 presentation layer 聚合 `Item`、`R
 - `StageRecord`
 - `StageRelatedItem`
 
-### 1.4 已實作 enum 清單
+### 1.8 已實作 enum 清單
 
 - `ItemType { fixed, stateBased }`
 - `ItemStatus { normal, warning, danger, unknown }`
@@ -160,10 +233,6 @@ StageTracker: 小米成長
 ```
 
 這三個 object 同屬「養貓」生活場景，但彼此不必存在直接行為關聯。
-
-#### MVP 待完成
-
-- Item / Resource / StageTracker 建立後的跨 Pack 搬移入口未提供。
 
 ### 2.2 PackTemplate Domain
 
@@ -892,9 +961,14 @@ Drift table `app_settings` 另有固定 `id = 1`、`createdAt`、`updatedAt`。
 - 設定頁 route 已實作：`/feature/settings`，route name 是 `settings`。
 - 設定頁一般設定暴露 `reminderTone` 與 notification reminder time；system StageTracker 顯示開關仍保留底層設定 / repository 行為，但不出現在一般 UAT UI。
 - 設定頁資料管理提供 JSON backup / import / reset。Backup payload 使用 `app = reminder_app`、`schemaVersion = 1`、`exportedAt` ISO-8601 與 `data` keys：`packs/items/resources/stages/stageTrackers/customTemplates/relations/activityLogs`。
+- 上述 backup JSON 的 `schemaVersion = 1` 是 legacy `backupFormatVersion`，不是 `driftSchemaVersion`。
 - Backup 包含 user-created Pack、Item、Resource、user-created StageTracker、StageRule、StageRecord、StageRelatedItem、ResourceConsumptionRule、自訂 PackTemplate、ItemActionRecord 與 ResourceActionRecord；不包含 system StageTracker、debug-only setting、temporary UI state 或 app settings。
 - Import 採 replace all user data，不做 merge；匯入前檢查 `app` 與 `schemaVersion`，失敗時不改動現有資料。匯入時 system default Pack 會以目前資料庫 seed 重建 / 保留，backup 中指向舊 system default Pack 的 `packId` 會 remap 到目前 system default Pack。
 - Reset database 會清空 user data，並保留或重建 system default Pack、`app_settings` 與 system default StageTracker。
+- 現有 JSON backup 是 legacy local export / import；Phase 0 不修改 backup production code。
+- Shared Pack remote access 不由 local backup 恢復。Shared Pack cache、membership、invite code、remote mapping 與 credential 不應被當成傳統 backup recovery data。
+- Supabase access token、refresh token、service role key 或其他 credential 永遠不可進入 backup。
+- 未綁定帳號時，local backup 可保護 Personal local data；已綁定帳號後的長期方向是 Personal / Shared active data 由帳號與 remote membership 恢復。
 - Notification reminder time 預設為 `09:00`，更新後會透過既有 daily attention notification sync 使用新時間。
 - `Preview date` 是 developer-only setting，用於測試不同日期下的提醒狀態，不出現在一般設定。
 
@@ -992,6 +1066,18 @@ system default pack 不可封存。
 
 「移到一般」會封存 Pack，並把 Items、Resources、StageTrackers 的 `packId` 改成 system default pack id，原 lifecycle status 不變。
 
+這是現有 Personal Pack lifecycle 語意，不可直接套用到 Shared Pack。
+
+Shared Pack lifecycle 必須獨立規格化，至少要分開處理：
+
+- Personal Pack archive
+- Shared Pack leave
+- Shared Pack member removal
+- Shared Pack archive
+- Shared Pack deletion
+
+Shared Pack v1 可只支援最小建立、加入、查看與完成流程。leave、owner transfer、last owner、remote archive、remote delete、取消共享後轉回 Personal Pack 等流程屬於 v1.x 或後續版本，不屬於現有 local Pack archive 行為。
+
 ## 4. UI 心智模型
 
 ### 4.1 使用者語言
@@ -1050,7 +1136,7 @@ Item edit routes：
 
 - Item 建立 / 編輯只提供 `fixed` 與 `stateBased`。
 - 建立時可選生活場景；選「之後決定」時寫入 system default pack。編輯 / 唯讀脈絡中的 system default pack 顯示為「一般」。
-- 編輯既有 Item 時 Pack 以唯讀顯示。
+- 編輯既有 Item 時可變更 Pack；跨 Pack 搬移會顯示確認流程，並依 repository 規則處理 linked Resources 與 Stage related links。
 - locked pack mode 會隱藏 pack field，並把 Item 建在指定 Pack。
 - Item 編輯頁有「消耗資源」區塊，可綁定 existing quantity-based resource。
 - 建立流程可 inline 新增 Pack。
@@ -1123,7 +1209,9 @@ Pack 管理 route：`/feature/item-packs-management`，route name：`item-packs-
 
 ## 5. Drift Schema
 
-目前 schema version：`5`。
+目前 `driftSchemaVersion`：`5`。
+
+注意：`backupFormatVersion` 與 `widgetSnapshotSchemaVersion` 目前也都是 `1`，但它們不是 Drift schema version。Shared Pack 的 `remoteApiContractVersion` / `remoteSnapshotSchemaVersion` 仍是 planned，尚未有 production API 或 table。
 
 ### 5.1 item_packs
 
@@ -1368,8 +1456,6 @@ updatedAt
 
 本章列暫不納入 MVP 的方向。實作前必須另行更新 core spec。
 
-- Pack detail page。
-- 建立後跨 Pack 搬移 Item / Resource / StageTracker。
 - snooze。
 - deferred action 恢復。
 - time-based resource 由 Item action 自動消耗。
@@ -1378,6 +1464,7 @@ updatedAt
 - Resource history 跳回來源 Item action。
 - 多來源 related item。
 - Pack 搜尋與 drag and drop 排序。
+- Personal Pack detail page。Shared Pack 可在 v1 擁有 compact Shared Pack detail / settings page，但該頁是 members、invite、manual refresh 與 Shared Items 的 context，不代表 Personal Pack 也需要 detail page。
 
 ## 8. 命名規則
 

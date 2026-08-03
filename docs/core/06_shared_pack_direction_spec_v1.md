@@ -1,456 +1,424 @@
 # 06 Shared Pack Direction Spec v1
 
+Status: planned product direction / not implemented.
+
+本文件定義 Reminder App 的 Shared Pack 產品方向與 phased scope。Shared Pack v1 尚未在 production code 中實作；目前 repository 沒有 Supabase dependency、remote table、RPC、Shared Pack route、Shared Pack repository、anonymous auth 或 local mapping table。
+
+本文件不是現有 local Reminder domain 的替代品。現有 core/local model 仍以 `docs/core/04_core_model_spec_v1.md` 為準；Home Widget 邊界以 `docs/core/05_home_widget_spec.md` 為準；planned remote request contract 以 `docs/core/07_shared_pack_remote_contract_v1.md` 為準。
+
 ## 1. 文件目的
 
-本文件用於重新定義 Reminder App 的 Shared Pack 方向。
+Shared Pack 重新開發前，先鎖定產品語意與第一版邊界，避免再次把 Supabase auth、remote profile、anonymous user、pack mapping、invite、outbox、snapshot、backup、account binding、realtime / sync 等多個範圍一次塞進 v1。
 
-此文件不是立即實作規格，而是日後重新開發 Shared Pack、Supabase remote model、邀請碼、帳號綁定、資料恢復與雲端同步時的方向基石。
+Phase 0 的目標是讓後續開發者能清楚回答：
 
-過去 Shared Pack phase 曾快速擴展至 Supabase auth、remote profile、anonymous user、pack mapping、invite、outbox、snapshot、backup、account binding、realtime/sync 等多個範圍，導致程式碼量暴增、資料流難以理解、問題難以定位。
-
-本次重整目標是：
-
-* 保留已驗證方向良好的 UI/UX 想法。
-* 降低第一版 Shared Pack 的工程複雜度。
-* 讓 Supabase API / table / RPC request 能在程式碼中被清楚查看。
-* 將日後資料恢復方向由「本地／雲端」重新定義為「個人／共享」。
-* 避免 Codex 在未經 spec 指引下過度擴充功能。
-
----
+- Shared Pack v1 共享什麼。
+- Shared Pack v1 不共享什麼。
+- Owner 和 Member 分別可以做什麼。
+- A 完成 Item 時，資料寫到 remote authoritative layer，再投影回 local Drift cache。
+- B 手動刷新時，資料從 remote current-state snapshot 取得。
+- local Drift cache 只在 remote 成功或 snapshot refresh 成功後更新。
+- 哪些既有功能明確排除於 v1。
 
 ## 2. 核心產品語意
-
-Shared Pack 對使用者而言，不應該是一個技術性功能。
 
 使用者心中的模型應該是：
 
 > 「我有一個照顧清單，可以自己用，也可以邀請別人一起用。」
 
-因此，產品語意上只有兩種 Pack：
+產品語意上只有兩種 Pack 使用範圍：
 
-1. **Personal Pack**
-
-   * 個人使用。
-   * 只有自己可見、可完成、可管理。
-   * 日後每一個 Personal Pack 都可以各自成為一個 Shared Pack。
-   * 日後帳號綁定後，也應可同步至 remote，作為雲端資料的一部分。
-
-2. **Shared Pack**
-
-   * 多人共同使用。
-   * 成員可看到同一組 items。
-   * 成員可完成 / 更新共同 items。
-   * 邀請、成員身份、權限屬於 Shared Pack 的延伸能力。
-   * 每一個 Shared Pack 都是獨立的共享範圍，可有自己的邀請碼。
+- Personal Pack：個人使用，只有自己可見、可完成、可管理。現有 production model 全部屬於 Personal/local-first Pack。
+- Shared Pack：多人共同使用，成員可看到同一組 Shared Items，依角色完成或管理 Shared Items。
 
 重要原則：
 
-> 「Personal / Shared」是資料的使用範圍。
-> 「Local / Remote」只是技術儲存方式，不應成為使用者主要理解方式。
+- Personal / Shared 是資料的使用範圍。
+- Local / Remote 是技術儲存方式。
+- UI 不應以「本機 / 遠端」作為主要分類。
+- Shared Pack v1 的 remote authoritative data 不代表 Personal Pack 也同步到 remote。
 
----
+## 3. Shared Pack Version Roadmap
 
-## 3. 值得保留的想法
+Roadmap 只定義語意與依賴順序，不承諾日期。
 
-### 3.1 邀請碼 UI/UX 方向可保留
+### 3.1 Shared Pack v1
 
-過去 Shared Pack phase 中，邀請碼的 UI/UX 方向值得保留。
+v1 只包含：
 
-保留方向包括：
+- 建立新的 Shared Pack。
+- `owner` / `member` 兩種角色。
+- invite code 建立、預覽、加入流程。
+- Item-only boundary。
+- Shared Item current state。
+- `done` action。
+- 最低限度 actor attribution，例如「由誰完成」。
+- remote-first write。
+- authoritative remote result。
+- manual snapshot refresh。
+- local Drift readable cache。
+- Shared Pack list / entry。
+- compact Shared Pack detail / settings page。
+- Shared Item list。
 
-* 使用者可以在 Pack setting / member area 中建立邀請。
-* 邀請碼是使用者可理解、可分享的 Pack 入口。
-* 邀請碼必須 scoped to one Pack：不是 user invite code、不是 account invite code、也不是 local device invite code。
-* 每個 Shared Pack 可有自己的邀請碼；多個 Shared Pack 因此可以同時存在多組邀請碼。
-* 加入者透過輸入邀請碼加入該邀請碼對應的 Shared Pack，而不是加入某個使用者的 workspace。
-* 邀請流程應盡量像「加入一個共享清單」，而不是像「設定同步系統」。
-* UI 可以先保留為 shell / mock / future-ready，不必第一階段完全接上 remote invite implementation。
+### 3.2 Shared Pack v1.x
 
-範例：
+v1.x 可在 v1 資料流穩定後再規格化：
 
-```text
-Pack A → K7M 4Q9
-Pack B → H8A 2XD
-```
+- undo。
+- skip。
+- action history。
+- Shared Items 進入 app Home attention aggregation。
+- global Activity integration。
+- notification integration。
+- 更完整 member lifecycle。
+- leave Shared Pack。
+- member removal。
+- owner transfer。
+- invite revoke / rotate / expiry policy。
 
-邀請碼 UX 的語言應偏向：
+### 3.3 Shared Pack v2
 
-* 「邀請成員」
-* 「輸入邀請碼」
-* 「加入共享 Pack」
-* 「成員」
+v2 才考慮 Resource graph：
 
-「由誰完成」
+- `Resource`。
+- `ResourceActionRecord`。
+- `ResourceConsumptionRule`。
+- Item completion 的 resource side effects。
 
-邀請碼  格式
-- Change invite codes to 6 characters.
-- Use uppercase human-friendly alphanumeric characters.
-- Avoid ambiguous characters:
-- 0
-- O
-- 1
-- I
-- L
-- Suggested character set:
-- ABCDEFGHJKMNPQRSTUVWXYZ23456789
-- Display may visually group the code as "K7M 4Q9", but the canonical stored/query code should be "K7M4Q9".
-- Do not require users to type spaces or hyphens.
+### 3.4 Shared Pack v3
 
-避免使用者看到過多技術語言，例如：
+v3 才考慮 StageTracker graph：
 
-* remote profile
-* Supabase user
-* anonymous identity
-* remote mapping
-* RLS
-* outbox
-* snapshot
+- `StageTracker`。
+- `StageRule`。
+- `StageRecord`。
+- `StageRelatedItem`。
 
----
+### 3.5 Long-term
 
-## 4. 第一版 Shared Pack 的最小範圍
+長期方向，不屬於 v1：
 
-Shared Pack v1 不應再一次過實作完整同步系統。
+- Personal Pack → Shared Pack promotion。
+- Personal Pack cloud sync。
+- account binding。
+- identity upgrade。
+- device recovery。
+- membership recovery。
+- realtime。
+- background sync。
+- offline outbox。
+- retry queue。
+- conflict resolution / merge engine。
+- Shared Home Widget snapshot integration。
+- Shared Home Widget direct action。
+- full Personal / Shared cloud unified model。
 
-第一版只需要完成以下產品目標：
+## 4. Shared Pack v1 Domain Boundary
 
-> A 更新 Shared Pack item 後，B 手動刷新，可以看見更新結果。
+Shared Pack v1 採 Item-only boundary。
 
-這是 Shared Pack v1 的唯一核心驗收標準。
+v1 涵蓋：
 
-### Shared Pack v1 應包含
+- Shared Pack metadata。
+- owner / member membership。
+- invite code flow。
+- Item domain。
+- Item current state。
+- Item completion。
+- 最低限度 actor attribution。
+- remote authoritative result。
+- local Drift readable cache。
+- manual refresh。
 
-* 建立 Shared Pack。
-* Pack 有 owner。
-* Pack 可以有 member。
-* Invite code UI/UX 可以保留。
-* 成員可加入 Shared Pack。
-* Shared Pack items 可以由成員共同查看。
-* A 完成 / 更新 item 後，寫入 remote。
-* B 手動 refresh 後，拉取 remote snapshot。
-* B 本機畫面更新後可見 A 的更新。
+v1 不涵蓋：
 
-### Shared Pack v1 不包含
+- `Resource`。
+- `ResourceConsumptionRule`。
+- Item completion 導致的 Resource consumption。
+- `ResourceActionRecord`。
+- `StageTracker`。
+- `StageRule`。
+- `StageRecord`。
+- `StageRelatedItem`。
+- `PackTemplate`。
+- custom template sync。
+- 完整 action history sync。
+- complex undo chain。
+- Personal / Shared 完整雲端統一模型。
 
-以下功能不應在 v1 實作：
+現有 Personal Pack 中的 Resource、StageTracker 或其他 relation，不得因 Shared Pack v1 而被暗中加入 remote model。
 
-* realtime sync
-* background sync
-* offline outbox
-* conflict resolution
-* automatic retry queue
-* widget shared action
-* backup restore remote access
-* account switching
-* Google / Apple OAuth
-* 多裝置完整同步
-* 複雜 completion history merge
-* shared pack 與 personal pack 的完整雲端統一模型
+## 5. Personal To Shared Promotion Is Deferred
 
-若 Codex 在 v1 中主動加入以上範圍，視為違反本 spec。
+Shared Pack v1 只支援：
 
----
+- 建立一個新的 Shared Pack。
 
-## 5. 資料流原則
+Shared Pack v1 不支援：
+
+- Personal Pack → Shared Pack promotion。
+- 把現有 Personal Pack 上傳並轉換成 Shared Pack。
+- 複製現有 Personal Pack 成為 Shared Pack。
+- 取消共享後轉回 Personal Pack。
+
+長期方向仍可保留「日後 Personal Pack 可以成為 Shared Pack」，但這是 later capability，不屬於 v1，也不可在 v1 migration、backup 或 UI wording 中暗示已支援。
+
+## 6. Owner / Member Permission Matrix
+
+Shared Pack v1 只有兩種角色：
+
+- `owner`
+- `member`
+
+| Capability | owner | member |
+| --- | --- | --- |
+| 查看 Shared Pack | yes | yes |
+| 查看 Shared Items | yes | yes |
+| 建立 Shared Pack | yes | no |
+| 管理 Shared Pack metadata | yes | no |
+| 建立 Shared Item definition | yes | no |
+| 編輯 Shared Item definition | yes | no |
+| 封存 Shared Item definition | yes | no |
+| 完成 Shared Item | yes | yes |
+| 建立或管理 invite code | yes | no |
+| 查看成員 | yes | yes |
+| 邀請其他成員 | yes | no |
+| 移除其他成員 | no in v1 | no |
+| 管理 Pack lifecycle | minimal create only | no |
+
+Member 在 v1 不可以：
+
+- 新增 Item。
+- 修改 Item definition。
+- 修改 schedule / config。
+- 封存或刪除 Item。
+- 修改 Pack 名稱、icon 或 metadata。
+- 建立 invite code。
+- 邀請其他成員。
+- 移除其他成員。
+- 管理 Pack。
+
+v1 暫不實作 `editor`、`viewer` 或其他角色。
+
+## 7. Supported Item Actions
+
+Shared Pack v1 只支援 `done`。
+
+v1 支援：
+
+- 完成 Shared Item。
+- 記錄完成者 identity。
+- remote 回傳 authoritative Item result。
+- remote 成功後更新 local Drift cache。
+
+v1 不支援：
+
+- skip。
+- defer。
+- undo。
+- reverted。
+- action history UI。
+- complex completion history merge。
+- `ItemNextCycleStrategy` 的多種使用者選擇。
+
+`undo`、`skip`、action history 等能力可列入 Shared Pack v1.x，但不可寫成 v1 已包含能力。
+
+## 8. Anonymous Identity Limitation
+
+Shared Pack v1 暫時使用 anonymous remote identity，避免把完整帳號綁定、OAuth、換機恢復與 membership recovery 塞入第一版。
+
+限制：
+
+- anonymous identity 是 Shared Pack remote access 的最低限度身份。
+- Personal Pack 仍可在沒有 remote identity 的情況下維持 local-first。
+- Shared Pack 建立或加入需要成功取得 anonymous remote identity。
+- 尚未綁定帳號時，Shared Pack membership 與 remote access 未受到正式帳號保護。
+- 刪除 App、清除裝置資料、遺失裝置或更換裝置後，使用者可能失去該 anonymous identity，以及對應的 Shared Pack access。
+- 帳號綁定、identity upgrade、換機恢復與 membership recovery 不屬於 Shared Pack v1。
+
+UI wording 不應暴露：
+
+- Supabase UID。
+- anonymous user。
+- remote profile。
+- authenticated role。
+
+產品用語應偏向：
+
+- 尚未綁定帳號。
+- 此裝置上的共享存取尚未受到帳號保護。
+- 綁定帳號後可支援日後恢復。
+
+Phase 0 不實作 auth、OAuth 或 anonymous sign-in。
+
+## 9. Product Surface Boundary
+
+Shared Pack v1 第一個 vertical slice 只出現在：
+
+- Shared Pack list / entry。
+- Shared Pack detail。
+- Shared Item list。
+- Invite code owner flow。
+- Invite code joiner flow。
+- manual refresh。
+- Shared Item done action。
+
+Shared Pack v1 暫不整合：
+
+- app Home attention aggregation。
+- global Activity feed。
+- global Item management grouping。
+- notification scheduling。
+- Home Widget snapshot。
+- Home Widget action。
+- traditional local backup restore。
+- Personal Pack data flow。
+
+Shared Item 即使已投影到 local Drift，也不代表它自動進入所有現有 repository query、Home、Widget、通知或 backup。這些整合應放入 v1.x 或後續 phase，並先更新對應 spec。
+
+## 10. Data Flow Principles
 
 Shared Pack v1 的資料流必須保持可解釋。
 
-### 寫入流程
+### 10.1 Write Flow
 
 ```text
 User action
 → local validation
-→ call shared_pack_remote_api
-→ remote success
-→ update local Drift cache
+→ completeSharedItem
+→ remote atomic success
+→ authoritative result
+→ SharedPackCacheProjector updates local Drift cache
+→ provider refresh
 → UI refresh
 ```
 
-v1 不做「先 local 成功、之後慢慢推 remote」的 outbox 模式。
+v1 不做：
 
-原因：
+- local-first optimistic write。
+- outbox。
+- background retry。
+- automatic merge。
+- realtime listener。
 
-* 使用者目前更需要理解資料流。
-* 工程上可更容易 debug。
-* 失敗時可明確知道 remote request 失敗。
-* 避免過早引入 pending action / retry / conflict 狀態。
-
-### 讀取流程
+### 10.2 Read Flow
 
 ```text
 User taps refresh
-→ call remote snapshot/read API
-→ map remote DTO
-→ update local Drift cache
-→ UI displays latest data
+→ getSharedPackSnapshot
+→ validate remoteSnapshotSchemaVersion
+→ map DTO
+→ Drift transaction
+→ update mapping / lastRefreshedAt
+→ provider refresh
+→ UI refresh
 ```
 
-v1 不做 realtime listener。
+## 11. Remote ID / Local ID Principle
 
----
+本機資料可繼續使用 local ID；remote 資料可有 remote ID。但 mapping 必須集中管理，不應散落在不同 model。
 
-## 6. Remote ID / Local ID 原則
-
-本機資料可繼續使用 local ID。
-
-Remote 資料可有 remote ID。
-
-但 mapping 必須集中管理，不應散落在不同 model。
-
-建議保留 mapping 概念，但簡化為清楚、少量、可查：
+Planned mapping direction：
 
 ```text
-local_pack_id  <-> remote_pack_id
-local_item_id  <-> remote_item_id
+shared_pack_mapping
+- localPackId
+- remotePackId
+- remoteVersion
+- lastRefreshedAt
+
+shared_item_mapping
+- localItemId
+- remoteItemId
+- remotePackId
+- remoteVersion
 ```
 
-Codex 不應在多個 unrelated tables 中新增不同形式的 mapping 欄位。
+Phase 0 不新增 mapping table。正式 table 名稱、欄位型別、index 與 migration 必須在 Phase 1 前確認。
 
-所有 mapping table / field 必須在 core model spec 中清楚列出。
-
----
-
-## 7. Invite Code 方向
+## 12. Invite Code Direction
 
 Invite code 是 Shared Pack 的主要加入方式。
 
-Invite code 的 scope 是「單一 Pack」：
+Invite code 的 scope 是單一 Pack：
 
-* Owner-side invite UX 必須放在 Pack context 內，例如 Pack settings / member area。
-* Joiner-side invite UX 可以放在 Settings 作為全域入口，但輸入後應解析到一個 specific Pack。
-* Invite code 不代表使用者、帳號、workspace 或本機裝置。
-* 多個 Shared Pack 可以有多個 invite codes。
-* 若使用者擁有 Pack A 與 Pack B，兩個 Pack 的邀請碼應分別管理、分別加入。
+- Owner-side invite UX 必須放在 Pack context 內，例如 Shared Pack detail / members area。
+- Joiner-side invite UX 可以放在 Shared Pack entry 或 Settings 入口；輸入後應解析到 specific Pack。
+- Invite code 不代表使用者、帳號、workspace 或本機裝置。
+- 多個 Shared Pack 可以有多個 invite codes。
 
-### UX 流程
+格式方向：
 
-Owner side:
+- 6 characters。
+- uppercase human-friendly alphanumeric characters。
+- 避免 `0`、`O`、`1`、`I`、`L`。
+- 建議 character set：`ABCDEFGHJKMNPQRSTUVWXYZ23456789`。
+- Display 可顯示為 `K7M 4Q9`，canonical stored/query code 應為 `K7M4Q9`。
+- 不要求使用者輸入空格或 hyphen。
 
-```text
-Pack settings
-→ Members
-→ Invite member
-→ Generate invite code
-→ Share code
-```
+v1 可接受限制：
 
-Joiner side:
+- invite expiry 可先不做，或只在 Phase 1 明確決定後加入。
+- 不需要 revoke / rotate。
+- 不需要 QR code / deep link。
+- 不需要多角色權限。
 
-```text
-Settings / Shared Pack entry
-→ Enter invite code
-→ Preview pack name
-→ Confirm join
-→ Pack appears in Home / Pack list
-```
+## 13. Backup And Recovery Boundary
 
-### v1 可接受限制
+現有 JSON backup 是 legacy local export / import。
 
-* Invite code 可有簡單 expiry，或先不做 expiry。
-* Invite code 可先只支援 dev / manual test。
-* Invite code 不需要一開始支援 revoke / rotate。
-* Invite code 不需要一開始支援 QR code / deep link。
-* Invite code 不需要一開始支援多角色權限。
+Shared Pack v1 規定：
 
-### 日後可擴展
+- Shared Pack remote access 不由 local backup 恢復。
+- Shared Pack cache、membership、invite code、remote mapping 與 credential 不應被當成傳統 backup recovery data。
+- Supabase access token、refresh token、service role key 或其他 credential 永遠不可進入 backup。
+- Phase 0 不修改現有 backup production code。
 
-* QR code
-* link invite
-* revoke invite
-* invite history
-* owner / editor / viewer roles
-* 成員移除
-* 加入審批
+資料恢復方向：
 
----
+- 未綁定帳號：local backup 可保護 Personal local data。
+- 已綁定帳號後的長期方向：Personal / Shared active data 由帳號與 remote membership 恢復。
 
-## 8. 帳號綁定與資料恢復方向
+## 14. Pack Lifecycle Boundary
 
-帳號綁定與資料恢復是重要方向，但不屬於 Shared Pack v1。
+必須明確區分：
 
-日後帳號綁定後，資料模型應從「本地／雲端」改為「個人／共享」。
+- Personal Pack archive。
+- Shared Pack leave。
+- Shared Pack member removal。
+- Shared Pack archive。
+- Shared Pack deletion。
 
-### 8.1 未綁定帳號前
+現有 Personal Pack 的「一起封存內容」或「移到一般」語意，不可直接套用到 Shared Pack。
 
-未綁定帳號時，app 可以存在：
+Shared Pack lifecycle 需要獨立規格。v1 可只支援最小建立、加入、查看及完成流程。leave、owner transfer、last owner、remote delete、取消共享後轉回 Personal Pack 等流程放入 v1.x 或後續。
 
-* device-local personal data
-* limited remote shared data, if Shared Pack v1 requires anonymous remote identity
-* local cache for remote shared packs
+## 15. Codex 開發守則
 
-此階段應清楚告知使用者：
+Codex 在實作 Shared Pack 相關功能前，必須遵守：
 
-> 此裝置上的個人資料尚未受到帳號保護。
-
-但不應將使用者暴露在過多 remote identity 細節中。
-
----
-
-### 8.2 綁定帳號後
-
-當使用者完成帳號綁定後：
-
-* Personal Pack 應可推上 remote。
-* Shared Pack 本身已在 remote。
-* 本機 Drift 變成 local cache / offline-readable cache。
-* 使用者心中的資料分類應是：
-
-  * Personal
-  * Shared
-
-而不是：
-
-* Local
-* Cloud
-
-### 8.3 Product wording
-
-建議用語：
-
-* 「個人 Pack」
-* 「共享 Pack」
-* 「帳號保護」
-* 「雲端備份」
-* 「換機恢復」
-* 「已綁定帳號」
-
-避免用語：
-
-* 「本地 Pack」
-* 「遠端 Pack」
-* 「remote-backed」
-* 「anonymous remote」
-* 「Supabase UID」
-* 「local-only / remote-only」
-
-技術上可以仍然存在 local / remote，但 UI 不應以此作為主要語言。
-
----
-
-## 9. 帳號綁定後的雲端資料模型方向
-
-長期方向：
-
-> 帳號綁定後，所有 active data 都應 remote-backed。
-> Personal / Shared 只是 access scope，不是 storage location。
-
-### Personal Pack
-
-* owner = current account
-* only owner can access
-* 可同步至其他裝置
-* 可透過帳號恢復
-
-### Shared Pack
-
-* pack 有 owner
-* pack 有 members
-* members 根據權限存取
-* 可透過帳號恢復 membership
-* 換機後登入同一帳號，應可重新取得 shared packs
-
-### 本機 Drift
-
-帳號綁定後，本機 Drift 不再是唯一資料來源。
-
-它的角色是：
-
-* app 快速顯示資料
-* offline-readable cache
-* widget / notification 的 local source
-* remote snapshot 的本機投影
-
-但 authoritative data 應逐步轉為 remote。
-
----
-
-## 10. 資料恢復不應依賴傳統 local backup
-
-長期方向中，傳統 backup 不應負責恢復 remote access。
-
-Backup 可以保留為 legacy local export。
-
-但帳號綁定後，主要恢復方式應是：
-
-```text
-Install app
-→ Login / bind account
-→ Pull personal packs
-→ Pull shared memberships
-→ Rebuild local cache
-```
-
-Backup 不應包含：
-
-* Supabase access token
-* refresh token
-* service role key
-* plaintext invite code as recovery method
-* other user credentials
-
----
-
-## 11. Codex 開發守則
-
-Codex 在實作 Shared Pack 相關功能前，必須遵守以下規則：
-
-1. 不可未更新 spec 就新增 Supabase table / RPC / request。
+1. 不可未更新 spec 就新增 Supabase dependency、table、RPC、request 或 migration。
 2. 不可在 UI / controller 中直接呼叫 Supabase。
 3. 不可把 realtime、outbox、account binding、backup recovery 混入 Shared Pack v1。
 4. 不可將使用者 UI 語言設計成 local / remote。
-5. 不可在未定義 migration strategy 前，自動把 personal data 推上 remote。
+5. 不可在未定義 migration strategy 前，自動把 Personal Pack data 推上 remote。
 6. 不可在 backup 中保存 Supabase token / credentials。
 7. 每個 phase 必須有清楚 manual test。
-8. 每個 phase 完成後，開發者必須能用文字說明：
+8. 每個 phase 完成後，開發者必須能用文字說明 A 的操作寫到哪裡、B 的刷新讀哪裡、local cache 何時更新。
 
-   * A 的操作寫到哪裡？
-   * B 的刷新讀哪裡？
-   * local cache 何時更新？
-   * remote request 在哪個 file？
-   * request catalog 對應哪一條？
+## 16. Shared Pack v1 Success Standard
 
----
+v1 成功標準：
 
-## 13. 成功標準
+- 使用者能建立新的 Shared Pack。
+- Owner 能建立 invite code。
+- Member 能用 invite code 加入 Shared Pack。
+- Owner / Member 能查看 Shared Items。
+- Owner / Member 能完成 Shared Item。
+- A 完成 Shared Item 後，remote 成功並回傳 authoritative result。
+- A 的 local Drift cache 在 remote 成功後更新。
+- B 手動 refresh 後讀取 remote snapshot。
+- B 的 local Drift cache 更新後能看見 A 完成後的 authoritative result。
 
-Shared Pack 重啟成功，不以功能數量衡量。
-
-成功標準是：
-
-* 使用者能理解 Shared Pack 是什麼。
-* 開發者能理解資料怎樣流動。
-* Supabase request 可被集中查看。
-* 第一版做到 A 更新、B refresh 可見。
-* 邀請碼 UX 清楚自然。
-* 帳號綁定與資料恢復方向沒有與 Shared Pack v1 混在一起。
-* project 沒有因為過早實作完整 sync system 而再次失控。
-
----
-
-## 14. 停止條件
-
-若開發過程出現以下情況，應停止新增功能並回到 spec：
-
-* Codex 開始新增未規劃的 sync / realtime / outbox。
-* Supabase request 再次分散在多個 UI/controller file。
-* 使用者無法說明 A 更新後 B 如何看到。
-* bug 需要靠更多 debug-only UI 才能理解。
-* Personal / Shared 與 Local / Remote 再次混淆。
-* migration / backup / account binding 被提前塞入 Shared Pack v1。
-
-當出現以上情況，應先整理資料流與 request catalog，不應繼續加功能。
-
----
-
-## 15. 最終方向總結
-
-Reminder App 的長期方向不是做一個「本地 app 加上一些雲端功能」。
-
-長期方向應是：
-
-> 一個以 Personal Pack / Shared Pack 為核心的照顧提醒 app。
-> 未綁定帳號時，資料主要受限於裝置。
-> 綁定帳號後，個人與共享資料都可被帳號保護、同步與恢復。
-> 本機資料庫是快取與裝置整合層，不是使用者需要理解的產品分類。
-
-Shared Pack 重新開發時，第一步不是做更多同步，而是重新建立簡單、可理解、可維護的資料流。
+若 Codex 開始新增未規劃的 sync / realtime / outbox、直接從 UI 呼叫 Supabase、或把 Personal / Shared 與 Local / Remote 再次混淆，應停止新增功能並回到 spec。

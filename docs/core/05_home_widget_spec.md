@@ -1,7 +1,7 @@
 ---
 This document specifies the first version of the Reminder App Home widget.
 It documents the implemented Flutter, Android, and iOS widget boundary.
-Last aligned with repository contents on 2026-06-11.
+Last aligned with repository contents on 2026-08-04.
 ---
 
 # Home Widget Spec
@@ -182,28 +182,29 @@ The Flutter-side snapshot uses this semantic shape:
 
 ```dart
 HomeWidgetSnapshot {
-  schemaVersion: int
-  generatedAt: DateTime
+  schemaVersion: int // widgetSnapshotSchemaVersion
+  updatedAt: DateTime
+  selectedTab: String
   tabs: List<HomeWidgetTabSnapshot>
 }
 
 HomeWidgetTabSnapshot {
   id: String
   label: String
-  rows: List<HomeWidgetRowSnapshot>
-  emptyText: String
+  count: int
+  entries: List<HomeWidgetRowSnapshot>
 }
 
 HomeWidgetRowSnapshot {
-  id: String
-  sourceType: String
-  sourceId: int?
+  entryId: String
+  type: String
+  targetId: int?
   actionRecordId: int?
   title: String
   statusText: String
   displayIcon?: String
-  actionKind: String?
-  actionLabel: String?
+  buttonText?: String
+  action?: String
   canAct: bool
 }
 ```
@@ -220,7 +221,7 @@ Flutter should regenerate the snapshot:
 - after HomeRepository data changes while the app is active
 - after relevant repository mutations that affect Home sections
 
-The snapshot should include `generatedAt` so native code can detect stale data.
+The snapshot should include `updatedAt` so native code can detect stale data.
 
 ## 6. Responsibilities
 
@@ -368,7 +369,7 @@ The widget must remain calm and readable when data is unavailable.
 Fallback rules:
 
 - Missing snapshot: show a neutral empty state asking the user to open the app once.
-- Corrupt snapshot or unsupported schema version: show a neutral fallback and request refresh on next app launch.
+- Corrupt snapshot or unsupported `widgetSnapshotSchemaVersion`: show a neutral fallback and request refresh on next app launch.
 - Stale snapshot: continue rendering the snapshot with a subtle stale indication if supported by platform constraints.
 - Empty tab: show a short user-facing empty message for that tab.
 - Action in progress: prevent duplicate taps for the same row when possible.
@@ -382,6 +383,7 @@ First version intentionally does not include:
 
 - small or medium widget sizes
 - per-Pack widget configuration
+- Shared Pack / Shared Item rows or actions
 - upcoming StageOccurrence tab
 - Resource refill / adjust from widget
 - Stage acknowledge from widget
@@ -390,6 +392,21 @@ First version intentionally does not include:
 - native status calculation
 - background-only widget action execution
 - adding new dependencies before implementation justification
+
+### 9.1 Shared Pack v1 Exclusion
+
+Shared Pack v1 不改變 Home Widget boundary。
+
+規定：
+
+- Shared Pack v1 不支援 Widget shared action。
+- Shared Items 不會進入第一版 Shared Pack 的 Home Widget snapshot。
+- native widget 不可因 local Drift 有 Shared Item readable cache 而自動顯示 Shared Item。
+- `HomeWidgetSnapshotService` / snapshot builder 在未來整合前必須明確排除 shared scope。
+- Widget direct action 不可呼叫 Shared Pack remote API。
+- Shared Widget support 必須另立 spec，或在後續版本更新本文件後才可實作。
+
+換言之，Shared Item 即使 planned 投影到 local Drift，也不代表它自動進入 Home Widget snapshot 或 native pending action bridge。
 
 ## 10. Testing Plan
 
