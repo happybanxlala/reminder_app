@@ -123,6 +123,10 @@ No Supabase.auth call is made.
 
 Fake status rendering does not make account binding production-active.
 
+Phase 4E Shared Pack Account Identity Bridge is defined in `docs/core/16_shared_pack_account_identity_bridge.md`.
+
+The bridge uses the same account runtime boundary, but Account Status UI remains informational and does not activate Shared Pack production flows.
+
 ## 9. What Phase 4D Enables
 
 Phase 4D enables:
@@ -170,4 +174,6 @@ It does not implement real account binding.
 
 It does not activate Shared Pack production UI.
 
-The next phase is Phase 4E only after account binding runtime is explicitly approved; otherwise continue with account binding implementation phase before 4E.
+The next phase is Phase 4E: Shared Pack Account Identity Bridge.
+
+Shared Pack activation still requires explicitly approved account binding/runtime activation later.

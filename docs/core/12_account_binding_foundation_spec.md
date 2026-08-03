@@ -131,7 +131,7 @@ Meaning:
 
 - App has a stable account identity.
 - Account protection boundary exists.
-- Shared Pack production activation can be considered in Phase 4E.
+- Shared Pack account identity bridge can be added in Phase 4E.
 - Personal Pack cloud migration still requires Phase 5.
 
 User-facing wording:
@@ -316,11 +316,13 @@ Phase 4D:
 
 Phase 4E:
 
-- enable Shared Pack active_v1_manual
+- Shared Pack account identity bridge
+- defined in `docs/core/16_shared_pack_account_identity_bridge.md`
+- does not enable Shared Pack active_v1_manual
 
 Phase 4F:
 
-- two-device Shared Pack QA
+- future Shared Pack activation / QA only after real account binding and runtime activation are explicitly approved
 
 Phase 4G:
 

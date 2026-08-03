@@ -244,7 +244,6 @@ void main() {
       const guardedRoots = [
         'lib/features/reminders/ui',
         'lib/features/reminders/providers',
-        'lib/features/shared_pack/application',
         'lib/app',
       ];
       const guardedFiles = ['lib/main.dart'];

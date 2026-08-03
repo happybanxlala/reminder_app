@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:reminder_app/features/account/application/account_identity.dart';
+import 'package:reminder_app/features/account/application/account_shared_pack_identity_provider.dart';
 import 'package:reminder_app/features/reminders/data/local/app_database.dart';
 import 'package:reminder_app/features/shared_pack/application/shared_pack_application_result.dart';
 import 'package:reminder_app/features/shared_pack/application/shared_pack_application_service.dart';
@@ -10,6 +12,8 @@ import 'package:reminder_app/features/shared_pack/data/shared_pack_cache_project
 import 'package:reminder_app/features/shared_pack/remote/shared_pack_remote_dto.dart';
 import 'package:reminder_app/features/shared_pack/remote/shared_pack_remote_repository.dart';
 import 'package:reminder_app/features/shared_pack/remote/shared_pack_remote_request_ids.dart';
+
+import 'support/fake_account_identity_runtime.dart';
 
 void main() {
   group('SharedPackApplicationService', () {
@@ -349,7 +353,13 @@ SharedPackApplicationService _service(
     cacheProjectionService: projection ?? _projection(db),
     identityProvider:
         identityProvider ??
-        const StaticSharedPackIdentityProvider(_ownerIdentityId),
+        AccountBackedSharedPackIdentityProvider(
+          FakeAccountIdentityRuntime(
+            AccountIdentitySnapshot.bound(
+              identity: AccountIdentity(accountId: _ownerIdentityId),
+            ),
+          ),
+        ),
   );
 }
 

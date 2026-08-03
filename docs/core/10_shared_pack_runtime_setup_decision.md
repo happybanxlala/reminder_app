@@ -159,6 +159,10 @@ The six Shared Pack v1 requests remain `implemented_not_wired`.
 
 They do not become active because production UI cannot safely call the real service without runtime config and identity.
 
+Phase 4E adds the Shared Pack account identity bridge in `docs/core/16_shared_pack_account_identity_bridge.md`.
+
+The bridge moves requester identity resolution to `AccountIdentityRuntime`, but default production runtime remains unbound and product UI remains setup-required.
+
 ## 11. Phase 3I Recommendation
 
 Phase 3I should be Dev-gated v1 Hardening + Phase 4 handoff checklist.

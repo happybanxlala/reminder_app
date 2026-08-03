@@ -165,6 +165,7 @@ Phase 4A account binding contract reference: `docs/core/12_account_binding_found
 Phase 4B secure runtime config boundary reference: `docs/core/13_secure_runtime_config_boundary.md`. Config loading is not a Supabase request; Phase 4B adds no table/RPC request entries and does not activate existing requests.
 Phase 4C account identity runtime reference: `docs/core/14_account_identity_runtime_foundation.md`. Identity runtime is not a Supabase request; Phase 4C adds no table/RPC request entries and does not activate existing requests.
 Phase 4D account status UI reference: `docs/core/15_account_status_ui.md`. Account status UI is local runtime/status UI only; it is not a Supabase request, adds no table/RPC entries, and does not activate Shared Pack or account_binding requests.
+Phase 4E Shared Pack account identity bridge reference: `docs/core/16_shared_pack_account_identity_bridge.md`. The bridge resolves requester identity through `AccountIdentityRuntime`; it is not a Supabase request, adds no table/RPC entries, and does not activate Shared Pack or account_binding requests.
 
 ### shared_pack.create_pack.v1
 

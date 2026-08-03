@@ -1430,6 +1430,7 @@ lastSyncedAt
 - Phase 4B secure runtime config boundary 定義於 `docs/core/13_secure_runtime_config_boundary.md`：runtime config 是 infrastructure boundary，不是產品資料模型；不得把 Local / Remote 變成使用者產品分類，也不改 Drift schema、repository 行為、route 或 production UI 啟用狀態。
 - Phase 4C account identity runtime foundation 定義於 `docs/core/14_account_identity_runtime_foundation.md`：account identity runtime 是 account/product boundary，不是 Pack storage category；Personal / Shared 仍是產品模型，Local / Remote 僅是技術語言。此階段不新增 Drift schema，預設 production runtime 維持 unbound。
 - Phase 4D Account Status UI 定義於 `docs/core/15_account_status_ui.md`：Settings 顯示產品層帳號保護狀態，讓使用者知道目前是否受帳號保護；此 UI 不改 Pack storage model、不改 Drift schema、不啟用 login/auth、Shared Pack production flow、Personal Pack cloud migration 或 restore。
+- Phase 4E Shared Pack account identity bridge 定義於 `docs/core/16_shared_pack_account_identity_bridge.md`：Shared Pack requester identity 會透過 `AccountIdentityRuntime` 與 `AccountBackedSharedPackIdentityProvider` 解析；預設 production runtime 仍是 unbound，因此 Shared Pack production UI 仍未啟用，request catalog 狀態仍是 `implemented_not_wired`。
 
 ## 8. 命名規則
 

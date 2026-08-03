@@ -144,12 +144,16 @@ Forbidden:
 Phase 4C enables:
 
 - account status UI in Phase 4D
-- later Shared Pack active_v1_manual in Phase 4E
+- Shared Pack account identity bridge in Phase 4E
 - stable account identity boundary for future Personal Pack migration in Phase 5
 
 Phase 4D Account Status UI is defined in `docs/core/15_account_status_ui.md`.
 
 The UI reads `AccountIdentityRuntime`, default production runtime remains unbound, and tests may use `FakeAccountIdentityRuntime`.
+
+Phase 4E Shared Pack Account Identity Bridge is defined in `docs/core/16_shared_pack_account_identity_bridge.md`.
+
+The bridge uses `AccountBackedSharedPackIdentityProvider` to resolve Shared Pack requester identity from `AccountIdentityRuntime`, but production runtime remains unbound by default.
 
 ## 11. What Phase 4C Does Not Enable Yet
 

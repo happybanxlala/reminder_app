@@ -109,7 +109,7 @@ Phase 4D Account Status UI is defined in `docs/core/15_account_status_ui.md`.
 
 Account Status UI does not require Supabase config to be valid. Config remains separate from account status display.
 
-Phase 4E may enable Shared Pack active_v1_manual after account/runtime identity is safe.
+Phase 4E adds the Shared Pack account identity bridge. Shared Pack activation still requires explicitly approved account binding/runtime activation later.
 
 ## 9. Relationship to Backup / Export
 
