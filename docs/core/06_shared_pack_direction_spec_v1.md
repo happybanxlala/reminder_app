@@ -2,13 +2,13 @@
 
 Status: planned product direction / not implemented.
 
-本文件定義 Reminder App 的 Shared Pack 產品方向與 phased scope。Shared Pack v1 尚未在 production code 中實作；目前 repository 沒有 Supabase dependency、remote table、RPC、Shared Pack route、Shared Pack repository、anonymous auth 或 local mapping table。
+本文件定義 Reminder App 的 Shared Pack 產品方向與 phased scope。Shared Pack v1 尚未在 production code 中實作；目前 repository 沒有 Supabase dependency、remote table、RPC、Shared Pack route、Shared Pack repository、anonymous auth 或 Shared Drift cache table。
 
 本文件不是現有 local Reminder domain 的替代品。現有 core/local model 仍以 `docs/core/04_core_model_spec_v1.md` 為準；Home Widget 邊界以 `docs/core/05_home_widget_spec.md` 為準；planned remote request contract 以 `docs/core/07_shared_pack_remote_contract_v1.md` 為準。
 
 ## 1. 文件目的
 
-Shared Pack 重新開發前，先鎖定產品語意與第一版邊界，避免再次把 Supabase auth、remote profile、anonymous user、pack mapping、invite、outbox、snapshot、backup、account binding、realtime / sync 等多個範圍一次塞進 v1。
+Shared Pack 重新開發前，先鎖定產品語意與第一版邊界，避免再次把 Supabase auth、remote profile、anonymous user、remote identity mapping、invite、outbox、snapshot、backup、account binding、realtime / sync 等多個範圍一次塞進 v1。
 
 Phase 0 的目標是讓後續開發者能清楚回答：
 
@@ -47,24 +47,32 @@ Roadmap 只定義語意與依賴順序，不承諾日期。
 v1 只包含：
 
 - 建立新的 Shared Pack。
+- 第一個 vertical slice 只支援 `ItemType.stateBased` Shared Items。
 - `owner` / `member` 兩種角色。
-- invite code 建立、預覽、加入流程。
-- Item-only boundary。
+- Pack-scoped member `displayName`，不建立 global profile。
+- invite code get-or-create、manual rotate、preview、加入流程。
 - Shared Item current state。
+- Owner 建立、編輯、封存 Shared Item definition。
+- Owner 更新 Shared Pack metadata。
 - `done` action。
 - 最低限度 actor attribution，例如「由誰完成」。
 - remote-first write。
 - authoritative remote result。
 - manual snapshot refresh。
-- local Drift readable cache。
+- independent Shared Drift readable cache。
+- lazy anonymous identity initialization。
 - Shared Pack list / entry。
 - compact Shared Pack detail / settings page。
 - Shared Item list。
+- dedicated Shared Pack surface only。
 
 ### 3.2 Shared Pack v1.x
 
 v1.x 可在 v1 資料流穩定後再規格化：
 
+- fixed Shared Item semantics。
+- Pack timezone。
+- recurring schedule parity。
 - undo。
 - skip。
 - action history。
@@ -75,7 +83,7 @@ v1.x 可在 v1 資料流穩定後再規格化：
 - leave Shared Pack。
 - member removal。
 - owner transfer。
-- invite revoke / rotate / expiry policy。
+- invite automatic expiry policy。
 
 ### 3.3 Shared Pack v2
 
@@ -116,15 +124,15 @@ v3 才考慮 StageTracker graph：
 
 ## 4. Shared Pack v1 Domain Boundary
 
-Shared Pack v1 採 Item-only boundary。
+Shared Pack v1 採 state-based Item-only boundary。
 
 v1 涵蓋：
 
 - Shared Pack metadata。
 - owner / member membership。
 - invite code flow。
-- Item domain。
-- Item current state。
+- `ItemType.stateBased` Shared Item definition。
+- state-based Shared Item current state。
 - Item completion。
 - 最低限度 actor attribution。
 - remote authoritative result。
@@ -143,11 +151,18 @@ v1 不涵蓋：
 - `StageRelatedItem`。
 - `PackTemplate`。
 - custom template sync。
+- `ItemType.fixed`。
+- one-time fixed。
+- daily / weekly / everyXDays / everyXWeeks / monthly recurring fixed schedule。
+- `ItemOverduePolicy`。
+- fixed cycle advance。
+- fixed schedule timezone calculation。
 - 完整 action history sync。
 - complex undo chain。
 - Personal / Shared 完整雲端統一模型。
 
 現有 Personal Pack 中的 Resource、StageTracker 或其他 relation，不得因 Shared Pack v1 而被暗中加入 remote model。
+現有 Personal `FixedItemConfig` 不可為了「通用」而直接複製到 Shared Pack remote DTO；fixed Shared Item 需要先定義 Pack timezone、server completion time 與 calendar cycle semantics。
 
 ## 5. Personal To Shared Promotion Is Deferred
 
@@ -176,12 +191,13 @@ Shared Pack v1 只有兩種角色：
 | 查看 Shared Pack | yes | yes |
 | 查看 Shared Items | yes | yes |
 | 建立 Shared Pack | yes | no |
-| 管理 Shared Pack metadata | yes | no |
-| 建立 Shared Item definition | yes | no |
-| 編輯 Shared Item definition | yes | no |
-| 封存 Shared Item definition | yes | no |
-| 完成 Shared Item | yes | yes |
-| 建立或管理 invite code | yes | no |
+| `updateSharedPackMetadata` | yes | no |
+| `createSharedItem` | yes | no |
+| `updateSharedItem` | yes | no |
+| `archiveSharedItem` | yes | no |
+| `completeSharedItem` | yes | yes |
+| `getOrCreateInviteCode` | yes | no |
+| `rotateInviteCode` | yes | no |
 | 查看成員 | yes | yes |
 | 邀請其他成員 | yes | no |
 | 移除其他成員 | no in v1 | no |
@@ -212,6 +228,17 @@ v1 支援：
 - remote 回傳 authoritative Item result。
 - remote 成功後更新 local Drift cache。
 
+Shared state-based Item 至少包含：
+
+- title。
+- description。
+- lifecycleStatus。
+- stateAnchorDate。
+- infoAfter / warningAfter / dangerAfter。
+- completedAt。
+- completedByMemberId。
+- remote item version。
+
 v1 不支援：
 
 - skip。
@@ -232,7 +259,10 @@ Shared Pack v1 暫時使用 anonymous remote identity，避免把完整帳號綁
 
 - anonymous identity 是 Shared Pack remote access 的最低限度身份。
 - Personal Pack 仍可在沒有 remote identity 的情況下維持 local-first。
-- Shared Pack 建立或加入需要成功取得 anonymous remote identity。
+- Anonymous identity 採 lazy initialization；一般 App launch、Personal Pack、Home、Widget、backup 與一般設定頁不應自動觸發 anonymous sign-in。
+- 只有在準備建立 Shared Pack、準備 preview invite code、準備 join Shared Pack，或進入需要 remote identity 的 Shared Pack flow 且 identity 尚不存在時，才呼叫 `SharedIdentityService.ensureIdentity()`。
+- Shared Pack 建立、preview invite code 或加入需要成功取得 anonymous remote identity。
+- identity initialization 失敗時，不建立 partial Shared Pack、不寫入假的 Shared cache；UI 顯示 calm retryable failure，Personal local-first 功能繼續可用。
 - 尚未綁定帳號時，Shared Pack membership 與 remote access 未受到正式帳號保護。
 - 刪除 App、清除裝置資料、遺失裝置或更換裝置後，使用者可能失去該 anonymous identity，以及對應的 Shared Pack access。
 - 帳號綁定、identity upgrade、換機恢復與 membership recovery 不屬於 Shared Pack v1。
@@ -252,7 +282,31 @@ UI wording 不應暴露：
 
 Phase 0 不實作 auth、OAuth 或 anonymous sign-in。
 
-## 9. Product Surface Boundary
+## 9. Member Display Name Semantics
+
+Shared Pack v1 不建立 global remote profile。每個 membership 保存該 Pack 內的顯示名稱：
+
+```text
+shared_pack_member
+- remoteMemberId
+- remotePackId
+- authUserId
+- role
+- displayName
+- joinedAt
+```
+
+產品語意：
+
+- `authUserId` 是技術 identity，不可直接顯示給使用者。
+- `displayName` 是 Pack-scoped；同一 anonymous identity 在不同 Pack 可使用不同顯示名稱。
+- `displayName` 不代表正式帳號名稱，也不代表 global user profile。
+- Owner 第一次建立 Shared Pack 時必須提供 `ownerDisplayName`。
+- Joiner 確認加入 Shared Pack 時必須提供 `memberDisplayName`；`previewInviteCode` 不需要 joiner display name。
+- Shared Item completion 以 `completedByMemberId` 對應 membership summary 的 `displayName`，UI 顯示「由 {displayName} 完成」。
+- UI 不顯示 Supabase UID 或把 Supabase UID 當成使用者名稱。
+
+## 10. Product Surface Boundary
 
 Shared Pack v1 第一個 vertical slice 只出現在：
 
@@ -277,19 +331,22 @@ Shared Pack v1 暫不整合：
 
 Shared Item 即使已投影到 local Drift，也不代表它自動進入所有現有 repository query、Home、Widget、通知或 backup。這些整合應放入 v1.x 或後續 phase，並先更新對應 spec。
 
-## 10. Data Flow Principles
+## 11. Data Flow Principles
 
 Shared Pack v1 的資料流必須保持可解釋。
 
-### 10.1 Write Flow
+### 11.1 Write Flow
 
 ```text
-User action
+User mutation
 → local validation
-→ completeSharedItem
+→ SharedPackApplicationService
+→ specific SharedPackRemoteApi request
+→ remote permission/version/idempotency validation
 → remote atomic success
 → authoritative result
-→ SharedPackCacheProjector updates local Drift cache
+→ SharedPackCacheProjector
+→ Drift transaction
 → provider refresh
 → UI refresh
 ```
@@ -302,42 +359,55 @@ v1 不做：
 - automatic merge。
 - realtime listener。
 
-### 10.2 Read Flow
+### 11.2 Read Flow
 
 ```text
 User taps refresh
+→ SharedPackApplicationService
 → getSharedPackSnapshot
 → validate remoteSnapshotSchemaVersion
 → map DTO
 → Drift transaction
-→ update mapping / lastRefreshedAt
+→ replace / reconcile Shared cache rows
+→ update remotePackVersion / lastRefreshedAt after commit
 → provider refresh
 → UI refresh
 ```
 
-## 11. Remote ID / Local ID Principle
+## 12. Remote ID / Local ID Principle
 
 本機資料可繼續使用 local ID；remote 資料可有 remote ID。但 mapping 必須集中管理，不應散落在不同 model。
 
-Planned mapping direction：
+Planned independent Shared cache direction：
 
 ```text
-shared_pack_mapping
-- localPackId
+shared_pack_cache
+- localId
 - remotePackId
-- remoteVersion
+- remotePackVersion
 - lastRefreshedAt
 
-shared_item_mapping
-- localItemId
+shared_membership_cache
+- localId
+- remoteMemberId
+- remotePackId
+- displayName
+- role
+
+shared_item_cache
+- localId
 - remoteItemId
 - remotePackId
-- remoteVersion
+- remoteItemVersion
 ```
 
-Phase 0 不新增 mapping table。正式 table 名稱、欄位型別、index 與 migration 必須在 Phase 1 前確認。
+現有 `item_packs`、`items` 與 `item_action_records` 繼續只代表 Personal / local-first domain。Shared Pack v1 不靠現有 Personal tables 加 remote columns 來區分 Personal / Shared。
 
-## 12. Invite Code Direction
+`shared_pack_cache.localId + remotePackId` 與 `shared_item_cache.localId + remoteItemId` 可承擔 mapping 語意。額外 mapping table 不是預設要求；只有 Phase 1 technical design 證明有必要時才新增，且不可和 Shared cache 無理由重複保存相同 identity。
+
+Phase 0.5 不新增 Shared cache table。正式 table 名稱、欄位型別、index、migration 與 hard-delete / inactive tombstone 策略必須在 Phase 1 technical design 中確認。
+
+## 13. Invite Code Direction
 
 Invite code 是 Shared Pack 的主要加入方式。
 
@@ -347,6 +417,7 @@ Invite code 的 scope 是單一 Pack：
 - Joiner-side invite UX 可以放在 Shared Pack entry 或 Settings 入口；輸入後應解析到 specific Pack。
 - Invite code 不代表使用者、帳號、workspace 或本機裝置。
 - 多個 Shared Pack 可以有多個 invite codes。
+- 同一個 Shared Pack 同一時間最多只有 one active invite code。
 
 格式方向：
 
@@ -357,21 +428,29 @@ Invite code 的 scope 是單一 Pack：
 - Display 可顯示為 `K7M 4Q9`，canonical stored/query code 應為 `K7M4Q9`。
 - 不要求使用者輸入空格或 hyphen。
 
-v1 可接受限制：
+v1 行為：
 
-- invite expiry 可先不做，或只在 Phase 1 明確決定後加入。
-- 不需要 revoke / rotate。
+- `getOrCreateInviteCode`：若 Pack 已有 active code，回傳同一 code；若沒有 active code，建立一個；不會使既有 active code 失效。
+- `rotateInviteCode`：Owner-only，建立新 code，atomically 使舊 code 失效，回傳新 code。
+- v1 沒有自動 expiry。
+- active invite code canonical value 不可出現在一般 log。
+- 持有有效 invite code 者可預覽最低限度 Pack metadata：Pack title、Pack icon、join availability。
+- 加入前不得回傳 member names、owner identity、Shared Item titles、Shared Item content 或 completion history。
+- `previewInviteCode` 與 `joinSharedPack` 必須有 rate limiting / brute-force protection。
+- Invite normalization 必須在 server-side atomic path 中再次執行，不可信任 client normalization。
 - 不需要 QR code / deep link。
 - 不需要多角色權限。
+- 不支援多個並行 invite codes。
+- 不把 invite code 當 recovery credential。
 
-## 13. Backup And Recovery Boundary
+## 14. Backup And Recovery Boundary
 
 現有 JSON backup 是 legacy local export / import。
 
 Shared Pack v1 規定：
 
 - Shared Pack remote access 不由 local backup 恢復。
-- Shared Pack cache、membership、invite code、remote mapping 與 credential 不應被當成傳統 backup recovery data。
+- Shared Pack cache、membership、invite code、remote identity mapping 與 credential 不應被當成傳統 backup recovery data。
 - Supabase access token、refresh token、service role key 或其他 credential 永遠不可進入 backup。
 - Phase 0 不修改現有 backup production code。
 
@@ -380,7 +459,7 @@ Shared Pack v1 規定：
 - 未綁定帳號：local backup 可保護 Personal local data。
 - 已綁定帳號後的長期方向：Personal / Shared active data 由帳號與 remote membership 恢復。
 
-## 14. Pack Lifecycle Boundary
+## 15. Pack Lifecycle Boundary
 
 必須明確區分：
 
@@ -392,9 +471,9 @@ Shared Pack v1 規定：
 
 現有 Personal Pack 的「一起封存內容」或「移到一般」語意，不可直接套用到 Shared Pack。
 
-Shared Pack lifecycle 需要獨立規格。v1 可只支援最小建立、加入、查看及完成流程。leave、owner transfer、last owner、remote delete、取消共享後轉回 Personal Pack 等流程放入 v1.x 或後續。
+Shared Pack lifecycle 需要獨立規格。v1 支援最小建立、加入、查看、metadata update、state-based Shared Item management、invite code get-or-create / rotate 及完成流程。leave、owner transfer、last owner、remote delete、取消共享後轉回 Personal Pack 等流程放入 v1.x 或後續。
 
-## 15. Codex 開發守則
+## 16. Codex 開發守則
 
 Codex 在實作 Shared Pack 相關功能前，必須遵守：
 
@@ -406,14 +485,19 @@ Codex 在實作 Shared Pack 相關功能前，必須遵守：
 6. 不可在 backup 中保存 Supabase token / credentials。
 7. 每個 phase 必須有清楚 manual test。
 8. 每個 phase 完成後，開發者必須能用文字說明 A 的操作寫到哪裡、B 的刷新讀哪裡、local cache 何時更新。
+9. 不可在未更新 06 / 07 前新增 product membership limit；infrastructure rate limit 不等於 product membership limit。
 
-## 16. Shared Pack v1 Success Standard
+## 17. Shared Pack v1 Success Standard
 
 v1 成功標準：
 
 - 使用者能建立新的 Shared Pack。
-- Owner 能建立 invite code。
+- Owner 建立 Shared Pack 時保存 Pack-scoped `ownerDisplayName`。
+- Owner 能建立、編輯、封存 state-based Shared Items。
+- Owner 能更新 Shared Pack metadata。
+- Owner 能 get-or-create / rotate invite code。
 - Member 能用 invite code 加入 Shared Pack。
+- Member 加入時保存 Pack-scoped `memberDisplayName`。
 - Owner / Member 能查看 Shared Items。
 - Owner / Member 能完成 Shared Item。
 - A 完成 Shared Item 後，remote 成功並回傳 authoritative result。

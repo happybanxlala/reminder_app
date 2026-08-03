@@ -73,36 +73,72 @@ Shared Pack 產品方向以 `docs/core/06_shared_pack_direction_spec_v1.md` 為�
 
 在本 core spec 中只鎖定與現有 local model 的交界：
 
-- Shared Pack v1 是 Item-only。
+- Shared Pack v1 第一個 vertical slice 是 `ItemType.stateBased` Shared Item-only。
+- Shared Pack v1 不支援 `ItemType.fixed`、recurring fixed schedule、`ItemOverduePolicy`、fixed cycle advance 或 fixed schedule timezone calculation；這些屬於 v1.x 或後續明確規格階段。
 - Shared Pack v1 不代表現有整個 `ItemPack` graph 都會 remote-backed。
 - `Resource`、`ResourceConsumptionRule`、`ResourceActionRecord`、`StageTracker`、`StageRule`、`StageRecord`、`StageRelatedItem`、`PackTemplate` 與 custom template sync 在 v1 保持 Personal/local-only。
 - Personal Pack conversion 不屬於 v1；v1 只支援建立新的 Shared Pack。
+- Shared Pack v1 使用獨立 Shared Drift cache tables，不重用現有 `item_packs`、`items` 或 `item_action_records`。
 - Shared Item 即使 planned 投影到 local Drift readable cache，也不代表自動進入所有既有 repository query、Home、Widget、通知或 backup。
+- Shared Item 不可被現有 `ItemRepository` 當作 Personal Item mutation；Shared Pack action 必須走 `SharedPackApplicationService`，再由 Shared Pack data layer 處理 remote request 與 cache projection。
 
 ### 1.5 Planned local cache projection
 
-Shared Pack Phase 0 不修改 Drift schema；以下 mapping 只是 Phase 1 前需要確認的 planned model direction。
+Shared Pack Phase 0.5 不修改 Drift schema；以下 cache shape 只是 Phase 1 technical design 前鎖定的 planned semantic direction。
 
 ```text
-shared_pack_mapping
-- localPackId
+shared_pack_cache
+- localId
 - remotePackId
-- remoteVersion
+- title
+- description
+- iconEmoji
+- currentUserRole
+- remotePackVersion
 - lastRefreshedAt
+- accessState
+- createdAt
+- updatedAt
 
-shared_item_mapping
-- localItemId
+shared_membership_cache
+- localId
+- remoteMemberId
+- remotePackId
+- displayName
+- role
+- joinedAt
+- createdAt
+- updatedAt
+
+shared_item_cache
+- localId
 - remoteItemId
 - remotePackId
-- remoteVersion
+- title
+- description
+- type
+- lifecycleStatus
+- stateAnchorDate
+- infoAfterMinutes
+- warningAfterMinutes
+- dangerAfterMinutes
+- completedAt
+- completedByMemberId
+- remoteItemVersion
+- createdAt
+- updatedAt
 ```
 
 要求：
 
-- mapping 必須集中。
-- 不可把 `remoteId`、`syncState` 或 remote version 欄位散落在 unrelated domain models。
-- 正式 table 名稱、欄位型別、index、migration 與 projection transaction 必須在 Phase 1 前再確認。
-- Phase 0 不新增 `shared_pack_mapping`、`shared_item_mapping`、remote id column 或任何 Drift migration。
+- 現有 `item_packs`、`items` 與 `item_action_records` 繼續只代表 Personal / local-first domain。
+- Shared cache 不自動進入 Personal repositories、Home、global Item management、notification、Home Widget 或 legacy backup。
+- `shared_pack_cache.localId + remotePackId` 可承擔 Pack identity mapping；`shared_item_cache.localId + remoteItemId` 可承擔 Item identity mapping。
+- 額外 mapping table 不是預設要求；只有 Phase 1 technical design 證明有必要時才新增。
+- 不可在 Shared cache 和額外 mapping table 重複保存相同 identity 而沒有明確理由。
+- remote ID mapping 必須集中於 Shared Pack data layer，不可散落在 Personal domain models。
+- 正式 table 名稱、欄位型別、index、migration 與 projection transaction 必須在 Phase 1 technical design 中確認。
+- Phase 0.5 不新增 Shared cache table、remote id column 或任何 Drift migration。
 
 ### 1.6 Version naming
 
@@ -966,7 +1002,7 @@ Drift table `app_settings` 另有固定 `id = 1`、`createdAt`、`updatedAt`。
 - Import 採 replace all user data，不做 merge；匯入前檢查 `app` 與 `schemaVersion`，失敗時不改動現有資料。匯入時 system default Pack 會以目前資料庫 seed 重建 / 保留，backup 中指向舊 system default Pack 的 `packId` 會 remap 到目前 system default Pack。
 - Reset database 會清空 user data，並保留或重建 system default Pack、`app_settings` 與 system default StageTracker。
 - 現有 JSON backup 是 legacy local export / import；Phase 0 不修改 backup production code。
-- Shared Pack remote access 不由 local backup 恢復。Shared Pack cache、membership、invite code、remote mapping 與 credential 不應被當成傳統 backup recovery data。
+- Shared Pack remote access 不由 local backup 恢復。Shared Pack cache、membership、invite code、remote identity mapping 與 credential 不應被當成傳統 backup recovery data。
 - Supabase access token、refresh token、service role key 或其他 credential 永遠不可進入 backup。
 - 未綁定帳號時，local backup 可保護 Personal local data；已綁定帳號後的長期方向是 Personal / Shared active data 由帳號與 remote membership 恢復。
 - Notification reminder time 預設為 `09:00`，更新後會透過既有 daily attention notification sync 使用新時間。
@@ -1076,7 +1112,7 @@ Shared Pack lifecycle 必須獨立規格化，至少要分開處理：
 - Shared Pack archive
 - Shared Pack deletion
 
-Shared Pack v1 可只支援最小建立、加入、查看與完成流程。leave、owner transfer、last owner、remote archive、remote delete、取消共享後轉回 Personal Pack 等流程屬於 v1.x 或後續版本，不屬於現有 local Pack archive 行為。
+Shared Pack v1 支援最小建立、加入、查看、metadata update、state-based Shared Item management、invite code get-or-create / rotate 與完成流程。leave、owner transfer、last owner、remote archive、remote delete、取消共享後轉回 Personal Pack 等流程屬於 v1.x 或後續版本，不屬於現有 local Pack archive 行為。
 
 ## 4. UI 心智模型
 
