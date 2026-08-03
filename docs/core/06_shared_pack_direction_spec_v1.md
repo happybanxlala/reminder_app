@@ -4,7 +4,7 @@ Status: planned product direction / not implemented.
 
 本文件定義 Reminder App 的 Shared Pack 產品方向與 phased scope。Shared Pack v1 尚未在 production code 中實作；目前 repository 沒有 Supabase dependency、remote table、RPC、Shared Pack route、Shared Pack repository、anonymous auth 或 Shared Drift cache table。
 
-本文件不是現有 local Reminder domain 的替代品。現有 core/local model 仍以 `docs/core/04_core_model_spec_v1.md` 為準；Home Widget 邊界以 `docs/core/05_home_widget_spec.md` 為準；planned remote request contract 以 `docs/core/07_shared_pack_remote_contract_v1.md` 為準。
+本文件不是現有 local Reminder domain 的替代品。現有 core/local model 仍以 `docs/core/04_core_model_spec_v1.md` 為準；Home Widget 邊界以 `docs/core/05_home_widget_spec.md` 為準；planned remote request contract 以 `docs/core/07_shared_pack_remote_contract_v1.md` 為準；planned runtime consistency、response ordering、cache trust 與 failure semantics 以 `docs/core/08_shared_pack_runtime_consistency_spec_v1.md` 為準。
 
 ## 1. 文件目的
 
@@ -58,6 +58,7 @@ v1 只包含：
 - 最低限度 actor attribution，例如「由誰完成」。
 - remote-first write。
 - authoritative remote result。
+- 所有改變 Shared Pack active current-state snapshot 的 mutation 都回傳 full active snapshot。
 - manual snapshot refresh。
 - independent Shared Drift readable cache。
 - lazy anonymous identity initialization。
@@ -65,6 +66,17 @@ v1 只包含：
 - compact Shared Pack detail / settings page。
 - Shared Item list。
 - dedicated Shared Pack surface only。
+- Shared Item lifecycle 只有 `active` / `archived`。
+- `stateAnchorDate` 只能透過 `completeSharedItem` 推進。
+- Invite state 不屬於 active snapshot，不改變 `packVersion`。
+- `remoteApiContractVersion = 1` and `remoteSnapshotSchemaVersion = 1`。
+- `remotePackVersion` monotonicity and cache trust semantics are defined by `08` as the Phase 0.7 runtime consistency contract.
+- Personal data reset preserves Shared cache, anonymous identity/session and Shared Pack remote access metadata。
+- Pack 恰好有一個 owner。
+- Pack 內 duplicate display names allowed。
+- display name validation。
+- Shared Pack timestamps use UTC instants。
+- `notModified` updates `lastRefreshedAt`。
 
 ### 3.2 Shared Pack v1.x
 
@@ -84,6 +96,7 @@ v1.x 可在 v1 資料流穩定後再規格化：
 - member removal。
 - owner transfer。
 - invite automatic expiry policy。
+- Shared Item restore / unarchive。
 
 ### 3.3 Shared Pack v2
 
@@ -217,6 +230,18 @@ Member 在 v1 不可以：
 
 v1 暫不實作 `editor`、`viewer` 或其他角色。
 
+Membership invariants:
+
+- 一個 Shared Pack v1 恰好有一個 owner。
+- 同一 `authUserId` 在同一 `remotePackId` 最多一個 membership。
+- owner membership 在 v1 不可 leave。
+- owner membership 在 v1 不可被移除。
+- member removal 不屬於 v1。
+- owner transfer 不屬於 v1。
+- 同一 Pack 同一時間最多一個 active invite code。
+
+Phase 1 technical design 應建立相等於 `unique(remotePackId, authUserId)` 的 database invariant。Membership uniqueness 使用 auth identity，不使用 `displayName`。
+
 ## 7. Supported Item Actions
 
 Shared Pack v1 只支援 `done`。
@@ -239,6 +264,33 @@ Shared state-based Item 至少包含：
 - completedByMemberId。
 - remote item version。
 
+Shared Item v1 lifecycle 只支援：
+
+- `active`。
+- `archived`。
+
+`active` Item 出現在 full active snapshot 與一般 Shared Item list，可被 Owner update，可被 Owner / Member complete，可被 Owner archive。
+
+`archived` Item 不出現在 full active snapshot，不出現在一般 Shared Item list，不可 update，不可 complete。Restore / unarchive 不屬於 v1。
+
+State-based config invariant 必須由 remote server-side 驗證：
+
+```text
+0 <= infoAfterMinutes
+infoAfterMinutes <= warningAfterMinutes
+warningAfterMinutes <= dangerAfterMinutes
+```
+
+Threshold values 必須是 non-null integer、不可為負數、不可超出 Phase 1 technical design 設定的合理 database range。
+
+`createSharedItem` 必須提供 `initialStateAnchorDate`。Remote 驗證並 canonicalize 為 UTC instant 後保存為 `stateAnchorDate`，不接受無 anchor 的 active Shared Item。
+
+`updateSharedItem` 只可修改 `title`、`description`、`infoAfterMinutes`、`warningAfterMinutes`、`dangerAfterMinutes`，不可修改 `stateAnchorDate`、completion attribution 或 lifecycle。
+
+`completeSharedItem` 是 v1 唯一可更新一般 state anchor 的操作；authoritative `completedAt` 由 server 產生，`stateAnchorDate = completedAt`，`completedByMemberId` 由 caller membership 推導。
+
+Shared Pack v1 timestamps 使用 UTC instant。DTO 使用 ISO-8601 UTC / offset；UI 顯示時轉成 device local timezone。State elapsed calculation 使用 `currentInstantUtc - stateAnchorDateUtc`。
+
 v1 不支援：
 
 - skip。
@@ -248,6 +300,8 @@ v1 不支援：
 - action history UI。
 - complex completion history merge。
 - `ItemNextCycleStrategy` 的多種使用者選擇。
+- paused Shared Item lifecycle。
+- restore / unarchive。
 
 `undo`、`skip`、action history 等能力可列入 Shared Pack v1.x，但不可寫成 v1 已包含能力。
 
@@ -301,10 +355,22 @@ shared_pack_member
 - `authUserId` 是技術 identity，不可直接顯示給使用者。
 - `displayName` 是 Pack-scoped；同一 anonymous identity 在不同 Pack 可使用不同顯示名稱。
 - `displayName` 不代表正式帳號名稱，也不代表 global user profile。
+- Pack 內 `displayName` 不要求唯一，允許多位成員使用相同顯示名稱。
+- `displayName` 不可用作 authentication、authorization、foreign key、completion actor identity 或 membership uniqueness。
+- 真正 identity 使用 `remoteMemberId`。
 - Owner 第一次建立 Shared Pack 時必須提供 `ownerDisplayName`。
 - Joiner 確認加入 Shared Pack 時必須提供 `memberDisplayName`；`previewInviteCode` 不需要 joiner display name。
 - Shared Item completion 以 `completedByMemberId` 對應 membership summary 的 `displayName`，UI 顯示「由 {displayName} 完成」。
 - UI 不顯示 Supabase UID 或把 Supabase UID 當成使用者名稱。
+
+`ownerDisplayName` 與 `memberDisplayName` validation：
+
+- trim leading / trailing whitespace。
+- trim 後不可為空。
+- 不能只包含空白。
+- 最大 40 Unicode code points。
+- 可包含空格、中文、英文、數字及一般 emoji。
+- 不可使用 `authUserId` / Supabase UID 作 fallback 公開名稱。
 
 ## 10. Product Surface Boundary
 
@@ -344,12 +410,19 @@ User mutation
 → specific SharedPackRemoteApi request
 → remote permission/version/idempotency validation
 → remote atomic success
-→ authoritative result
-→ SharedPackCacheProjector
-→ Drift transaction
+→ authoritative mutation result + full active snapshot
+→ SharedPackCacheProjector validates full snapshot
+→ single Drift transaction reconciliation
+→ update remotePackVersion / lastRefreshedAt after commit
 → provider refresh
 → UI refresh
 ```
+
+所有會改變 Shared Pack active current-state snapshot 的 mutation，都必須回傳 mutation-specific authoritative result、`resultingPackVersion` 與 full active snapshot。`fullSnapshot.packVersion` 必須等於 `resultingPackVersion`。Mutation-specific result 可用於 UI feedback，但 cache truth 必須來自 full snapshot projection。
+
+Client 不可只投影單一 mutation fragment 後，把 `remotePackVersion` 更新至 `resultingPackVersion`。這會讓本機 cache 宣稱已完整同步到某個 Pack version，但實際可能漏掉其他裝置的中間 mutation。
+
+Runtime races, late responses, idempotency replay, remote-success/local-projection-failure, known-untrusted cache, and freshness semantics must follow `docs/core/08_shared_pack_runtime_consistency_spec_v1.md`。Phase 1 technical design may choose serialization or transaction guards, but may not violate the Phase 0.7 runtime invariants.
 
 v1 不做：
 
@@ -365,14 +438,18 @@ v1 不做：
 User taps refresh
 → SharedPackApplicationService
 → getSharedPackSnapshot
-→ validate remoteSnapshotSchemaVersion
+→ full snapshot or notModified
+→ validate remoteSnapshotSchemaVersion when full snapshot returned
 → map DTO
 → Drift transaction
 → replace / reconcile Shared cache rows
-→ update remotePackVersion / lastRefreshedAt after commit
+→ update remotePackVersion on full snapshot projection
+→ update lastRefreshedAt after successful projection or verification
 → provider refresh
 → UI refresh
 ```
+
+`getSharedPackSnapshot` 可用 `knownPackVersion`。若 remote 回傳 `notModified`，代表 client 已成功向 remote 驗證目前 cache version；client 必須更新 `shared_pack_cache.lastRefreshedAt = verifiedAt`，但不重寫 membership / item cache rows，也不改 `remotePackVersion`。
 
 ## 12. Remote ID / Local ID Principle
 
@@ -405,7 +482,9 @@ shared_item_cache
 
 `shared_pack_cache.localId + remotePackId` 與 `shared_item_cache.localId + remoteItemId` 可承擔 mapping 語意。額外 mapping table 不是預設要求；只有 Phase 1 technical design 證明有必要時才新增，且不可和 Shared cache 無理由重複保存相同 identity。
 
-Phase 0.5 不新增 Shared cache table。正式 table 名稱、欄位型別、index、migration 與 hard-delete / inactive tombstone 策略必須在 Phase 1 technical design 中確認。
+`remotePackVersion` 只代表目前本機完整 cache 所對應的完整 Pack snapshot version。`lastRefreshedAt` 表示最近一次成功從 remote 取得或驗證 Shared Pack current state 的 UTC 時間，包含 full snapshot projection 成功、mutation full snapshot projection 成功與 `notModified` verification。
+
+Phase 0.6 不新增 Shared cache table。正式 table 名稱、欄位型別、index、migration 與 hard-delete / inactive tombstone 策略必須在 Phase 1 technical design 中確認。
 
 ## 13. Invite Code Direction
 
@@ -434,6 +513,9 @@ v1 行為：
 - `rotateInviteCode`：Owner-only，建立新 code，atomically 使舊 code 失效，回傳新 code。
 - v1 沒有自動 expiry。
 - active invite code canonical value 不可出現在一般 log。
+- Invite state 不屬於 active Shared Pack snapshot。
+- `getOrCreateInviteCode` 與 `rotateInviteCode` 不需要 `expectedPackVersion`，不回傳 `resultingPackVersion`，不改變 `packVersion`。
+- 如果未來 Invite 需要 concurrency control，應建立 `inviteVersion`，不可借用 `packVersion`。
 - 持有有效 invite code 者可預覽最低限度 Pack metadata：Pack title、Pack icon、join availability。
 - 加入前不得回傳 member names、owner identity、Shared Item titles、Shared Item content 或 completion history。
 - `previewInviteCode` 與 `joinSharedPack` 必須有 rate limiting / brute-force protection。
@@ -453,6 +535,17 @@ Shared Pack v1 規定：
 - Shared Pack cache、membership、invite code、remote identity mapping 與 credential 不應被當成傳統 backup recovery data。
 - Supabase access token、refresh token、service role key 或其他 credential 永遠不可進入 backup。
 - Phase 0 不修改現有 backup production code。
+
+現有 Settings data reset 必須收斂為 Reset Personal local data：
+
+- 清除 Personal local domain data。
+- 重建 Personal system default Pack。
+- 重建 Personal app settings / system records。
+- 保留 `shared_pack_cache`、`shared_membership_cache`、`shared_item_cache`。
+- 保留 anonymous remote identity/session。
+- 保留 Shared Pack remote access metadata。
+
+Shared Pack reset / unlink / sign-out / clear Shared cache 必須是日後獨立流程。v1 不新增 `listMySharedPacks`、`recoverMyMemberships`、`clearSharedData` 或 `signOutSharedIdentity`。
 
 資料恢復方向：
 
@@ -500,9 +593,19 @@ v1 成功標準：
 - Member 加入時保存 Pack-scoped `memberDisplayName`。
 - Owner / Member 能查看 Shared Items。
 - Owner / Member 能完成 Shared Item。
-- A 完成 Shared Item 後，remote 成功並回傳 authoritative result。
-- A 的 local Drift cache 在 remote 成功後更新。
+- A 完成 Shared Item 後，remote 成功並回傳 authoritative result + full active snapshot。
+- A 的 local Drift cache 在 full snapshot projection 成功後更新。
 - B 手動 refresh 後讀取 remote snapshot。
 - B 的 local Drift cache 更新後能看見 A 完成後的 authoritative result。
+- mutation full snapshot 對應 `resultingPackVersion`。
+- B 的中間 mutation 不可被 A 的 fragment projection 遺漏。
+- `updateSharedItem` 不可修改 anchor。
+- invalid thresholds 被 remote 拒絕。
+- Personal data reset 後 Shared Pack 仍可存取。
+- invite rotate 不改 `packVersion`。
+- `notModified` 更新 `lastRefreshedAt`。
+- `remoteApiContractVersion = 1`。
+- `remoteSnapshotSchemaVersion = 1`。
+- active snapshot 不含 archived Item。
 
 若 Codex 開始新增未規劃的 sync / realtime / outbox、直接從 UI 呼叫 Supabase、或把 Personal / Shared 與 Local / Remote 再次混淆，應停止新增功能並回到 spec。

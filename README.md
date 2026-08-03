@@ -13,10 +13,12 @@ Flutter MVP for a split reminder product model:
 - `docs/core/04_core_model_spec_v1.md`：現有 core domain / local model。
 - `docs/core/05_home_widget_spec.md`：Home Widget boundary。
 - `docs/core/06_shared_pack_direction_spec_v1.md`：Shared Pack product direction and phased scope。
-- `docs/core/07_shared_pack_remote_contract_v1.md`：future remote request / contract catalog, including Shared cache, version, idempotency and snapshot projection contracts。
+- `docs/core/07_shared_pack_remote_contract_v1.md`：future remote request / contract catalog, including Shared cache, full-snapshot mutation consistency, membership/config invariants, UTC timestamp semantics, protocol version 1, idempotency and snapshot projection contracts。
+- `docs/core/08_shared_pack_runtime_consistency_spec_v1.md`：planned Shared Pack client runtime consistency, response ordering, cache trust, freshness, idempotent retry, and projection failure semantics。
 - Drift schema implementation：`lib/features/reminders/data/local/`
 
 Shared Pack is planned only. This repository currently has no production Shared Pack remote API, Supabase dependency, remote table, RPC, auth flow, Shared Drift cache table, or Shared Pack UI route.
+Shared Pack Phase 0.7 is documentation-only and defines the planned runtime consistency contract needed before Phase 1 technical design.
 
 StageTracker 模型採 rule-first：
 
@@ -32,7 +34,7 @@ StageTracker 模型採 rule-first：
 - 現行表結構以 `lib/features/reminders/data/local/tables.dart` 為準。
 - `backupFormatVersion` 目前為 `1`，來源是 `BackupPayload.currentSchemaVersion`；JSON 欄位仍名為 `schemaVersion`，但它不是 Drift schema version。
 - `widgetSnapshotSchemaVersion` 目前為 `1`，來源是 `HomeWidgetSnapshot.currentSchemaVersion` 與 native widget supported schema。
-- `remoteApiContractVersion` / `remoteSnapshotSchemaVersion` 仍是 planned，尚未有 production API。
+- `remoteApiContractVersion = 1` / `remoteSnapshotSchemaVersion = 1` are planned contract values，尚未有 production API。
 
 ## Setup
 

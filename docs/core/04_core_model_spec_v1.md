@@ -69,11 +69,15 @@ enum PackAccessScope {
 
 ### 1.4 Shared Pack v1 cross-reference
 
-Shared Pack 產品方向以 `docs/core/06_shared_pack_direction_spec_v1.md` 為準；planned remote request / contract catalog 以 `docs/core/07_shared_pack_remote_contract_v1.md` 為準。
+Shared Pack 產品方向以 `docs/core/06_shared_pack_direction_spec_v1.md` 為準；planned remote request / contract catalog 以 `docs/core/07_shared_pack_remote_contract_v1.md` 為準；planned client runtime consistency、response ordering、cache trust 與 failure semantics 以 `docs/core/08_shared_pack_runtime_consistency_spec_v1.md` 為準。
 
 在本 core spec 中只鎖定與現有 local model 的交界：
 
 - Shared Pack v1 第一個 vertical slice 是 `ItemType.stateBased` Shared Item-only。
+- Shared Item v1 lifecycle 只支援 `active` / `archived`；不支援 `paused`、restore 或 unarchive。
+- Shared Item v1 建立時必須提供 `initialStateAnchorDate`；remote DTO 保存為 `stateAnchorDate`。
+- `updateSharedItem` 只可修改 definition，不可修改 `stateAnchorDate`、completion attribution 或 lifecycle。
+- `completeSharedItem` 是 v1 唯一可更新一般 Shared Item state anchor 的操作；authoritative `completedAt` 由 server 產生，且 `stateAnchorDate = completedAt`。
 - Shared Pack v1 不支援 `ItemType.fixed`、recurring fixed schedule、`ItemOverduePolicy`、fixed cycle advance 或 fixed schedule timezone calculation；這些屬於 v1.x 或後續明確規格階段。
 - Shared Pack v1 不代表現有整個 `ItemPack` graph 都會 remote-backed。
 - `Resource`、`ResourceConsumptionRule`、`ResourceActionRecord`、`StageTracker`、`StageRule`、`StageRecord`、`StageRelatedItem`、`PackTemplate` 與 custom template sync 在 v1 保持 Personal/local-only。
@@ -81,10 +85,14 @@ Shared Pack 產品方向以 `docs/core/06_shared_pack_direction_spec_v1.md` 為�
 - Shared Pack v1 使用獨立 Shared Drift cache tables，不重用現有 `item_packs`、`items` 或 `item_action_records`。
 - Shared Item 即使 planned 投影到 local Drift readable cache，也不代表自動進入所有既有 repository query、Home、Widget、通知或 backup。
 - Shared Item 不可被現有 `ItemRepository` 當作 Personal Item mutation；Shared Pack action 必須走 `SharedPackApplicationService`，再由 Shared Pack data layer 處理 remote request 與 cache projection。
+- Shared Pack remote protocol versions are planned contract values: `remoteApiContractVersion = 1` and `remoteSnapshotSchemaVersion = 1`。
+- 所有改變 Shared Pack active current-state snapshot 的 mutation 必須回傳 full active snapshot；Invite state 不屬於 active snapshot，也不改變 `packVersion`。
+- Shared Pack v1 timestamps 使用 UTC instant；UI 顯示時才轉成 device local timezone。
+- `remotePackVersion` must be monotonic at runtime；較舊 response 或 projection failure 不可讓 Shared cache 倒退或宣稱已套用較新的 authoritative state。
 
 ### 1.5 Planned local cache projection
 
-Shared Pack Phase 0.5 不修改 Drift schema；以下 cache shape 只是 Phase 1 technical design 前鎖定的 planned semantic direction。
+Shared Pack Phase 0.6 不修改 Drift schema；以下 cache shape 只是 Phase 1 technical design 前鎖定的 planned semantic direction。
 
 ```text
 shared_pack_cache
@@ -137,8 +145,14 @@ shared_item_cache
 - 額外 mapping table 不是預設要求；只有 Phase 1 technical design 證明有必要時才新增。
 - 不可在 Shared cache 和額外 mapping table 重複保存相同 identity 而沒有明確理由。
 - remote ID mapping 必須集中於 Shared Pack data layer，不可散落在 Personal domain models。
+- `remotePackVersion` 只代表目前本機完整 Shared cache 所對應的完整 Pack snapshot version，不代表最後一次收到的 mutation fragment version。
+- 會改變 Shared Pack active current-state snapshot 的 mutation，不可只 patch 單一 row 後更新 `remotePackVersion`；remote success 必須回傳完整 snapshot，並透過與 `getSharedPackSnapshot` 相同的 `SharedPackCacheProjector` 在單一 transaction 投影。
+- mutation full snapshot projection 失敗時必須 rollback，不更新 `remotePackVersion` 或 `lastRefreshedAt`，UI 不可把 cache 當成最新狀態。
+- remote mutation success followed by local projection failure 表示 remote authoritative state 已改變，但 local cache 尚未成功同步；在重新取得並成功投影 authoritative snapshot 前，該 Pack 不可使用 known-untrusted cache 繼續 mutation。
+- `lastRefreshedAt` 表示最近一次成功從 remote 取得或驗證 Shared Pack current state 的 UTC 時間；包含 full snapshot projection 成功、mutation full snapshot projection 成功，以及 manual refresh 回傳 `notModified`。
+- `notModified` 只更新 `shared_pack_cache.lastRefreshedAt`，不重寫 `shared_membership_cache`、`shared_item_cache`，也不改 `remotePackVersion`。
 - 正式 table 名稱、欄位型別、index、migration 與 projection transaction 必須在 Phase 1 technical design 中確認。
-- Phase 0.5 不新增 Shared cache table、remote id column 或任何 Drift migration。
+- Phase 0.6 不新增 Shared cache table、remote id column 或任何 Drift migration。
 
 ### 1.6 Version naming
 
@@ -149,8 +163,8 @@ shared_item_cache
 | `driftSchemaVersion` | `5` | `AppDatabase.schemaVersion` | Drift database schema / migration version |
 | `backupFormatVersion` | `1` | `BackupPayload.currentSchemaVersion`，JSON 欄位目前仍名為 `schemaVersion` | legacy local JSON backup format |
 | `widgetSnapshotSchemaVersion` | `1` | `HomeWidgetSnapshot.currentSchemaVersion` 與 native supported schema | Home Widget Flutter-to-native snapshot protocol |
-| `remoteApiContractVersion` | planned | `docs/core/07_shared_pack_remote_contract_v1.md` | Shared Pack remote request contract |
-| `remoteSnapshotSchemaVersion` | planned | `docs/core/07_shared_pack_remote_contract_v1.md` | Shared Pack remote current-state snapshot read model |
+| `remoteApiContractVersion` | `1` planned / not implemented | `docs/core/07_shared_pack_remote_contract_v1.md` | Shared Pack remote request / response contract major version |
+| `remoteSnapshotSchemaVersion` | `1` planned / not implemented | `docs/core/07_shared_pack_remote_contract_v1.md` | Shared Pack full active snapshot schema |
 
 ### 1.7 已實作模型清單
 
@@ -996,13 +1010,16 @@ Drift table `app_settings` 另有固定 `id = 1`、`createdAt`、`updatedAt`。
 - `AppDatabase.beforeOpen` 會確保 `app_settings` 有 `id = 1` 的 row。
 - 設定頁 route 已實作：`/feature/settings`，route name 是 `settings`。
 - 設定頁一般設定暴露 `reminderTone` 與 notification reminder time；system StageTracker 顯示開關仍保留底層設定 / repository 行為，但不出現在一般 UAT UI。
-- 設定頁資料管理提供 JSON backup / import / reset。Backup payload 使用 `app = reminder_app`、`schemaVersion = 1`、`exportedAt` ISO-8601 與 `data` keys：`packs/items/resources/stages/stageTrackers/customTemplates/relations/activityLogs`。
+- 設定頁資料管理提供 JSON backup / import / Reset Personal local data。Backup payload 使用 `app = reminder_app`、`schemaVersion = 1`、`exportedAt` ISO-8601 與 `data` keys：`packs/items/resources/stages/stageTrackers/customTemplates/relations/activityLogs`。
 - 上述 backup JSON 的 `schemaVersion = 1` 是 legacy `backupFormatVersion`，不是 `driftSchemaVersion`。
 - Backup 包含 user-created Pack、Item、Resource、user-created StageTracker、StageRule、StageRecord、StageRelatedItem、ResourceConsumptionRule、自訂 PackTemplate、ItemActionRecord 與 ResourceActionRecord；不包含 system StageTracker、debug-only setting、temporary UI state 或 app settings。
 - Import 採 replace all user data，不做 merge；匯入前檢查 `app` 與 `schemaVersion`，失敗時不改動現有資料。匯入時 system default Pack 會以目前資料庫 seed 重建 / 保留，backup 中指向舊 system default Pack 的 `packId` 會 remap 到目前 system default Pack。
-- Reset database 會清空 user data，並保留或重建 system default Pack、`app_settings` 與 system default StageTracker。
+- Reset Personal local data 會清空 Personal user data，並保留或重建 system default Pack、`app_settings` 與 system default StageTracker。
 - 現有 JSON backup 是 legacy local export / import；Phase 0 不修改 backup production code。
 - Shared Pack remote access 不由 local backup 恢復。Shared Pack cache、membership、invite code、remote identity mapping 與 credential 不應被當成傳統 backup recovery data。
+- Reset Personal local data 不可清除 `shared_pack_cache`、`shared_membership_cache`、`shared_item_cache`、anonymous remote identity/session 或 Shared Pack remote access metadata；否則 remote membership 仍存在但 client 沒有 v1 membership discovery API，使用者可能無法重新開啟既有 Shared Pack。
+- Shared Pack reset / unlink / sign-out / clear Shared cache 必須是日後獨立流程。若未來需要清除 Shared data，必須先定義 remote membership 是否保留、identity/session 是否保留、cache rebuild 方法，以及 account binding / recovery 路徑。
+- v1 不新增 `listMySharedPacks`、`recoverMyMemberships`、`clearSharedData` 或 `signOutSharedIdentity`。
 - Supabase access token、refresh token、service role key 或其他 credential 永遠不可進入 backup。
 - 未綁定帳號時，local backup 可保護 Personal local data；已綁定帳號後的長期方向是 Personal / Shared active data 由帳號與 remote membership 恢復。
 - Notification reminder time 預設為 `09:00`，更新後會透過既有 daily attention notification sync 使用新時間。
@@ -1247,7 +1264,7 @@ Pack 管理 route：`/feature/item-packs-management`，route name：`item-packs-
 
 目前 `driftSchemaVersion`：`5`。
 
-注意：`backupFormatVersion` 與 `widgetSnapshotSchemaVersion` 目前也都是 `1`，但它們不是 Drift schema version。Shared Pack 的 `remoteApiContractVersion` / `remoteSnapshotSchemaVersion` 仍是 planned，尚未有 production API 或 table。
+注意：`backupFormatVersion`、`widgetSnapshotSchemaVersion`、planned `remoteApiContractVersion` 與 planned `remoteSnapshotSchemaVersion` 目前值都是 `1`，但它們不是 Drift schema version。Shared Pack remote protocol versions 是 planned contract / not implemented，尚未有 production API 或 table。
 
 ### 5.1 item_packs
 
