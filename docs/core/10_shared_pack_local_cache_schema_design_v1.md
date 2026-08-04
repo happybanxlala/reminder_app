@@ -221,7 +221,7 @@ One row is one membership summary in the active full snapshot. The current calle
 | `remote_member_id` (`remoteMemberId`) | Authoritative membership identity within its Pack context | `TextColumn` / `TEXT` | no | none | no | — | composite unique with Pack | length 1..128 | `memberships[].remoteMemberId` / `currentMembership.remoteMemberId` | 1b/2b | Completion actor identity; no unsupported global-uniqueness assumption |
 | `remote_pack_id` (`remotePackId`) | Owning Pack identity | `TextColumn` / `TEXT` | no | none | no | `shared_pack_cache.remote_pack_id ON DELETE CASCADE` | composite unique with member | length 1..128 | snapshot Pack identity | 1b/2b | Child cannot exist without root |
 | `role` (`role`) | Membership role | `TextColumn` / `TEXT` | no | none | no | — | partial one-owner index by Pack | IN (`owner`,`member`) | membership `role` | 1b/2b | No editor/viewer values |
-| `display_name` (`displayName`) | Pack-scoped display label | `TextColumn` / `TEXT` | no | none | no | — | **not unique** | length 1..40 and not blank after SQLite trim | membership `displayName` | 1b/2b | Never identity, authorization, or FK; duplicate names in one Pack are legal |
+| `display_name` (`displayName`) | Pack-scoped display label | `TextColumn` / `TEXT` | no | none | no | — | **not unique** | length 1..40 plus basic non-empty / ASCII-space blank guard | membership `displayName` | 1b/2b | Never identity, authorization, or FK; duplicate names in one Pack are legal. SQLite does not provide the complete Unicode validation contract |
 | `joined_at` (`joinedAt`) | Remote membership join instant | `IntColumn` / `INTEGER` | no | none | no | — | no | UTC epoch-ms range | membership `joinedAt` | 1b/2b | Remote authoritative |
 | `is_current_membership` (`isCurrentMembership`) | Marks the snapshot's `currentMembership` row | `BoolColumn` / `INTEGER` | no | `0` | no | — | one partial unique row per Pack when `=1` | IN (0,1) | membership equals `currentMembership` | 1b/2b | At least one current row is validated before projection by Phase 1c |
 
@@ -233,18 +233,19 @@ One row is one membership summary in the active full snapshot. The current calle
 - Schema cannot express “at least one current membership” or “exactly one owner” using only ordinary table constraints. Phase 1c must reject a snapshot lacking either. A partial unique owner index enforces the database-enforceable “at most one owner” half.
 - No `auth_user_id` column is present. The server-side `unique(remotePackId, authUserId)` invariant belongs to Phase 1e; readable cache does not receive that identity from the snapshot.
 - Pack deletion cascades membership deletion. Direct deletion of a membership referenced by an active item actor is restricted by the item composite FK.
+- The SQLite `display_name` check is only a defensive length and basic blank guard. SQLite `trim()` must not be treated as a complete Unicode-whitespace validator or as proof of the upstream 40-Unicode-code-point rule. Remote authoritative validation and Phase 1c snapshot validation jointly enforce Unicode trim, the 40-code-point maximum, and rejection of names containing only Unicode whitespace. Phase 1b does not select a Dart Unicode library or validation algorithm.
 
 ## 10. `shared_item_cache`
 
-One row is one active state-based Shared Item in the current full active snapshot. Archived items have no row and no inactive/tombstone representation in v6.
+One row is one active state-based Shared Item in the current full active snapshot. Archived items have no row and no inactive/tombstone representation in v6. The locked Item identity and every cache lookup/upsert/delete identity is `(remote_pack_id, remote_item_id)`; the schema does not assume that `remoteItemId` is globally unique across all Packs.
 
 ### 10.1 Column matrix
 
 | SQLite column (planned Drift accessor) | Semantic meaning | Drift / SQLite type | Nullable | Default | PK | FK | Unique | Check | Snapshot source | Owner phase | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `local_id` (`localId`) | Local surrogate key | `IntColumn` / `INTEGER` | no | auto-increment | yes | — | PK | positive rowid | local | 1b/2b | Stable local mapping only |
-| `remote_item_id` (`remoteItemId`) | Authoritative Item identity | `TextColumn` / `TEXT` | no | none | no | — | named unique index | length 1..128 | item `remoteItemId` | 1b/2b | Exact opaque remote value |
-| `remote_pack_id` (`remotePackId`) | Owning Pack identity | `TextColumn` / `TEXT` | no | none | no | `shared_pack_cache.remote_pack_id ON DELETE CASCADE` | no | length 1..128 | item/snapshot `remotePackId` | 1b/2b | Indexed for active list and FK child lookup |
+| `remote_item_id` (`remoteItemId`) | Authoritative Pack-scoped Item identity component | `TextColumn` / `TEXT` | no | none | no | — | composite unique with `remote_pack_id` | length 1..128 | item `remoteItemId` | 1b/2b | Exact opaque remote value. The schema does not assume that `remoteItemId` is globally unique across all Packs |
+| `remote_pack_id` (`remotePackId`) | Owning Pack identity and Item identity component | `TextColumn` / `TEXT` | no | none | no | `shared_pack_cache.remote_pack_id ON DELETE CASCADE` | composite unique with `remote_item_id` | length 1..128 | item/snapshot `remotePackId` | 1b/2b | Composite index supports active list, lookup/upsert, missing-row identity, and FK child lookup |
 | `title` (`title`) | Item title | `TextColumn` / `TEXT` | no | none | no | — | no | — | item `title` | 1b/2b | Remote validation owns product limits |
 | `description` (`description`) | Optional Item description | `TextColumn` / `TEXT` | yes | `NULL` | no | — | no | — | item `description` | 1b/2b | No Personal field reuse |
 | `type` (`type`) | Shared Item kind | `TextColumn` / `TEXT` | no | `'stateBased'` | no | — | no | `= 'stateBased'` | item `type` | 1b/2b | Fixed is rejected |
@@ -348,7 +349,11 @@ completeSharedItem
 - A forced FK would either reject required recovery metadata or fabricate a cache root that was never successfully projected.
 - `UNIQUE(operation_name, client_request_id)` mirrors the locally available portion of remote idempotency scope (`authUserId + operationName + clientRequestId`) without persisting readable auth identity.
 - The table adds no `nextRetryAt`, `retryCount`, automatic retry flag, schedule, lease, job ID, priority, network policy, full response, or full request payload.
-- It does not authorize background sending. When to create/delete a row, restart behavior, user-triggered retry, unknown-outcome recovery, ID reuse, and retention are Phase 1d decisions.
+- Because v6 stores no executable mutation payload, `payload_fingerprint` can identify a payload but cannot reconstruct it. The table alone therefore does not make an intent replayable after app restart and cannot independently resend the original request.
+- Phase 1d MUST decide per operation whether restart persistence provides (1) replayable-intent semantics through an independently justified payload source, or (2) duplicate-prevention / unknown-outcome marker semantics only. This review is mandatory at least for `createSharedPack`, `updateSharedPackMetadata`, `createSharedItem`, `updateSharedItem`, `archiveSharedItem`, `joinSharedPack`, and `completeSharedItem`; invite mutations must also be reviewed by operation.
+- If Phase 1d requires payload reconstruction and replay after restart, this Phase 1b schema MUST be deliberately revised before implementation. Phase 1d must not silently invent payload fields or generate a new `clientRequestId` to bypass an unresolved intent.
+- The single legal status is `awaitingResolution`, so v6 defines no status index. Phase 1d may propose an additional pending-intent index only after concrete lifecycle and query patterns are locked.
+- The table does not authorize background sending. When to create/delete a row, restart classification, user-triggered retry, unknown-outcome recovery, ID reuse, and retention remain Phase 1d decisions.
 
 ## 12. Relationships, Foreign Keys, and Deletion
 
@@ -363,6 +368,9 @@ shared_membership_cache(remote_pack_id, remote_member_id) (UNIQUE)
   └──< shared_item_cache(remote_pack_id, completed_by_member_id)
        ON DELETE RESTRICT; nullable when never completed
 
+shared_item_cache(remote_pack_id, remote_item_id) (UNIQUE)
+  ... Pack-scoped Item identity for lookup/upsert/reconciliation
+
 shared_pending_mutation.target_remote_pack_id
   ... no FK by design
 ```
@@ -374,6 +382,7 @@ shared_pending_mutation.target_remote_pack_id
 - Child removal availability: items before memberships; memberships/items before an explicit Pack-root deletion.
 - Pack root deletion cascades both child tables. Item actor restriction is satisfied because Pack cascade removes items and memberships as one referential action.
 - Membership deletion is restricted while an active item references it. A full snapshot missing that actor while retaining the item is invalid under `07`, not a case for nulling attribution.
+- Item lookup, update, upsert, deletion, and missing-row identity MUST always include both `remote_pack_id` and `remote_item_id`; a bare `remote_item_id` is not a cache identity.
 - `ON UPDATE` remains `NO ACTION`; remote identities are immutable cache keys, not locally renamed values.
 
 ### 12.3 Active-row strategy
@@ -398,12 +407,12 @@ All indexes below are required and named. Drift-generated anonymous indexes are 
 | `shared_membership_cache_pack_member_uq` | `remote_pack_id, remote_member_id` | yes | — | Memberships by Pack, duplicate member prevention, and actor composite FK parent |
 | `shared_membership_cache_one_current_per_pack_uq` | `remote_pack_id` | yes | `WHERE is_current_membership = 1` | At most one current membership per Pack |
 | `shared_membership_cache_one_owner_per_pack_uq` | `remote_pack_id` | yes | `WHERE role = 'owner'` | At most one owner in cached snapshot; Phase 1c validates at least one |
-| `shared_item_cache_remote_item_id_uq` | `remote_item_id` | yes | — | Stable remote Item lookup/upsert |
-| `shared_item_cache_pack_idx` | `remote_pack_id` | no | — | Active Items by Pack and FK child lookup |
+| `shared_item_cache_pack_item_uq` | `remote_pack_id, remote_item_id` | yes | — | Pack-scoped remote Item identity; Item lookup/upsert; duplicate prevention within one Pack; missing-row reconciliation identity; active Items by Pack and FK child lookup through the leftmost prefix |
 | `shared_pending_mutation_operation_request_uq` | `operation_name, client_request_id` | yes | — | One local unresolved record per logical remote idempotency scope |
-| `shared_pending_mutation_status_idx` | `status` | no | — | Find unresolved intents without defining retry ordering |
 
 No v6 index is added for search, speculative sort, realtime, remote discovery, notification, Widget, history, archived browsing, background work, or retry scheduling.
+
+`shared_pending_mutation.status` has only the value `awaitingResolution`, so a status index would have no useful selectivity and is not part of v6. No target-Pack, creation-time, composite-status, or partial unresolved replacement index is added. Phase 1d may propose an index only after it locks a concrete lifecycle and query.
 
 Table checks also lock:
 
@@ -433,8 +442,8 @@ Within one migration transaction:
 1. Create `shared_pack_cache`, then its named remote-Pack unique index and trust-state index.
 2. Create `shared_membership_cache` after the Pack parent key exists.
 3. Create all membership indexes, including the composite Pack/member parent key, before creating the actor child FK.
-4. Create `shared_item_cache` after both referenced parent keys exist, then its identity and Pack indexes.
-5. Create independent `shared_pending_mutation`, then its logical-request and unresolved-status indexes.
+4. Create `shared_item_cache` after both referenced parent keys exist, then its Pack/item composite identity index.
+5. Create independent `shared_pending_mutation`, then only its logical-request unique index.
 6. Let Drift complete the schema-version change only if every DDL statement succeeds.
 
 No Personal table is rebuilt, altered, deleted, updated, or reseeded as part of `_upgradeToV6`. Existing `beforeOpen` may continue ensuring the same Personal seeds after successful migration, but it performs no Shared initialization.
@@ -475,7 +484,9 @@ The future test must open a new in-memory/file-backed v6 database and verify:
 - named Shared indexes exist in `sqlite_master`;
 - `PRAGMA foreign_key_list` and representative invalid inserts prove FKs;
 - representative invalid role/trust/type/lifecycle/version/timestamp/fingerprint/threshold/completion rows fail checks;
-- valid Pack → memberships → item and nullable-target pending rows can be written.
+- valid Pack → memberships → item and nullable-target pending rows can be written;
+- duplicate `remote_item_id` within the same Pack is rejected, while two different Packs may store the same `remote_item_id`;
+- Item reads and writes use `(remote_pack_id, remote_item_id)`, never `remote_item_id` alone.
 
 ### 15.2 B — Real v5→v6 upgrade
 
@@ -489,7 +500,8 @@ The test must not simulate migration by opening a fresh current-schema database.
 6. Verify all four Shared tables exist and are empty.
 7. Verify schema version is 6.
 8. Insert a valid Shared graph and pending intent.
-9. Prove invalid FK, duplicate remote ID, duplicate current membership, duplicate owner, invalid enum/check, cross-Pack actor, threshold overflow/order, and completion-pair writes are rejected.
+9. Prove invalid FK, duplicate Pack-scoped remote ID, duplicate current membership, duplicate owner, invalid enum/check, cross-Pack actor, threshold overflow/order, and completion-pair writes are rejected.
+10. Prove the same `remote_item_id` is legal in different Packs, duplicate `(remote_pack_id, remote_item_id)` is rejected, and DAO/projector-facing identity operations cannot target a row by `remote_item_id` alone.
 
 Changing only `expect(db.schemaVersion, 5)` to `6` is explicitly not a migration test.
 
@@ -542,7 +554,7 @@ Additional locked rules:
 | SP-CACHE-001 | Use existing `AppDatabase` and SQLite file | Additive v6 plus explicit Personal maintenance lists | One transactional local graph without authority merge | Phase 2b registers Shared types/DAO in host only |
 | SP-CACHE-002 | Raise planned Drift schema 5→6 | Four tables are an additive schema change | Honest schema versioning and migration | Phase 2b implements real upgrade tests |
 | SP-CACHE-003 | Shared tables/DAO are owned by `features/shared_packs/data/local` | Matches Phase 1a feature boundary | Personal/Shared authority separation | `ReminderDao` remains Personal-only |
-| SP-CACHE-004 | Use local integer surrogate PK plus unique opaque remote IDs | Stable local mapping without assuming remote SQL UUID type | Remote identity remains explicit and centralized | Projector upserts by unique remote identity |
+| SP-CACHE-004 | Use local integer surrogate PKs; Pack identity is unique `remote_pack_id`, while membership and Item identities are unique Pack-scoped composites | Stable local mapping without assuming remote SQL UUID type or global member/Item ID uniqueness | Remote identity remains explicit, scoped, and centralized | Phase 1c/2b use `(remotePackId, remoteMemberId)` and `(remotePackId, remoteItemId)` as composite identities |
 | SP-CACHE-005 | Persist current membership as a membership-row boolean with partial uniqueness | Avoids duplicating role/member identity on Pack root | At most one same-Pack current membership | Phase 1c validates exactly one |
 | SP-CACHE-006 | Persist trust as `verified/needsRevalidation/inaccessible` plus optional bounded code | Meets runtime cache classifications without state machine | Known-untrusted/inaccessible data can fail closed | Phase 1d owns transitions/reason vocabulary |
 | SP-CACHE-007 | Retain inaccessible Pack root and last-known children | Preserves device-local entry while blocking operation | Permission failure is not normal verified cache | Phase 1f chooses hide vs inaccessible UI |
@@ -554,9 +566,10 @@ Additional locked rules:
 | SP-CACHE-013 | Set maximum threshold to 5,258,880 minutes | Wide product range with bounded arithmetic/data | Threshold safety is database-enforced | Remote and projector must reject larger values |
 | SP-CACHE-014 | Store all instants as bounded UTC epoch milliseconds | Matches current SQLite convention while eliminating ambiguous local time | Cross-device absolute-time consistency | Phase 1c validates DTO offset before mapping |
 | SP-CACHE-015 | Pending Pack target is nullable and not FK-bound | Create/join/projection failure can precede root cache | Unknown remote outcome remains representable | Phase 1d owns lifecycle/recovery |
-| SP-CACHE-016 | Pending intent stores operation, request ID, payload fingerprint, created time, one unresolved status only | Enough logical identity without executable request | No offline outbox/background queue | Phase 1d decides creation/deletion/retry policy |
+| SP-CACHE-016 | Pending intent stores operation, request ID, payload fingerprint, created time, and one unresolved status, but no executable payload | Fingerprint identifies but cannot reconstruct a request after restart | No silent outbox, resend, or new-ID bypass of unknown outcome | Phase 1d classifies every mutation operation as restart-replayable through a separately justified payload source or marker-only; replay needs a deliberate Phase 1b revision if v6 storage is insufficient |
 | SP-CACHE-017 | Personal backup/import/reset omit or preserve all Shared state | Existing code is explicit-list based | Local maintenance cannot destroy unrecoverable Shared access | Phase 2b adds preservation tests, not payload fields |
 | SP-CACHE-018 | SQLite constraints and named indexes enforce core integrity | Flutter validation can be bypassed or fail | Invalid cache cannot be normalized into success | Phase 2b tests every constraint category |
+| SP-CACHE-019 | Do not index single-valued pending status in v6 | `awaitingResolution` has no useful selectivity and no lifecycle query justifies another index | Index policy remains evidence-based | Phase 1d may propose an index only after locking concrete lifecycle/query patterns |
 
 ## 18. Rejected Alternatives
 
@@ -574,6 +587,7 @@ Additional locked rules:
 | SP-CACHE-R010 | Implement projector algorithm in Phase 1b | Ordering, comparison, fingerprint input, and reconciliation belong to Phase 1c | Roadmap ownership and reviewability | This document states only schema constraints/order feasibility |
 | SP-CACHE-R011 | Store current role on Pack root instead of marking membership row | Duplicates role/member truth and weakens same-Pack identity proof | One authoritative cached membership summary | Persist one flagged membership row |
 | SP-CACHE-R012 | Store archived Items or inactive tombstones in v6 | Active snapshot excludes them and no v1 browsing query exists | Active-only readable cache | Missing/archived rows use hard-delete capacity |
+| SP-CACHE-R013 | Require `UNIQUE(remote_item_id)` across all Packs | Upstream supplies Pack and Item IDs together and does not guarantee global Item-ID uniqueness | Avoid unsupported Phase 1e remote identity assumptions | Use `UNIQUE(remote_pack_id, remote_item_id)` and always address Items by both values |
 
 ## 19. Deferred Decisions
 
@@ -590,7 +604,7 @@ Additional locked rules:
 - full-snapshot freshness source;
 - `notModified` algorithm.
 
-Phase 1c must fit the locked lowercase-hex 32..128 fingerprint storage and the FK ordering constraints. This document does not decide its algorithm.
+Phase 1c must fit the locked lowercase-hex 32..128 fingerprint storage and the FK ordering constraints. Its Item identity input is always `(remotePackId, remoteItemId)`; it must not look up, update, or delete a cache row by `remoteItemId` alone. This document does not decide the projector or reconciliation algorithm.
 
 ### 19.2 Phase 1d — Runtime Coordination Design
 
@@ -600,11 +614,11 @@ Phase 1c must fit the locked lowercase-hex 32..128 fingerprint storage and the F
 - mutation gating and recovery sequencing;
 - `clientRequestId` logical lifecycle;
 - pending intent create/delete/retention policy;
-- app-restart unknown-outcome policy;
+- per-operation app-restart classification as replayable intent or duplicate-prevention / unknown-outcome marker only, at least for `createSharedPack`, `updateSharedPackMetadata`, `createSharedItem`, `updateSharedItem`, `archiveSharedItem`, `joinSharedPack`, and `completeSharedItem`, plus invite mutations by operation;
 - same-intent payload fingerprint derivation/use;
 - user-triggered or other retry orchestration.
 
-No deferred item authorizes automatic retry, a background worker, or an outbox.
+Because fingerprint storage cannot reconstruct an executable request, Phase 1d must identify any independent payload source required for replay. If restart replay requires new persistence fields, Phase 1b must be deliberately revised first. Phase 1d cannot silently add payload storage, manufacture a new `clientRequestId`, or bypass an unresolved intent. No deferred item authorizes automatic retry, a background worker, a new discovery API, or an outbox.
 
 ### 19.3 Phase 1e — Remote Security and RPC Design
 
@@ -640,9 +654,13 @@ It also does not add Home, Home Widget, notification, realtime, background sync,
 - [x] All four table column matrices include SQL names, types, nullability, defaults, keys, checks, source, owner, and rationale.
 - [x] Pack, membership, Item, actor, and pending relationships are explicit.
 - [x] Current membership, one-owner capacity, and duplicate display-name behavior are explicit.
+- [x] SQLite provides only a basic display-name blank guard; remote and Phase 1c own complete Unicode whitespace/code-point validation.
+- [x] Shared Item identity is `(remote_pack_id, remote_item_id)` everywhere, with no global `remoteItemId` uniqueness assumption.
 - [x] Trust state and bounded failure-reason storage are explicit without a transition state machine.
 - [x] Fingerprint capacity/format is explicit without choosing the projector algorithm.
-- [x] Pending mutation is minimal and cannot function as an outbox.
+- [x] Pending mutation is minimal, cannot reconstruct an executable payload, and cannot function as an outbox.
+- [x] Phase 1d must classify restart semantics per mutation operation as replayable or marker-only.
+- [x] The single-valued pending status has no required index or speculative replacement index.
 - [x] Threshold ordering and 5,258,880-minute maximum are database constraints.
 - [x] UTC epoch-millisecond storage and nullability are locked.
 - [x] Hard-delete active-cache capacity and inaccessible-root retention are explicit.
@@ -662,12 +680,12 @@ Phase 1b is COMPLETE because:
 2. Shared table ownership is locked;
 3. planned schema version is locked;
 4. all four table columns/types/nullability are locked;
-5. PK/FK/unique/check constraints are locked;
+5. PK/FK/unique/check constraints are locked, including Pack-scoped Item identity;
 6. current membership persistence is locked;
 7. actor membership consistency is locked;
 8. trust-state persistence is locked;
 9. snapshot fingerprint persistence is locked;
-10. pending mutation remains minimal and non-outbox;
+10. pending mutation remains minimal and non-outbox, and its restart replay limitation is explicit;
 11. threshold maximum is locked;
 12. UTC timestamp representation is locked;
 13. v5→v6 migration is locked;
