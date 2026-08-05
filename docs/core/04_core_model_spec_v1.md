@@ -92,7 +92,7 @@ Shared Pack 產品方向以 `docs/core/06_shared_pack_direction_spec_v1.md` 為�
 
 ### 1.5 Planned local cache projection
 
-Shared Pack Phase 0.6 不修改 Drift schema；以下 cache shape 只是 Phase 1 technical design 前鎖定的 planned semantic direction。
+以下 cache shape 只是 Phase 1 technical design 前鎖定的 planned semantic direction。
 
 ```text
 shared_pack_cache
@@ -152,7 +152,6 @@ shared_item_cache
 - `lastRefreshedAt` 表示最近一次成功從 remote 取得或驗證 Shared Pack current state 的 UTC 時間；包含 full snapshot projection 成功、mutation full snapshot projection 成功，以及 manual refresh 回傳 `notModified`。
 - `notModified` 只更新 `shared_pack_cache.lastRefreshedAt`，不重寫 `shared_membership_cache`、`shared_item_cache`，也不改 `remotePackVersion`。
 - 正式 table 名稱、欄位型別、index、migration 與 projection transaction 必須在 Phase 1 technical design 中確認。
-- Phase 0.6 不新增 Shared cache table、remote id column 或任何 Drift migration。
 
 ### 1.6 Version naming
 

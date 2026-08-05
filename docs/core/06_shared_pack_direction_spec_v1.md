@@ -484,7 +484,7 @@ shared_item_cache
 
 `remotePackVersion` 只代表目前本機完整 cache 所對應的完整 Pack snapshot version。`lastRefreshedAt` 表示最近一次成功從 remote 取得或驗證 Shared Pack current state 的 UTC 時間，包含 full snapshot projection 成功、mutation full snapshot projection 成功與 `notModified` verification。
 
-Phase 0.6 不新增 Shared cache table。正式 table 名稱、欄位型別、index、migration 與 hard-delete / inactive tombstone 策略必須在 Phase 1 technical design 中確認。
+正式 table 名稱、欄位型別、index、migration 與 hard-delete / inactive tombstone 策略必須在 Phase 1 technical design 中確認。
 
 ## 13. Invite Code Direction
 

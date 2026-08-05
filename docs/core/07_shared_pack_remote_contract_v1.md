@@ -217,7 +217,7 @@ Remote behavior：
 - Same key + different payload：回傳 `idempotencyConflict`。
 - New key：正常執行 mutation。
 
-Remote 必須保存足以 replay 原 response 的 idempotency record，或採用可提供相同行為的 atomic design。對 snapshot-changing mutation，idempotency replay 必須 replay original authoritative mutation result + original full snapshot response，或 replay 一個能保證投影到同一 authoritative resulting state 的等價 response。Phase 0.6 不決定 record retention duration；Phase 1 technical design 必須定義。
+Remote 必須保存足以 replay 原 response 的 idempotency record，或採用可提供相同行為的 atomic design。對 snapshot-changing mutation，idempotency replay 必須 replay original authoritative mutation result + original full snapshot response，或 replay 一個能保證投影到同一 authoritative resulting state 的等價 response。Phase 1 technical design 必須定義。
 Client retry intent semantics, including timeout handling and `clientRequestId` reuse for the same logical mutation, are defined by `08`。
 
 所有 mutation expected errors 可包含 `idempotencyConflict`。不可用模糊 duplicate request error 取代 replay semantics。
@@ -449,7 +449,7 @@ UI 應從正常 Shared Pack list 隱藏，或顯示不可存取狀態並禁止 a
 - pack not found。
 - unsupported snapshot version。
 
-Phase 1 technical design 可評估是否把欄位命名為 `lastVerifiedAt`；Phase 0.6 不強制改欄位名稱，但語意必須如上。
+Phase 1 technical design 可評估是否把欄位命名為 `lastVerifiedAt`；
 
 ## 10. Snapshot-returning Mutation Standard
 
@@ -1167,8 +1167,6 @@ Personal local data reset must not clear:
 
 Shared Pack reset / unlink / sign-out / clear Shared cache requires a future independent specification covering membership retention, identity/session retention, cache rebuild method, and account binding / recovery path.
 
-Phase 0.6 does not define exact SQL, Drift Dart table classes, indexes, foreign keys, migrations, or cache tombstone strategy.
-
 ## 13. Security Requirements
 
 本章只定義規格，不實作。
@@ -1208,8 +1206,6 @@ Existing Settings data reset must be understood as Reset Personal local data:
 - 保留 Shared Pack remote access metadata。
 
 未綁定帳號時，local backup 可保護 Personal local data。已綁定帳號後的長期方向是 Personal / Shared active data 由帳號與 remote membership 恢復。
-
-Phase 0.6 不修改現有 backup or reset production code。
 
 ## 15. Manual Acceptance Scenario
 
