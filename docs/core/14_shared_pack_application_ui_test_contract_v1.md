@@ -9,6 +9,7 @@
 - Inspection date/timezone: 2026-08-05, Asia/Hong_Kong.
 - Starting working tree: clean; `git status --short` returned no entries.
 - Pre-existing changes: none.
+- Phase 1f Gate Review corrective-patch baseline: branch `ver-1.3.2`, HEAD `30d22d50b7a09e98a9b79b412ce27eb4161e0a39`, inspected on 2026-08-06, Asia/Hong_Kong; the corrective-patch starting working tree was clean with no pre-existing changes. This does not replace the original Phase 1f baseline above.
 - Runtime implementation: absent. No production Shared Pack feature, route, provider, identity flow, local table, DAO, remote adapter, SQL, RPC, RLS policy, or executable Shared test exists.
 - Schema state: the Phase 1 design target remains `driftSchemaVersion = 6`; production `AppDatabase.schemaVersion` remains 5.
 - Dependency state: `supabase_flutter` is not present. Riverpod is `flutter_riverpod ^2.6.1`; GoRouter is `go_router ^17.2.0`.
@@ -93,7 +94,7 @@ These are current facts. The v6 schema, Shared providers, routes, and UI below a
 | Outcome separation | Remote success and local projection/trust/pending outcomes remain separate |
 | Remote surface | Exactly eleven RPC operations; no generic dispatcher or direct table CRUD |
 | Roles | Owner manages metadata, active Item definitions, archive, and invite; owner/member view and complete |
-| Invite | Get/create, rotate, preview, join; outside snapshot/projector and does not change Pack version |
+| Invite | Get/create and rotate return invite-only results with no snapshot/projector/Pack-version change; preview is a minimum read; successful join increments Pack version and returns a full snapshot for projection |
 | Discovery | Shared list is local cache only; no `listMySharedPacks` or membership recovery scan |
 | Identity | Anonymous identity is lazy inside authorized Shared flows only |
 | Personal boundary | Personal reset preserves Shared cache/trust/pending/identity; export excludes Shared; import preserves Shared |
@@ -166,7 +167,7 @@ abstract interface class SharedPackApplicationService {
 | `SharedCacheReadPort` | application / providers through facade | `watchPackList()`, `watchPackDetail(packId)`, `readMutationBase(packId)`, `watchRecoveryMarkers()` | Implemented with Shared DAO in 2c | No dispatch, trust transition, mutation policy, discovery | In-memory stream store |
 | `SharedProjectionPort` | application coordinator | `projectFullSnapshot(snapshot, successTrust)` and `verifyNotModified(context, response, successTrust)` return Phase 1c semantic outcomes; graph/freshness/trust success commits atomically | Validator/projector + Shared DAO in 2d/2e/2f | No remote call, retry, UI copy, pending deletion | Deterministic projector fake plus fault injector |
 | `SharedTrustStatePort` | application coordinator | Read trust; narrow `markNeedsRevalidation(packId, reason)` / `markInaccessible(packId, reason)` transactions | Shared local adapter in 2f | Does not decide when a transition is allowed | State-machine capture fake |
-| `SharedPendingMutationPort` | application coordinator | Insert before possible dispatch; get by operation/ID or Pack; update learned Pack target; stream safe summaries; delete only with resolution proof | Shared local adapter in 2f | No executable payload, scan-to-send, TTL, background work | In-memory durable-marker fake |
+| `SharedPendingMutationPort` | application coordinator | Insert the locked marker before possible dispatch; get by operation/ID or Pack; update only the nullable learned Pack target; stream safe summaries; delete only with resolution proof | Shared local adapter in 2f | No executable payload, request/response body, persisted remote outcome, scan-to-send, TTL, or background work | In-memory durable-marker fake |
 | `SharedPackRemoteApi` | application coordinator | Eleven operation-specific `Future<RemoteCallResult<T>>` methods; strict transport result includes dispatch certainty and stable semantic envelope | Fake in 2g; Supabase adapter in 3g | Does not create/replace request ID, write local DB, retry, map UI copy, or bypass strict decode | Scripted Fake Remote in Section 15 |
 | `SharedIdentityService` | application facade | `currentIdentity()` and lazy `ensureIdentity()` return `IdentityReady` or semantic pre-dispatch failure | Fake in 2g; Supabase Auth in 3a | No general-startup initialization, profile, display-name authority, discovery | Scripted identity fake |
 | `SharedRequestIdSource` | application coordinator | `nextUuidV4()` returns canonical secure lowercase UUID v4 once per accepted intent | 2f | No retry regeneration or payload fingerprinting | Sequence generator |
@@ -308,9 +309,9 @@ Per-operation lifecycle closure (combined with the exact input/validation/identi
 | Operation | Success / navigation | Failure or ambiguous outcome | Trust / pending resolution | Same-ID replay and restart |
 |---|---|---|---|---|
 | `createSharedPack` | Initial full snapshot commits; navigate to learned Pack detail | Stable no-effect failure stays on form; ambiguity or post-success local failure stays off detail | No root on failure; null-target pending retained on uncertainty and resolved only after projection/proof | Re-enter all semantic fields, fingerprint-match, replay original ID; restart shows unknown-create card |
-| `updateSharedPackMetadata` | Accepted snapshot commits; return/stay on refreshed detail | Stable no-effect failure is mapped; ambiguity blocks normal resubmit | Ambiguity/local failure → needs-revalidation + retained known-Pack pending; safe terminal failure resolves exact pending | Reconstruct old Pack version + metadata; restart shows Pack recovery banner |
+| `updateSharedPackMetadata` | Accepted snapshot commits; return/stay on refreshed detail | Stable no-effect failure is mapped; ambiguity blocks normal resubmit | Ambiguity/local failure → `needsRevalidation` + retained known-Pack pending; safe terminal failure resolves exact pending | Reconstruct old Pack version + metadata; restart shows Pack recovery banner |
 | `createSharedItem` | Accepted snapshot commits; detail shows authoritative Item | Ambiguity/local failure never shows optimistic Item | Retain known-Pack pending and fail closed; refresh alone cannot prove this intent | Exact definition/anchor/version + same ID; restart banner identifies safe operation category |
-| `updateSharedItem` | Accepted snapshot commits; return/stay on detail | Stale Item base requires refresh; ambiguity/local failure blocks replacement edit | Stable stale result resolves pending after trust mark; uncertain result retains it | Exact old Item version/definition + same ID; restart banner retains target context safely |
+| `updateSharedItem` | Accepted snapshot commits; return/stay on detail | Stale Item base requires refresh; ambiguity/local failure blocks replacement edit | Stable stale result resolves pending after trust mark; uncertain result retains it | Exact old Item version/definition + same ID; restart banner uses the operation marker plus independently retained cache/draft context only |
 | `archiveSharedItem` | Accepted snapshot omits Item; detail remains | Stable stale target requires refresh; ambiguity leaves Item last-known | Accepted authoritative absence may prove effect; otherwise retain pending/revalidation | Exact Item ID/version + same ID; restart exposes archive recovery, never optimistic removal |
 | `completeSharedItem` | Accepted snapshot supplies server actor/time/state; detail remains | Ambiguity never advances local anchor or claims failure | Same-ID authoritative result required; refresh alone cannot attribute request | Exact Pack/Item/base version + same ID; restart keeps complete disabled |
 | `getOrCreateInviteCode` | Code appears only in sensitive state; no normal navigation | Stable failure maps safely; ambiguity clears code and blocks new Pack mutations | Snapshot trust/version unchanged; pending resolves only from authoritative invite result | Same Pack + same ID retrieves original active result; restart shows recovery without code |
@@ -327,7 +328,7 @@ Per-operation lifecycle closure (combined with the exact input/validation/identi
 | Pack detail stream | `watchPackDetail(remotePackId)` | local root/members/active Items; absent root remains absent; route creates nothing |
 | Membership/current role | contained in detail read model | exact member IDs internal; duplicate display names legal |
 | Active Item list | contained in detail read model | state-based active cache only; no archived browser |
-| Pending/recovery stream | safe application summaries from pending + trust | UI never sees raw pending row, fingerprint, request ID, invite code, or payload |
+| Pending/recovery stream | safe application summaries from pending + trust | UI never sees raw marker fields, fingerprint, request ID, or invite code; the pending row contains no payload |
 
 All streams are cold/lifecycle-aware adapter streams and require no network to render cached content.
 
@@ -354,6 +355,8 @@ SharedCommandOutcome<T> {
 }
 ```
 
+These axes are non-persisted application outcomes. They add no wire code, trust value, pending column, or pending status. `PendingIntentOutcome` describes what the application did with the locked six-field marker; the only persisted pending status remains `awaitingResolution`. A current `RemoteSemanticOutcome.succeeded` is not written into that row.
+
 Required mappings:
 
 | Situation | Required axes |
@@ -373,12 +376,25 @@ Required mappings:
 | Valid exact `notModified` | read success; verified-not-modified; verified trust; freshness only |
 | Stale/missing/invalid `notModified` | no verification; exact ignored/invalid local outcome; trust unchanged |
 | Invite-only success | remote success; local not required; trust unchanged; pending resolved; sensitive result ephemeral |
-| Same-ID replay success | `replayedSuccess`; handle original result through normal projector/invite path |
+| Same-ID replay success | `replayedSuccess`; handle the original snapshot-producing result through the projector, or the original invite-only result through the invite handler |
 | Local pending fingerprint mismatch | no dispatch; remote not applicable; pending retained; fail closed; no new intent |
 
 Raw exceptions, HTTP status, SQL messages, and a generic `success | failure` are not application contracts.
 
 ## 9. Retry and Recovery Application Contract
+
+The v6 pending row is a durable marker only. Its complete persisted shape is exactly:
+
+```text
+operationName
+clientRequestId
+payloadFingerprint
+targetRemotePackId? // nullable
+createdAt
+status = awaitingResolution
+```
+
+It stores no complete semantic payload, request body, response, or remote semantic outcome. A replayable command can come only from the still-live in-memory intent, an independent form draft, retained old cache, or explicit user re-entry. `payloadFingerprint` can verify a reconstructed semantic payload but can never reconstruct one. No persisted flag or marker records known remote success/application of a remote effect. A known remote semantic result may remain in the current in-memory application outcome only; durable remote-success/local-failure evidence is expressed separately on an existing Pack root as `trustState = needsRevalidation` and `trustFailureReason = projectionFailed`.
 
 ### 9.1 Known-Pack unresolved mutations
 
@@ -462,6 +478,7 @@ The family key is the exact opaque `remotePackId` string. It is not a local ID, 
 
 - Adapter/service providers are overrideable at `ProviderScope`/`ProviderContainer` level. Phase 2g tests override remote, identity, clock, UUID, diagnostic sink, and fault-injected local ports independently.
 - Shared runtime is initialized only when a Shared provider is first read by a Shared route/flow. A pure-local pending scan may occur then; it cannot call identity or remote.
+- App restart and normal `AppBootstrap` do not initialize Shared runtime, scan pending, create identity, refresh, replay, or call remote. Only after the user opens a Shared surface may lazy Shared runtime perform the pure-local marker scan; identity/remote work still requires an explicit user recovery action.
 - List streams may remain watched while the list page is mounted. Detail/form/command controllers are `autoDispose` and cancel local subscriptions on disposal.
 - Disposing a controller detaches UI from a command; it cannot cancel a logical mutation after possible dispatch. The application-owned intent continues classification best-effort and persists pending evidence.
 - Remote read cancellation is adapter best-effort. Local transaction/projector work that has started runs to a semantic outcome.
@@ -619,7 +636,7 @@ Joiner flow:
 5. `alreadyMember` uses generic explanatory copy and does not open/discover a Pack.
 6. malformed, unknown, inactive, and rotated code use one low-information category.
 
-Invite code never enters readable cache, pending payload, diagnostics, log, screenshot automation fixture output, or route parameters.
+Invite code never enters readable cache, the pending marker/table, diagnostics, log, screenshot automation fixture output, or route parameters.
 
 ### 12.5 Anonymous identity limitation
 
@@ -634,7 +651,7 @@ Do not say anonymous user, Supabase, UID, authenticated role, remote profile, ac
 
 ## 13. UI Failure and Recovery Copy
 
-The mapper produces a machine category, default Traditional Chinese copy, CTA category, and severity. Copy remains calm, non-blaming, and does not claim an unknown fact.
+The mapper produces a presentation-only machine category, default Traditional Chinese copy, CTA category, and severity. These mapper categories are derived from the §8 axes; they are not wire codes, persisted trust values, pending fields/statuses, or additional application outcome axes. For example, `remoteSuccessLocalFailure` is derived from `remote = succeeded` plus a failed local projection outcome. Copy remains calm, non-blaming, and does not claim an unknown fact.
 
 | Machine category | Default copy | CTA / forbidden action |
 | --- | --- | --- |
@@ -793,7 +810,7 @@ The following families block their owning phase:
 - migration preserves representative rows in every affected Personal relation and creates valid empty Shared tables; a historical v5 fixture, not only a fresh schema, is mandatory;
 - Personal export contains no Shared content; Personal import neither overwrites nor deletes Shared data; Personal reset preserves Shared cache, trust, pending, and identity boundary state;
 - normal Personal launch does not initialize Shared identity, and local list observation performs no remote discovery call;
-- local projection is one transaction, Pack-scoped, deletes removed remote rows, retains local metadata, updates trusted version/fingerprint, and rolls back completely on fault;
+- local projection is one transaction, Pack-scoped, deletes removed remote rows, retains local metadata, updates the verified cache version/fingerprint, and rolls back completely on fault;
 - strict decode rejects missing/extra-invalid fields, unsupported schema, malformed UUID/time/version, and a `notModified` response that violates its envelope;
 - projection consumes full snapshots only; Pack version never decreases; projection failure changes neither projected version nor freshness;
 - mutation does not send when local trust, request fingerprint, or expected-version prerequisites fail;
@@ -801,8 +818,8 @@ The following families block their owning phase:
 - same ID/different payload is surfaced as idempotency conflict and never auto-repaired;
 - pending survives restart; unknown-Pack pending creates no fake Pack; no page-load/startup automatic retry or background worker exists;
 - remote success plus local projection failure retains recovery state and never reports full success;
-- older completion cannot overwrite newer trusted state; same version/different content invalidates trust;
-- valid `notModified` is accepted only against a trusted matching baseline;
+- older completion cannot overwrite newer verified state; same version/different content invalidates trust;
+- valid `notModified` is accepted only against a verified matching baseline;
 - permission loss makes the Pack inaccessible without destructive local erasure or membership-discovery copy;
 - two simultaneous UI actions for the same semantic intent coalesce; different Pack lanes can progress independently;
 - same-Pack work serializes; different Packs demonstrably overlap;
@@ -816,14 +833,14 @@ The following families block their owning phase:
 
 ### 16.3 Stable scenario fixtures
 
-Common fixture `SPF-BASE-01` contains Pack `P1` trusted at version 7, schema 1, fingerprint `F7`, owner member `M1`, editor member `M2`, items `I1@3` and `I2@1`, no pending mutation, and fixed time `2030-01-02T03:04:05Z`. `P2` is an independent trusted Pack at version 4. Test fingerprints are symbolic fixture values; production diagnostics must not expose them.
+Common fixture `SPF-BASE-01` contains Pack `P1` with `trustState = verified`, `trustFailureReason = null`, version 7, schema 1, fingerprint `F7`, owner member `M1`, member `M2`, items `I1@3` and `I2@1`, no pending mutation, and fixed time `2030-01-02T03:04:05Z`. `P2` is an independent verified Pack at version 4. Test fingerprints are symbolic fixture values; production diagnostics must not expose them.
 
 #### SP-A — Older refresh completes late
 
 - Target/layer: Phase 2g, application/provider integration with Fake Remote and real Phase 2e projector.
 - Fixture/action: a refresh A dispatched by an old/disposed coordinator instance remains transport-live; a new instance sharing the same guarded local store issues refresh B. Release B with snapshot `P1@9/F9`, then the late A callback with `P1@8/F8`. A single live Pack lane is separately asserted never to authorize both concurrently.
 - Fault/interleaving control: barriers `A_RESPONSE` and `B_RESPONSE`.
-- Exact assertions: B projects once; A returns `staleResponseIgnored`; local trusted version remains 9/F9; visible items match snapshot 9; no pending row is created; no user error is emitted.
+- Exact assertions: B projects once; A returns `LocalProjectionOutcome.ignoredOlder`; local cache remains version 9/F9 with `trustState = verified` and `trustFailureReason = null`; visible items match snapshot 9; no pending row is created; no user error is emitted.
 - False-positive guard: assert A's snapshot-8 item unique to its fixture is absent and projector call count is one.
 
 #### SP-B — Mutation and refresh cross
@@ -837,7 +854,8 @@ Common fixture `SPF-BASE-01` contains Pack `P1` trusted at version 7, schema 1, 
 
 - Target/layer: Phase 2g, application integration with Fake Remote plus local transaction fault injector.
 - Fixture/action: update Pack name using request `R-C`; remote returns success snapshot 8; inject a transaction fault during projection.
-- Exact assertions: result is `remoteAppliedLocalRecoveryRequired`; no partial snapshot rows exist; trusted baseline stays 7/F7 but trust becomes `needsRevalidation`; unresolved mutation retains `R-C`, original semantic payload/fingerprint, operation kind, and remote-success recovery marker; UI copy is the retry-safe refresh/recovery copy, never “saved”.
+- Exact assertions: the separated outcome axes are `dispatch = dispatched`, `remote = succeeded`, `local = commitFailure`, `trust = becameNeedsRevalidation(projectionFailed)`, `pending = retained`, `next = refreshOrSameIdReplay`, and `mayNavigateToNormalDetail = false`. No partial snapshot rows exist; cache version/fingerprint stay 7/F7. The pending row retains only `operationName`, `clientRequestId = R-C`, `payloadFingerprint`, nullable `targetRemotePackId`, `createdAt`, and `status = awaitingResolution`. The Pack root separately records `trustState = needsRevalidation` and `trustFailureReason = projectionFailed`. The current in-memory outcome may retain known remote success, but v6 pending persistence does not. UI copy is the retry-safe refresh/recovery copy, never “saved”.
+- Reconstruction assertion: the complete semantic payload is absent from pending persistence and must come from the still-live intent, an independent draft, retained old cache, or user re-entry; the fingerprint verifies that reconstruction and cannot recreate it.
 - Retry assertion: recovery first revalidates; it must not synthesize a new mutation ID or blindly mutate again.
 - False-positive guard: assert returned remote success alone cannot trigger success navigation/snackbar.
 
@@ -852,27 +870,27 @@ Common fixture `SPF-BASE-01` contains Pack `P1` trusted at version 7, schema 1, 
 
 - Target/layer: Phase 2g, application integration with Fake Remote idempotency conflict.
 - Fixture/action: fake ledger already holds `R-E` for name “Alpha”; attempt replay with `R-E` and name “Beta”.
-- Exact assertions: the application-side SPMF mismatch case makes zero remote calls. In the separately scripted server-ledger mismatch case, remote returns stable `idempotencyPayloadConflict`; no projection; local version remains 7; unresolved record is retained; snapshot mutation trust is `needsRevalidation/remoteOutcomeUnknown`; UI does not offer blind retry; diagnostic family is allowlisted and redacted.
+- Exact assertions: the application-side SPMF mismatch case makes zero remote calls. In the separately scripted server-ledger mismatch case, remote returns stable `idempotencyConflict`; no projection; local version remains 7; unresolved record is retained; snapshot mutation trust is `needsRevalidation/remoteOutcomeUnknown`; UI does not offer blind retry; diagnostic family is allowlisted and redacted.
 - False-positive guard: assert neither Alpha nor Beta is inferred as safe from local state, and no fresh ID is generated automatically.
 
 #### SP-F — Same version, different content
 
 - Target/layer: Phase 2e unit/Drift projector proof, repeated at Phase 2g through the application gate.
-- Fixture/action: a snapshot-changing mutation for trusted local `P1@7/F7` has a durable pending row; remote reports success but returns a valid-schema full snapshot version 7 with fingerprint `F7-X`.
-- Exact assertions: projector rejects it; current rows/freshness/version 7/F7 are not overwritten; Pack trust becomes `needsRevalidation/sameVersionContentConflict`; mutation pending is retained; mutations are disabled; recovery offers authoritative refresh/same-ID evidence; diagnostic records `snapshot_identity_conflict` without either fingerprint.
+- Fixture/action: a snapshot-changing mutation for verified local `P1@7/F7` has a durable pending row; remote reports success but returns a valid-schema full snapshot version 7 with fingerprint `F7-X`.
+- Exact assertions: projector rejects it; current rows/freshness/version 7/F7 are not overwritten; Pack trust becomes `needsRevalidation/sameVersionContentConflict`; mutation pending is retained; mutations are disabled; recovery offers authoritative refresh/same-ID evidence; diagnostic records `sameVersionContentConflict` without either fingerprint.
 - False-positive guard: fixture includes a plausible changed display name so equality cannot be reduced to version only.
 
 #### SP-G — Valid `notModified`
 
 - Target/layer: Phase 2e projector/integrity proof, repeated at Phase 2g through the application gate.
-- Fixture/action: trusted local `P1@7/F7`; refresh sends known version 7 and receives well-formed `notModified` for version 7/schema 1.
-- Exact assertions: no snapshot-row writes or delete/insert loop; trust stays `trusted`; last successful validation time advances; visible state is unchanged; operation is successful and pending state is untouched.
-- Negative pair: the same response against unknown/untrusted baseline, mismatched version, or unsupported schema is rejected and forces full revalidation.
+- Fixture/action: verified local `P1@7/F7`; refresh sends known version 7 and receives well-formed `notModified` for version 7/schema 1.
+- Exact assertions: no snapshot-row writes or delete/insert loop; trust remains verified (`trustState = verified`) and `trustFailureReason` remains `null`, last successful validation time advances, visible state is unchanged, the operation is successful, and pending state is untouched.
+- Negative pair: the same response against an absent or known-untrusted baseline, mismatched version, or unsupported schema is rejected and cannot restore trust.
 
 #### SP-H — Permission lost
 
 - Target/layer: Phase 2g application/provider integration, then repeated in Phase 3 two-session integration.
-- Fixture/action: refresh or mutation returns stable permission-denied/Pack-unavailable family for formerly accessible `P1`.
+- Fixture/action: refresh or mutation returns stable `permissionDenied` or authorized `packNotFound` for formerly accessible `P1`.
 - Exact assertions: Pack state becomes `inaccessible` with its exact bounded reason; last-known graph/version 7 are retained but not presented as current; the terminal request's pending row is deleted only after the inaccessible trust mark commits, while unrelated pending rows remain; mutation and invite actions disable; list retains a non-discovering recovery row; explicit access recheck is the only recovery action; no membership facts or Pack existence are disclosed; no automatic destructive delete occurs.
 - False-positive guard: assert raw 403/RLS/server text is absent from copy and diagnostics.
 
@@ -880,7 +898,7 @@ Common fixture `SPF-BASE-01` contains Pack `P1` trusted at version 7, schema 1, 
 
 Provider tests must prove per-Pack family scoping, application-scope disposal safety, immutable state replacement, same-intent coalescing, lane serialization, and independent Pack concurrency. They must assert action availability from role + trust + pending state, not hand-set booleans.
 
-Router tests must exercise every route name and canonical path in §11 with direct deep links, back navigation, invalid/missing IDs, unknown local Pack, and inaccessible Pack. A stale detail deep link may land on the retained inaccessible state; it must not crash, reveal cached content as trusted, or silently route to Personal items.
+Router tests must exercise every route name and canonical path in §11 with direct deep links, back navigation, invalid/missing IDs, unknown local Pack, and inaccessible Pack. A stale detail deep link may land on the retained inaccessible state; it must not crash, reveal cached content as verified, or silently route to Personal items.
 
 Widget tests must cover:
 
@@ -918,15 +936,15 @@ The final release run records platform, build SHA, remote migration SHA, data-di
 | UAT-11 | SD, DEP, IOS+AND | Record Pack version before invite operations | Get/create, get again, rotate, preview | Pack version is identical before/after; no projector run is caused by invite-only results | 3/4 |
 | UAT-12 | 2AS, 2DD, DEP, IOS+AND | A owns Pack; B has valid new invite | B previews/confirms join; both refresh | Membership for B appears in authoritative snapshots on both sides with matching identity/role | 3/4 |
 | UAT-13 | 2AS, 2DD, 2PD, DEP, IOS+AND | A and B share Pack; active Item exists | A completes; B refreshes | Both show the same actor, server completion time, Item state, Pack/Item versions | 3/4 |
-| UAT-14 | FI, SD, IOS+AND | Trusted v7; scripted refreshes v8 and v9 | Start both; release v9 then v8 | v9 remains trusted/visible; v8 performs no write and cannot regress freshness/version | 2g/4 |
-| UAT-15 | FI, SD, IOS+AND | Trusted v7; mutation yields v8; concurrent refresh yields v9 | Cross responses in both possible orders | Final state is v9; v8 may apply only before v9 and never overwrite it afterward; pending resolves correctly | 2g/4 |
+| UAT-14 | FI, SD, IOS+AND | `trustState = verified` at v7; scripted refreshes v8 and v9 | Start both; release v9 then v8 | v9 remains `verified`/visible with null failure reason; v8 returns `ignoredOlder`, performs no write, and cannot regress freshness/version | 2g/4 |
+| UAT-15 | FI, SD, IOS+AND | `trustState = verified` at v7; mutation yields v8; concurrent refresh yields v9 | Cross responses in both possible orders | Final state is v9/`verified`; v8 may apply only before v9 and never overwrite it afterward; pending resolves correctly | 2g/4 |
 | UAT-16 | FI, SD, IOS+AND | Completion commits remotely but first response times out ambiguously | Restart and use recovery retry | Original request ID/payload replay; completion occurs once; final snapshot projects and pending clears | 2g/4 |
 | UAT-17 | FI, SD, IOS+AND | Submit control can fire twice before first frame settles | Double-tap complete/create | One logical intent, one request ID, one pending insert, one semantic remote effect | 2g/4 |
-| UAT-18 | FI, SD, IOS+AND | Trusted v7/F7; fixture returns v7 with different content/fingerprint | Refresh | Fail closed: no overwrite, trust becomes needs-revalidation, mutations disable, safe recovery appears | 2e/2g/4 |
+| UAT-18 | FI, SD, IOS+AND | `trustState = verified` at v7/F7; fixture returns v7 with different content/fingerprint | Refresh | Fail closed: no overwrite, trust becomes `needsRevalidation/sameVersionContentConflict`, mutations disable, safe recovery appears | 2e/2g/4 |
 | UAT-19 | FI, SD, IOS+AND | Known cache and scripted stable confirmed no-side-effect remote rejection | Submit allowed mutation | Cache/version/freshness remain unchanged; pending resolves only from stable proof; exact mapped copy appears | 2g/4 |
 | UAT-20 | FI, SD, IOS+AND | Remote returns mutation success snapshot; projector transaction is faulted | Submit mutation | UI never says remote failed or offers blind new-ID retry; no partial write; pending/revalidation recovery survives restart | 2g/4 |
-| UAT-21 | FI, SD, IOS+AND | Pack is needs-revalidation | Attempt mutation, then complete authoritative refresh, then retry as a new user intent | First mutation is blocked without remote call; controls reopen only after verified projection; subsequent intent is allowed | 2g/4 |
-| UAT-22 | FI, SD, IOS+AND | Trusted matching baseline and valid `notModified` | Manual refresh | Only validation freshness advances; graph/version/fingerprint stay unchanged; no delete/insert churn | 2e/2g/4 |
+| UAT-21 | FI, SD, IOS+AND | Pack is `needsRevalidation` | Attempt mutation, then complete authoritative refresh, then retry as a new user intent | First mutation is blocked without remote call; controls reopen only after verified projection; subsequent intent is allowed | 2g/4 |
+| UAT-22 | FI, SD, IOS+AND | Verified matching baseline and valid `notModified` | Manual refresh | Only validation freshness advances; graph/version/fingerprint stay unchanged; trust remains `verified/null`; no delete/insert churn | 2e/2g/4 |
 | UAT-23 | 2AS, 2DD, DEP, IOS+AND | B has cached access; A/server revokes B | B refreshes and tries actions | Pack becomes inaccessible/fail-closed; normal content/actions stop; safe retained recheck row gives no membership discovery detail | 3/4 |
 | UAT-24 | 2PD, DEP, IOS+AND | Anonymous Shared access exists and limitation has been acknowledged | Clear App data on one device; relaunch and enter Shared flow | Access is not promised/recovered; product copy exactly and honestly states device-loss/data-clear limitation; other device/session remains unaffected | 4 |
 
@@ -942,12 +960,15 @@ These diagrams are normative for responsibility and ordering; method names are i
 sequenceDiagram
   participant UI
   participant RP as Riverpod
+  participant APP as ApplicationService
   participant LQ as LocalQueryPort
   UI->>RP: watch sharedPackListProvider
-  RP->>LQ: watchPackSummaries()
-  LQ-->>RP: local stream
+  RP->>APP: watchPackList()
+  APP->>LQ: watchPackSummaries()
+  LQ-->>APP: local stream
+  APP-->>RP: safe list read model
   RP-->>UI: list state
-  Note over RP,LQ: No RemotePort call
+  Note over APP,LQ: Pure local read; no identity and no RemotePort call
 ```
 
 ### 18.2 Create, project, then navigate
@@ -967,7 +988,7 @@ sequenceDiagram
   RP->>APP: createPack(command)
   APP->>ID: requireSession()
   APP->>COORD: runPrePackIntent
-  COORD->>PEND: persist requestId/fingerprint
+  COORD->>PEND: persist locked marker only
   COORD->>DIAG: pendingInserted (redacted)
   COORD->>REM: createPack(requestId, payload)
   REM-->>COORD: full snapshot v1
@@ -993,7 +1014,7 @@ sequenceDiagram
   UI->>RP: complete Item
   RP->>APP: completeItem(command)
   APP->>COORD: runInPackLane
-  COORD->>PEND: persist intent + requestId
+  COORD->>PEND: persist locked marker
   COORD->>REM: mutate(expected versions)
   REM-->>COORD: full snapshot v8
   COORD->>PROJ: project atomically
@@ -1022,36 +1043,48 @@ sequenceDiagram
   COORD->>REM: rename R1
   REM--xCOORD: ambiguous timeout
   COORD->>DIAG: dispatchAmbiguous (redacted)
+  COORD-->>APP: unknown outcome; marker retained
   APP-->>RP: unresolved, same-ID recovery
   RP-->>UI: confirmation required
   UI->>RP: retry reconstructed intent
   RP->>APP: replay unresolved
-  APP->>PEND: load R1 and verify fingerprint
-  APP->>COORD: replay R1 unchanged
+  APP->>COORD: replay reconstructed intent
+  COORD->>PEND: load R1 and verify fingerprint
   COORD->>REM: replay R1 unchanged
   REM-->>COORD: original result
+  COORD-->>APP: authoritative replay outcome
+  APP-->>RP: separated outcome
+  RP-->>UI: recovered presentation
 ```
 
 ### 18.5 Remote success, local projection failure
 
 ```mermaid
 sequenceDiagram
-  participant APP
+  participant UI
+  participant RP as Riverpod Controller
+  participant APP as ApplicationService
   participant COORD as Coordinator
   participant REM as RemotePort
   participant PROJ as Projector
-  participant TRUST as TrustStore
-  participant PEND as PendingStore
+  participant TRUST as TrustStatePort
+  participant PEND as PendingPort
   participant DIAG as RedactedDiagnosticSink
+  UI->>RP: submit mutation
+  RP->>APP: mutation command
   APP->>COORD: mutate R2 in Pack lane
   COORD->>REM: mutate R2
   REM-->>COORD: success snapshot v8
   COORD->>PROJ: project v8
   PROJ--xCOORD: transaction rollback
-  COORD->>TRUST: mark needsRevalidation
-  COORD->>PEND: retain R2 + remote-success marker
+  COORD->>TRUST: needsRevalidation/projectionFailed
+  TRUST-->>COORD: failure trust committed
+  COORD->>PEND: retain existing locked marker only
   COORD->>DIAG: projectorOutcome(commitFailure)
-  APP-->>APP: no success navigation
+  COORD-->>APP: remote succeeded; local commit failed
+  APP-->>RP: separated recovery outcome
+  RP-->>UI: refresh/same-ID recovery; no success navigation
+  Note over COORD,PEND: No payload, response, or remote-success field is added to pending
 ```
 
 ### 18.6 Needs-revalidation gate
@@ -1059,16 +1092,25 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   participant UI
-  participant RP as Riverpod
-  participant APP
-  participant TRUST as TrustStore
+  participant RP as Riverpod Controller
+  participant APP as ApplicationService
+  participant TRUST as TrustStatePort
   participant REM as RemotePort
+  participant PROJ as ProjectionPort
   UI->>RP: attempt mutation
-  RP->>TRUST: read Pack trust
-  TRUST-->>RP: needsRevalidation
-  RP-->>UI: disable mutation, show refresh
-  UI->>APP: revalidate
-  APP->>REM: fetch authoritative snapshot
+  RP->>APP: submit command
+  APP->>TRUST: read effective Pack trust
+  TRUST-->>APP: needsRevalidation
+  APP-->>RP: blocked; refresh required
+  RP-->>UI: disable mutation and show refresh
+  UI->>RP: explicit refresh
+  RP->>APP: refreshSharedPack
+  APP->>REM: get authoritative snapshot
+  REM-->>APP: snapshot or notModified
+  APP->>PROJ: guarded verification/projection
+  PROJ-->>APP: verified
+  APP-->>RP: refresh outcome
+  RP-->>UI: reopen actions if no pending gate remains
 ```
 
 ### 18.7 Permission loss to inaccessible
@@ -1076,14 +1118,22 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   participant UI
-  participant APP
+  participant RP as Riverpod Controller
+  participant APP as ApplicationService
   participant REM as RemotePort
-  participant LOCAL as LocalStore
+  participant TRUST as TrustStatePort
+  participant CACHE as CacheReadPort
+  UI->>RP: refresh or access recheck
+  RP->>APP: refreshSharedPack
   APP->>REM: refresh Pack
-  REM-->>APP: unavailable/permission family
-  APP->>LOCAL: mark inaccessible
-  LOCAL-->>UI: retained safe recovery row
-  Note over UI,LOCAL: No destructive erase and no membership disclosure
+  REM-->>APP: permissionDenied or packNotFound
+  APP->>TRUST: mark inaccessible with exact reason
+  TRUST-->>APP: committed
+  APP->>CACHE: read retained last-known root
+  CACHE-->>APP: inaccessible safe summary
+  APP-->>RP: inaccessible outcome/read model
+  RP-->>UI: retained disabled recovery row
+  Note over UI,APP: No destructive erase and no membership disclosure
 ```
 
 ### 18.8 Invite get and rotate
@@ -1091,17 +1141,25 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   participant UI
-  participant APP
+  participant RP as Riverpod Controller
+  participant APP as ApplicationService
+  participant COORD as Coordinator
+  participant PEND as PendingPort
   participant REM as RemotePort
   participant VIEW as EphemeralInviteState
-  UI->>APP: get invite (owner)
-  APP->>REM: getInvite
-  REM-->>APP: code
-  APP->>VIEW: hold in memory
-  UI->>APP: confirm rotate
-  APP->>REM: rotateInvite(requestId)
-  REM-->>APP: new code + snapshot
-  APP->>VIEW: replace, never persist/log
+  UI->>RP: get or confirm rotate invite
+  RP->>APP: invite command
+  APP->>COORD: run in Pack lane
+  COORD->>PEND: persist or validate locked invite marker
+  COORD->>REM: get/rotate invite with requestId
+  REM-->>COORD: authoritative invite code result
+  COORD->>COORD: decode and handle ephemeral result
+  COORD->>PEND: resolve after invite result handling
+  COORD-->>APP: invite-only success
+  APP-->>RP: sensitive presentation result
+  RP->>VIEW: hold code in memory only
+  VIEW-->>UI: show ephemeral code
+  Note over APP,REM: No snapshot, no projector, no Pack-version change
 ```
 
 ### 18.9 Preview then join
@@ -1109,47 +1167,84 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   participant UI
-  participant APP
+  participant RP as Riverpod Controller
+  participant APP as ApplicationService
+  participant COORD as Coordinator
+  participant PEND as PendingPort
   participant REM as RemotePort
   participant PROJ as Projector
-  UI->>APP: preview(code)
+  UI->>RP: preview(code)
+  RP->>APP: preview query
   APP->>REM: previewInvite(code)
   REM-->>APP: limited preview
-  APP-->>UI: confirmation view
-  UI->>APP: join(confirm, original secret)
-  APP->>REM: joinPack(requestId, code)
-  REM-->>APP: full snapshot
-  APP->>PROJ: project after confirmed join
+  APP-->>RP: limited preview result
+  RP-->>UI: confirmation view
+  UI->>RP: join(confirm, original secret)
+  RP->>APP: join command
+  APP->>COORD: run pre-Pack intent
+  COORD->>PEND: persist null-target locked marker
+  COORD->>REM: joinPack(requestId, code)
+  REM-->>COORD: membership + full snapshot
+  COORD->>PROJ: project after confirmed join
+  PROJ-->>COORD: committed
+  COORD->>PEND: resolve after commit
+  COORD-->>APP: join applied locally
+  APP-->>RP: navigation-ready outcome
+  RP-->>UI: navigate to detail
 ```
 
 ### 18.10 Restart with known-Pack pending
 
 ```mermaid
 sequenceDiagram
-  participant BOOT as Bootstrap
-  participant PEND as PendingStore
-  participant APP
+  participant UI as Shared Packs UI
+  participant RP as Shared Recovery Provider
+  participant RT as Lazy Shared Runtime
+  participant PEND as Pending Store
+  participant APP as ApplicationService
+  participant COORD as Coordinator
   participant REM as RemotePort
-  BOOT->>PEND: enumerate unresolved
-  PEND-->>BOOT: known Pack + requestId + fingerprint
-  BOOT->>APP: expose recovery state
-  APP->>PEND: verify semantic fingerprint
-  APP->>REM: replay same ID on user retry
+  UI->>RP: open Shared Packs after restart
+  RP->>RT: initialize Shared runtime locally
+  RT->>PEND: enumerate unresolved markers
+  PEND-->>RT: known-Pack marker
+  RT-->>RP: safe recovery presentation
+  RP-->>UI: show recovery banner
+  Note over RT,PEND: Pure local scan; no identity, remote call, or automatic replay
+  UI->>RP: explicitly continue recovery
+  RP->>APP: reconstructed recovery command
+  APP->>COORD: explicit same-intent replay
+  COORD->>PEND: validate reconstructed payload fingerprint
+  COORD->>REM: same-ID replay
 ```
 
 ### 18.11 Restart with unknown-Pack pending
 
 ```mermaid
 sequenceDiagram
-  participant BOOT as Bootstrap
-  participant PEND as PendingStore
-  participant UI
-  participant APP
-  BOOT->>PEND: enumerate unresolved
-  PEND-->>BOOT: create/join intent without remotePackId
-  BOOT-->>UI: safe operation recovery card
-  UI->>APP: continue or resolve
-  Note over UI,APP: Never fabricate Pack identity or display invite code
+  participant UI as Shared Packs UI
+  participant RP as Shared Recovery Provider
+  participant RT as Lazy Shared Runtime
+  participant PEND as Pending Store
+  participant APP as ApplicationService
+  participant ID as IdentityPort
+  participant COORD as Coordinator
+  participant REM as RemotePort
+  UI->>RP: open Shared Packs after restart
+  RP->>RT: initialize Shared runtime locally
+  RT->>PEND: enumerate unresolved markers
+  PEND-->>RT: create/join marker with null target
+  RT-->>RP: safe unknown-Pack presentation
+  RP-->>UI: show recovery card
+  Note over RT,PEND: Pure local scan; no identity, remote call, or automatic replay
+  Note over UI,RT: No fake Pack, discovery, or displayed invite code
+  UI->>RP: re-enter exact fields and explicitly continue
+  RP->>APP: reconstructed recovery command
+  APP->>ID: ensure identity after explicit action
+  ID-->>APP: ready
+  APP->>COORD: explicit pre-Pack same-intent replay
+  COORD->>PEND: validate fingerprint and original ID
+  COORD->>REM: replay same ID only on exact match
 ```
 
 ### 18.12 Duplicate-submit coalescing
@@ -1158,12 +1253,19 @@ sequenceDiagram
 sequenceDiagram
   participant UI
   participant RP as Riverpod
-  participant APP
+  participant APP as ApplicationService
+  participant COORD as Coordinator
+  participant PEND as PendingPort
   participant REM as RemotePort
   UI->>RP: submit intent K
   UI->>RP: submit intent K again
-  RP->>APP: execute K once
-  APP->>REM: one remote dispatch
+  RP->>APP: submit K twice
+  APP->>COORD: establish or attach to K
+  COORD->>PEND: one locked marker insert
+  COORD->>REM: one remote dispatch
+  REM-->>COORD: authoritative result
+  COORD-->>APP: one shared logical outcome
+  APP-->>RP: same in-flight result
   RP-->>UI: shared in-flight state/result
 ```
 
@@ -1183,6 +1285,9 @@ sequenceDiagram
 | SP-APP-008 | Unknown-Pack create/join pending is modeled without a fabricated remote Pack ID and with controlled reconstruction/replay. |
 | SP-APP-009 | Invite secrets are ephemeral and excluded from persistence, ordinary fake records, and diagnostics. |
 | SP-APP-010 | Diagnostics are allowlisted, redacted before sinks, best-effort, and no-op by default in production. |
+| SP-APP-011 | Pending persistence is exactly the six-field Phase 1b marker; payload reconstruction and current remote outcomes are independent in-memory/draft/cache/user-input concerns. |
+| SP-APP-012 | Restart recovery scanning is lazy Shared-runtime-only and pure-local; normal bootstrap performs no scan, identity, remote call, or replay. |
+| SP-APP-013 | Invite get/rotate handles one authoritative invite-code result, resolves pending after handling, and has no snapshot, projector, or Pack-version change. |
 
 ### 19.2 Accepted UI decisions
 
@@ -1225,7 +1330,7 @@ sequenceDiagram
 - normal “try again” handling for an unknown remote outcome;
 - automatic retry on page load/startup or any background worker/outbox;
 - treating Pack version alone as snapshot identity;
-- accepting `notModified` without a trusted matching baseline;
+- accepting `notModified` without a verified matching baseline;
 - global serialization of all Packs or unconstrained same-Pack concurrency;
 - persisting/logging invite codes for restart convenience;
 - exposing raw server/RLS/exception text to users or diagnostic sinks;
@@ -1268,6 +1373,8 @@ Public operations/outcomes, routes, action gates, inaccessible presentation, unk
 | 12. Is Home/Widget/notification/discovery/outbox scope expansion absent? | PASS | §§2, 4, 11, 16.2, 19.4. |
 | 13. Does any P0 TBD remain? | PASS — none | §§19.1–19.5 and all prior gate rows. |
 
+The Phase 1f Gate Review corrective pass also confirms that pending persistence, invite-only responses, lazy restart scanning, exact contract vocabulary, and all normative diagram boundaries now match documents 10, 12, and 13 without extending their schema or RPC surface.
+
 **Phase 1 final conclusion: GO — Phase 2a may begin.**
 
 ## 21. Phase 1f Exit Criteria
@@ -1285,6 +1392,10 @@ Public operations/outcomes, routes, action gates, inaccessible presentation, unk
 - [x] Automated ownership is explicit for Phase 2a–2g, Phase 3, and Phase 4.
 - [x] The final matrix contains exactly 24 roadmap UAT cases and environment prerequisites.
 - [x] Diagnostic/redaction API is concrete and cannot become activity history or recovery evidence.
+- [x] Pending persistence is exactly the six-field marker with one `awaitingResolution` status; payload/outcome persistence is not implied.
+- [x] Invite get/rotate handles no snapshot, invokes no projector, and changes no Pack version.
+- [x] Restart recovery scan is pure-local and lazy after a Shared surface opens; normal bootstrap performs no scan, identity, remote call, or replay.
+- [x] All normative diagrams route UI/provider work through ApplicationService and leave lane/pending/dispatch policy with ApplicationService/Coordinator.
 - [x] Phase 1 final gate is unambiguously GO.
 - [x] No production implementation, upstream source rewrite, dependency, generated file, SQL, route/provider/UI implementation, or manual-UAT completion claim is present.
 - [x] The working-tree change is only this Phase 1f document, and whitespace validation passes.
@@ -1307,15 +1418,16 @@ This document closes documentation Phase 1f. It authorizes Phase 2a planning and
 
 ## 23. Phase 1f Validation Record
 
-Executed on the repository state identified in §1 after completing this document:
+Executed on the repository state identified in §1 after completing the original document and this corrective patch:
 
 | Check | Result |
 |---|---|
 | Markdown structure | PASS — 12 Mermaid blocks, 8 Scenario A–H cases, 24 UAT rows, and balanced code fences |
-| `git diff --check` plus new-file whitespace check | PASS |
-| `git status --short` | Only `?? docs/core/14_shared_pack_application_ui_test_contract_v1.md` |
+| Phase 1f Gate Review corrective patch | PASS — pending persistence, invite response, lazy restart scan, contract vocabulary, and normative diagram boundaries reconciled |
+| `git diff --check` | PASS |
+| `git status --short` | Only `M docs/core/14_shared_pack_application_ui_test_contract_v1.md` |
 | `flutter analyze` | PASS — `No issues found!` |
 | `flutter test` | PASS — 299 tests, `All tests passed!` |
 | Manual App UAT | NOT RUN — intentionally future Phase 4 work; §17 is the executable contract |
 
-The exact `git diff --stat` / path diff commands do not include an untracked file until it is staged; the equivalent no-index checks are therefore also used in final validation without modifying the Git index. No unrelated baseline issue was repaired.
+No unrelated baseline issue was repaired.
