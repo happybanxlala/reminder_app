@@ -477,8 +477,9 @@ sharedRecoveryPresentationProvider             StreamProvider<UnresolvedMutation
 The family key is the exact opaque `remotePackId` string. It is not a local ID, title, object, lowercased value, or DTO.
 
 - Adapter/service providers are overrideable at `ProviderScope`/`ProviderContainer` level. Phase 2g tests override remote, identity, clock, UUID, diagnostic sink, and fault-injected local ports independently.
-- Shared runtime is initialized only when a Shared provider is first read by a Shared route/flow. A pure-local pending scan may occur then; it cannot call identity or remote.
-- App restart and normal `AppBootstrap` do not initialize Shared runtime, scan pending, create identity, refresh, replay, or call remote. Only after the user opens a Shared surface may lazy Shared runtime perform the pure-local marker scan; identity/remote work still requires an explicit user recovery action.
+- Shared runtime is initialized only when a Shared provider is first read by a Shared route/flow. That first read lazily creates/enables `SharedPackApplicationService`; its `watchRecovery()` facade method may then read recovery markers through the application-owned local port. The initial read is pure-local and cannot call identity or remote.
+- Lazy Shared runtime initialization is a provider-composition and lifecycle property, not a second application facade. Shared providers access recovery markers only through `SharedPackApplicationService.watchRecovery()`.
+- App restart and normal `AppBootstrap` do not initialize Shared runtime, scan pending, create identity, refresh, replay, or call remote. Only after the user opens a Shared surface may its provider lazily read the application recovery facade; identity/remote work still requires an explicit user recovery action.
 - List streams may remain watched while the list page is mounted. Detail/form/command controllers are `autoDispose` and cancel local subscriptions on disposal.
 - Disposing a controller detaches UI from a command; it cannot cancel a logical mutation after possible dispatch. The application-owned intent continues classification best-effort and persists pending evidence.
 - Remote read cancellation is adapter best-effort. Local transaction/projector work that has started runs to a semantic outcome.
@@ -1199,20 +1200,20 @@ sequenceDiagram
 sequenceDiagram
   participant UI as Shared Packs UI
   participant RP as Shared Recovery Provider
-  participant RT as Lazy Shared Runtime
-  participant PEND as Pending Store
-  participant APP as ApplicationService
+  participant APP as Lazy Shared ApplicationService
+  participant PEND as Pending Port
   participant COORD as Coordinator
-  participant REM as RemotePort
+  participant REM as Remote Port
   UI->>RP: open Shared Packs after restart
-  RP->>RT: initialize Shared runtime locally
-  RT->>PEND: enumerate unresolved markers
-  PEND-->>RT: known-Pack marker
-  RT-->>RP: safe recovery presentation
+  RP->>APP: watchRecovery()
+  APP->>PEND: enumerate unresolved markers
+  PEND-->>APP: known-Pack marker
+  APP-->>RP: safe recovery presentation
   RP-->>UI: show recovery banner
-  Note over RT,PEND: Pure local scan; no identity, remote call, or automatic replay
+  Note over APP,PEND: Lazy Shared initialization and pure-local scan only
+  Note over APP,PEND: No identity, remote call, or automatic replay
   UI->>RP: explicitly continue recovery
-  RP->>APP: reconstructed recovery command
+  RP->>APP: replayUnresolvedMutation(reconstructed command)
   APP->>COORD: explicit same-intent replay
   COORD->>PEND: validate reconstructed payload fingerprint
   COORD->>REM: same-ID replay
@@ -1224,26 +1225,26 @@ sequenceDiagram
 sequenceDiagram
   participant UI as Shared Packs UI
   participant RP as Shared Recovery Provider
-  participant RT as Lazy Shared Runtime
-  participant PEND as Pending Store
-  participant APP as ApplicationService
-  participant ID as IdentityPort
+  participant APP as Lazy Shared ApplicationService
+  participant PEND as Pending Port
+  participant ID as Identity Port
   participant COORD as Coordinator
-  participant REM as RemotePort
+  participant REM as Remote Port
   UI->>RP: open Shared Packs after restart
-  RP->>RT: initialize Shared runtime locally
-  RT->>PEND: enumerate unresolved markers
-  PEND-->>RT: create/join marker with null target
-  RT-->>RP: safe unknown-Pack presentation
+  RP->>APP: watchRecovery()
+  APP->>PEND: enumerate unresolved markers
+  PEND-->>APP: create/join marker with null target
+  APP-->>RP: safe unknown-Pack presentation
   RP-->>UI: show recovery card
-  Note over RT,PEND: Pure local scan; no identity, remote call, or automatic replay
-  Note over UI,RT: No fake Pack, discovery, or displayed invite code
+  Note over APP,PEND: Lazy Shared initialization and pure-local scan only
+  Note over APP,PEND: No identity, remote call, or automatic replay
+  Note over UI,APP: No fake Pack, discovery, or displayed invite code
   UI->>RP: re-enter exact fields and explicitly continue
-  RP->>APP: reconstructed recovery command
+  RP->>APP: replayUnresolvedMutation(reconstructed command)
   APP->>ID: ensure identity after explicit action
   ID-->>APP: ready
   APP->>COORD: explicit pre-Pack same-intent replay
-  COORD->>PEND: validate fingerprint and original ID
+  COORD->>PEND: validate fingerprint and original request ID
   COORD->>REM: replay same ID only on exact match
 ```
 
