@@ -1,6 +1,6 @@
 ---
 This is the single source of truth for reminders core model, MVP scope, naming, and behavior.
-Last aligned with repository contents on 2026-08-04.
+Last aligned with repository contents on 2026-08-07.
 ---
 
 # Reminder App Unified Core Spec
@@ -65,7 +65,7 @@ enum PackAccessScope {
 - `personal` / `shared` 表示 Pack 的使用範圍與存取關係。
 - `local` / `remote` 表示技術儲存方式。
 - 使用者與 UI 應理解「個人 Pack / 共享 Pack」，不應被迫理解「本機 Pack / 遠端 Pack」。
-- 現有已實作 `ItemPack` 全部都是 Personal/local-first Pack；Shared Pack 尚未在 production code 中實作。
+- 現有已實作 `ItemPack` 全部都是 Personal/local-first Pack；Shared Pack 已有獨立的 contract skeleton 與 Drift v6 local storage capacity，但尚未實作 cache read、projector、runtime、remote 或 UI。
 
 ### 1.4 Shared Pack v1 cross-reference
 
@@ -90,68 +90,28 @@ Shared Pack 產品方向以 `docs/core/06_shared_pack_direction_spec_v1.md` 為�
 - Shared Pack v1 timestamps 使用 UTC instant；UI 顯示時才轉成 device local timezone。
 - `remotePackVersion` must be monotonic at runtime；較舊 response 或 projection failure 不可讓 Shared cache 倒退或宣稱已套用較新的 authoritative state。
 
-### 1.5 Planned local cache projection
+### 1.5 Shared local cache persistence
 
-以下 cache shape 只是 Phase 1 technical design 前鎖定的 planned semantic direction。
+Drift schema v6 已在現有 `AppDatabase` / `reminder_app.sqlite` 加入以下 Shared-owned tables：
 
 ```text
 shared_pack_cache
-- localId
-- remotePackId
-- title
-- description
-- iconEmoji
-- currentUserRole
-- remotePackVersion
-- lastRefreshedAt
-- accessState
-- createdAt
-- updatedAt
-
 shared_membership_cache
-- localId
-- remoteMemberId
-- remotePackId
-- displayName
-- role
-- joinedAt
-- createdAt
-- updatedAt
-
 shared_item_cache
-- localId
-- remoteItemId
-- remotePackId
-- title
-- description
-- type
-- lifecycleStatus
-- stateAnchorDate
-- infoAfterMinutes
-- warningAfterMinutes
-- dangerAfterMinutes
-- completedAt
-- completedByMemberId
-- remoteItemVersion
-- createdAt
-- updatedAt
+shared_pending_mutation
 ```
 
-要求：
+正式欄位、constraint、foreign key、named index、migration 與 Personal backup/import/reset boundary 由 `docs/core/10_shared_pack_local_cache_schema_design_v1.md` 擁有。
 
-- 現有 `item_packs`、`items` 與 `item_action_records` 繼續只代表 Personal / local-first domain。
-- Shared cache 不自動進入 Personal repositories、Home、global Item management、notification、Home Widget 或 legacy backup。
-- `shared_pack_cache.localId + remotePackId` 可承擔 Pack identity mapping；`shared_item_cache.localId + remoteItemId` 可承擔 Item identity mapping。
-- 額外 mapping table 不是預設要求；只有 Phase 1 technical design 證明有必要時才新增。
-- 不可在 Shared cache 和額外 mapping table 重複保存相同 identity 而沒有明確理由。
-- remote ID mapping 必須集中於 Shared Pack data layer，不可散落在 Personal domain models。
-- `remotePackVersion` 只代表目前本機完整 Shared cache 所對應的完整 Pack snapshot version，不代表最後一次收到的 mutation fragment version。
-- 會改變 Shared Pack active current-state snapshot 的 mutation，不可只 patch 單一 row 後更新 `remotePackVersion`；remote success 必須回傳完整 snapshot，並透過與 `getSharedPackSnapshot` 相同的 `SharedPackCacheProjector` 在單一 transaction 投影。
-- mutation full snapshot projection 失敗時必須 rollback，不更新 `remotePackVersion` 或 `lastRefreshedAt`，UI 不可把 cache 當成最新狀態。
-- remote mutation success followed by local projection failure 表示 remote authoritative state 已改變，但 local cache 尚未成功同步；在重新取得並成功投影 authoritative snapshot 前，該 Pack 不可使用 known-untrusted cache 繼續 mutation。
-- `lastRefreshedAt` 表示最近一次成功從 remote 取得或驗證 Shared Pack current state 的 UTC 時間；包含 full snapshot projection 成功、mutation full snapshot projection 成功，以及 manual refresh 回傳 `notModified`。
-- `notModified` 只更新 `shared_pack_cache.lastRefreshedAt`，不重寫 `shared_membership_cache`、`shared_item_cache`，也不改 `remotePackVersion`。
-- 正式 table 名稱、欄位型別、index、migration 與 projection transaction 必須在 Phase 1 technical design 中確認。
+目前實作邊界：
+
+- declarations 與 `SharedPackCacheDao` 位於 `lib/features/shared_packs/data/local/`；`AppDatabase` 只負責 connection、registration 與 migration。
+- `shared_pack_cache.remotePackId` 是 Pack remote identity；membership identity 是 `(remotePackId, remoteMemberId)`；Item identity 始終是 `(remotePackId, remoteItemId)`。
+- v5→v6 是 additive transactional migration，不改動 Personal table definitions 或 Personal rows，也不建立 Shared seed。
+- `PRAGMA foreign_keys = ON` 適用於正常 connection、fresh database 與 migration path。
+- Personal backup format v1 不包含 Shared rows；Personal import/reset 保留 Shared cache、trust 與 pending mutation。
+- 現有 `item_packs`、`items`、`item_action_records` 與 `ReminderDao` 繼續只代表 Personal / local-first domain。
+- Shared cache 尚未接入 read layer、snapshot decoding/validation、fingerprint calculation、projector、runtime coordinator、remote API、provider、route、UI、Home、Home Widget 或 notification。
 
 ### 1.6 Version naming
 
@@ -159,7 +119,7 @@ shared_item_cache
 
 | 名稱 | 目前值 | 來源 | 語意 |
 | --- | --- | --- | --- |
-| `driftSchemaVersion` | `5` | `AppDatabase.schemaVersion` | Drift database schema / migration version |
+| `driftSchemaVersion` | `6` | `AppDatabase.schemaVersion` | Drift database schema / migration version；v6 新增四個 Shared local tables |
 | `backupFormatVersion` | `1` | `BackupPayload.currentSchemaVersion`，JSON 欄位目前仍名為 `schemaVersion` | legacy local JSON backup format |
 | `widgetSnapshotSchemaVersion` | `1` | `HomeWidgetSnapshot.currentSchemaVersion` 與 native supported schema | Home Widget Flutter-to-native snapshot protocol |
 | `remoteApiContractVersion` | `1` planned / not implemented | `docs/core/07_shared_pack_remote_contract_v1.md` | Shared Pack remote request / response contract major version |
@@ -1261,9 +1221,9 @@ Pack 管理 route：`/feature/item-packs-management`，route name：`item-packs-
 
 ## 5. Drift Schema
 
-目前 `driftSchemaVersion`：`5`。
+目前 `driftSchemaVersion`：`6`。
 
-注意：`backupFormatVersion`、`widgetSnapshotSchemaVersion`、planned `remoteApiContractVersion` 與 planned `remoteSnapshotSchemaVersion` 目前值都是 `1`，但它們不是 Drift schema version。Shared Pack remote protocol versions 是 planned contract / not implemented，尚未有 production API 或 table。
+注意：`backupFormatVersion`、`widgetSnapshotSchemaVersion`、planned `remoteApiContractVersion` 與 `remoteSnapshotSchemaVersion` 目前值都是 `1`，但它們不是 Drift schema version。Shared local v6 storage 已實作；remote API、projector 與 runtime 尚未實作。
 
 ### 5.1 item_packs
 
@@ -1494,6 +1454,19 @@ stateDangerAfterMinutes
 createdAt
 updatedAt
 ```
+
+### 5.14–5.17 Shared Pack local storage
+
+Drift v6 另註冊四個 Shared-owned tables：
+
+```text
+shared_pack_cache
+shared_membership_cache
+shared_item_cache
+shared_pending_mutation
+```
+
+它們的 declarations 與 DAO 位於 `lib/features/shared_packs/data/local/`，不屬於 Personal `tables.dart` 或 `ReminderDao`。完整 schema contract 以 `docs/core/10_shared_pack_local_cache_schema_design_v1.md` 為準；本文件不重複定義該 concern。
 
 ## 6. MVP 待完成
 

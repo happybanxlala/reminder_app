@@ -9961,6 +9961,2759 @@ class AppSettingsEntriesCompanion extends UpdateCompanion<AppSettingsRow> {
   }
 }
 
+class $SharedPackCacheTable extends SharedPackCache
+    with TableInfo<$SharedPackCacheTable, SharedPackCacheRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SharedPackCacheTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _localIdMeta = const VerificationMeta(
+    'localId',
+  );
+  @override
+  late final GeneratedColumn<int> localId = GeneratedColumn<int>(
+    'local_id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _remotePackIdMeta = const VerificationMeta(
+    'remotePackId',
+  );
+  @override
+  late final GeneratedColumn<String> remotePackId = GeneratedColumn<String>(
+    'remote_pack_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _iconEmojiMeta = const VerificationMeta(
+    'iconEmoji',
+  );
+  @override
+  late final GeneratedColumn<String> iconEmoji = GeneratedColumn<String>(
+    'icon_emoji',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _remotePackVersionMeta = const VerificationMeta(
+    'remotePackVersion',
+  );
+  @override
+  late final GeneratedColumn<int> remotePackVersion = GeneratedColumn<int>(
+    'remote_pack_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _remoteSnapshotSchemaVersionMeta =
+      const VerificationMeta('remoteSnapshotSchemaVersion');
+  @override
+  late final GeneratedColumn<int> remoteSnapshotSchemaVersion =
+      GeneratedColumn<int>(
+        'remote_snapshot_schema_version',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _snapshotFingerprintMeta =
+      const VerificationMeta('snapshotFingerprint');
+  @override
+  late final GeneratedColumn<String> snapshotFingerprint =
+      GeneratedColumn<String>(
+        'snapshot_fingerprint',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _trustStateMeta = const VerificationMeta(
+    'trustState',
+  );
+  @override
+  late final GeneratedColumn<String> trustState = GeneratedColumn<String>(
+    'trust_state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _trustFailureReasonMeta =
+      const VerificationMeta('trustFailureReason');
+  @override
+  late final GeneratedColumn<String> trustFailureReason =
+      GeneratedColumn<String>(
+        'trust_failure_reason',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _lastVerifiedAtMeta = const VerificationMeta(
+    'lastVerifiedAt',
+  );
+  @override
+  late final GeneratedColumn<int> lastVerifiedAt = GeneratedColumn<int>(
+    'last_verified_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _remoteCreatedAtMeta = const VerificationMeta(
+    'remoteCreatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> remoteCreatedAt = GeneratedColumn<int>(
+    'remote_created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> remoteUpdatedAt = GeneratedColumn<int>(
+    'remote_updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    localId,
+    remotePackId,
+    title,
+    description,
+    iconEmoji,
+    remotePackVersion,
+    remoteSnapshotSchemaVersion,
+    snapshotFingerprint,
+    trustState,
+    trustFailureReason,
+    lastVerifiedAt,
+    remoteCreatedAt,
+    remoteUpdatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'shared_pack_cache';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SharedPackCacheRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('local_id')) {
+      context.handle(
+        _localIdMeta,
+        localId.isAcceptableOrUnknown(data['local_id']!, _localIdMeta),
+      );
+    }
+    if (data.containsKey('remote_pack_id')) {
+      context.handle(
+        _remotePackIdMeta,
+        remotePackId.isAcceptableOrUnknown(
+          data['remote_pack_id']!,
+          _remotePackIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_remotePackIdMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('icon_emoji')) {
+      context.handle(
+        _iconEmojiMeta,
+        iconEmoji.isAcceptableOrUnknown(data['icon_emoji']!, _iconEmojiMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_iconEmojiMeta);
+    }
+    if (data.containsKey('remote_pack_version')) {
+      context.handle(
+        _remotePackVersionMeta,
+        remotePackVersion.isAcceptableOrUnknown(
+          data['remote_pack_version']!,
+          _remotePackVersionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_remotePackVersionMeta);
+    }
+    if (data.containsKey('remote_snapshot_schema_version')) {
+      context.handle(
+        _remoteSnapshotSchemaVersionMeta,
+        remoteSnapshotSchemaVersion.isAcceptableOrUnknown(
+          data['remote_snapshot_schema_version']!,
+          _remoteSnapshotSchemaVersionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_remoteSnapshotSchemaVersionMeta);
+    }
+    if (data.containsKey('snapshot_fingerprint')) {
+      context.handle(
+        _snapshotFingerprintMeta,
+        snapshotFingerprint.isAcceptableOrUnknown(
+          data['snapshot_fingerprint']!,
+          _snapshotFingerprintMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_snapshotFingerprintMeta);
+    }
+    if (data.containsKey('trust_state')) {
+      context.handle(
+        _trustStateMeta,
+        trustState.isAcceptableOrUnknown(data['trust_state']!, _trustStateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_trustStateMeta);
+    }
+    if (data.containsKey('trust_failure_reason')) {
+      context.handle(
+        _trustFailureReasonMeta,
+        trustFailureReason.isAcceptableOrUnknown(
+          data['trust_failure_reason']!,
+          _trustFailureReasonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_verified_at')) {
+      context.handle(
+        _lastVerifiedAtMeta,
+        lastVerifiedAt.isAcceptableOrUnknown(
+          data['last_verified_at']!,
+          _lastVerifiedAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_lastVerifiedAtMeta);
+    }
+    if (data.containsKey('remote_created_at')) {
+      context.handle(
+        _remoteCreatedAtMeta,
+        remoteCreatedAt.isAcceptableOrUnknown(
+          data['remote_created_at']!,
+          _remoteCreatedAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_remoteCreatedAtMeta);
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_remoteUpdatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {localId};
+  @override
+  SharedPackCacheRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SharedPackCacheRow(
+      localId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}local_id'],
+      )!,
+      remotePackId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_pack_id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
+      iconEmoji: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}icon_emoji'],
+      )!,
+      remotePackVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}remote_pack_version'],
+      )!,
+      remoteSnapshotSchemaVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}remote_snapshot_schema_version'],
+      )!,
+      snapshotFingerprint: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}snapshot_fingerprint'],
+      )!,
+      trustState: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}trust_state'],
+      )!,
+      trustFailureReason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}trust_failure_reason'],
+      ),
+      lastVerifiedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_verified_at'],
+      )!,
+      remoteCreatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}remote_created_at'],
+      )!,
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}remote_updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SharedPackCacheTable createAlias(String alias) {
+    return $SharedPackCacheTable(attachedDatabase, alias);
+  }
+}
+
+class SharedPackCacheRow extends DataClass
+    implements Insertable<SharedPackCacheRow> {
+  final int localId;
+  final String remotePackId;
+  final String title;
+  final String? description;
+  final String iconEmoji;
+  final int remotePackVersion;
+  final int remoteSnapshotSchemaVersion;
+  final String snapshotFingerprint;
+  final String trustState;
+  final String? trustFailureReason;
+  final int lastVerifiedAt;
+  final int remoteCreatedAt;
+  final int remoteUpdatedAt;
+  const SharedPackCacheRow({
+    required this.localId,
+    required this.remotePackId,
+    required this.title,
+    this.description,
+    required this.iconEmoji,
+    required this.remotePackVersion,
+    required this.remoteSnapshotSchemaVersion,
+    required this.snapshotFingerprint,
+    required this.trustState,
+    this.trustFailureReason,
+    required this.lastVerifiedAt,
+    required this.remoteCreatedAt,
+    required this.remoteUpdatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['local_id'] = Variable<int>(localId);
+    map['remote_pack_id'] = Variable<String>(remotePackId);
+    map['title'] = Variable<String>(title);
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    map['icon_emoji'] = Variable<String>(iconEmoji);
+    map['remote_pack_version'] = Variable<int>(remotePackVersion);
+    map['remote_snapshot_schema_version'] = Variable<int>(
+      remoteSnapshotSchemaVersion,
+    );
+    map['snapshot_fingerprint'] = Variable<String>(snapshotFingerprint);
+    map['trust_state'] = Variable<String>(trustState);
+    if (!nullToAbsent || trustFailureReason != null) {
+      map['trust_failure_reason'] = Variable<String>(trustFailureReason);
+    }
+    map['last_verified_at'] = Variable<int>(lastVerifiedAt);
+    map['remote_created_at'] = Variable<int>(remoteCreatedAt);
+    map['remote_updated_at'] = Variable<int>(remoteUpdatedAt);
+    return map;
+  }
+
+  SharedPackCacheCompanion toCompanion(bool nullToAbsent) {
+    return SharedPackCacheCompanion(
+      localId: Value(localId),
+      remotePackId: Value(remotePackId),
+      title: Value(title),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
+      iconEmoji: Value(iconEmoji),
+      remotePackVersion: Value(remotePackVersion),
+      remoteSnapshotSchemaVersion: Value(remoteSnapshotSchemaVersion),
+      snapshotFingerprint: Value(snapshotFingerprint),
+      trustState: Value(trustState),
+      trustFailureReason: trustFailureReason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(trustFailureReason),
+      lastVerifiedAt: Value(lastVerifiedAt),
+      remoteCreatedAt: Value(remoteCreatedAt),
+      remoteUpdatedAt: Value(remoteUpdatedAt),
+    );
+  }
+
+  factory SharedPackCacheRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SharedPackCacheRow(
+      localId: serializer.fromJson<int>(json['localId']),
+      remotePackId: serializer.fromJson<String>(json['remotePackId']),
+      title: serializer.fromJson<String>(json['title']),
+      description: serializer.fromJson<String?>(json['description']),
+      iconEmoji: serializer.fromJson<String>(json['iconEmoji']),
+      remotePackVersion: serializer.fromJson<int>(json['remotePackVersion']),
+      remoteSnapshotSchemaVersion: serializer.fromJson<int>(
+        json['remoteSnapshotSchemaVersion'],
+      ),
+      snapshotFingerprint: serializer.fromJson<String>(
+        json['snapshotFingerprint'],
+      ),
+      trustState: serializer.fromJson<String>(json['trustState']),
+      trustFailureReason: serializer.fromJson<String?>(
+        json['trustFailureReason'],
+      ),
+      lastVerifiedAt: serializer.fromJson<int>(json['lastVerifiedAt']),
+      remoteCreatedAt: serializer.fromJson<int>(json['remoteCreatedAt']),
+      remoteUpdatedAt: serializer.fromJson<int>(json['remoteUpdatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'localId': serializer.toJson<int>(localId),
+      'remotePackId': serializer.toJson<String>(remotePackId),
+      'title': serializer.toJson<String>(title),
+      'description': serializer.toJson<String?>(description),
+      'iconEmoji': serializer.toJson<String>(iconEmoji),
+      'remotePackVersion': serializer.toJson<int>(remotePackVersion),
+      'remoteSnapshotSchemaVersion': serializer.toJson<int>(
+        remoteSnapshotSchemaVersion,
+      ),
+      'snapshotFingerprint': serializer.toJson<String>(snapshotFingerprint),
+      'trustState': serializer.toJson<String>(trustState),
+      'trustFailureReason': serializer.toJson<String?>(trustFailureReason),
+      'lastVerifiedAt': serializer.toJson<int>(lastVerifiedAt),
+      'remoteCreatedAt': serializer.toJson<int>(remoteCreatedAt),
+      'remoteUpdatedAt': serializer.toJson<int>(remoteUpdatedAt),
+    };
+  }
+
+  SharedPackCacheRow copyWith({
+    int? localId,
+    String? remotePackId,
+    String? title,
+    Value<String?> description = const Value.absent(),
+    String? iconEmoji,
+    int? remotePackVersion,
+    int? remoteSnapshotSchemaVersion,
+    String? snapshotFingerprint,
+    String? trustState,
+    Value<String?> trustFailureReason = const Value.absent(),
+    int? lastVerifiedAt,
+    int? remoteCreatedAt,
+    int? remoteUpdatedAt,
+  }) => SharedPackCacheRow(
+    localId: localId ?? this.localId,
+    remotePackId: remotePackId ?? this.remotePackId,
+    title: title ?? this.title,
+    description: description.present ? description.value : this.description,
+    iconEmoji: iconEmoji ?? this.iconEmoji,
+    remotePackVersion: remotePackVersion ?? this.remotePackVersion,
+    remoteSnapshotSchemaVersion:
+        remoteSnapshotSchemaVersion ?? this.remoteSnapshotSchemaVersion,
+    snapshotFingerprint: snapshotFingerprint ?? this.snapshotFingerprint,
+    trustState: trustState ?? this.trustState,
+    trustFailureReason: trustFailureReason.present
+        ? trustFailureReason.value
+        : this.trustFailureReason,
+    lastVerifiedAt: lastVerifiedAt ?? this.lastVerifiedAt,
+    remoteCreatedAt: remoteCreatedAt ?? this.remoteCreatedAt,
+    remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
+  );
+  SharedPackCacheRow copyWithCompanion(SharedPackCacheCompanion data) {
+    return SharedPackCacheRow(
+      localId: data.localId.present ? data.localId.value : this.localId,
+      remotePackId: data.remotePackId.present
+          ? data.remotePackId.value
+          : this.remotePackId,
+      title: data.title.present ? data.title.value : this.title,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      iconEmoji: data.iconEmoji.present ? data.iconEmoji.value : this.iconEmoji,
+      remotePackVersion: data.remotePackVersion.present
+          ? data.remotePackVersion.value
+          : this.remotePackVersion,
+      remoteSnapshotSchemaVersion: data.remoteSnapshotSchemaVersion.present
+          ? data.remoteSnapshotSchemaVersion.value
+          : this.remoteSnapshotSchemaVersion,
+      snapshotFingerprint: data.snapshotFingerprint.present
+          ? data.snapshotFingerprint.value
+          : this.snapshotFingerprint,
+      trustState: data.trustState.present
+          ? data.trustState.value
+          : this.trustState,
+      trustFailureReason: data.trustFailureReason.present
+          ? data.trustFailureReason.value
+          : this.trustFailureReason,
+      lastVerifiedAt: data.lastVerifiedAt.present
+          ? data.lastVerifiedAt.value
+          : this.lastVerifiedAt,
+      remoteCreatedAt: data.remoteCreatedAt.present
+          ? data.remoteCreatedAt.value
+          : this.remoteCreatedAt,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SharedPackCacheRow(')
+          ..write('localId: $localId, ')
+          ..write('remotePackId: $remotePackId, ')
+          ..write('title: $title, ')
+          ..write('description: $description, ')
+          ..write('iconEmoji: $iconEmoji, ')
+          ..write('remotePackVersion: $remotePackVersion, ')
+          ..write('remoteSnapshotSchemaVersion: $remoteSnapshotSchemaVersion, ')
+          ..write('snapshotFingerprint: $snapshotFingerprint, ')
+          ..write('trustState: $trustState, ')
+          ..write('trustFailureReason: $trustFailureReason, ')
+          ..write('lastVerifiedAt: $lastVerifiedAt, ')
+          ..write('remoteCreatedAt: $remoteCreatedAt, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    localId,
+    remotePackId,
+    title,
+    description,
+    iconEmoji,
+    remotePackVersion,
+    remoteSnapshotSchemaVersion,
+    snapshotFingerprint,
+    trustState,
+    trustFailureReason,
+    lastVerifiedAt,
+    remoteCreatedAt,
+    remoteUpdatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SharedPackCacheRow &&
+          other.localId == this.localId &&
+          other.remotePackId == this.remotePackId &&
+          other.title == this.title &&
+          other.description == this.description &&
+          other.iconEmoji == this.iconEmoji &&
+          other.remotePackVersion == this.remotePackVersion &&
+          other.remoteSnapshotSchemaVersion ==
+              this.remoteSnapshotSchemaVersion &&
+          other.snapshotFingerprint == this.snapshotFingerprint &&
+          other.trustState == this.trustState &&
+          other.trustFailureReason == this.trustFailureReason &&
+          other.lastVerifiedAt == this.lastVerifiedAt &&
+          other.remoteCreatedAt == this.remoteCreatedAt &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt);
+}
+
+class SharedPackCacheCompanion extends UpdateCompanion<SharedPackCacheRow> {
+  final Value<int> localId;
+  final Value<String> remotePackId;
+  final Value<String> title;
+  final Value<String?> description;
+  final Value<String> iconEmoji;
+  final Value<int> remotePackVersion;
+  final Value<int> remoteSnapshotSchemaVersion;
+  final Value<String> snapshotFingerprint;
+  final Value<String> trustState;
+  final Value<String?> trustFailureReason;
+  final Value<int> lastVerifiedAt;
+  final Value<int> remoteCreatedAt;
+  final Value<int> remoteUpdatedAt;
+  const SharedPackCacheCompanion({
+    this.localId = const Value.absent(),
+    this.remotePackId = const Value.absent(),
+    this.title = const Value.absent(),
+    this.description = const Value.absent(),
+    this.iconEmoji = const Value.absent(),
+    this.remotePackVersion = const Value.absent(),
+    this.remoteSnapshotSchemaVersion = const Value.absent(),
+    this.snapshotFingerprint = const Value.absent(),
+    this.trustState = const Value.absent(),
+    this.trustFailureReason = const Value.absent(),
+    this.lastVerifiedAt = const Value.absent(),
+    this.remoteCreatedAt = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+  });
+  SharedPackCacheCompanion.insert({
+    this.localId = const Value.absent(),
+    required String remotePackId,
+    required String title,
+    this.description = const Value.absent(),
+    required String iconEmoji,
+    required int remotePackVersion,
+    required int remoteSnapshotSchemaVersion,
+    required String snapshotFingerprint,
+    required String trustState,
+    this.trustFailureReason = const Value.absent(),
+    required int lastVerifiedAt,
+    required int remoteCreatedAt,
+    required int remoteUpdatedAt,
+  }) : remotePackId = Value(remotePackId),
+       title = Value(title),
+       iconEmoji = Value(iconEmoji),
+       remotePackVersion = Value(remotePackVersion),
+       remoteSnapshotSchemaVersion = Value(remoteSnapshotSchemaVersion),
+       snapshotFingerprint = Value(snapshotFingerprint),
+       trustState = Value(trustState),
+       lastVerifiedAt = Value(lastVerifiedAt),
+       remoteCreatedAt = Value(remoteCreatedAt),
+       remoteUpdatedAt = Value(remoteUpdatedAt);
+  static Insertable<SharedPackCacheRow> custom({
+    Expression<int>? localId,
+    Expression<String>? remotePackId,
+    Expression<String>? title,
+    Expression<String>? description,
+    Expression<String>? iconEmoji,
+    Expression<int>? remotePackVersion,
+    Expression<int>? remoteSnapshotSchemaVersion,
+    Expression<String>? snapshotFingerprint,
+    Expression<String>? trustState,
+    Expression<String>? trustFailureReason,
+    Expression<int>? lastVerifiedAt,
+    Expression<int>? remoteCreatedAt,
+    Expression<int>? remoteUpdatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (localId != null) 'local_id': localId,
+      if (remotePackId != null) 'remote_pack_id': remotePackId,
+      if (title != null) 'title': title,
+      if (description != null) 'description': description,
+      if (iconEmoji != null) 'icon_emoji': iconEmoji,
+      if (remotePackVersion != null) 'remote_pack_version': remotePackVersion,
+      if (remoteSnapshotSchemaVersion != null)
+        'remote_snapshot_schema_version': remoteSnapshotSchemaVersion,
+      if (snapshotFingerprint != null)
+        'snapshot_fingerprint': snapshotFingerprint,
+      if (trustState != null) 'trust_state': trustState,
+      if (trustFailureReason != null)
+        'trust_failure_reason': trustFailureReason,
+      if (lastVerifiedAt != null) 'last_verified_at': lastVerifiedAt,
+      if (remoteCreatedAt != null) 'remote_created_at': remoteCreatedAt,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
+    });
+  }
+
+  SharedPackCacheCompanion copyWith({
+    Value<int>? localId,
+    Value<String>? remotePackId,
+    Value<String>? title,
+    Value<String?>? description,
+    Value<String>? iconEmoji,
+    Value<int>? remotePackVersion,
+    Value<int>? remoteSnapshotSchemaVersion,
+    Value<String>? snapshotFingerprint,
+    Value<String>? trustState,
+    Value<String?>? trustFailureReason,
+    Value<int>? lastVerifiedAt,
+    Value<int>? remoteCreatedAt,
+    Value<int>? remoteUpdatedAt,
+  }) {
+    return SharedPackCacheCompanion(
+      localId: localId ?? this.localId,
+      remotePackId: remotePackId ?? this.remotePackId,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      iconEmoji: iconEmoji ?? this.iconEmoji,
+      remotePackVersion: remotePackVersion ?? this.remotePackVersion,
+      remoteSnapshotSchemaVersion:
+          remoteSnapshotSchemaVersion ?? this.remoteSnapshotSchemaVersion,
+      snapshotFingerprint: snapshotFingerprint ?? this.snapshotFingerprint,
+      trustState: trustState ?? this.trustState,
+      trustFailureReason: trustFailureReason ?? this.trustFailureReason,
+      lastVerifiedAt: lastVerifiedAt ?? this.lastVerifiedAt,
+      remoteCreatedAt: remoteCreatedAt ?? this.remoteCreatedAt,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (localId.present) {
+      map['local_id'] = Variable<int>(localId.value);
+    }
+    if (remotePackId.present) {
+      map['remote_pack_id'] = Variable<String>(remotePackId.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (iconEmoji.present) {
+      map['icon_emoji'] = Variable<String>(iconEmoji.value);
+    }
+    if (remotePackVersion.present) {
+      map['remote_pack_version'] = Variable<int>(remotePackVersion.value);
+    }
+    if (remoteSnapshotSchemaVersion.present) {
+      map['remote_snapshot_schema_version'] = Variable<int>(
+        remoteSnapshotSchemaVersion.value,
+      );
+    }
+    if (snapshotFingerprint.present) {
+      map['snapshot_fingerprint'] = Variable<String>(snapshotFingerprint.value);
+    }
+    if (trustState.present) {
+      map['trust_state'] = Variable<String>(trustState.value);
+    }
+    if (trustFailureReason.present) {
+      map['trust_failure_reason'] = Variable<String>(trustFailureReason.value);
+    }
+    if (lastVerifiedAt.present) {
+      map['last_verified_at'] = Variable<int>(lastVerifiedAt.value);
+    }
+    if (remoteCreatedAt.present) {
+      map['remote_created_at'] = Variable<int>(remoteCreatedAt.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<int>(remoteUpdatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SharedPackCacheCompanion(')
+          ..write('localId: $localId, ')
+          ..write('remotePackId: $remotePackId, ')
+          ..write('title: $title, ')
+          ..write('description: $description, ')
+          ..write('iconEmoji: $iconEmoji, ')
+          ..write('remotePackVersion: $remotePackVersion, ')
+          ..write('remoteSnapshotSchemaVersion: $remoteSnapshotSchemaVersion, ')
+          ..write('snapshotFingerprint: $snapshotFingerprint, ')
+          ..write('trustState: $trustState, ')
+          ..write('trustFailureReason: $trustFailureReason, ')
+          ..write('lastVerifiedAt: $lastVerifiedAt, ')
+          ..write('remoteCreatedAt: $remoteCreatedAt, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SharedMembershipCacheTable extends SharedMembershipCache
+    with TableInfo<$SharedMembershipCacheTable, SharedMembershipCacheRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SharedMembershipCacheTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _localIdMeta = const VerificationMeta(
+    'localId',
+  );
+  @override
+  late final GeneratedColumn<int> localId = GeneratedColumn<int>(
+    'local_id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _remoteMemberIdMeta = const VerificationMeta(
+    'remoteMemberId',
+  );
+  @override
+  late final GeneratedColumn<String> remoteMemberId = GeneratedColumn<String>(
+    'remote_member_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _remotePackIdMeta = const VerificationMeta(
+    'remotePackId',
+  );
+  @override
+  late final GeneratedColumn<String> remotePackId = GeneratedColumn<String>(
+    'remote_pack_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _roleMeta = const VerificationMeta('role');
+  @override
+  late final GeneratedColumn<String> role = GeneratedColumn<String>(
+    'role',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _displayNameMeta = const VerificationMeta(
+    'displayName',
+  );
+  @override
+  late final GeneratedColumn<String> displayName = GeneratedColumn<String>(
+    'display_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _joinedAtMeta = const VerificationMeta(
+    'joinedAt',
+  );
+  @override
+  late final GeneratedColumn<int> joinedAt = GeneratedColumn<int>(
+    'joined_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _isCurrentMembershipMeta =
+      const VerificationMeta('isCurrentMembership');
+  @override
+  late final GeneratedColumn<bool> isCurrentMembership = GeneratedColumn<bool>(
+    'is_current_membership',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_current_membership" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    localId,
+    remoteMemberId,
+    remotePackId,
+    role,
+    displayName,
+    joinedAt,
+    isCurrentMembership,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'shared_membership_cache';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SharedMembershipCacheRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('local_id')) {
+      context.handle(
+        _localIdMeta,
+        localId.isAcceptableOrUnknown(data['local_id']!, _localIdMeta),
+      );
+    }
+    if (data.containsKey('remote_member_id')) {
+      context.handle(
+        _remoteMemberIdMeta,
+        remoteMemberId.isAcceptableOrUnknown(
+          data['remote_member_id']!,
+          _remoteMemberIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_remoteMemberIdMeta);
+    }
+    if (data.containsKey('remote_pack_id')) {
+      context.handle(
+        _remotePackIdMeta,
+        remotePackId.isAcceptableOrUnknown(
+          data['remote_pack_id']!,
+          _remotePackIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_remotePackIdMeta);
+    }
+    if (data.containsKey('role')) {
+      context.handle(
+        _roleMeta,
+        role.isAcceptableOrUnknown(data['role']!, _roleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_roleMeta);
+    }
+    if (data.containsKey('display_name')) {
+      context.handle(
+        _displayNameMeta,
+        displayName.isAcceptableOrUnknown(
+          data['display_name']!,
+          _displayNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_displayNameMeta);
+    }
+    if (data.containsKey('joined_at')) {
+      context.handle(
+        _joinedAtMeta,
+        joinedAt.isAcceptableOrUnknown(data['joined_at']!, _joinedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_joinedAtMeta);
+    }
+    if (data.containsKey('is_current_membership')) {
+      context.handle(
+        _isCurrentMembershipMeta,
+        isCurrentMembership.isAcceptableOrUnknown(
+          data['is_current_membership']!,
+          _isCurrentMembershipMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {localId};
+  @override
+  SharedMembershipCacheRow map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SharedMembershipCacheRow(
+      localId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}local_id'],
+      )!,
+      remoteMemberId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_member_id'],
+      )!,
+      remotePackId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_pack_id'],
+      )!,
+      role: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}role'],
+      )!,
+      displayName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}display_name'],
+      )!,
+      joinedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}joined_at'],
+      )!,
+      isCurrentMembership: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_current_membership'],
+      )!,
+    );
+  }
+
+  @override
+  $SharedMembershipCacheTable createAlias(String alias) {
+    return $SharedMembershipCacheTable(attachedDatabase, alias);
+  }
+}
+
+class SharedMembershipCacheRow extends DataClass
+    implements Insertable<SharedMembershipCacheRow> {
+  final int localId;
+  final String remoteMemberId;
+  final String remotePackId;
+  final String role;
+  final String displayName;
+  final int joinedAt;
+  final bool isCurrentMembership;
+  const SharedMembershipCacheRow({
+    required this.localId,
+    required this.remoteMemberId,
+    required this.remotePackId,
+    required this.role,
+    required this.displayName,
+    required this.joinedAt,
+    required this.isCurrentMembership,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['local_id'] = Variable<int>(localId);
+    map['remote_member_id'] = Variable<String>(remoteMemberId);
+    map['remote_pack_id'] = Variable<String>(remotePackId);
+    map['role'] = Variable<String>(role);
+    map['display_name'] = Variable<String>(displayName);
+    map['joined_at'] = Variable<int>(joinedAt);
+    map['is_current_membership'] = Variable<bool>(isCurrentMembership);
+    return map;
+  }
+
+  SharedMembershipCacheCompanion toCompanion(bool nullToAbsent) {
+    return SharedMembershipCacheCompanion(
+      localId: Value(localId),
+      remoteMemberId: Value(remoteMemberId),
+      remotePackId: Value(remotePackId),
+      role: Value(role),
+      displayName: Value(displayName),
+      joinedAt: Value(joinedAt),
+      isCurrentMembership: Value(isCurrentMembership),
+    );
+  }
+
+  factory SharedMembershipCacheRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SharedMembershipCacheRow(
+      localId: serializer.fromJson<int>(json['localId']),
+      remoteMemberId: serializer.fromJson<String>(json['remoteMemberId']),
+      remotePackId: serializer.fromJson<String>(json['remotePackId']),
+      role: serializer.fromJson<String>(json['role']),
+      displayName: serializer.fromJson<String>(json['displayName']),
+      joinedAt: serializer.fromJson<int>(json['joinedAt']),
+      isCurrentMembership: serializer.fromJson<bool>(
+        json['isCurrentMembership'],
+      ),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'localId': serializer.toJson<int>(localId),
+      'remoteMemberId': serializer.toJson<String>(remoteMemberId),
+      'remotePackId': serializer.toJson<String>(remotePackId),
+      'role': serializer.toJson<String>(role),
+      'displayName': serializer.toJson<String>(displayName),
+      'joinedAt': serializer.toJson<int>(joinedAt),
+      'isCurrentMembership': serializer.toJson<bool>(isCurrentMembership),
+    };
+  }
+
+  SharedMembershipCacheRow copyWith({
+    int? localId,
+    String? remoteMemberId,
+    String? remotePackId,
+    String? role,
+    String? displayName,
+    int? joinedAt,
+    bool? isCurrentMembership,
+  }) => SharedMembershipCacheRow(
+    localId: localId ?? this.localId,
+    remoteMemberId: remoteMemberId ?? this.remoteMemberId,
+    remotePackId: remotePackId ?? this.remotePackId,
+    role: role ?? this.role,
+    displayName: displayName ?? this.displayName,
+    joinedAt: joinedAt ?? this.joinedAt,
+    isCurrentMembership: isCurrentMembership ?? this.isCurrentMembership,
+  );
+  SharedMembershipCacheRow copyWithCompanion(
+    SharedMembershipCacheCompanion data,
+  ) {
+    return SharedMembershipCacheRow(
+      localId: data.localId.present ? data.localId.value : this.localId,
+      remoteMemberId: data.remoteMemberId.present
+          ? data.remoteMemberId.value
+          : this.remoteMemberId,
+      remotePackId: data.remotePackId.present
+          ? data.remotePackId.value
+          : this.remotePackId,
+      role: data.role.present ? data.role.value : this.role,
+      displayName: data.displayName.present
+          ? data.displayName.value
+          : this.displayName,
+      joinedAt: data.joinedAt.present ? data.joinedAt.value : this.joinedAt,
+      isCurrentMembership: data.isCurrentMembership.present
+          ? data.isCurrentMembership.value
+          : this.isCurrentMembership,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SharedMembershipCacheRow(')
+          ..write('localId: $localId, ')
+          ..write('remoteMemberId: $remoteMemberId, ')
+          ..write('remotePackId: $remotePackId, ')
+          ..write('role: $role, ')
+          ..write('displayName: $displayName, ')
+          ..write('joinedAt: $joinedAt, ')
+          ..write('isCurrentMembership: $isCurrentMembership')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    localId,
+    remoteMemberId,
+    remotePackId,
+    role,
+    displayName,
+    joinedAt,
+    isCurrentMembership,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SharedMembershipCacheRow &&
+          other.localId == this.localId &&
+          other.remoteMemberId == this.remoteMemberId &&
+          other.remotePackId == this.remotePackId &&
+          other.role == this.role &&
+          other.displayName == this.displayName &&
+          other.joinedAt == this.joinedAt &&
+          other.isCurrentMembership == this.isCurrentMembership);
+}
+
+class SharedMembershipCacheCompanion
+    extends UpdateCompanion<SharedMembershipCacheRow> {
+  final Value<int> localId;
+  final Value<String> remoteMemberId;
+  final Value<String> remotePackId;
+  final Value<String> role;
+  final Value<String> displayName;
+  final Value<int> joinedAt;
+  final Value<bool> isCurrentMembership;
+  const SharedMembershipCacheCompanion({
+    this.localId = const Value.absent(),
+    this.remoteMemberId = const Value.absent(),
+    this.remotePackId = const Value.absent(),
+    this.role = const Value.absent(),
+    this.displayName = const Value.absent(),
+    this.joinedAt = const Value.absent(),
+    this.isCurrentMembership = const Value.absent(),
+  });
+  SharedMembershipCacheCompanion.insert({
+    this.localId = const Value.absent(),
+    required String remoteMemberId,
+    required String remotePackId,
+    required String role,
+    required String displayName,
+    required int joinedAt,
+    this.isCurrentMembership = const Value.absent(),
+  }) : remoteMemberId = Value(remoteMemberId),
+       remotePackId = Value(remotePackId),
+       role = Value(role),
+       displayName = Value(displayName),
+       joinedAt = Value(joinedAt);
+  static Insertable<SharedMembershipCacheRow> custom({
+    Expression<int>? localId,
+    Expression<String>? remoteMemberId,
+    Expression<String>? remotePackId,
+    Expression<String>? role,
+    Expression<String>? displayName,
+    Expression<int>? joinedAt,
+    Expression<bool>? isCurrentMembership,
+  }) {
+    return RawValuesInsertable({
+      if (localId != null) 'local_id': localId,
+      if (remoteMemberId != null) 'remote_member_id': remoteMemberId,
+      if (remotePackId != null) 'remote_pack_id': remotePackId,
+      if (role != null) 'role': role,
+      if (displayName != null) 'display_name': displayName,
+      if (joinedAt != null) 'joined_at': joinedAt,
+      if (isCurrentMembership != null)
+        'is_current_membership': isCurrentMembership,
+    });
+  }
+
+  SharedMembershipCacheCompanion copyWith({
+    Value<int>? localId,
+    Value<String>? remoteMemberId,
+    Value<String>? remotePackId,
+    Value<String>? role,
+    Value<String>? displayName,
+    Value<int>? joinedAt,
+    Value<bool>? isCurrentMembership,
+  }) {
+    return SharedMembershipCacheCompanion(
+      localId: localId ?? this.localId,
+      remoteMemberId: remoteMemberId ?? this.remoteMemberId,
+      remotePackId: remotePackId ?? this.remotePackId,
+      role: role ?? this.role,
+      displayName: displayName ?? this.displayName,
+      joinedAt: joinedAt ?? this.joinedAt,
+      isCurrentMembership: isCurrentMembership ?? this.isCurrentMembership,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (localId.present) {
+      map['local_id'] = Variable<int>(localId.value);
+    }
+    if (remoteMemberId.present) {
+      map['remote_member_id'] = Variable<String>(remoteMemberId.value);
+    }
+    if (remotePackId.present) {
+      map['remote_pack_id'] = Variable<String>(remotePackId.value);
+    }
+    if (role.present) {
+      map['role'] = Variable<String>(role.value);
+    }
+    if (displayName.present) {
+      map['display_name'] = Variable<String>(displayName.value);
+    }
+    if (joinedAt.present) {
+      map['joined_at'] = Variable<int>(joinedAt.value);
+    }
+    if (isCurrentMembership.present) {
+      map['is_current_membership'] = Variable<bool>(isCurrentMembership.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SharedMembershipCacheCompanion(')
+          ..write('localId: $localId, ')
+          ..write('remoteMemberId: $remoteMemberId, ')
+          ..write('remotePackId: $remotePackId, ')
+          ..write('role: $role, ')
+          ..write('displayName: $displayName, ')
+          ..write('joinedAt: $joinedAt, ')
+          ..write('isCurrentMembership: $isCurrentMembership')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SharedItemCacheTable extends SharedItemCache
+    with TableInfo<$SharedItemCacheTable, SharedItemCacheRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SharedItemCacheTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _localIdMeta = const VerificationMeta(
+    'localId',
+  );
+  @override
+  late final GeneratedColumn<int> localId = GeneratedColumn<int>(
+    'local_id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _remoteItemIdMeta = const VerificationMeta(
+    'remoteItemId',
+  );
+  @override
+  late final GeneratedColumn<String> remoteItemId = GeneratedColumn<String>(
+    'remote_item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _remotePackIdMeta = const VerificationMeta(
+    'remotePackId',
+  );
+  @override
+  late final GeneratedColumn<String> remotePackId = GeneratedColumn<String>(
+    'remote_pack_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('stateBased'),
+  );
+  static const VerificationMeta _lifecycleStatusMeta = const VerificationMeta(
+    'lifecycleStatus',
+  );
+  @override
+  late final GeneratedColumn<String> lifecycleStatus = GeneratedColumn<String>(
+    'lifecycle_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('active'),
+  );
+  static const VerificationMeta _stateAnchorDateMeta = const VerificationMeta(
+    'stateAnchorDate',
+  );
+  @override
+  late final GeneratedColumn<int> stateAnchorDate = GeneratedColumn<int>(
+    'state_anchor_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _infoAfterMinutesMeta = const VerificationMeta(
+    'infoAfterMinutes',
+  );
+  @override
+  late final GeneratedColumn<int> infoAfterMinutes = GeneratedColumn<int>(
+    'info_after_minutes',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _warningAfterMinutesMeta =
+      const VerificationMeta('warningAfterMinutes');
+  @override
+  late final GeneratedColumn<int> warningAfterMinutes = GeneratedColumn<int>(
+    'warning_after_minutes',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dangerAfterMinutesMeta =
+      const VerificationMeta('dangerAfterMinutes');
+  @override
+  late final GeneratedColumn<int> dangerAfterMinutes = GeneratedColumn<int>(
+    'danger_after_minutes',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _completedAtMeta = const VerificationMeta(
+    'completedAt',
+  );
+  @override
+  late final GeneratedColumn<int> completedAt = GeneratedColumn<int>(
+    'completed_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _completedByMemberIdMeta =
+      const VerificationMeta('completedByMemberId');
+  @override
+  late final GeneratedColumn<String> completedByMemberId =
+      GeneratedColumn<String>(
+        'completed_by_member_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _remoteItemVersionMeta = const VerificationMeta(
+    'remoteItemVersion',
+  );
+  @override
+  late final GeneratedColumn<int> remoteItemVersion = GeneratedColumn<int>(
+    'remote_item_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _remoteCreatedAtMeta = const VerificationMeta(
+    'remoteCreatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> remoteCreatedAt = GeneratedColumn<int>(
+    'remote_created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> remoteUpdatedAt = GeneratedColumn<int>(
+    'remote_updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    localId,
+    remoteItemId,
+    remotePackId,
+    title,
+    description,
+    type,
+    lifecycleStatus,
+    stateAnchorDate,
+    infoAfterMinutes,
+    warningAfterMinutes,
+    dangerAfterMinutes,
+    completedAt,
+    completedByMemberId,
+    remoteItemVersion,
+    remoteCreatedAt,
+    remoteUpdatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'shared_item_cache';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SharedItemCacheRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('local_id')) {
+      context.handle(
+        _localIdMeta,
+        localId.isAcceptableOrUnknown(data['local_id']!, _localIdMeta),
+      );
+    }
+    if (data.containsKey('remote_item_id')) {
+      context.handle(
+        _remoteItemIdMeta,
+        remoteItemId.isAcceptableOrUnknown(
+          data['remote_item_id']!,
+          _remoteItemIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_remoteItemIdMeta);
+    }
+    if (data.containsKey('remote_pack_id')) {
+      context.handle(
+        _remotePackIdMeta,
+        remotePackId.isAcceptableOrUnknown(
+          data['remote_pack_id']!,
+          _remotePackIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_remotePackIdMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    }
+    if (data.containsKey('lifecycle_status')) {
+      context.handle(
+        _lifecycleStatusMeta,
+        lifecycleStatus.isAcceptableOrUnknown(
+          data['lifecycle_status']!,
+          _lifecycleStatusMeta,
+        ),
+      );
+    }
+    if (data.containsKey('state_anchor_date')) {
+      context.handle(
+        _stateAnchorDateMeta,
+        stateAnchorDate.isAcceptableOrUnknown(
+          data['state_anchor_date']!,
+          _stateAnchorDateMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_stateAnchorDateMeta);
+    }
+    if (data.containsKey('info_after_minutes')) {
+      context.handle(
+        _infoAfterMinutesMeta,
+        infoAfterMinutes.isAcceptableOrUnknown(
+          data['info_after_minutes']!,
+          _infoAfterMinutesMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_infoAfterMinutesMeta);
+    }
+    if (data.containsKey('warning_after_minutes')) {
+      context.handle(
+        _warningAfterMinutesMeta,
+        warningAfterMinutes.isAcceptableOrUnknown(
+          data['warning_after_minutes']!,
+          _warningAfterMinutesMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_warningAfterMinutesMeta);
+    }
+    if (data.containsKey('danger_after_minutes')) {
+      context.handle(
+        _dangerAfterMinutesMeta,
+        dangerAfterMinutes.isAcceptableOrUnknown(
+          data['danger_after_minutes']!,
+          _dangerAfterMinutesMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_dangerAfterMinutesMeta);
+    }
+    if (data.containsKey('completed_at')) {
+      context.handle(
+        _completedAtMeta,
+        completedAt.isAcceptableOrUnknown(
+          data['completed_at']!,
+          _completedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('completed_by_member_id')) {
+      context.handle(
+        _completedByMemberIdMeta,
+        completedByMemberId.isAcceptableOrUnknown(
+          data['completed_by_member_id']!,
+          _completedByMemberIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('remote_item_version')) {
+      context.handle(
+        _remoteItemVersionMeta,
+        remoteItemVersion.isAcceptableOrUnknown(
+          data['remote_item_version']!,
+          _remoteItemVersionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_remoteItemVersionMeta);
+    }
+    if (data.containsKey('remote_created_at')) {
+      context.handle(
+        _remoteCreatedAtMeta,
+        remoteCreatedAt.isAcceptableOrUnknown(
+          data['remote_created_at']!,
+          _remoteCreatedAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_remoteCreatedAtMeta);
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_remoteUpdatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {localId};
+  @override
+  SharedItemCacheRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SharedItemCacheRow(
+      localId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}local_id'],
+      )!,
+      remoteItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_item_id'],
+      )!,
+      remotePackId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_pack_id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      lifecycleStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}lifecycle_status'],
+      )!,
+      stateAnchorDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}state_anchor_date'],
+      )!,
+      infoAfterMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}info_after_minutes'],
+      )!,
+      warningAfterMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}warning_after_minutes'],
+      )!,
+      dangerAfterMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}danger_after_minutes'],
+      )!,
+      completedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}completed_at'],
+      ),
+      completedByMemberId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}completed_by_member_id'],
+      ),
+      remoteItemVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}remote_item_version'],
+      )!,
+      remoteCreatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}remote_created_at'],
+      )!,
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}remote_updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SharedItemCacheTable createAlias(String alias) {
+    return $SharedItemCacheTable(attachedDatabase, alias);
+  }
+}
+
+class SharedItemCacheRow extends DataClass
+    implements Insertable<SharedItemCacheRow> {
+  final int localId;
+  final String remoteItemId;
+  final String remotePackId;
+  final String title;
+  final String? description;
+  final String type;
+  final String lifecycleStatus;
+  final int stateAnchorDate;
+  final int infoAfterMinutes;
+  final int warningAfterMinutes;
+  final int dangerAfterMinutes;
+  final int? completedAt;
+  final String? completedByMemberId;
+  final int remoteItemVersion;
+  final int remoteCreatedAt;
+  final int remoteUpdatedAt;
+  const SharedItemCacheRow({
+    required this.localId,
+    required this.remoteItemId,
+    required this.remotePackId,
+    required this.title,
+    this.description,
+    required this.type,
+    required this.lifecycleStatus,
+    required this.stateAnchorDate,
+    required this.infoAfterMinutes,
+    required this.warningAfterMinutes,
+    required this.dangerAfterMinutes,
+    this.completedAt,
+    this.completedByMemberId,
+    required this.remoteItemVersion,
+    required this.remoteCreatedAt,
+    required this.remoteUpdatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['local_id'] = Variable<int>(localId);
+    map['remote_item_id'] = Variable<String>(remoteItemId);
+    map['remote_pack_id'] = Variable<String>(remotePackId);
+    map['title'] = Variable<String>(title);
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    map['type'] = Variable<String>(type);
+    map['lifecycle_status'] = Variable<String>(lifecycleStatus);
+    map['state_anchor_date'] = Variable<int>(stateAnchorDate);
+    map['info_after_minutes'] = Variable<int>(infoAfterMinutes);
+    map['warning_after_minutes'] = Variable<int>(warningAfterMinutes);
+    map['danger_after_minutes'] = Variable<int>(dangerAfterMinutes);
+    if (!nullToAbsent || completedAt != null) {
+      map['completed_at'] = Variable<int>(completedAt);
+    }
+    if (!nullToAbsent || completedByMemberId != null) {
+      map['completed_by_member_id'] = Variable<String>(completedByMemberId);
+    }
+    map['remote_item_version'] = Variable<int>(remoteItemVersion);
+    map['remote_created_at'] = Variable<int>(remoteCreatedAt);
+    map['remote_updated_at'] = Variable<int>(remoteUpdatedAt);
+    return map;
+  }
+
+  SharedItemCacheCompanion toCompanion(bool nullToAbsent) {
+    return SharedItemCacheCompanion(
+      localId: Value(localId),
+      remoteItemId: Value(remoteItemId),
+      remotePackId: Value(remotePackId),
+      title: Value(title),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
+      type: Value(type),
+      lifecycleStatus: Value(lifecycleStatus),
+      stateAnchorDate: Value(stateAnchorDate),
+      infoAfterMinutes: Value(infoAfterMinutes),
+      warningAfterMinutes: Value(warningAfterMinutes),
+      dangerAfterMinutes: Value(dangerAfterMinutes),
+      completedAt: completedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completedAt),
+      completedByMemberId: completedByMemberId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completedByMemberId),
+      remoteItemVersion: Value(remoteItemVersion),
+      remoteCreatedAt: Value(remoteCreatedAt),
+      remoteUpdatedAt: Value(remoteUpdatedAt),
+    );
+  }
+
+  factory SharedItemCacheRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SharedItemCacheRow(
+      localId: serializer.fromJson<int>(json['localId']),
+      remoteItemId: serializer.fromJson<String>(json['remoteItemId']),
+      remotePackId: serializer.fromJson<String>(json['remotePackId']),
+      title: serializer.fromJson<String>(json['title']),
+      description: serializer.fromJson<String?>(json['description']),
+      type: serializer.fromJson<String>(json['type']),
+      lifecycleStatus: serializer.fromJson<String>(json['lifecycleStatus']),
+      stateAnchorDate: serializer.fromJson<int>(json['stateAnchorDate']),
+      infoAfterMinutes: serializer.fromJson<int>(json['infoAfterMinutes']),
+      warningAfterMinutes: serializer.fromJson<int>(
+        json['warningAfterMinutes'],
+      ),
+      dangerAfterMinutes: serializer.fromJson<int>(json['dangerAfterMinutes']),
+      completedAt: serializer.fromJson<int?>(json['completedAt']),
+      completedByMemberId: serializer.fromJson<String?>(
+        json['completedByMemberId'],
+      ),
+      remoteItemVersion: serializer.fromJson<int>(json['remoteItemVersion']),
+      remoteCreatedAt: serializer.fromJson<int>(json['remoteCreatedAt']),
+      remoteUpdatedAt: serializer.fromJson<int>(json['remoteUpdatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'localId': serializer.toJson<int>(localId),
+      'remoteItemId': serializer.toJson<String>(remoteItemId),
+      'remotePackId': serializer.toJson<String>(remotePackId),
+      'title': serializer.toJson<String>(title),
+      'description': serializer.toJson<String?>(description),
+      'type': serializer.toJson<String>(type),
+      'lifecycleStatus': serializer.toJson<String>(lifecycleStatus),
+      'stateAnchorDate': serializer.toJson<int>(stateAnchorDate),
+      'infoAfterMinutes': serializer.toJson<int>(infoAfterMinutes),
+      'warningAfterMinutes': serializer.toJson<int>(warningAfterMinutes),
+      'dangerAfterMinutes': serializer.toJson<int>(dangerAfterMinutes),
+      'completedAt': serializer.toJson<int?>(completedAt),
+      'completedByMemberId': serializer.toJson<String?>(completedByMemberId),
+      'remoteItemVersion': serializer.toJson<int>(remoteItemVersion),
+      'remoteCreatedAt': serializer.toJson<int>(remoteCreatedAt),
+      'remoteUpdatedAt': serializer.toJson<int>(remoteUpdatedAt),
+    };
+  }
+
+  SharedItemCacheRow copyWith({
+    int? localId,
+    String? remoteItemId,
+    String? remotePackId,
+    String? title,
+    Value<String?> description = const Value.absent(),
+    String? type,
+    String? lifecycleStatus,
+    int? stateAnchorDate,
+    int? infoAfterMinutes,
+    int? warningAfterMinutes,
+    int? dangerAfterMinutes,
+    Value<int?> completedAt = const Value.absent(),
+    Value<String?> completedByMemberId = const Value.absent(),
+    int? remoteItemVersion,
+    int? remoteCreatedAt,
+    int? remoteUpdatedAt,
+  }) => SharedItemCacheRow(
+    localId: localId ?? this.localId,
+    remoteItemId: remoteItemId ?? this.remoteItemId,
+    remotePackId: remotePackId ?? this.remotePackId,
+    title: title ?? this.title,
+    description: description.present ? description.value : this.description,
+    type: type ?? this.type,
+    lifecycleStatus: lifecycleStatus ?? this.lifecycleStatus,
+    stateAnchorDate: stateAnchorDate ?? this.stateAnchorDate,
+    infoAfterMinutes: infoAfterMinutes ?? this.infoAfterMinutes,
+    warningAfterMinutes: warningAfterMinutes ?? this.warningAfterMinutes,
+    dangerAfterMinutes: dangerAfterMinutes ?? this.dangerAfterMinutes,
+    completedAt: completedAt.present ? completedAt.value : this.completedAt,
+    completedByMemberId: completedByMemberId.present
+        ? completedByMemberId.value
+        : this.completedByMemberId,
+    remoteItemVersion: remoteItemVersion ?? this.remoteItemVersion,
+    remoteCreatedAt: remoteCreatedAt ?? this.remoteCreatedAt,
+    remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
+  );
+  SharedItemCacheRow copyWithCompanion(SharedItemCacheCompanion data) {
+    return SharedItemCacheRow(
+      localId: data.localId.present ? data.localId.value : this.localId,
+      remoteItemId: data.remoteItemId.present
+          ? data.remoteItemId.value
+          : this.remoteItemId,
+      remotePackId: data.remotePackId.present
+          ? data.remotePackId.value
+          : this.remotePackId,
+      title: data.title.present ? data.title.value : this.title,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      type: data.type.present ? data.type.value : this.type,
+      lifecycleStatus: data.lifecycleStatus.present
+          ? data.lifecycleStatus.value
+          : this.lifecycleStatus,
+      stateAnchorDate: data.stateAnchorDate.present
+          ? data.stateAnchorDate.value
+          : this.stateAnchorDate,
+      infoAfterMinutes: data.infoAfterMinutes.present
+          ? data.infoAfterMinutes.value
+          : this.infoAfterMinutes,
+      warningAfterMinutes: data.warningAfterMinutes.present
+          ? data.warningAfterMinutes.value
+          : this.warningAfterMinutes,
+      dangerAfterMinutes: data.dangerAfterMinutes.present
+          ? data.dangerAfterMinutes.value
+          : this.dangerAfterMinutes,
+      completedAt: data.completedAt.present
+          ? data.completedAt.value
+          : this.completedAt,
+      completedByMemberId: data.completedByMemberId.present
+          ? data.completedByMemberId.value
+          : this.completedByMemberId,
+      remoteItemVersion: data.remoteItemVersion.present
+          ? data.remoteItemVersion.value
+          : this.remoteItemVersion,
+      remoteCreatedAt: data.remoteCreatedAt.present
+          ? data.remoteCreatedAt.value
+          : this.remoteCreatedAt,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SharedItemCacheRow(')
+          ..write('localId: $localId, ')
+          ..write('remoteItemId: $remoteItemId, ')
+          ..write('remotePackId: $remotePackId, ')
+          ..write('title: $title, ')
+          ..write('description: $description, ')
+          ..write('type: $type, ')
+          ..write('lifecycleStatus: $lifecycleStatus, ')
+          ..write('stateAnchorDate: $stateAnchorDate, ')
+          ..write('infoAfterMinutes: $infoAfterMinutes, ')
+          ..write('warningAfterMinutes: $warningAfterMinutes, ')
+          ..write('dangerAfterMinutes: $dangerAfterMinutes, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('completedByMemberId: $completedByMemberId, ')
+          ..write('remoteItemVersion: $remoteItemVersion, ')
+          ..write('remoteCreatedAt: $remoteCreatedAt, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    localId,
+    remoteItemId,
+    remotePackId,
+    title,
+    description,
+    type,
+    lifecycleStatus,
+    stateAnchorDate,
+    infoAfterMinutes,
+    warningAfterMinutes,
+    dangerAfterMinutes,
+    completedAt,
+    completedByMemberId,
+    remoteItemVersion,
+    remoteCreatedAt,
+    remoteUpdatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SharedItemCacheRow &&
+          other.localId == this.localId &&
+          other.remoteItemId == this.remoteItemId &&
+          other.remotePackId == this.remotePackId &&
+          other.title == this.title &&
+          other.description == this.description &&
+          other.type == this.type &&
+          other.lifecycleStatus == this.lifecycleStatus &&
+          other.stateAnchorDate == this.stateAnchorDate &&
+          other.infoAfterMinutes == this.infoAfterMinutes &&
+          other.warningAfterMinutes == this.warningAfterMinutes &&
+          other.dangerAfterMinutes == this.dangerAfterMinutes &&
+          other.completedAt == this.completedAt &&
+          other.completedByMemberId == this.completedByMemberId &&
+          other.remoteItemVersion == this.remoteItemVersion &&
+          other.remoteCreatedAt == this.remoteCreatedAt &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt);
+}
+
+class SharedItemCacheCompanion extends UpdateCompanion<SharedItemCacheRow> {
+  final Value<int> localId;
+  final Value<String> remoteItemId;
+  final Value<String> remotePackId;
+  final Value<String> title;
+  final Value<String?> description;
+  final Value<String> type;
+  final Value<String> lifecycleStatus;
+  final Value<int> stateAnchorDate;
+  final Value<int> infoAfterMinutes;
+  final Value<int> warningAfterMinutes;
+  final Value<int> dangerAfterMinutes;
+  final Value<int?> completedAt;
+  final Value<String?> completedByMemberId;
+  final Value<int> remoteItemVersion;
+  final Value<int> remoteCreatedAt;
+  final Value<int> remoteUpdatedAt;
+  const SharedItemCacheCompanion({
+    this.localId = const Value.absent(),
+    this.remoteItemId = const Value.absent(),
+    this.remotePackId = const Value.absent(),
+    this.title = const Value.absent(),
+    this.description = const Value.absent(),
+    this.type = const Value.absent(),
+    this.lifecycleStatus = const Value.absent(),
+    this.stateAnchorDate = const Value.absent(),
+    this.infoAfterMinutes = const Value.absent(),
+    this.warningAfterMinutes = const Value.absent(),
+    this.dangerAfterMinutes = const Value.absent(),
+    this.completedAt = const Value.absent(),
+    this.completedByMemberId = const Value.absent(),
+    this.remoteItemVersion = const Value.absent(),
+    this.remoteCreatedAt = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+  });
+  SharedItemCacheCompanion.insert({
+    this.localId = const Value.absent(),
+    required String remoteItemId,
+    required String remotePackId,
+    required String title,
+    this.description = const Value.absent(),
+    this.type = const Value.absent(),
+    this.lifecycleStatus = const Value.absent(),
+    required int stateAnchorDate,
+    required int infoAfterMinutes,
+    required int warningAfterMinutes,
+    required int dangerAfterMinutes,
+    this.completedAt = const Value.absent(),
+    this.completedByMemberId = const Value.absent(),
+    required int remoteItemVersion,
+    required int remoteCreatedAt,
+    required int remoteUpdatedAt,
+  }) : remoteItemId = Value(remoteItemId),
+       remotePackId = Value(remotePackId),
+       title = Value(title),
+       stateAnchorDate = Value(stateAnchorDate),
+       infoAfterMinutes = Value(infoAfterMinutes),
+       warningAfterMinutes = Value(warningAfterMinutes),
+       dangerAfterMinutes = Value(dangerAfterMinutes),
+       remoteItemVersion = Value(remoteItemVersion),
+       remoteCreatedAt = Value(remoteCreatedAt),
+       remoteUpdatedAt = Value(remoteUpdatedAt);
+  static Insertable<SharedItemCacheRow> custom({
+    Expression<int>? localId,
+    Expression<String>? remoteItemId,
+    Expression<String>? remotePackId,
+    Expression<String>? title,
+    Expression<String>? description,
+    Expression<String>? type,
+    Expression<String>? lifecycleStatus,
+    Expression<int>? stateAnchorDate,
+    Expression<int>? infoAfterMinutes,
+    Expression<int>? warningAfterMinutes,
+    Expression<int>? dangerAfterMinutes,
+    Expression<int>? completedAt,
+    Expression<String>? completedByMemberId,
+    Expression<int>? remoteItemVersion,
+    Expression<int>? remoteCreatedAt,
+    Expression<int>? remoteUpdatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (localId != null) 'local_id': localId,
+      if (remoteItemId != null) 'remote_item_id': remoteItemId,
+      if (remotePackId != null) 'remote_pack_id': remotePackId,
+      if (title != null) 'title': title,
+      if (description != null) 'description': description,
+      if (type != null) 'type': type,
+      if (lifecycleStatus != null) 'lifecycle_status': lifecycleStatus,
+      if (stateAnchorDate != null) 'state_anchor_date': stateAnchorDate,
+      if (infoAfterMinutes != null) 'info_after_minutes': infoAfterMinutes,
+      if (warningAfterMinutes != null)
+        'warning_after_minutes': warningAfterMinutes,
+      if (dangerAfterMinutes != null)
+        'danger_after_minutes': dangerAfterMinutes,
+      if (completedAt != null) 'completed_at': completedAt,
+      if (completedByMemberId != null)
+        'completed_by_member_id': completedByMemberId,
+      if (remoteItemVersion != null) 'remote_item_version': remoteItemVersion,
+      if (remoteCreatedAt != null) 'remote_created_at': remoteCreatedAt,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
+    });
+  }
+
+  SharedItemCacheCompanion copyWith({
+    Value<int>? localId,
+    Value<String>? remoteItemId,
+    Value<String>? remotePackId,
+    Value<String>? title,
+    Value<String?>? description,
+    Value<String>? type,
+    Value<String>? lifecycleStatus,
+    Value<int>? stateAnchorDate,
+    Value<int>? infoAfterMinutes,
+    Value<int>? warningAfterMinutes,
+    Value<int>? dangerAfterMinutes,
+    Value<int?>? completedAt,
+    Value<String?>? completedByMemberId,
+    Value<int>? remoteItemVersion,
+    Value<int>? remoteCreatedAt,
+    Value<int>? remoteUpdatedAt,
+  }) {
+    return SharedItemCacheCompanion(
+      localId: localId ?? this.localId,
+      remoteItemId: remoteItemId ?? this.remoteItemId,
+      remotePackId: remotePackId ?? this.remotePackId,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      type: type ?? this.type,
+      lifecycleStatus: lifecycleStatus ?? this.lifecycleStatus,
+      stateAnchorDate: stateAnchorDate ?? this.stateAnchorDate,
+      infoAfterMinutes: infoAfterMinutes ?? this.infoAfterMinutes,
+      warningAfterMinutes: warningAfterMinutes ?? this.warningAfterMinutes,
+      dangerAfterMinutes: dangerAfterMinutes ?? this.dangerAfterMinutes,
+      completedAt: completedAt ?? this.completedAt,
+      completedByMemberId: completedByMemberId ?? this.completedByMemberId,
+      remoteItemVersion: remoteItemVersion ?? this.remoteItemVersion,
+      remoteCreatedAt: remoteCreatedAt ?? this.remoteCreatedAt,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (localId.present) {
+      map['local_id'] = Variable<int>(localId.value);
+    }
+    if (remoteItemId.present) {
+      map['remote_item_id'] = Variable<String>(remoteItemId.value);
+    }
+    if (remotePackId.present) {
+      map['remote_pack_id'] = Variable<String>(remotePackId.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (lifecycleStatus.present) {
+      map['lifecycle_status'] = Variable<String>(lifecycleStatus.value);
+    }
+    if (stateAnchorDate.present) {
+      map['state_anchor_date'] = Variable<int>(stateAnchorDate.value);
+    }
+    if (infoAfterMinutes.present) {
+      map['info_after_minutes'] = Variable<int>(infoAfterMinutes.value);
+    }
+    if (warningAfterMinutes.present) {
+      map['warning_after_minutes'] = Variable<int>(warningAfterMinutes.value);
+    }
+    if (dangerAfterMinutes.present) {
+      map['danger_after_minutes'] = Variable<int>(dangerAfterMinutes.value);
+    }
+    if (completedAt.present) {
+      map['completed_at'] = Variable<int>(completedAt.value);
+    }
+    if (completedByMemberId.present) {
+      map['completed_by_member_id'] = Variable<String>(
+        completedByMemberId.value,
+      );
+    }
+    if (remoteItemVersion.present) {
+      map['remote_item_version'] = Variable<int>(remoteItemVersion.value);
+    }
+    if (remoteCreatedAt.present) {
+      map['remote_created_at'] = Variable<int>(remoteCreatedAt.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<int>(remoteUpdatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SharedItemCacheCompanion(')
+          ..write('localId: $localId, ')
+          ..write('remoteItemId: $remoteItemId, ')
+          ..write('remotePackId: $remotePackId, ')
+          ..write('title: $title, ')
+          ..write('description: $description, ')
+          ..write('type: $type, ')
+          ..write('lifecycleStatus: $lifecycleStatus, ')
+          ..write('stateAnchorDate: $stateAnchorDate, ')
+          ..write('infoAfterMinutes: $infoAfterMinutes, ')
+          ..write('warningAfterMinutes: $warningAfterMinutes, ')
+          ..write('dangerAfterMinutes: $dangerAfterMinutes, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('completedByMemberId: $completedByMemberId, ')
+          ..write('remoteItemVersion: $remoteItemVersion, ')
+          ..write('remoteCreatedAt: $remoteCreatedAt, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SharedPendingMutationTable extends SharedPendingMutation
+    with TableInfo<$SharedPendingMutationTable, SharedPendingMutationRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SharedPendingMutationTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _localIdMeta = const VerificationMeta(
+    'localId',
+  );
+  @override
+  late final GeneratedColumn<int> localId = GeneratedColumn<int>(
+    'local_id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _operationNameMeta = const VerificationMeta(
+    'operationName',
+  );
+  @override
+  late final GeneratedColumn<String> operationName = GeneratedColumn<String>(
+    'operation_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _clientRequestIdMeta = const VerificationMeta(
+    'clientRequestId',
+  );
+  @override
+  late final GeneratedColumn<String> clientRequestId = GeneratedColumn<String>(
+    'client_request_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _targetRemotePackIdMeta =
+      const VerificationMeta('targetRemotePackId');
+  @override
+  late final GeneratedColumn<String> targetRemotePackId =
+      GeneratedColumn<String>(
+        'target_remote_pack_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _payloadFingerprintMeta =
+      const VerificationMeta('payloadFingerprint');
+  @override
+  late final GeneratedColumn<String> payloadFingerprint =
+      GeneratedColumn<String>(
+        'payload_fingerprint',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('awaitingResolution'),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    localId,
+    operationName,
+    clientRequestId,
+    targetRemotePackId,
+    payloadFingerprint,
+    createdAt,
+    status,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'shared_pending_mutation';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SharedPendingMutationRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('local_id')) {
+      context.handle(
+        _localIdMeta,
+        localId.isAcceptableOrUnknown(data['local_id']!, _localIdMeta),
+      );
+    }
+    if (data.containsKey('operation_name')) {
+      context.handle(
+        _operationNameMeta,
+        operationName.isAcceptableOrUnknown(
+          data['operation_name']!,
+          _operationNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_operationNameMeta);
+    }
+    if (data.containsKey('client_request_id')) {
+      context.handle(
+        _clientRequestIdMeta,
+        clientRequestId.isAcceptableOrUnknown(
+          data['client_request_id']!,
+          _clientRequestIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_clientRequestIdMeta);
+    }
+    if (data.containsKey('target_remote_pack_id')) {
+      context.handle(
+        _targetRemotePackIdMeta,
+        targetRemotePackId.isAcceptableOrUnknown(
+          data['target_remote_pack_id']!,
+          _targetRemotePackIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('payload_fingerprint')) {
+      context.handle(
+        _payloadFingerprintMeta,
+        payloadFingerprint.isAcceptableOrUnknown(
+          data['payload_fingerprint']!,
+          _payloadFingerprintMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_payloadFingerprintMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {localId};
+  @override
+  SharedPendingMutationRow map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SharedPendingMutationRow(
+      localId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}local_id'],
+      )!,
+      operationName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}operation_name'],
+      )!,
+      clientRequestId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}client_request_id'],
+      )!,
+      targetRemotePackId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}target_remote_pack_id'],
+      ),
+      payloadFingerprint: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload_fingerprint'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+    );
+  }
+
+  @override
+  $SharedPendingMutationTable createAlias(String alias) {
+    return $SharedPendingMutationTable(attachedDatabase, alias);
+  }
+}
+
+class SharedPendingMutationRow extends DataClass
+    implements Insertable<SharedPendingMutationRow> {
+  final int localId;
+  final String operationName;
+  final String clientRequestId;
+  final String? targetRemotePackId;
+  final String payloadFingerprint;
+  final int createdAt;
+  final String status;
+  const SharedPendingMutationRow({
+    required this.localId,
+    required this.operationName,
+    required this.clientRequestId,
+    this.targetRemotePackId,
+    required this.payloadFingerprint,
+    required this.createdAt,
+    required this.status,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['local_id'] = Variable<int>(localId);
+    map['operation_name'] = Variable<String>(operationName);
+    map['client_request_id'] = Variable<String>(clientRequestId);
+    if (!nullToAbsent || targetRemotePackId != null) {
+      map['target_remote_pack_id'] = Variable<String>(targetRemotePackId);
+    }
+    map['payload_fingerprint'] = Variable<String>(payloadFingerprint);
+    map['created_at'] = Variable<int>(createdAt);
+    map['status'] = Variable<String>(status);
+    return map;
+  }
+
+  SharedPendingMutationCompanion toCompanion(bool nullToAbsent) {
+    return SharedPendingMutationCompanion(
+      localId: Value(localId),
+      operationName: Value(operationName),
+      clientRequestId: Value(clientRequestId),
+      targetRemotePackId: targetRemotePackId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(targetRemotePackId),
+      payloadFingerprint: Value(payloadFingerprint),
+      createdAt: Value(createdAt),
+      status: Value(status),
+    );
+  }
+
+  factory SharedPendingMutationRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SharedPendingMutationRow(
+      localId: serializer.fromJson<int>(json['localId']),
+      operationName: serializer.fromJson<String>(json['operationName']),
+      clientRequestId: serializer.fromJson<String>(json['clientRequestId']),
+      targetRemotePackId: serializer.fromJson<String?>(
+        json['targetRemotePackId'],
+      ),
+      payloadFingerprint: serializer.fromJson<String>(
+        json['payloadFingerprint'],
+      ),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      status: serializer.fromJson<String>(json['status']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'localId': serializer.toJson<int>(localId),
+      'operationName': serializer.toJson<String>(operationName),
+      'clientRequestId': serializer.toJson<String>(clientRequestId),
+      'targetRemotePackId': serializer.toJson<String?>(targetRemotePackId),
+      'payloadFingerprint': serializer.toJson<String>(payloadFingerprint),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'status': serializer.toJson<String>(status),
+    };
+  }
+
+  SharedPendingMutationRow copyWith({
+    int? localId,
+    String? operationName,
+    String? clientRequestId,
+    Value<String?> targetRemotePackId = const Value.absent(),
+    String? payloadFingerprint,
+    int? createdAt,
+    String? status,
+  }) => SharedPendingMutationRow(
+    localId: localId ?? this.localId,
+    operationName: operationName ?? this.operationName,
+    clientRequestId: clientRequestId ?? this.clientRequestId,
+    targetRemotePackId: targetRemotePackId.present
+        ? targetRemotePackId.value
+        : this.targetRemotePackId,
+    payloadFingerprint: payloadFingerprint ?? this.payloadFingerprint,
+    createdAt: createdAt ?? this.createdAt,
+    status: status ?? this.status,
+  );
+  SharedPendingMutationRow copyWithCompanion(
+    SharedPendingMutationCompanion data,
+  ) {
+    return SharedPendingMutationRow(
+      localId: data.localId.present ? data.localId.value : this.localId,
+      operationName: data.operationName.present
+          ? data.operationName.value
+          : this.operationName,
+      clientRequestId: data.clientRequestId.present
+          ? data.clientRequestId.value
+          : this.clientRequestId,
+      targetRemotePackId: data.targetRemotePackId.present
+          ? data.targetRemotePackId.value
+          : this.targetRemotePackId,
+      payloadFingerprint: data.payloadFingerprint.present
+          ? data.payloadFingerprint.value
+          : this.payloadFingerprint,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      status: data.status.present ? data.status.value : this.status,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SharedPendingMutationRow(')
+          ..write('localId: $localId, ')
+          ..write('operationName: $operationName, ')
+          ..write('clientRequestId: $clientRequestId, ')
+          ..write('targetRemotePackId: $targetRemotePackId, ')
+          ..write('payloadFingerprint: $payloadFingerprint, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('status: $status')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    localId,
+    operationName,
+    clientRequestId,
+    targetRemotePackId,
+    payloadFingerprint,
+    createdAt,
+    status,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SharedPendingMutationRow &&
+          other.localId == this.localId &&
+          other.operationName == this.operationName &&
+          other.clientRequestId == this.clientRequestId &&
+          other.targetRemotePackId == this.targetRemotePackId &&
+          other.payloadFingerprint == this.payloadFingerprint &&
+          other.createdAt == this.createdAt &&
+          other.status == this.status);
+}
+
+class SharedPendingMutationCompanion
+    extends UpdateCompanion<SharedPendingMutationRow> {
+  final Value<int> localId;
+  final Value<String> operationName;
+  final Value<String> clientRequestId;
+  final Value<String?> targetRemotePackId;
+  final Value<String> payloadFingerprint;
+  final Value<int> createdAt;
+  final Value<String> status;
+  const SharedPendingMutationCompanion({
+    this.localId = const Value.absent(),
+    this.operationName = const Value.absent(),
+    this.clientRequestId = const Value.absent(),
+    this.targetRemotePackId = const Value.absent(),
+    this.payloadFingerprint = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.status = const Value.absent(),
+  });
+  SharedPendingMutationCompanion.insert({
+    this.localId = const Value.absent(),
+    required String operationName,
+    required String clientRequestId,
+    this.targetRemotePackId = const Value.absent(),
+    required String payloadFingerprint,
+    required int createdAt,
+    this.status = const Value.absent(),
+  }) : operationName = Value(operationName),
+       clientRequestId = Value(clientRequestId),
+       payloadFingerprint = Value(payloadFingerprint),
+       createdAt = Value(createdAt);
+  static Insertable<SharedPendingMutationRow> custom({
+    Expression<int>? localId,
+    Expression<String>? operationName,
+    Expression<String>? clientRequestId,
+    Expression<String>? targetRemotePackId,
+    Expression<String>? payloadFingerprint,
+    Expression<int>? createdAt,
+    Expression<String>? status,
+  }) {
+    return RawValuesInsertable({
+      if (localId != null) 'local_id': localId,
+      if (operationName != null) 'operation_name': operationName,
+      if (clientRequestId != null) 'client_request_id': clientRequestId,
+      if (targetRemotePackId != null)
+        'target_remote_pack_id': targetRemotePackId,
+      if (payloadFingerprint != null) 'payload_fingerprint': payloadFingerprint,
+      if (createdAt != null) 'created_at': createdAt,
+      if (status != null) 'status': status,
+    });
+  }
+
+  SharedPendingMutationCompanion copyWith({
+    Value<int>? localId,
+    Value<String>? operationName,
+    Value<String>? clientRequestId,
+    Value<String?>? targetRemotePackId,
+    Value<String>? payloadFingerprint,
+    Value<int>? createdAt,
+    Value<String>? status,
+  }) {
+    return SharedPendingMutationCompanion(
+      localId: localId ?? this.localId,
+      operationName: operationName ?? this.operationName,
+      clientRequestId: clientRequestId ?? this.clientRequestId,
+      targetRemotePackId: targetRemotePackId ?? this.targetRemotePackId,
+      payloadFingerprint: payloadFingerprint ?? this.payloadFingerprint,
+      createdAt: createdAt ?? this.createdAt,
+      status: status ?? this.status,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (localId.present) {
+      map['local_id'] = Variable<int>(localId.value);
+    }
+    if (operationName.present) {
+      map['operation_name'] = Variable<String>(operationName.value);
+    }
+    if (clientRequestId.present) {
+      map['client_request_id'] = Variable<String>(clientRequestId.value);
+    }
+    if (targetRemotePackId.present) {
+      map['target_remote_pack_id'] = Variable<String>(targetRemotePackId.value);
+    }
+    if (payloadFingerprint.present) {
+      map['payload_fingerprint'] = Variable<String>(payloadFingerprint.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SharedPendingMutationCompanion(')
+          ..write('localId: $localId, ')
+          ..write('operationName: $operationName, ')
+          ..write('clientRequestId: $clientRequestId, ')
+          ..write('targetRemotePackId: $targetRemotePackId, ')
+          ..write('payloadFingerprint: $payloadFingerprint, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('status: $status')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -9983,7 +12736,20 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $StageRelatedItemsTable(this);
   late final $AppSettingsEntriesTable appSettingsEntries =
       $AppSettingsEntriesTable(this);
+  late final $SharedPackCacheTable sharedPackCache = $SharedPackCacheTable(
+    this,
+  );
+  late final $SharedMembershipCacheTable sharedMembershipCache =
+      $SharedMembershipCacheTable(this);
+  late final $SharedItemCacheTable sharedItemCache = $SharedItemCacheTable(
+    this,
+  );
+  late final $SharedPendingMutationTable sharedPendingMutation =
+      $SharedPendingMutationTable(this);
   late final ReminderDao reminderDao = ReminderDao(this as AppDatabase);
+  late final SharedPackCacheDao sharedPackCacheDao = SharedPackCacheDao(
+    this as AppDatabase,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -10002,6 +12768,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     stageRecords,
     stageRelatedItems,
     appSettingsEntries,
+    sharedPackCache,
+    sharedMembershipCache,
+    sharedItemCache,
+    sharedPendingMutation,
   ];
 }
 
@@ -17623,6 +20393,1339 @@ typedef $$AppSettingsEntriesTableProcessedTableManager =
       AppSettingsRow,
       PrefetchHooks Function()
     >;
+typedef $$SharedPackCacheTableCreateCompanionBuilder =
+    SharedPackCacheCompanion Function({
+      Value<int> localId,
+      required String remotePackId,
+      required String title,
+      Value<String?> description,
+      required String iconEmoji,
+      required int remotePackVersion,
+      required int remoteSnapshotSchemaVersion,
+      required String snapshotFingerprint,
+      required String trustState,
+      Value<String?> trustFailureReason,
+      required int lastVerifiedAt,
+      required int remoteCreatedAt,
+      required int remoteUpdatedAt,
+    });
+typedef $$SharedPackCacheTableUpdateCompanionBuilder =
+    SharedPackCacheCompanion Function({
+      Value<int> localId,
+      Value<String> remotePackId,
+      Value<String> title,
+      Value<String?> description,
+      Value<String> iconEmoji,
+      Value<int> remotePackVersion,
+      Value<int> remoteSnapshotSchemaVersion,
+      Value<String> snapshotFingerprint,
+      Value<String> trustState,
+      Value<String?> trustFailureReason,
+      Value<int> lastVerifiedAt,
+      Value<int> remoteCreatedAt,
+      Value<int> remoteUpdatedAt,
+    });
+
+class $$SharedPackCacheTableFilterComposer
+    extends Composer<_$AppDatabase, $SharedPackCacheTable> {
+  $$SharedPackCacheTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get localId => $composableBuilder(
+    column: $table.localId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remotePackId => $composableBuilder(
+    column: $table.remotePackId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get iconEmoji => $composableBuilder(
+    column: $table.iconEmoji,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get remotePackVersion => $composableBuilder(
+    column: $table.remotePackVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get remoteSnapshotSchemaVersion => $composableBuilder(
+    column: $table.remoteSnapshotSchemaVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get snapshotFingerprint => $composableBuilder(
+    column: $table.snapshotFingerprint,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get trustState => $composableBuilder(
+    column: $table.trustState,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get trustFailureReason => $composableBuilder(
+    column: $table.trustFailureReason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastVerifiedAt => $composableBuilder(
+    column: $table.lastVerifiedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get remoteCreatedAt => $composableBuilder(
+    column: $table.remoteCreatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SharedPackCacheTableOrderingComposer
+    extends Composer<_$AppDatabase, $SharedPackCacheTable> {
+  $$SharedPackCacheTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get localId => $composableBuilder(
+    column: $table.localId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get remotePackId => $composableBuilder(
+    column: $table.remotePackId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get iconEmoji => $composableBuilder(
+    column: $table.iconEmoji,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get remotePackVersion => $composableBuilder(
+    column: $table.remotePackVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get remoteSnapshotSchemaVersion => $composableBuilder(
+    column: $table.remoteSnapshotSchemaVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get snapshotFingerprint => $composableBuilder(
+    column: $table.snapshotFingerprint,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get trustState => $composableBuilder(
+    column: $table.trustState,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get trustFailureReason => $composableBuilder(
+    column: $table.trustFailureReason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastVerifiedAt => $composableBuilder(
+    column: $table.lastVerifiedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get remoteCreatedAt => $composableBuilder(
+    column: $table.remoteCreatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SharedPackCacheTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SharedPackCacheTable> {
+  $$SharedPackCacheTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get localId =>
+      $composableBuilder(column: $table.localId, builder: (column) => column);
+
+  GeneratedColumn<String> get remotePackId => $composableBuilder(
+    column: $table.remotePackId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get iconEmoji =>
+      $composableBuilder(column: $table.iconEmoji, builder: (column) => column);
+
+  GeneratedColumn<int> get remotePackVersion => $composableBuilder(
+    column: $table.remotePackVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get remoteSnapshotSchemaVersion => $composableBuilder(
+    column: $table.remoteSnapshotSchemaVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get snapshotFingerprint => $composableBuilder(
+    column: $table.snapshotFingerprint,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get trustState => $composableBuilder(
+    column: $table.trustState,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get trustFailureReason => $composableBuilder(
+    column: $table.trustFailureReason,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastVerifiedAt => $composableBuilder(
+    column: $table.lastVerifiedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get remoteCreatedAt => $composableBuilder(
+    column: $table.remoteCreatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$SharedPackCacheTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SharedPackCacheTable,
+          SharedPackCacheRow,
+          $$SharedPackCacheTableFilterComposer,
+          $$SharedPackCacheTableOrderingComposer,
+          $$SharedPackCacheTableAnnotationComposer,
+          $$SharedPackCacheTableCreateCompanionBuilder,
+          $$SharedPackCacheTableUpdateCompanionBuilder,
+          (
+            SharedPackCacheRow,
+            BaseReferences<
+              _$AppDatabase,
+              $SharedPackCacheTable,
+              SharedPackCacheRow
+            >,
+          ),
+          SharedPackCacheRow,
+          PrefetchHooks Function()
+        > {
+  $$SharedPackCacheTableTableManager(
+    _$AppDatabase db,
+    $SharedPackCacheTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SharedPackCacheTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SharedPackCacheTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SharedPackCacheTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> localId = const Value.absent(),
+                Value<String> remotePackId = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<String> iconEmoji = const Value.absent(),
+                Value<int> remotePackVersion = const Value.absent(),
+                Value<int> remoteSnapshotSchemaVersion = const Value.absent(),
+                Value<String> snapshotFingerprint = const Value.absent(),
+                Value<String> trustState = const Value.absent(),
+                Value<String?> trustFailureReason = const Value.absent(),
+                Value<int> lastVerifiedAt = const Value.absent(),
+                Value<int> remoteCreatedAt = const Value.absent(),
+                Value<int> remoteUpdatedAt = const Value.absent(),
+              }) => SharedPackCacheCompanion(
+                localId: localId,
+                remotePackId: remotePackId,
+                title: title,
+                description: description,
+                iconEmoji: iconEmoji,
+                remotePackVersion: remotePackVersion,
+                remoteSnapshotSchemaVersion: remoteSnapshotSchemaVersion,
+                snapshotFingerprint: snapshotFingerprint,
+                trustState: trustState,
+                trustFailureReason: trustFailureReason,
+                lastVerifiedAt: lastVerifiedAt,
+                remoteCreatedAt: remoteCreatedAt,
+                remoteUpdatedAt: remoteUpdatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> localId = const Value.absent(),
+                required String remotePackId,
+                required String title,
+                Value<String?> description = const Value.absent(),
+                required String iconEmoji,
+                required int remotePackVersion,
+                required int remoteSnapshotSchemaVersion,
+                required String snapshotFingerprint,
+                required String trustState,
+                Value<String?> trustFailureReason = const Value.absent(),
+                required int lastVerifiedAt,
+                required int remoteCreatedAt,
+                required int remoteUpdatedAt,
+              }) => SharedPackCacheCompanion.insert(
+                localId: localId,
+                remotePackId: remotePackId,
+                title: title,
+                description: description,
+                iconEmoji: iconEmoji,
+                remotePackVersion: remotePackVersion,
+                remoteSnapshotSchemaVersion: remoteSnapshotSchemaVersion,
+                snapshotFingerprint: snapshotFingerprint,
+                trustState: trustState,
+                trustFailureReason: trustFailureReason,
+                lastVerifiedAt: lastVerifiedAt,
+                remoteCreatedAt: remoteCreatedAt,
+                remoteUpdatedAt: remoteUpdatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SharedPackCacheTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SharedPackCacheTable,
+      SharedPackCacheRow,
+      $$SharedPackCacheTableFilterComposer,
+      $$SharedPackCacheTableOrderingComposer,
+      $$SharedPackCacheTableAnnotationComposer,
+      $$SharedPackCacheTableCreateCompanionBuilder,
+      $$SharedPackCacheTableUpdateCompanionBuilder,
+      (
+        SharedPackCacheRow,
+        BaseReferences<
+          _$AppDatabase,
+          $SharedPackCacheTable,
+          SharedPackCacheRow
+        >,
+      ),
+      SharedPackCacheRow,
+      PrefetchHooks Function()
+    >;
+typedef $$SharedMembershipCacheTableCreateCompanionBuilder =
+    SharedMembershipCacheCompanion Function({
+      Value<int> localId,
+      required String remoteMemberId,
+      required String remotePackId,
+      required String role,
+      required String displayName,
+      required int joinedAt,
+      Value<bool> isCurrentMembership,
+    });
+typedef $$SharedMembershipCacheTableUpdateCompanionBuilder =
+    SharedMembershipCacheCompanion Function({
+      Value<int> localId,
+      Value<String> remoteMemberId,
+      Value<String> remotePackId,
+      Value<String> role,
+      Value<String> displayName,
+      Value<int> joinedAt,
+      Value<bool> isCurrentMembership,
+    });
+
+class $$SharedMembershipCacheTableFilterComposer
+    extends Composer<_$AppDatabase, $SharedMembershipCacheTable> {
+  $$SharedMembershipCacheTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get localId => $composableBuilder(
+    column: $table.localId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remoteMemberId => $composableBuilder(
+    column: $table.remoteMemberId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remotePackId => $composableBuilder(
+    column: $table.remotePackId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get displayName => $composableBuilder(
+    column: $table.displayName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get joinedAt => $composableBuilder(
+    column: $table.joinedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isCurrentMembership => $composableBuilder(
+    column: $table.isCurrentMembership,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SharedMembershipCacheTableOrderingComposer
+    extends Composer<_$AppDatabase, $SharedMembershipCacheTable> {
+  $$SharedMembershipCacheTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get localId => $composableBuilder(
+    column: $table.localId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get remoteMemberId => $composableBuilder(
+    column: $table.remoteMemberId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get remotePackId => $composableBuilder(
+    column: $table.remotePackId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get displayName => $composableBuilder(
+    column: $table.displayName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get joinedAt => $composableBuilder(
+    column: $table.joinedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isCurrentMembership => $composableBuilder(
+    column: $table.isCurrentMembership,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SharedMembershipCacheTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SharedMembershipCacheTable> {
+  $$SharedMembershipCacheTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get localId =>
+      $composableBuilder(column: $table.localId, builder: (column) => column);
+
+  GeneratedColumn<String> get remoteMemberId => $composableBuilder(
+    column: $table.remoteMemberId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get remotePackId => $composableBuilder(
+    column: $table.remotePackId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get role =>
+      $composableBuilder(column: $table.role, builder: (column) => column);
+
+  GeneratedColumn<String> get displayName => $composableBuilder(
+    column: $table.displayName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get joinedAt =>
+      $composableBuilder(column: $table.joinedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isCurrentMembership => $composableBuilder(
+    column: $table.isCurrentMembership,
+    builder: (column) => column,
+  );
+}
+
+class $$SharedMembershipCacheTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SharedMembershipCacheTable,
+          SharedMembershipCacheRow,
+          $$SharedMembershipCacheTableFilterComposer,
+          $$SharedMembershipCacheTableOrderingComposer,
+          $$SharedMembershipCacheTableAnnotationComposer,
+          $$SharedMembershipCacheTableCreateCompanionBuilder,
+          $$SharedMembershipCacheTableUpdateCompanionBuilder,
+          (
+            SharedMembershipCacheRow,
+            BaseReferences<
+              _$AppDatabase,
+              $SharedMembershipCacheTable,
+              SharedMembershipCacheRow
+            >,
+          ),
+          SharedMembershipCacheRow,
+          PrefetchHooks Function()
+        > {
+  $$SharedMembershipCacheTableTableManager(
+    _$AppDatabase db,
+    $SharedMembershipCacheTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SharedMembershipCacheTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$SharedMembershipCacheTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$SharedMembershipCacheTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> localId = const Value.absent(),
+                Value<String> remoteMemberId = const Value.absent(),
+                Value<String> remotePackId = const Value.absent(),
+                Value<String> role = const Value.absent(),
+                Value<String> displayName = const Value.absent(),
+                Value<int> joinedAt = const Value.absent(),
+                Value<bool> isCurrentMembership = const Value.absent(),
+              }) => SharedMembershipCacheCompanion(
+                localId: localId,
+                remoteMemberId: remoteMemberId,
+                remotePackId: remotePackId,
+                role: role,
+                displayName: displayName,
+                joinedAt: joinedAt,
+                isCurrentMembership: isCurrentMembership,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> localId = const Value.absent(),
+                required String remoteMemberId,
+                required String remotePackId,
+                required String role,
+                required String displayName,
+                required int joinedAt,
+                Value<bool> isCurrentMembership = const Value.absent(),
+              }) => SharedMembershipCacheCompanion.insert(
+                localId: localId,
+                remoteMemberId: remoteMemberId,
+                remotePackId: remotePackId,
+                role: role,
+                displayName: displayName,
+                joinedAt: joinedAt,
+                isCurrentMembership: isCurrentMembership,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SharedMembershipCacheTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SharedMembershipCacheTable,
+      SharedMembershipCacheRow,
+      $$SharedMembershipCacheTableFilterComposer,
+      $$SharedMembershipCacheTableOrderingComposer,
+      $$SharedMembershipCacheTableAnnotationComposer,
+      $$SharedMembershipCacheTableCreateCompanionBuilder,
+      $$SharedMembershipCacheTableUpdateCompanionBuilder,
+      (
+        SharedMembershipCacheRow,
+        BaseReferences<
+          _$AppDatabase,
+          $SharedMembershipCacheTable,
+          SharedMembershipCacheRow
+        >,
+      ),
+      SharedMembershipCacheRow,
+      PrefetchHooks Function()
+    >;
+typedef $$SharedItemCacheTableCreateCompanionBuilder =
+    SharedItemCacheCompanion Function({
+      Value<int> localId,
+      required String remoteItemId,
+      required String remotePackId,
+      required String title,
+      Value<String?> description,
+      Value<String> type,
+      Value<String> lifecycleStatus,
+      required int stateAnchorDate,
+      required int infoAfterMinutes,
+      required int warningAfterMinutes,
+      required int dangerAfterMinutes,
+      Value<int?> completedAt,
+      Value<String?> completedByMemberId,
+      required int remoteItemVersion,
+      required int remoteCreatedAt,
+      required int remoteUpdatedAt,
+    });
+typedef $$SharedItemCacheTableUpdateCompanionBuilder =
+    SharedItemCacheCompanion Function({
+      Value<int> localId,
+      Value<String> remoteItemId,
+      Value<String> remotePackId,
+      Value<String> title,
+      Value<String?> description,
+      Value<String> type,
+      Value<String> lifecycleStatus,
+      Value<int> stateAnchorDate,
+      Value<int> infoAfterMinutes,
+      Value<int> warningAfterMinutes,
+      Value<int> dangerAfterMinutes,
+      Value<int?> completedAt,
+      Value<String?> completedByMemberId,
+      Value<int> remoteItemVersion,
+      Value<int> remoteCreatedAt,
+      Value<int> remoteUpdatedAt,
+    });
+
+class $$SharedItemCacheTableFilterComposer
+    extends Composer<_$AppDatabase, $SharedItemCacheTable> {
+  $$SharedItemCacheTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get localId => $composableBuilder(
+    column: $table.localId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remoteItemId => $composableBuilder(
+    column: $table.remoteItemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remotePackId => $composableBuilder(
+    column: $table.remotePackId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lifecycleStatus => $composableBuilder(
+    column: $table.lifecycleStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get stateAnchorDate => $composableBuilder(
+    column: $table.stateAnchorDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get infoAfterMinutes => $composableBuilder(
+    column: $table.infoAfterMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get warningAfterMinutes => $composableBuilder(
+    column: $table.warningAfterMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get dangerAfterMinutes => $composableBuilder(
+    column: $table.dangerAfterMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get completedByMemberId => $composableBuilder(
+    column: $table.completedByMemberId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get remoteItemVersion => $composableBuilder(
+    column: $table.remoteItemVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get remoteCreatedAt => $composableBuilder(
+    column: $table.remoteCreatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SharedItemCacheTableOrderingComposer
+    extends Composer<_$AppDatabase, $SharedItemCacheTable> {
+  $$SharedItemCacheTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get localId => $composableBuilder(
+    column: $table.localId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get remoteItemId => $composableBuilder(
+    column: $table.remoteItemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get remotePackId => $composableBuilder(
+    column: $table.remotePackId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lifecycleStatus => $composableBuilder(
+    column: $table.lifecycleStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get stateAnchorDate => $composableBuilder(
+    column: $table.stateAnchorDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get infoAfterMinutes => $composableBuilder(
+    column: $table.infoAfterMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get warningAfterMinutes => $composableBuilder(
+    column: $table.warningAfterMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get dangerAfterMinutes => $composableBuilder(
+    column: $table.dangerAfterMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get completedByMemberId => $composableBuilder(
+    column: $table.completedByMemberId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get remoteItemVersion => $composableBuilder(
+    column: $table.remoteItemVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get remoteCreatedAt => $composableBuilder(
+    column: $table.remoteCreatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SharedItemCacheTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SharedItemCacheTable> {
+  $$SharedItemCacheTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get localId =>
+      $composableBuilder(column: $table.localId, builder: (column) => column);
+
+  GeneratedColumn<String> get remoteItemId => $composableBuilder(
+    column: $table.remoteItemId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get remotePackId => $composableBuilder(
+    column: $table.remotePackId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get lifecycleStatus => $composableBuilder(
+    column: $table.lifecycleStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get stateAnchorDate => $composableBuilder(
+    column: $table.stateAnchorDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get infoAfterMinutes => $composableBuilder(
+    column: $table.infoAfterMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get warningAfterMinutes => $composableBuilder(
+    column: $table.warningAfterMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get dangerAfterMinutes => $composableBuilder(
+    column: $table.dangerAfterMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get completedByMemberId => $composableBuilder(
+    column: $table.completedByMemberId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get remoteItemVersion => $composableBuilder(
+    column: $table.remoteItemVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get remoteCreatedAt => $composableBuilder(
+    column: $table.remoteCreatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$SharedItemCacheTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SharedItemCacheTable,
+          SharedItemCacheRow,
+          $$SharedItemCacheTableFilterComposer,
+          $$SharedItemCacheTableOrderingComposer,
+          $$SharedItemCacheTableAnnotationComposer,
+          $$SharedItemCacheTableCreateCompanionBuilder,
+          $$SharedItemCacheTableUpdateCompanionBuilder,
+          (
+            SharedItemCacheRow,
+            BaseReferences<
+              _$AppDatabase,
+              $SharedItemCacheTable,
+              SharedItemCacheRow
+            >,
+          ),
+          SharedItemCacheRow,
+          PrefetchHooks Function()
+        > {
+  $$SharedItemCacheTableTableManager(
+    _$AppDatabase db,
+    $SharedItemCacheTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SharedItemCacheTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SharedItemCacheTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SharedItemCacheTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> localId = const Value.absent(),
+                Value<String> remoteItemId = const Value.absent(),
+                Value<String> remotePackId = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<String> lifecycleStatus = const Value.absent(),
+                Value<int> stateAnchorDate = const Value.absent(),
+                Value<int> infoAfterMinutes = const Value.absent(),
+                Value<int> warningAfterMinutes = const Value.absent(),
+                Value<int> dangerAfterMinutes = const Value.absent(),
+                Value<int?> completedAt = const Value.absent(),
+                Value<String?> completedByMemberId = const Value.absent(),
+                Value<int> remoteItemVersion = const Value.absent(),
+                Value<int> remoteCreatedAt = const Value.absent(),
+                Value<int> remoteUpdatedAt = const Value.absent(),
+              }) => SharedItemCacheCompanion(
+                localId: localId,
+                remoteItemId: remoteItemId,
+                remotePackId: remotePackId,
+                title: title,
+                description: description,
+                type: type,
+                lifecycleStatus: lifecycleStatus,
+                stateAnchorDate: stateAnchorDate,
+                infoAfterMinutes: infoAfterMinutes,
+                warningAfterMinutes: warningAfterMinutes,
+                dangerAfterMinutes: dangerAfterMinutes,
+                completedAt: completedAt,
+                completedByMemberId: completedByMemberId,
+                remoteItemVersion: remoteItemVersion,
+                remoteCreatedAt: remoteCreatedAt,
+                remoteUpdatedAt: remoteUpdatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> localId = const Value.absent(),
+                required String remoteItemId,
+                required String remotePackId,
+                required String title,
+                Value<String?> description = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<String> lifecycleStatus = const Value.absent(),
+                required int stateAnchorDate,
+                required int infoAfterMinutes,
+                required int warningAfterMinutes,
+                required int dangerAfterMinutes,
+                Value<int?> completedAt = const Value.absent(),
+                Value<String?> completedByMemberId = const Value.absent(),
+                required int remoteItemVersion,
+                required int remoteCreatedAt,
+                required int remoteUpdatedAt,
+              }) => SharedItemCacheCompanion.insert(
+                localId: localId,
+                remoteItemId: remoteItemId,
+                remotePackId: remotePackId,
+                title: title,
+                description: description,
+                type: type,
+                lifecycleStatus: lifecycleStatus,
+                stateAnchorDate: stateAnchorDate,
+                infoAfterMinutes: infoAfterMinutes,
+                warningAfterMinutes: warningAfterMinutes,
+                dangerAfterMinutes: dangerAfterMinutes,
+                completedAt: completedAt,
+                completedByMemberId: completedByMemberId,
+                remoteItemVersion: remoteItemVersion,
+                remoteCreatedAt: remoteCreatedAt,
+                remoteUpdatedAt: remoteUpdatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SharedItemCacheTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SharedItemCacheTable,
+      SharedItemCacheRow,
+      $$SharedItemCacheTableFilterComposer,
+      $$SharedItemCacheTableOrderingComposer,
+      $$SharedItemCacheTableAnnotationComposer,
+      $$SharedItemCacheTableCreateCompanionBuilder,
+      $$SharedItemCacheTableUpdateCompanionBuilder,
+      (
+        SharedItemCacheRow,
+        BaseReferences<
+          _$AppDatabase,
+          $SharedItemCacheTable,
+          SharedItemCacheRow
+        >,
+      ),
+      SharedItemCacheRow,
+      PrefetchHooks Function()
+    >;
+typedef $$SharedPendingMutationTableCreateCompanionBuilder =
+    SharedPendingMutationCompanion Function({
+      Value<int> localId,
+      required String operationName,
+      required String clientRequestId,
+      Value<String?> targetRemotePackId,
+      required String payloadFingerprint,
+      required int createdAt,
+      Value<String> status,
+    });
+typedef $$SharedPendingMutationTableUpdateCompanionBuilder =
+    SharedPendingMutationCompanion Function({
+      Value<int> localId,
+      Value<String> operationName,
+      Value<String> clientRequestId,
+      Value<String?> targetRemotePackId,
+      Value<String> payloadFingerprint,
+      Value<int> createdAt,
+      Value<String> status,
+    });
+
+class $$SharedPendingMutationTableFilterComposer
+    extends Composer<_$AppDatabase, $SharedPendingMutationTable> {
+  $$SharedPendingMutationTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get localId => $composableBuilder(
+    column: $table.localId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get operationName => $composableBuilder(
+    column: $table.operationName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get clientRequestId => $composableBuilder(
+    column: $table.clientRequestId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get targetRemotePackId => $composableBuilder(
+    column: $table.targetRemotePackId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payloadFingerprint => $composableBuilder(
+    column: $table.payloadFingerprint,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SharedPendingMutationTableOrderingComposer
+    extends Composer<_$AppDatabase, $SharedPendingMutationTable> {
+  $$SharedPendingMutationTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get localId => $composableBuilder(
+    column: $table.localId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get operationName => $composableBuilder(
+    column: $table.operationName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get clientRequestId => $composableBuilder(
+    column: $table.clientRequestId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get targetRemotePackId => $composableBuilder(
+    column: $table.targetRemotePackId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payloadFingerprint => $composableBuilder(
+    column: $table.payloadFingerprint,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SharedPendingMutationTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SharedPendingMutationTable> {
+  $$SharedPendingMutationTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get localId =>
+      $composableBuilder(column: $table.localId, builder: (column) => column);
+
+  GeneratedColumn<String> get operationName => $composableBuilder(
+    column: $table.operationName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get clientRequestId => $composableBuilder(
+    column: $table.clientRequestId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get targetRemotePackId => $composableBuilder(
+    column: $table.targetRemotePackId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get payloadFingerprint => $composableBuilder(
+    column: $table.payloadFingerprint,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+}
+
+class $$SharedPendingMutationTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SharedPendingMutationTable,
+          SharedPendingMutationRow,
+          $$SharedPendingMutationTableFilterComposer,
+          $$SharedPendingMutationTableOrderingComposer,
+          $$SharedPendingMutationTableAnnotationComposer,
+          $$SharedPendingMutationTableCreateCompanionBuilder,
+          $$SharedPendingMutationTableUpdateCompanionBuilder,
+          (
+            SharedPendingMutationRow,
+            BaseReferences<
+              _$AppDatabase,
+              $SharedPendingMutationTable,
+              SharedPendingMutationRow
+            >,
+          ),
+          SharedPendingMutationRow,
+          PrefetchHooks Function()
+        > {
+  $$SharedPendingMutationTableTableManager(
+    _$AppDatabase db,
+    $SharedPendingMutationTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SharedPendingMutationTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$SharedPendingMutationTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$SharedPendingMutationTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> localId = const Value.absent(),
+                Value<String> operationName = const Value.absent(),
+                Value<String> clientRequestId = const Value.absent(),
+                Value<String?> targetRemotePackId = const Value.absent(),
+                Value<String> payloadFingerprint = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<String> status = const Value.absent(),
+              }) => SharedPendingMutationCompanion(
+                localId: localId,
+                operationName: operationName,
+                clientRequestId: clientRequestId,
+                targetRemotePackId: targetRemotePackId,
+                payloadFingerprint: payloadFingerprint,
+                createdAt: createdAt,
+                status: status,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> localId = const Value.absent(),
+                required String operationName,
+                required String clientRequestId,
+                Value<String?> targetRemotePackId = const Value.absent(),
+                required String payloadFingerprint,
+                required int createdAt,
+                Value<String> status = const Value.absent(),
+              }) => SharedPendingMutationCompanion.insert(
+                localId: localId,
+                operationName: operationName,
+                clientRequestId: clientRequestId,
+                targetRemotePackId: targetRemotePackId,
+                payloadFingerprint: payloadFingerprint,
+                createdAt: createdAt,
+                status: status,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SharedPendingMutationTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SharedPendingMutationTable,
+      SharedPendingMutationRow,
+      $$SharedPendingMutationTableFilterComposer,
+      $$SharedPendingMutationTableOrderingComposer,
+      $$SharedPendingMutationTableAnnotationComposer,
+      $$SharedPendingMutationTableCreateCompanionBuilder,
+      $$SharedPendingMutationTableUpdateCompanionBuilder,
+      (
+        SharedPendingMutationRow,
+        BaseReferences<
+          _$AppDatabase,
+          $SharedPendingMutationTable,
+          SharedPendingMutationRow
+        >,
+      ),
+      SharedPendingMutationRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -17656,4 +21759,12 @@ class $AppDatabaseManager {
       $$StageRelatedItemsTableTableManager(_db, _db.stageRelatedItems);
   $$AppSettingsEntriesTableTableManager get appSettingsEntries =>
       $$AppSettingsEntriesTableTableManager(_db, _db.appSettingsEntries);
+  $$SharedPackCacheTableTableManager get sharedPackCache =>
+      $$SharedPackCacheTableTableManager(_db, _db.sharedPackCache);
+  $$SharedMembershipCacheTableTableManager get sharedMembershipCache =>
+      $$SharedMembershipCacheTableTableManager(_db, _db.sharedMembershipCache);
+  $$SharedItemCacheTableTableManager get sharedItemCache =>
+      $$SharedItemCacheTableTableManager(_db, _db.sharedItemCache);
+  $$SharedPendingMutationTableTableManager get sharedPendingMutation =>
+      $$SharedPendingMutationTableTableManager(_db, _db.sharedPendingMutation);
 }

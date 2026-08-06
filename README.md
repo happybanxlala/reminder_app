@@ -17,8 +17,7 @@ Flutter MVP for a split reminder product model:
 - `docs/core/08_shared_pack_runtime_consistency_spec_v1.md`：planned Shared Pack client runtime consistency, response ordering, cache trust, freshness, idempotent retry, and projection failure semantics。
 - Drift schema implementation：`lib/features/reminders/data/local/`
 
-Shared Pack is planned only. This repository currently has no production Shared Pack remote API, Supabase dependency, remote table, RPC, auth flow, Shared Drift cache table, or Shared Pack UI route.
-Shared Pack Phase 0.7 is documentation-only and defines the planned runtime consistency contract needed before Phase 1 technical design.
+Shared Pack v6 local storage capacity and the Phase 2a contract skeleton are implemented. The repository still has no production Shared cache read/projector/runtime, remote API, Supabase dependency, remote table, RPC, auth flow, provider, or Shared Pack UI route.
 
 StageTracker 模型採 rule-first：
 
@@ -30,8 +29,8 @@ StageTracker 模型採 rule-first：
 
 ## Drift Schema Note
 
-- `driftSchemaVersion` 為 `5`，來源是 `AppDatabase.schemaVersion`。
-- 現行表結構以 `lib/features/reminders/data/local/tables.dart` 為準。
+- `driftSchemaVersion` 為 `6`，來源是 `AppDatabase.schemaVersion`。
+- Personal 表結構位於 `lib/features/reminders/data/local/tables.dart`；Shared v6 declarations 位於 `lib/features/shared_packs/data/local/shared_pack_cache_tables.dart`。
 - `backupFormatVersion` 目前為 `1`，來源是 `BackupPayload.currentSchemaVersion`；JSON 欄位仍名為 `schemaVersion`，但它不是 Drift schema version。
 - `widgetSnapshotSchemaVersion` 目前為 `1`，來源是 `HomeWidgetSnapshot.currentSchemaVersion` 與 native widget supported schema。
 - `remoteApiContractVersion = 1` / `remoteSnapshotSchemaVersion = 1` are planned contract values，尚未有 production API。

@@ -5,6 +5,8 @@ import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../../shared_packs/data/local/shared_pack_cache_dao.dart';
+import '../../../shared_packs/data/local/shared_pack_cache_tables.dart';
 import 'reminder_dao.dart';
 import 'tables.dart';
 
@@ -25,8 +27,12 @@ part 'app_database.g.dart';
     StageRecords,
     StageRelatedItems,
     AppSettingsEntries,
+    SharedPackCache,
+    SharedMembershipCache,
+    SharedItemCache,
+    SharedPendingMutation,
   ],
-  daos: [ReminderDao],
+  daos: [ReminderDao, SharedPackCacheDao],
 )
 class AppDatabase extends _$AppDatabase {
   static const systemDefaultPackTitle = '一般';
@@ -37,16 +43,26 @@ class AppDatabase extends _$AppDatabase {
   static const systemDefaultStageTrackerSubject = '系統';
   static const systemDefaultStageTrackerKey = 'reminder_app';
 
-  AppDatabase() : super(_openConnection());
-  AppDatabase.forTesting(super.executor);
+  AppDatabase() : _v6MigrationTestHook = null, super(_openConnection());
+  AppDatabase.forTesting(
+    super.executor, {
+    Future<void> Function()? v6MigrationTestHook,
+  }) : _v6MigrationTestHook = v6MigrationTestHook;
+
+  final Future<void> Function()? _v6MigrationTestHook;
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-    onCreate: (m) => m.createAll(),
+    onCreate: (m) async {
+      await _enableForeignKeys();
+      await m.createAll();
+      await _createSharedIndexes();
+    },
     onUpgrade: (m, from, to) async {
+      await _enableForeignKeys();
       if (from < 2) {
         await _upgradeToV2(m);
       }
@@ -59,8 +75,12 @@ class AppDatabase extends _$AppDatabase {
       if (from < 5) {
         await _upgradeToV5(m);
       }
+      if (from < 6) {
+        await transaction(() => _upgradeToV6(m));
+      }
     },
     beforeOpen: (details) async {
+      await _enableForeignKeys();
       await _ensureSystemDefaultPack();
       await _ensureAppSettings();
       await _ensureSystemDefaultStageTracker();
@@ -167,6 +187,35 @@ class AppDatabase extends _$AppDatabase {
   Future<void> _upgradeToV5(Migrator m) async {
     await m.createTable(packTemplates);
     await m.createTable(packTemplateItems);
+  }
+
+  Future<void> _upgradeToV6(Migrator m) async {
+    await m.createTable(sharedPackCache);
+    await _createIndexes(sharedPackCacheIndexStatements);
+    await m.createTable(sharedMembershipCache);
+    await _createIndexes(sharedMembershipCacheIndexStatements);
+    await _v6MigrationTestHook?.call();
+    await m.createTable(sharedItemCache);
+    await _createIndexes(sharedItemCacheIndexStatements);
+    await m.createTable(sharedPendingMutation);
+    await _createIndexes(sharedPendingMutationIndexStatements);
+  }
+
+  Future<void> _enableForeignKeys() {
+    return customStatement('PRAGMA foreign_keys = ON');
+  }
+
+  Future<void> _createSharedIndexes() async {
+    await _createIndexes(sharedPackCacheIndexStatements);
+    await _createIndexes(sharedMembershipCacheIndexStatements);
+    await _createIndexes(sharedItemCacheIndexStatements);
+    await _createIndexes(sharedPendingMutationIndexStatements);
+  }
+
+  Future<void> _createIndexes(Iterable<String> statements) async {
+    for (final statement in statements) {
+      await customStatement(statement);
+    }
   }
 
   Future<void> _ensureSystemDefaultPack() async {
@@ -302,6 +351,9 @@ LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final dbFolder = await getApplicationDocumentsDirectory();
     final file = File(p.join(dbFolder.path, 'reminder_app.sqlite'));
-    return NativeDatabase.createInBackground(file);
+    return NativeDatabase.createInBackground(
+      file,
+      setup: (database) => database.execute('PRAGMA foreign_keys = ON'),
+    );
   });
 }

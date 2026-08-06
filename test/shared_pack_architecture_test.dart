@@ -62,6 +62,67 @@ void main() {
     }
     expect(source, isNot(contains('call(String operation')));
   });
+
+  test(
+    'Shared Drift persistence remains feature-owned and Personal-isolated',
+    () {
+      final tableSource = File(
+        'lib/features/shared_packs/data/local/shared_pack_cache_tables.dart',
+      ).readAsStringSync();
+      final daoSource = File(
+        'lib/features/shared_packs/data/local/shared_pack_cache_dao.dart',
+      ).readAsStringSync();
+      final personalTables = File(
+        'lib/features/reminders/data/local/tables.dart',
+      ).readAsStringSync();
+      final reminderDao = File(
+        'lib/features/reminders/data/local/reminder_dao.dart',
+      ).readAsStringSync();
+      final database = File(
+        'lib/features/reminders/data/local/app_database.dart',
+      ).readAsStringSync();
+
+      for (final table in const <String>[
+        'shared_pack_cache',
+        'shared_membership_cache',
+        'shared_item_cache',
+        'shared_pending_mutation',
+      ]) {
+        expect(tableSource, contains(table));
+        expect(personalTables, isNot(contains(table)));
+        expect(reminderDao, isNot(contains(table)));
+      }
+      expect(database, contains('SharedPackCacheDao'));
+      expect(database, contains('SharedPackCache'));
+      expect(reminderDao, isNot(contains('shared_pack_cache_dao.dart')));
+      expect(daoSource, isNot(contains('/domain/')));
+      expect(daoSource, isNot(contains('package:flutter/')));
+      expect(daoSource, isNot(contains('package:flutter_riverpod/')));
+      expect(daoSource, isNot(contains('package:go_router/')));
+      expect(daoSource, isNot(contains('package:supabase')));
+      expect(daoSource, contains('required String remotePackId'));
+      expect(daoSource, contains('required String remoteItemId'));
+
+      for (final root in const <String>[
+        'lib/features/reminders/data',
+        'lib/features/reminders/providers',
+        'lib/features/home_widget',
+      ]) {
+        for (final file in _dartFiles(root)) {
+          if (root == 'lib/features/reminders/data' &&
+              !file.path.endsWith('_repository.dart')) {
+            continue;
+          }
+          final source = file.readAsStringSync();
+          expect(
+            source,
+            isNot(contains('shared_pack_cache_dao.dart')),
+            reason: file.path,
+          );
+        }
+      }
+    },
+  );
 }
 
 List<File> _dartFiles(String path) => Directory(path)
