@@ -72,6 +72,10 @@ void main() {
       final daoSource = File(
         'lib/features/shared_packs/data/local/shared_pack_cache_dao.dart',
       ).readAsStringSync();
+      final readAdapterSource = File(
+        'lib/features/shared_packs/data/local/'
+        'drift_shared_cache_read_adapter.dart',
+      ).readAsStringSync();
       final personalTables = File(
         'lib/features/reminders/data/local/tables.dart',
       ).readAsStringSync();
@@ -102,6 +106,15 @@ void main() {
       expect(daoSource, isNot(contains('package:supabase')));
       expect(daoSource, contains('required String remotePackId'));
       expect(daoSource, contains('required String remoteItemId'));
+      expect(readAdapterSource, contains('implements SharedCacheReadPort'));
+      expect(readAdapterSource, contains('SharedPackCacheDao'));
+      expect(readAdapterSource, isNot(contains('ItemRepository')));
+      expect(readAdapterSource, isNot(contains('ReminderDao')));
+      expect(readAdapterSource, isNot(contains('HomeRepository')));
+      expect(readAdapterSource, isNot(contains('package:flutter/')));
+      expect(readAdapterSource, isNot(contains('package:flutter_riverpod/')));
+      expect(readAdapterSource, isNot(contains('package:go_router/')));
+      expect(readAdapterSource, isNot(contains('package:supabase')));
 
       for (final root in const <String>[
         'lib/features/reminders/data',
@@ -123,6 +136,33 @@ void main() {
       }
     },
   );
+
+  test('Phase 2c adds no Shared provider, route, or UI implementation', () {
+    expect(
+      Directory('lib/features/shared_packs/providers').existsSync(),
+      isFalse,
+    );
+    expect(Directory('lib/features/shared_packs/ui').existsSync(), isFalse);
+
+    final router = File('lib/app/router.dart').readAsStringSync();
+    expect(router, isNot(contains('/shared-packs')));
+    expect(router, isNot(contains('shared-pack-detail')));
+
+    for (final root in const <String>[
+      'lib/features/reminders/providers',
+      'lib/features/reminders/data/home_repository.dart',
+      'lib/features/home_widget',
+    ]) {
+      final files = FileSystemEntity.isDirectorySync(root)
+          ? _dartFiles(root)
+          : [File(root)];
+      for (final file in files) {
+        final source = file.readAsStringSync();
+        expect(source, isNot(contains('DriftSharedCacheReadAdapter')));
+        expect(source, isNot(contains('SharedCacheReadPort')));
+      }
+    }
+  });
 }
 
 List<File> _dartFiles(String path) => Directory(path)

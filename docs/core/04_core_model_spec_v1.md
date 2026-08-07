@@ -111,7 +111,7 @@ shared_pending_mutation
 - `PRAGMA foreign_keys = ON` 適用於正常 connection、fresh database 與 migration path。
 - Personal backup format v1 不包含 Shared rows；Personal import/reset 保留 Shared cache、trust 與 pending mutation。
 - 現有 `item_packs`、`items`、`item_action_records` 與 `ReminderDao` 繼續只代表 Personal / local-first domain。
-- Shared cache 尚未接入 read layer、snapshot decoding/validation、fingerprint calculation、projector、runtime coordinator、remote API、provider、route、UI、Home、Home Widget 或 notification。
+- Shared cache 已透過 feature-owned `DriftSharedCacheReadAdapter` 接入只讀 list/detail/member/active-Item/pending stream 與 mutation-base read；仍未接入 snapshot decoding/validation、fingerprint calculation、projector、runtime coordinator、remote API、provider、route、UI、Home、Home Widget 或 notification。
 
 ### 1.6 Version naming
 

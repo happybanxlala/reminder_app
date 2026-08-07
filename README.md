@@ -17,7 +17,10 @@ Flutter MVP for a split reminder product model:
 - `docs/core/08_shared_pack_runtime_consistency_spec_v1.md`：planned Shared Pack client runtime consistency, response ordering, cache trust, freshness, idempotent retry, and projection failure semantics。
 - Drift schema implementation：`lib/features/reminders/data/local/`
 
-Shared Pack v6 local storage capacity and the Phase 2a contract skeleton are implemented. The repository still has no production Shared cache read/projector/runtime, remote API, Supabase dependency, remote table, RPC, auth flow, provider, or Shared Pack UI route.
+Shared Pack v6 local storage capacity, the Phase 2a contract skeleton, and the
+Phase 2c Drift-backed local cache read adapter are implemented. The repository
+still has no production Shared projector/runtime, remote API, Supabase
+dependency, remote table, RPC, auth flow, provider, or Shared Pack UI route.
 
 StageTracker 模型採 rule-first：
 
